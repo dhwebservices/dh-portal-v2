@@ -52,6 +52,7 @@ export default function StaffProfile() {
   const email = decodeURIComponent(encodedEmail || '')
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { instance } = useMsal()
   const [tab, setTab]           = useState('profile')
   const [profile, setProfile]   = useState({ ...EMPTY })
   const [profileId, setProfileId] = useState(null)
