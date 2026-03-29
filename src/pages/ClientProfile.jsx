@@ -47,13 +47,13 @@ export default function ClientProfile() {
     if (!id) return
     Promise.all([
       supabase.from('clients').select('*').eq('id', id).maybeSingle(),
-      supabase.from('client_invoices').select('*').eq('client_id', id).order('created_at', { ascending:false }),
+      fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
       supabase.from('gocardless_mandates').select('*').eq('client_id', id).maybeSingle(),
     ]).then(async ([{ data: c }, { data: inv }, { data: gc }]) => {
       if (!c) { navigate('/clients'); return }
       setClient(c)
       setForm({ ...c })
-      setInvoices(inv || [])
+      setInvoices(Array.isArray(inv) ? inv : [])
       setGcStatus(gc)
       setLoading(false)
       // Load activity by email
@@ -152,24 +152,65 @@ export default function ClientProfile() {
     } catch (e) { setGcError(e.message) }
   }
 
+  const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
+  const sbHeaders = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+
   const createInvoice = async () => {
+    if (!invForm.description?.trim() || !invForm.amount) { alert('Description and amount are required'); return }
     setSaving(true)
-    const inv = { ...invForm, client_id: id, client_email: client.email, client_name: client.name, created_by: user?.name, created_at: new Date().toISOString(), status: 'unpaid' }
-    await supabase.from('client_invoices').insert([inv])
-    // Send invoice email
-    await sendEmail('invoice_issued', { clientEmail: client.email, clientName: client.name, ...invForm })
-    // If DD mandate active + one_off, collect via GoCardless
-    if (gcStatus?.mandate_id && invForm.payment_type === 'one_off' && invForm.amount) {
-      try { await createPayment(gcStatus.mandate_id, Number(invForm.amount), invForm.description) } catch {}
+    try {
+      const inv = {
+        client_id:     id,
+        client_email:  client.email,
+        client_name:   client.name,
+        invoice_number: invForm.invoice_number || null,
+        description:   invForm.description,
+        amount:        invForm.amount,
+        due_date:      invForm.due_date || null,
+        payment_type:  invForm.payment_type || 'one_off',
+        status:        'unpaid',
+        created_by:    user?.name || null,
+        created_at:    new Date().toISOString(),
+      }
+      // Use raw REST to avoid supabase-js columns= bug
+      const res = await fetch(`${SB_URL}/rest/v1/client_invoices`, {
+        method: 'POST', headers: sbHeaders, body: JSON.stringify(inv)
+      })
+      if (!res.ok) { const e = await res.text(); throw new Error(e) }
+
+      // Send invoice email
+      try { await sendEmail('invoice_issued', { clientEmail: client.email, clientName: client.name, ...invForm }) } catch {}
+
+      // If DD mandate active + one_off, collect via GoCardless
+      if (gcStatus?.mandate_id && invForm.payment_type === 'one_off' && invForm.amount) {
+        try { await createPayment(gcStatus.mandate_id, Number(invForm.amount), invForm.description) } catch {}
+      }
+
+      // Reload invoices via raw REST
+      const listRes = await fetch(`${SB_URL}/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      })
+      setInvoices(listRes.ok ? await listRes.json() : [])
+
+      setInvModal(false)
+      setInvForm({ invoice_number:'', description:'', amount:'', due_date:'', payment_type:'one_off' })
+    } catch (err) {
+      console.error('Invoice error:', err)
+      alert('Failed to create invoice: ' + err.message)
+    } finally {
+      setSaving(false)
     }
-    const { data } = await supabase.from('client_invoices').select('*').eq('client_id', id).order('created_at', { ascending:false })
-    setInvoices(data || [])
-    setSaving(false); setInvModal(false)
-    setInvForm({ invoice_number:'', description:'', amount:'', due_date:'', payment_type:'one_off' })
   }
 
   const markPaid = async (invId) => {
-    await supabase.from('client_invoices').update({ status:'paid', paid_at: new Date().toISOString() }).eq('id', invId)
+    const SB_URL2 = 'https://xtunnfdwltfesscmpove.supabase.co'
+    const SB_KEY2 = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
+    await fetch(`${SB_URL2}/rest/v1/client_invoices?id=eq.${invId}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY2, 'Authorization': 'Bearer ' + SB_KEY2, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() })
+    })
     setInvoices(p => p.map(i => i.id === invId ? { ...i, status:'paid' } : i))
   }
 
