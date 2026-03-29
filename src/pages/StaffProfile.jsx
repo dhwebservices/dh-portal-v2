@@ -74,39 +74,58 @@ export default function StaffProfile() {
     loadMsUsers()
   }, [email])
 
+  const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
+  const sbHeaders = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }
+
+  const sbGet = async (table, query) => {
+    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}&limit=1`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
+    if (!res.ok) return null
+    const data = await res.json()
+    return Array.isArray(data) ? (data[0] || null) : data
+  }
+
+  const sbGetMany = async (table, query) => {
+    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
+    if (!res.ok) return []
+    return await res.json()
+  }
+
   const loadAll = async () => {
     setLoading(true)
-    const [pRes, permRes, commsRes, docsRes] = await Promise.allSettled([
-      supabase.from('hr_profiles').select('*').ilike('user_email', email).maybeSingle(),
-      supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
-      supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending: false }),
-      supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false }),
-    ])
+    try {
+      const enc = encodeURIComponent(email)
+      const [p, perm, comms, docs] = await Promise.all([
+        sbGet('hr_profiles', `user_email=ilike.${enc}`),
+        sbGet('user_permissions', `user_email=ilike.${enc}`),
+        sbGetMany('commissions', `staff_email=ilike.${enc}&order=date.desc`),
+        sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
+      ])
 
-    const p    = pRes.status    === 'fulfilled' ? pRes.value.data    : null
-    const perm = permRes.status === 'fulfilled' ? permRes.value.data : null
+      if (p) {
+        setProfile(p)
+        setProfileId(p.id)
+        setPrevMgr(p.manager_email || '')
+      } else {
+        setProfile({})
+        setProfileId(null)
+        setPrevMgr('')
+      }
 
-    if (p) {
-      setProfile(p)
-      setProfileId(p.id)
-      setPrevMgr(p.manager_email || '')
-    } else {
-      setProfile({})
-      setProfileId(null)
-      setPrevMgr('')
+      if (perm) {
+        setPermId(perm.id)
+        setEditPerms(perm.permissions && Object.keys(perm.permissions).length ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
+        setOnboarding(!!perm.onboarding)
+        setBookable(perm.bookable_staff === true)
+      } else {
+        setPermId(null)
+      }
+
+      setComms(comms || [])
+      setDocs(docs || [])
+    } catch (err) {
+      console.error('Load error:', err)
     }
-
-    if (perm) {
-      setPermId(perm.id)
-      setEditPerms(perm.permissions && Object.keys(perm.permissions).length ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
-      setOnboarding(!!perm.onboarding)
-      setBookable(perm.bookable_staff === true)
-    } else {
-      setPermId(null)
-    }
-
-    setComms(commsRes.status === 'fulfilled' ? commsRes.value.data || [] : [])
-    setDocs(docsRes.status === 'fulfilled' ? docsRes.value.data || [] : [])
     setLoading(false)
   }
 
@@ -151,33 +170,39 @@ export default function StaffProfile() {
         updated_at:     new Date().toISOString(),
       }
 
-      let savedId = profileId
-
+      // Save hr_profiles via raw REST to avoid supabase-js columns= bug
       if (profileId) {
-        // UPDATE existing row by id — guaranteed
-        const { error } = await supabase.from('hr_profiles').update(hrPayload).eq('id', profileId)
-        if (error) throw new Error('HR profile update failed: ' + error.message)
+        const res = await fetch(`${SB_URL}/rest/v1/hr_profiles?id=eq.${profileId}`, {
+          method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify(hrPayload)
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error('HR update failed: ' + e) }
       } else {
-        // INSERT new row
-        const { error } = await supabase.from('hr_profiles').insert([{ ...hrPayload, created_at: new Date().toISOString() }])
-        if (error) throw new Error('HR profile insert failed: ' + error.message)
-        // Fetch the new id
-        const { data: fetched, error: fetchErr } = await supabase.from('hr_profiles').select('id').ilike('user_email', email).maybeSingle()
-        if (fetchErr) throw new Error('HR profile fetch failed: ' + fetchErr.message)
-        if (fetched?.id) { savedId = fetched.id; setProfileId(fetched.id) }
+        const res = await fetch(`${SB_URL}/rest/v1/hr_profiles`, {
+          method: 'POST', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ ...hrPayload, created_at: new Date().toISOString() })
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error('HR insert failed: ' + e) }
+        const fetched = await sbGet('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`)
+        if (fetched?.id) setProfileId(fetched.id)
         setPrevMgr(profile.manager_email || '')
       }
 
-      // Save user_permissions
+      // Save user_permissions via raw REST
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
       if (permId) {
-        const { error } = await supabase.from('user_permissions').update(permPayload).eq('id', permId)
-        if (error) throw new Error('Permissions update failed: ' + error.message)
+        const res = await fetch(`${SB_URL}/rest/v1/user_permissions?id=eq.${permId}`, {
+          method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify(permPayload)
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error('Perms update failed: ' + e) }
       } else {
-        const { error } = await supabase.from('user_permissions').insert([{ ...permPayload, user_email: email }])
-        if (error) throw new Error('Permissions insert failed: ' + error.message)
-        // Fetch the new perm id
-        const { data: newPerm } = await supabase.from('user_permissions').select('id').ilike('user_email', email).maybeSingle()
+        const res = await fetch(`${SB_URL}/rest/v1/user_permissions`, {
+          method: 'POST', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ ...permPayload, user_email: email })
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error('Perms insert failed: ' + e) }
+        const newPerm = await sbGet('user_permissions', `user_email=ilike.${encodeURIComponent(email)}`)
         if (newPerm?.id) setPermId(newPerm.id)
       }
 

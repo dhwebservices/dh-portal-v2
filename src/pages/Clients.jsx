@@ -40,12 +40,35 @@ export default function Clients() {
     if (!form.name?.trim()) { alert('Business name is required'); return }
     setSaving(true)
     try {
+      const SUPABASE_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
+      const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      const payload = {
+        name: form.name || null,
+        contact: form.contact || null,
+        email: form.email || null,
+        phone: form.phone || null,
+        plan: form.plan || 'Starter',
+        status: form.status || 'active',
+        value: form.value || null,
+        invoice_paid: form.invoice_paid || false,
+        website_url: form.website_url || null,
+        notes: form.notes || null,
+      }
       if (editing) {
-        const { error } = await supabase.from('clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id)
-        if (error) throw error
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/clients?id=eq.${editing.id}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() })
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error(e) }
       } else {
-        const { error } = await supabase.from('clients').insert([{ ...form, created_at: new Date().toISOString() }])
-        if (error) throw error
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/clients`, {
+          method: 'POST',
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ ...payload, created_at: new Date().toISOString() })
+        })
+        if (!res.ok) { const e = await res.text(); throw new Error(e) }
       }
       await logAction(user?.email, user?.name, editing ? 'client_updated' : 'client_added', form.name, editing?.id, {}).catch(() => {})
       close()
