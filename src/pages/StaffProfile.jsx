@@ -86,13 +86,7 @@ export default function StaffProfile() {
         setProfile({ ...EMPTY, ...p })
         setProfileId(p.id || null)
       } else {
-        // No hr_profiles row yet — auto-create one seeded with the email
-        // so saving works correctly first time
-        const seed = { ...EMPTY, user_email: email, created_at: new Date().toISOString() }
-        try {
-          const { data: created } = await supabase.from('hr_profiles').insert([seed]).select().maybeSingle()
-          if (created?.id) setProfileId(created.id)
-        } catch (_) {}
+        // No hr_profiles row yet — show blank form, row created on first save
         setProfile({ ...EMPTY })
       }
       if (perm) {
@@ -139,25 +133,58 @@ export default function StaffProfile() {
 
   const save = async () => {
     setSaving(true)
-    const payload = { ...profile, user_email: email, updated_at: new Date().toISOString() }
-    if (profileId) {
-      // Update existing row by id — guaranteed to hit the right row regardless of email case
-      await supabase.from('hr_profiles').update(payload).eq('id', profileId)
-    } else {
-      // Insert new row and store the id
-      const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
-      if (inserted?.id) setProfileId(inserted.id)
+    try {
+      // Only send columns that actually exist in hr_profiles
+      const payload = {
+        user_email:     email,
+        full_name:      profile.full_name      || null,
+        role:           profile.role           || null,
+        department:     profile.department     || null,
+        contract_type:  profile.contract_type  || null,
+        start_date:     profile.start_date     || null,
+        phone:          profile.phone          || null,
+        personal_email: profile.personal_email || null,
+        address:        profile.address        || null,
+        manager_name:   profile.manager_name   || null,
+        hr_notes:       profile.hr_notes       || null,
+        bank_name:      profile.bank_name      || null,
+        account_name:   profile.account_name   || null,
+        sort_code:      profile.sort_code      || null,
+        account_number: profile.account_number || null,
+        updated_at:     new Date().toISOString(),
+      }
+      if (profileId) {
+        const { error } = await supabase.from('hr_profiles').update(payload).eq('id', profileId)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('hr_profiles')
+          .insert([{ ...payload, created_at: new Date().toISOString() }])
+        if (error) throw error
+        // Re-fetch to get the generated id
+        const { data: fetched } = await supabase.from('hr_profiles')
+          .select('id').ilike('user_email', email).maybeSingle()
+        if (fetched?.id) setProfileId(fetched.id)
+      }
+      // Save permissions
+      if (permId) {
+        await supabase.from('user_permissions').update({
+          permissions: editPerms, onboarding, bookable_staff: bookable,
+          updated_at: new Date().toISOString()
+        }).eq('id', permId)
+      } else {
+        const { data } = await supabase.from('user_permissions')
+          .insert([{ user_email: email, permissions: editPerms, onboarding, bookable_staff: bookable }])
+          .select().maybeSingle()
+        if (data?.id) setPermId(data.id)
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Save error:', err)
+      alert('Save failed: ' + (err?.message || JSON.stringify(err)))
+    } finally {
+      setSaving(false)
     }
-    // Save permissions
-    if (permId) {
-      await supabase.from('user_permissions').update({ permissions: editPerms, onboarding, updated_at: new Date().toISOString() }).eq('id', permId)
-      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
-    } else {
-      const { data } = await supabase.from('user_permissions').insert([{ user_email: email, permissions: editPerms, onboarding }]).select().maybeSingle()
-      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
-      if (data?.id) setPermId(data.id)
-    }
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
   }
 
   const getInitials = (n) => (n||email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
