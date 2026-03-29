@@ -1,0 +1,13 @@
+# Cloudflare Pages — wrangler.toml (optional, for Workers integration later)
+name = "dh-portal"
+compatibility_date = "2024-09-23"
+
+# Uncomment when you add Cloudflare D1 (database) or KV (key-value store)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "dh-portal-db"
+# database_id = "YOUR_D1_DATABASE_ID"
+
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "YOUR_KV_NAMESPACE_ID"
