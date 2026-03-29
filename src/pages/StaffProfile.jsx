@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 
 const ALL_PAGES = [
-  // Business
   {key:'dashboard',     label:'Dashboard',          group:'Business'},
   {key:'outreach',      label:'Clients Contacted',  group:'Business'},
   {key:'clients',       label:'Onboarded Clients',  group:'Business'},
@@ -15,18 +14,15 @@ const ALL_PAGES = [
   {key:'domains',       label:'Domain Checker',     group:'Business'},
   {key:'proposals',     label:'Proposal Builder',   group:'Business'},
   {key:'sendemail',     label:'Send Email',         group:'Business'},
-  // Tasks
   {key:'tasks',         label:'Manage Tasks',       group:'Tasks'},
   {key:'mytasks',       label:'My Tasks',           group:'Tasks'},
   {key:'schedule',      label:'Schedule',           group:'Tasks'},
   {key:'appointments',  label:'Appointments',       group:'Tasks'},
-  // HR
   {key:'hr_onboarding', label:'HR Onboarding',      group:'HR'},
   {key:'hr_leave',      label:'HR Leave',           group:'HR'},
   {key:'hr_payslips',   label:'HR Payslips',        group:'HR'},
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
-  // Admin
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
   {key:'mailinglist',   label:'Mailing List',       group:'Admin'},
@@ -45,122 +41,97 @@ const ROLE_DEFAULTS = {
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
-const EMPTY = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', manager_email:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }
-
 export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
-  const email = decodeURIComponent(encodedEmail || '')
+  const email = decodeURIComponent(encodedEmail || '').toLowerCase().trim()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { instance } = useMsal()
-  const [tab, setTab]           = useState('profile')
-  const [profile, setProfile]   = useState({ ...EMPTY })
+
+  const [tab, setTab]             = useState('profile')
+  const [profile, setProfile]     = useState({})
   const [profileId, setProfileId] = useState(null)
   const [editPerms, setEditPerms] = useState({ ...ROLE_DEFAULTS.Staff })
   const [onboarding, setOnboarding] = useState(false)
-  const [bookable, setBookable]       = useState(false)
-  const [commissions, setComms] = useState([])
-  const [docs, setDocs]         = useState([])
+  const [bookable, setBookable]   = useState(false)
+  const [commissions, setComms]   = useState([])
+  const [docs, setDocs]           = useState([])
   const [uploading, setUploading] = useState(false)
+  const [permId, setPermId]       = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
+  const [saved, setSaved]         = useState(false)
+  const [msUsers, setMsUsers]     = useState([])
+  const [prevMgr, setPrevMgr]     = useState('')
   const fileRef = useRef()
-  const [permId, setPermId]     = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [saved, setSaved]       = useState(false)
-
-  const [msUsers, setMsUsers] = useState([])
-  const [prevManagerEmail, setPrevManagerEmail] = useState(null)
 
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
 
+  // ── Load ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!email) return
-
-    // Load Azure AD users for manager dropdown
-    const loadMsUsers = async () => {
-      try {
-        const account = instance.getAllAccounts()[0]
-        if (!account) return
-        const token = await instance.acquireTokenSilent({
-          scopes: ['https://graph.microsoft.com/User.Read.All'], account
-        }).catch(() => instance.acquireTokenPopup({ scopes: ['https://graph.microsoft.com/User.Read.All'], account }))
-        const res = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,userPrincipalName&$top=50', {
-          headers: { Authorization: `Bearer ${token.accessToken}` }
-        })
-        const data = await res.json()
-        setMsUsers((data.value || [])
-          .filter(u => u.userPrincipalName?.toLowerCase() !== email.toLowerCase())
-          .map(u => ({ name: u.displayName, email: u.userPrincipalName?.toLowerCase() })))
-      } catch (_) {}
-    }
+    loadAll()
     loadMsUsers()
-
-    Promise.allSettled([
-      supabase.from('hr_profiles').select('*').ilike('user_email', email).maybeSingle(),
-      supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
-      supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending:false }),
-      supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending:false }),
-    ]).then(async ([pResult, permResult, commsResult, docsResult]) => {
-      const p       = pResult.status === 'fulfilled' ? pResult.value.data : null
-      const perm    = permResult.status === 'fulfilled' ? permResult.value.data : null
-      const comms   = commsResult.status === 'fulfilled' ? commsResult.value.data : []
-      const docData = docsResult.status === 'fulfilled' ? docsResult.value.data : []
-      setDocs(docData || [])
-      if (p) {
-        setProfile({ ...EMPTY, ...p })
-        setProfileId(p.id || null)
-        setPrevManagerEmail(p.manager_email || null)
-      } else {
-        // No hr_profiles row yet — show blank form, row created on first save
-        setProfile({ ...EMPTY })
-      }
-      if (perm) {
-        setPermId(perm.id)
-        const hasKeys = perm.permissions && Object.keys(perm.permissions).length > 0
-        setEditPerms(hasKeys ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
-        setOnboarding(perm.onboarding || false)
-        setBookable(perm.bookable_staff === true)
-      }
-      setComms(comms || [])
-      setLoading(false)
-    })
   }, [email])
 
-  const uploadDoc = async (file) => {
-    if (!file) return
-    setUploading(true)
-    const path = `staff-docs/${email}/${Date.now()}-${file.name}`
-    const { error } = await supabase.storage.from('hr-documents').upload(path, file)
-    if (!error) {
-      const { data: urlData } = supabase.storage.from('hr-documents').getPublicUrl(path)
-      await supabase.from('staff_documents').insert([{
-        staff_email: email,
-        staff_name: profile.full_name || email,
-        name: file.name,
-        type: file.name.toLowerCase().includes('contract') ? 'Contract' : 'Document',
-        file_url: urlData.publicUrl,
-        file_path: path,
-        uploaded_by: user?.name,
-        created_at: new Date().toISOString(),
-      }])
-      const { data: docData } = await supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending:false })
-      setDocs(docData || [])
+  const loadAll = async () => {
+    setLoading(true)
+    const [pRes, permRes, commsRes, docsRes] = await Promise.allSettled([
+      supabase.from('hr_profiles').select('*').ilike('user_email', email).maybeSingle(),
+      supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
+      supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending: false }),
+      supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false }),
+    ])
+
+    const p    = pRes.status    === 'fulfilled' ? pRes.value.data    : null
+    const perm = permRes.status === 'fulfilled' ? permRes.value.data : null
+
+    if (p) {
+      setProfile(p)
+      setProfileId(p.id)
+      setPrevMgr(p.manager_email || '')
+    } else {
+      setProfile({})
+      setProfileId(null)
+      setPrevMgr('')
     }
-    setUploading(false)
+
+    if (perm) {
+      setPermId(perm.id)
+      setEditPerms(perm.permissions && Object.keys(perm.permissions).length ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
+      setOnboarding(!!perm.onboarding)
+      setBookable(perm.bookable_staff === true)
+    } else {
+      setPermId(null)
+    }
+
+    setComms(commsRes.status === 'fulfilled' ? commsRes.value.data || [] : [])
+    setDocs(docsRes.status === 'fulfilled' ? docsRes.value.data || [] : [])
+    setLoading(false)
   }
 
-  const deleteDoc = async (doc) => {
-    if (!confirm('Delete "' + doc.name + '"?')) return
-    if (doc.file_path) await supabase.storage.from('hr-documents').remove([doc.file_path]).catch(()=>{})
-    await supabase.from('staff_documents').delete().eq('id', doc.id)
-    setDocs(p => p.filter(d => d.id !== doc.id))
+  const loadMsUsers = async () => {
+    try {
+      const account = instance.getAllAccounts()[0]
+      if (!account) return
+      const token = await instance.acquireTokenSilent({
+        scopes: ['https://graph.microsoft.com/User.Read.All'], account
+      }).catch(() => instance.acquireTokenPopup({ scopes: ['https://graph.microsoft.com/User.Read.All'], account }))
+      const res = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,userPrincipalName&$top=50', {
+        headers: { Authorization: `Bearer ${token.accessToken}` }
+      })
+      const data = await res.json()
+      setMsUsers((data.value || [])
+        .filter(u => u.userPrincipalName?.toLowerCase() !== email)
+        .map(u => ({ name: u.displayName, email: u.userPrincipalName?.toLowerCase() })))
+    } catch (_) {}
   }
 
+  // ── Save ────────────────────────────────────────────────────────────────
   const save = async () => {
     setSaving(true)
     try {
-      // Only send columns that actually exist in hr_profiles
-      const payload = {
+      const hrPayload = {
         user_email:     email,
         full_name:      profile.full_name      || null,
         role:           profile.role           || null,
@@ -179,29 +150,44 @@ export default function StaffProfile() {
         account_number: profile.account_number || null,
         updated_at:     new Date().toISOString(),
       }
-      // Upsert on user_email — works whether row exists or not
-      const upsertPayload = { ...payload, created_at: new Date().toISOString() }
-      const { error } = await supabase.from('hr_profiles')
-        .upsert(upsertPayload, { onConflict: 'user_email' })
-      if (error) throw error
-      // Re-fetch id if we don't have it
-      if (!profileId) {
-        const { data: fetched } = await supabase.from('hr_profiles')
-          .select('id').ilike('user_email', email).maybeSingle()
-        if (fetched?.id) setProfileId(fetched.id)
-        // Set prevManagerEmail so future changes can be detected
-        setPrevManagerEmail(profile.manager_email || '')
+
+      let savedId = profileId
+
+      if (profileId) {
+        // UPDATE existing row by id — guaranteed
+        const { error } = await supabase.from('hr_profiles').update(hrPayload).eq('id', profileId)
+        if (error) throw new Error('HR profile update failed: ' + error.message)
+      } else {
+        // INSERT new row
+        const { error } = await supabase.from('hr_profiles').insert([{ ...hrPayload, created_at: new Date().toISOString() }])
+        if (error) throw new Error('HR profile insert failed: ' + error.message)
+        // Fetch the new id
+        const { data: fetched, error: fetchErr } = await supabase.from('hr_profiles').select('id').ilike('user_email', email).maybeSingle()
+        if (fetchErr) throw new Error('HR profile fetch failed: ' + fetchErr.message)
+        if (fetched?.id) { savedId = fetched.id; setProfileId(fetched.id) }
+        setPrevMgr(profile.manager_email || '')
       }
 
-      // Send manager notification if manager changed
-      const newManagerEmail = profile.manager_email
-      if (newManagerEmail && newManagerEmail !== prevManagerEmail && prevManagerEmail !== null) {
+      // Save user_permissions
+      const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
+      if (permId) {
+        const { error } = await supabase.from('user_permissions').update(permPayload).eq('id', permId)
+        if (error) throw new Error('Permissions update failed: ' + error.message)
+      } else {
+        const { error } = await supabase.from('user_permissions').insert([{ ...permPayload, user_email: email }])
+        if (error) throw new Error('Permissions insert failed: ' + error.message)
+        // Fetch the new perm id
+        const { data: newPerm } = await supabase.from('user_permissions').select('id').ilike('user_email', email).maybeSingle()
+        if (newPerm?.id) setPermId(newPerm.id)
+      }
+
+      // Manager change notification — only if manager genuinely changed after first save
+      const newMgr = profile.manager_email || ''
+      if (newMgr && newMgr !== prevMgr && profileId) {
         const staffName = profile.full_name || email
-        const managerName = profile.manager_name || newManagerEmail
-        // Portal notification
         try {
           await supabase.from('notifications').insert([{
-            user_email: newManagerEmail,
+            user_email: newMgr,
             title: 'New Team Member Assigned',
             message: `${staffName} has been assigned to you as their manager.`,
             type: 'info',
@@ -210,66 +196,66 @@ export default function StaffProfile() {
             created_at: new Date().toISOString(),
           }])
         } catch (_) {}
-        // Email notification via Cloudflare Worker
         try {
           await fetch('https://dh-email-worker.aged-silence-66a7.workers.dev', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'manager_assigned',
-              data: {
-                to_email: newManagerEmail,
-                manager_name: managerName,
-                staff_name: staffName,
-                staff_email: email,
-                assigned_by: user?.name || 'Admin',
-              }
-            })
+            body: JSON.stringify({ type: 'manager_assigned', data: { to_email: newMgr, staff_name: staffName, staff_email: email, assigned_by: user?.name || 'Admin' } })
           })
         } catch (_) {}
-        setPrevManagerEmail(newManagerEmail)
+        setPrevMgr(newMgr)
       }
-      // Save permissions
-      if (permId) {
-        await supabase.from('user_permissions').update({
-          permissions: editPerms, onboarding, bookable_staff: bookable,
-          updated_at: new Date().toISOString()
-        }).eq('id', permId)
-      } else {
-        await supabase.from('user_permissions')
-          .insert([{ user_email: email, permissions: editPerms, onboarding, bookable_staff: bookable }])
-        // Re-fetch to get the id
-        const { data: newPerm } = await supabase.from('user_permissions')
-          .select('id').ilike('user_email', email).maybeSingle()
-        if (newPerm?.id) setPermId(newPerm.id)
-      }
+
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       console.error('Save error:', err)
-      alert('Save failed: ' + (err?.message || JSON.stringify(err)))
+      alert('Save failed: ' + err.message)
     } finally {
       setSaving(false)
     }
   }
 
-  const getInitials = (n) => (n||email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
+  // ── Docs ────────────────────────────────────────────────────────────────
+  const uploadDoc = async (file) => {
+    if (!file) return
+    setUploading(true)
+    const path = `staff-docs/${email}/${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('hr-documents').upload(path, file)
+    if (!error) {
+      const { data: urlData } = supabase.storage.from('hr-documents').getPublicUrl(path)
+      await supabase.from('staff_documents').insert([{
+        staff_email: email, staff_name: profile.full_name || email,
+        name: file.name, type: file.name.toLowerCase().includes('contract') ? 'Contract' : 'Document',
+        file_url: urlData.publicUrl, file_path: path, uploaded_by: user?.name, created_at: new Date().toISOString(),
+      }])
+      const { data: docData } = await supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false })
+      setDocs(docData || [])
+    }
+    setUploading(false)
+  }
+
+  const deleteDoc = async (doc) => {
+    if (!confirm('Delete "' + doc.name + '"?')) return
+    if (doc.file_path) await supabase.storage.from('hr-documents').remove([doc.file_path]).catch(() => {})
+    await supabase.from('staff_documents').delete().eq('id', doc.id)
+    setDocs(p => p.filter(d => d.id !== doc.id))
+  }
+
+  const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
   return (
     <div className="fade-in">
-      {/* Back + header */}
       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:28 }}>
-        <button onClick={() => navigate('/my-staff')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'6px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13, transition:'all 0.15s' }}
-          onMouseOver={e => e.currentTarget.style.borderColor='var(--text)'}
-          onMouseOut={e => e.currentTarget.style.borderColor='var(--border)'}>
+        <button onClick={() => navigate('/my-staff')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'6px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13 }}>
           ← My Staff
         </button>
       </div>
 
-      {/* Profile hero */}
+      {/* Hero */}
       <div style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
         <div style={{ width:72, height:72, borderRadius:'50%', background:'var(--accent-soft)', border:'2px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:600, fontFamily:'var(--font-display)', color:'var(--accent)', flexShrink:0 }}>
           {getInitials(displayName)}
@@ -284,27 +270,23 @@ export default function StaffProfile() {
           </div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
-          {/* Onboarding toggle */}
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ fontSize:12, color: onboarding ? 'var(--amber)' : 'var(--green)', fontWeight:500 }}>
               {onboarding ? '⏳ Onboarding' : '✅ Active'}
             </span>
             <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
-              <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+              <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
             </button>
           </div>
-          {/* Bookable toggle */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)', marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
             <div>
               <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>📅 Bookable for Calls</div>
               <div style={{ fontSize:11, color:'var(--faint)' }}>Shows in public booking calendar</div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:12, color: bookable ? 'var(--accent)' : 'var(--faint)', fontWeight:500 }}>
-                {bookable ? '✓ Bookable' : 'Not bookable'}
-              </span>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:16 }}>
+              <span style={{ fontSize:12, color: bookable ? 'var(--accent)' : 'var(--faint)', fontWeight:500 }}>{bookable ? '✓ Bookable' : 'Not bookable'}</span>
               <button onClick={() => setBookable(b => !b)} style={{ width:40, height:22, borderRadius:11, background: bookable ? 'var(--accent)' : 'var(--bg3)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
-                <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+                <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
               </button>
             </div>
           </div>
@@ -332,22 +314,14 @@ export default function StaffProfile() {
               <div>
                 <label className="lbl">Manager</label>
                 <select className="inp" value={profile.manager_email || ''} onChange={e => {
-                  const selected = msUsers.find(u => u.email === e.target.value)
+                  const u = msUsers.find(u => u.email === e.target.value)
                   pf('manager_email', e.target.value)
-                  pf('manager_name', selected?.name || '')
+                  pf('manager_name', u?.name || '')
                 }}>
                   <option value="">— No manager assigned —</option>
-                  {msUsers.map(u => (
-                    <option key={u.email} value={u.email}>
-                      {u.name}
-                    </option>
-                  ))}
+                  {msUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
                 </select>
-                {profile.manager_email && (
-                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>
-                    {profile.manager_email}
-                  </div>
-                )}
+                {profile.manager_email && <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>{profile.manager_email}</div>}
               </div>
               <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
               <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
@@ -399,9 +373,9 @@ export default function StaffProfile() {
                     <button key={key} onClick={() => setEditPerms(p => ({ ...p, [key]: !p[key] }))}
                       style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', borderRadius:7, border:'1px solid', borderColor: editPerms[key] ? 'var(--green)' : 'var(--border)', background: editPerms[key] ? 'var(--green-bg)' : 'transparent', cursor:'pointer', transition:'all 0.15s' }}>
                       <span style={{ fontSize:12, color:'var(--text)' }}>{label}</span>
-                  <div style={{ width:28, height:16, borderRadius:8, background: editPerms[key] ? 'var(--green)' : 'var(--border)', position:'relative', flexShrink:0 }}>
-                    <div style={{ position:'absolute', top:2, left: editPerms[key] ? 14 : 2, width:12, height:12, borderRadius:'50%', background:'#fff', transition:'left 0.18s' }}/>
-                  </div>
+                      <div style={{ width:28, height:16, borderRadius:8, background: editPerms[key] ? 'var(--green)' : 'var(--border)', position:'relative', flexShrink:0 }}>
+                        <div style={{ position:'absolute', top:2, left: editPerms[key] ? 14 : 2, width:12, height:12, borderRadius:'50%', background:'#fff', transition:'left 0.18s' }}/>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -416,13 +390,11 @@ export default function StaffProfile() {
               <span style={{ fontWeight:500, fontSize:13 }}>{docs.length} document{docs.length !== 1 ? 's' : ''}</span>
               <div>
                 <input type="file" ref={fileRef} style={{ display:'none' }} accept=".pdf,.doc,.docx,.png,.jpg" onChange={e => uploadDoc(e.target.files[0])}/>
-                <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                  {uploading ? 'Uploading...' : '+ Upload Document'}
-                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading...' : '+ Upload Document'}</button>
               </div>
             </div>
             {docs.length === 0 ? (
-              <div className="empty"><p>No documents uploaded yet.<br/>Upload contracts, NDAs or other documents here.</p></div>
+              <div className="empty"><p>No documents uploaded yet.</p></div>
             ) : (
               <table className="tbl">
                 <thead><tr><th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th></th></tr></thead>
