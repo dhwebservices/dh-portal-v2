@@ -123,25 +123,33 @@ export default function StaffProfile() {
 
   const save = async () => {
     setSaving(true)
-    const payload = { ...profile, user_email: email, updated_at: new Date().toISOString() }
-    if (profileId) {
-      // Update existing row by id — guaranteed to hit the right row regardless of email case
-      await supabase.from('hr_profiles').update(payload).eq('id', profileId)
-    } else {
-      // Insert new row and store the id
-      const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
-      if (inserted?.id) setProfileId(inserted.id)
+    try {
+      const payload = { ...profile, user_email: email, updated_at: new Date().toISOString() }
+      if (profileId) {
+        await supabase.from('hr_profiles').update(payload).eq('id', profileId)
+      } else {
+        const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
+        if (inserted?.id) setProfileId(inserted.id)
+      }
+      if (permId) {
+        await supabase.from('user_permissions').update({
+          permissions: editPerms, onboarding, bookable_staff: bookable,
+          updated_at: new Date().toISOString()
+        }).eq('id', permId)
+      } else {
+        const { data } = await supabase.from('user_permissions').insert([{
+          user_email: email, permissions: editPerms, onboarding, bookable_staff: bookable
+        }]).select().maybeSingle()
+        if (data?.id) setPermId(data.id)
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Save failed:', err)
+      alert('Save failed — check console for details.')
+    } finally {
+      setSaving(false)
     }
-    // Save permissions
-    if (permId) {
-      await supabase.from('user_permissions').update({ permissions: editPerms, onboarding, updated_at: new Date().toISOString() }).eq('id', permId)
-      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
-    } else {
-      const { data } = await supabase.from('user_permissions').insert([{ user_email: email, permissions: editPerms, onboarding }]).select().maybeSingle()
-      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
-      if (data?.id) setPermId(data.id)
-    }
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
   }
 
   const getInitials = (n) => (n||email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
