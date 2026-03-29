@@ -197,15 +197,17 @@ export default function StaffProfile() {
         const staffName = profile.full_name || email
         const managerName = profile.manager_name || newManagerEmail
         // Portal notification
-        await supabase.from('notifications').insert([{
-          user_email: newManagerEmail,
-          title: 'New Team Member Assigned',
-          message: `${staffName} has been assigned to you as their manager.`,
-          type: 'info',
-          link: `/my-staff/${encodeURIComponent(email)}`,
-          read: false,
-          created_at: new Date().toISOString(),
-        }]).catch(() => {})
+        try {
+          await supabase.from('notifications').insert([{
+            user_email: newManagerEmail,
+            title: 'New Team Member Assigned',
+            message: `${staffName} has been assigned to you as their manager.`,
+            type: 'info',
+            link: `/my-staff/${encodeURIComponent(email)}`,
+            read: false,
+            created_at: new Date().toISOString(),
+          }])
+        } catch (_) {}
         // Email notification via Cloudflare Worker
         try {
           await fetch('https://dh-email-worker.aged-silence-66a7.workers.dev', {
