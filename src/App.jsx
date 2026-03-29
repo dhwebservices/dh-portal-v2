@@ -41,8 +41,6 @@ import HRPayslips    from './pages/hr/HRPayslips'
 import HRProfiles    from './pages/hr/HRProfiles'
 import HRPolicies    from './pages/hr/HRPolicies'
 import HRTimesheets  from './pages/hr/HRTimesheets'
-import { registerSession, updateSession } from './utils/audit'
-import { supabase } from './utils/supabase'
 import './styles/global.css'
 
 function ProtectedLayout() {
@@ -56,14 +54,6 @@ function ProtectedLayout() {
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
   }, [])
-
-  useEffect(() => {
-    if (user?.email) {
-      registerSession(user.email, user.name)
-      const interval = setInterval(() => updateSession(user.email), 120000)
-      return () => clearInterval(interval)
-    }
-  }, [user])
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0F0D0A', flexDirection: 'column', gap: '12px' }}>

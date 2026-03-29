@@ -142,9 +142,8 @@ export default function Appointments() {
                             const isPast = d < today
                             return (
                               <button key={d} onClick={() => !isPast && setSlotModal({ date:d, staffEmail:s.user_email, staffName:s.full_name })}
-                                title={formatDate(d)}
-                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
-                                title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '')}>
+                                title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '')}
+                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}>
                                 {new Date(d+'T12:00').getDate()}
                               </button>
                             )
