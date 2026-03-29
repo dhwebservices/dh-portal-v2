@@ -89,8 +89,10 @@ export default function StaffProfile() {
         // No hr_profiles row yet — auto-create one seeded with the email
         // so saving works correctly first time
         const seed = { ...EMPTY, user_email: email, created_at: new Date().toISOString() }
-        const { data: created } = await supabase.from('hr_profiles').insert([seed]).select().maybeSingle().catch(() => ({ data: null }))
-        if (created?.id) setProfileId(created.id)
+        try {
+          const { data: created } = await supabase.from('hr_profiles').insert([seed]).select().maybeSingle()
+          if (created?.id) setProfileId(created.id)
+        } catch (_) {}
         setProfile({ ...EMPTY })
       }
       if (perm) {
