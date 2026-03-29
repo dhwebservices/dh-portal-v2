@@ -45,7 +45,7 @@ const ROLE_DEFAULTS = {
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
-const EMPTY = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }
+const EMPTY = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', manager_email:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }
 
 export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
@@ -67,10 +67,33 @@ export default function StaffProfile() {
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
 
+  const [msUsers, setMsUsers] = useState([])
+  const [prevManagerEmail, setPrevManagerEmail] = useState(null)
+
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
     if (!email) return
+
+    // Load Azure AD users for manager dropdown
+    const loadMsUsers = async () => {
+      try {
+        const account = instance.getAllAccounts()[0]
+        if (!account) return
+        const token = await instance.acquireTokenSilent({
+          scopes: ['https://graph.microsoft.com/User.Read.All'], account
+        }).catch(() => instance.acquireTokenPopup({ scopes: ['https://graph.microsoft.com/User.Read.All'], account }))
+        const res = await fetch('https://graph.microsoft.com/v1.0/users?$select=displayName,userPrincipalName&$top=50', {
+          headers: { Authorization: `Bearer ${token.accessToken}` }
+        })
+        const data = await res.json()
+        setMsUsers((data.value || [])
+          .filter(u => u.userPrincipalName?.toLowerCase() !== email.toLowerCase())
+          .map(u => ({ displayName: u.displayName, userPrincipalName: u.userPrincipalName?.toLowerCase() })))
+      } catch (_) {}
+    }
+    loadMsUsers()
+
     Promise.allSettled([
       supabase.from('hr_profiles').select('*').ilike('user_email', email).maybeSingle(),
       supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
@@ -85,6 +108,7 @@ export default function StaffProfile() {
       if (p) {
         setProfile({ ...EMPTY, ...p })
         setProfileId(p.id || null)
+        setPrevManagerEmail(p.manager_email || null)
       } else {
         // No hr_profiles row yet — show blank form, row created on first save
         setProfile({ ...EMPTY })
@@ -146,6 +170,7 @@ export default function StaffProfile() {
         personal_email: profile.personal_email || null,
         address:        profile.address        || null,
         manager_name:   profile.manager_name   || null,
+        manager_email:  profile.manager_email  || null,
         hr_notes:       profile.hr_notes       || null,
         bank_name:      profile.bank_name      || null,
         account_name:   profile.account_name   || null,
@@ -163,6 +188,41 @@ export default function StaffProfile() {
         const { data: fetched } = await supabase.from('hr_profiles')
           .select('id').ilike('user_email', email).maybeSingle()
         if (fetched?.id) setProfileId(fetched.id)
+      }
+
+      // Send manager notification if manager changed
+      const newManagerEmail = profile.manager_email
+      if (newManagerEmail && newManagerEmail !== prevManagerEmail) {
+        const staffName = profile.full_name || email
+        const managerName = profile.manager_name || newManagerEmail
+        // Portal notification
+        await supabase.from('notifications').insert([{
+          user_email: newManagerEmail,
+          title: 'New Team Member Assigned',
+          message: `${staffName} has been assigned to you as their manager.`,
+          type: 'info',
+          link: `/my-staff/${encodeURIComponent(email)}`,
+          read: false,
+          created_at: new Date().toISOString(),
+        }]).catch(() => {})
+        // Email notification via Cloudflare Worker
+        try {
+          await fetch('https://dh-email-worker.aged-silence-66a7.workers.dev', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'manager_assigned',
+              data: {
+                to_email: newManagerEmail,
+                manager_name: managerName,
+                staff_name: staffName,
+                staff_email: email,
+                assigned_by: user?.name || 'Admin',
+              }
+            })
+          })
+        } catch (_) {}
+        setPrevManagerEmail(newManagerEmail)
       }
       // Save permissions
       if (permId) {
@@ -262,7 +322,26 @@ export default function StaffProfile() {
               <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
               <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
               <div><label className="lbl">Department</label><input className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}/></div>
-              <div><label className="lbl">Manager</label><input className="inp" value={profile.manager_name || ''} onChange={e=>pf('manager_name',e.target.value)}/></div>
+              <div>
+                <label className="lbl">Manager</label>
+                <select className="inp" value={profile.manager_email || ''} onChange={e => {
+                  const selected = msUsers.find(u => u.userPrincipalName === e.target.value)
+                  pf('manager_email', e.target.value)
+                  pf('manager_name', selected?.displayName || '')
+                }}>
+                  <option value="">— No manager assigned —</option>
+                  {msUsers.map(u => (
+                    <option key={u.userPrincipalName} value={u.userPrincipalName}>
+                      {u.displayName}
+                    </option>
+                  ))}
+                </select>
+                {profile.manager_email && (
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>
+                    {profile.manager_email}
+                  </div>
+                )}
+              </div>
               <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
               <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
               <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={profile.address || ''} onChange={e=>pf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
