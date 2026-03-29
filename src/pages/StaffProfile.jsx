@@ -71,12 +71,16 @@ export default function StaffProfile() {
 
   useEffect(() => {
     if (!email) return
-    Promise.all([
+    Promise.allSettled([
       supabase.from('hr_profiles').select('*').ilike('user_email', email).maybeSingle(),
       supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
       supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending:false }),
       supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending:false }),
-    ]).then(([{ data: p }, { data: perm }, { data: comms }, { data: docData }]) => {
+    ]).then(([pResult, permResult, commsResult, docsResult]) => {
+      const p       = pResult.status === 'fulfilled' ? pResult.value.data : null
+      const perm    = permResult.status === 'fulfilled' ? permResult.value.data : null
+      const comms   = commsResult.status === 'fulfilled' ? commsResult.value.data : []
+      const docData = docsResult.status === 'fulfilled' ? docsResult.value.data : []
       setDocs(docData || [])
       if (p) { setProfile({ ...EMPTY, ...p }); setProfileId(p.id || null) }
       if (perm) {
@@ -123,33 +127,25 @@ export default function StaffProfile() {
 
   const save = async () => {
     setSaving(true)
-    try {
-      const payload = { ...profile, user_email: email, updated_at: new Date().toISOString() }
-      if (profileId) {
-        await supabase.from('hr_profiles').update(payload).eq('id', profileId)
-      } else {
-        const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
-        if (inserted?.id) setProfileId(inserted.id)
-      }
-      if (permId) {
-        await supabase.from('user_permissions').update({
-          permissions: editPerms, onboarding, bookable_staff: bookable,
-          updated_at: new Date().toISOString()
-        }).eq('id', permId)
-      } else {
-        const { data } = await supabase.from('user_permissions').insert([{
-          user_email: email, permissions: editPerms, onboarding, bookable_staff: bookable
-        }]).select().maybeSingle()
-        if (data?.id) setPermId(data.id)
-      }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err) {
-      console.error('Save failed:', err)
-      alert('Save failed — check console for details.')
-    } finally {
-      setSaving(false)
+    const payload = { ...profile, user_email: email, updated_at: new Date().toISOString() }
+    if (profileId) {
+      // Update existing row by id — guaranteed to hit the right row regardless of email case
+      await supabase.from('hr_profiles').update(payload).eq('id', profileId)
+    } else {
+      // Insert new row and store the id
+      const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
+      if (inserted?.id) setProfileId(inserted.id)
     }
+    // Save permissions
+    if (permId) {
+      await supabase.from('user_permissions').update({ permissions: editPerms, onboarding, updated_at: new Date().toISOString() }).eq('id', permId)
+      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
+    } else {
+      const { data } = await supabase.from('user_permissions').insert([{ user_email: email, permissions: editPerms, onboarding }]).select().maybeSingle()
+      await supabase.from('hr_profiles').update({ bookable }).ilike('user_email', email)
+      if (data?.id) setPermId(data.id)
+    }
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
   }
 
   const getInitials = (n) => (n||email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()

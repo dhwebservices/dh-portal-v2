@@ -168,7 +168,7 @@ export default function Reports() {
                       <XAxis dataKey="month" tick={{ fontSize:11, fontFamily:'var(--font-mono)' }}/>
                       <YAxis tick={{ fontSize:11, fontFamily:'var(--font-mono)' }} tickFormatter={v => '£'+v}/>
                       <Tooltip formatter={v => '£'+Number(v).toLocaleString()} labelStyle={{ fontFamily:'var(--font-mono)', fontSize:11 }}/>
-                      <Bar dataKey="amount" fill="var(--accent)" radius={[4,4,0,0]}/>
+                      <Bar dataKey="amount" fill="var(--accent)" radius={[4,4,0,0]} minPointSize={1}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

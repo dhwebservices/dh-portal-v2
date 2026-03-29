@@ -37,14 +37,25 @@ export default function Clients() {
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const save = async () => {
+    if (!form.name?.trim()) { alert('Business name is required'); return }
     setSaving(true)
-    if (editing) {
-      await supabase.from('clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id)
-    } else {
-      await supabase.from('clients').insert([{ ...form, created_at: new Date().toISOString() }])
+    try {
+      if (editing) {
+        const { error } = await supabase.from('clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('clients').insert([{ ...form, created_at: new Date().toISOString() }])
+        if (error) throw error
+      }
+      await logAction(user?.email, user?.name, editing ? 'client_updated' : 'client_added', form.name, editing?.id, {}).catch(() => {})
+      close()
+      load()
+    } catch (err) {
+      console.error('Client save error:', err)
+      alert('Save failed: ' + (err?.message || JSON.stringify(err)))
+    } finally {
+      setSaving(false)
     }
-    await logAction(user?.email, user?.name, editing ? 'client_updated' : 'client_added', form.name, editing?.id, {})
-    setSaving(false); close(); load()
   }
 
   const del = async (e, id, name) => {

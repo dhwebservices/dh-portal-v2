@@ -15,12 +15,18 @@ export default function HRPayslips() {
   useEffect(() => { load() }, [user?.email])
   const load = async () => {
     setLoading(true)
-    const q = isManager
-      ? supabase.from('payslips').select('*').order('uploaded_at',{ascending:false})
-      : supabase.from('payslips').select('*').ilike('user_email',user.email).order('uploaded_at',{ascending:false})
-    const [{ data: ps }, { data: st }] = await Promise.all([q, supabase.from('staff').select('name,email')])
-    setPayslips(ps||[])
-    setStaff(st||[])
+    try {
+      const q = isManager
+        ? supabase.from('payslips').select('*').order('uploaded_at',{ascending:false})
+        : supabase.from('payslips').select('*').ilike('user_email',user?.email).order('uploaded_at',{ascending:false})
+      const [psResult, stResult] = await Promise.all([q, supabase.from('hr_profiles').select('user_email,full_name')])
+      setPayslips(psResult.data || [])
+      setStaff((stResult.data || []).map(p => ({ name: p.full_name || p.user_email, email: p.user_email })))
+    } catch (err) {
+      console.warn('Payslips load error:', err)
+      setPayslips([])
+      setStaff([])
+    }
     setLoading(false)
   }
 
