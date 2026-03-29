@@ -27,6 +27,7 @@ function Modal({ title, onClose, children, footer }) {
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
+    </div>
   )
 }
 

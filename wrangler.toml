@@ -1,6 +1,7 @@
 # Cloudflare Pages — wrangler.toml (optional, for Workers integration later)
 name = "dh-portal"
 compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
 
 # Uncomment when you add Cloudflare D1 (database) or KV (key-value store)
 # [[d1_databases]]
@@ -11,7 +12,3 @@ compatibility_date = "2024-09-23"
 # [[kv_namespaces]]
 # binding = "KV"
 # id = "YOUR_KV_NAMESPACE_ID"
-
-name = "dh-portal"
-compatibility_date = "2024-09-23"
-pages_build_output_dir = "dist"
