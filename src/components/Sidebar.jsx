@@ -41,7 +41,6 @@ const SECTIONS = [
   {
     id: 'hr', label: 'HR', icon: 'people',
     items: [
-      { to: '/hr/profiles',   icon: 'person', label: 'HR Profiles',   desc: 'Staff profiles',    key: 'hr_profiles'   },
       { to: '/hr/timesheets', icon: 'clock',  label: 'Timesheets',    desc: 'Time tracking',     key: 'hr_timesheet'  },
       { to: '/hr/leave',      icon: 'cal',    label: 'Leave',         desc: 'Leave requests',    key: 'hr_leave'      },
       { to: '/hr/payslips',   icon: 'wallet', label: 'Payslips',      desc: 'Payroll docs',      key: 'hr_payslips'   },

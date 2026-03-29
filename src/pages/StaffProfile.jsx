@@ -82,7 +82,17 @@ export default function StaffProfile() {
       const comms   = commsResult.status === 'fulfilled' ? commsResult.value.data : []
       const docData = docsResult.status === 'fulfilled' ? docsResult.value.data : []
       setDocs(docData || [])
-      if (p) { setProfile({ ...EMPTY, ...p }); setProfileId(p.id || null) }
+      if (p) {
+        setProfile({ ...EMPTY, ...p })
+        setProfileId(p.id || null)
+      } else {
+        // No hr_profiles row yet — auto-create one seeded with the email
+        // so saving works correctly first time
+        const seed = { ...EMPTY, user_email: email, created_at: new Date().toISOString() }
+        const { data: created } = await supabase.from('hr_profiles').insert([seed]).select().maybeSingle().catch(() => ({ data: null }))
+        if (created?.id) setProfileId(created.id)
+        setProfile({ ...EMPTY })
+      }
       if (perm) {
         setPermId(perm.id)
         const hasKeys = perm.permissions && Object.keys(perm.permissions).length > 0

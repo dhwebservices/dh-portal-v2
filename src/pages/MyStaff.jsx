@@ -137,10 +137,11 @@ export default function MyStaff() {
                 </div>
 
                 {/* Name */}
-                <div>
-                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:3, lineHeight:1.3 }}>{u.name}</div>
-                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{profile.role || u.jobTitle || 'Staff'}</div>
+                <div style={{ width:'100%' }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:3, lineHeight:1.3 }}>{profile.full_name || u.name}</div>
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{profile.role || u.jobTitle || '—'}</div>
                   {profile.department && <div style={{ fontSize:11, color:'var(--sub)', marginTop:2 }}>{profile.department}</div>}
+                  {profile.contract_type && <div style={{ fontSize:10, color:'var(--faint)', marginTop:2, fontFamily:'var(--font-mono)', letterSpacing:'0.04em' }}>{profile.contract_type}</div>}
                 </div>
 
                 {/* Status */}

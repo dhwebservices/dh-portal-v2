@@ -33,7 +33,6 @@ import Maintenance    from './pages/Maintenance'
 import HRLeave        from './pages/hr/HRLeave'
 import HRTimesheets   from './pages/hr/HRTimesheets'
 import HRPayslips     from './pages/hr/HRPayslips'
-import HRProfiles     from './pages/hr/HRProfiles'
 import HRPolicies     from './pages/hr/HRPolicies'
 import HROnboarding   from './pages/hr/HROnboarding'
 import Appointments   from './pages/Appointments'
@@ -83,7 +82,6 @@ function PortalLayout() {
             <Route path="/hr/leave"        element={<HRLeave />} />
             <Route path="/hr/timesheets"   element={<HRTimesheets />} />
             <Route path="/hr/payslips"     element={<HRPayslips />} />
-            <Route path="/hr/profiles"     element={<HRProfiles />} />
             <Route path="/hr/policies"     element={<HRPolicies />} />
             <Route path="/hr/onboarding"   element={<HROnboarding />} />
             <Route path="/appointments"      element={<Appointments />} />
