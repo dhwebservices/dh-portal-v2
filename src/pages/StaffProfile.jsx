@@ -153,14 +153,13 @@ export default function StaffProfile() {
         account_number: profile.account_number || null,
         updated_at:     new Date().toISOString(),
       }
-      if (profileId) {
-        const { error } = await supabase.from('hr_profiles').update(payload).eq('id', profileId)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('hr_profiles')
-          .insert([{ ...payload, created_at: new Date().toISOString() }])
-        if (error) throw error
-        // Re-fetch to get the generated id
+      // Upsert on user_email — works whether row exists or not
+      const upsertPayload = { ...payload, created_at: new Date().toISOString() }
+      const { error } = await supabase.from('hr_profiles')
+        .upsert(upsertPayload, { onConflict: 'user_email' })
+      if (error) throw error
+      // Re-fetch id if we don't have it
+      if (!profileId) {
         const { data: fetched } = await supabase.from('hr_profiles')
           .select('id').ilike('user_email', email).maybeSingle()
         if (fetched?.id) setProfileId(fetched.id)
