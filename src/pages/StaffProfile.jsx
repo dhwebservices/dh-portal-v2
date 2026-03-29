@@ -76,7 +76,7 @@ export default function StaffProfile() {
       supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
       supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending:false }),
       supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending:false }),
-    ]).then(([pResult, permResult, commsResult, docsResult]) => {
+    ]).then(async ([pResult, permResult, commsResult, docsResult]) => {
       const p       = pResult.status === 'fulfilled' ? pResult.value.data : null
       const perm    = permResult.status === 'fulfilled' ? permResult.value.data : null
       const comms   = commsResult.status === 'fulfilled' ? commsResult.value.data : []
