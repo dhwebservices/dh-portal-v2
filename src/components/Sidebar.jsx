@@ -1,436 +1,237 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import React, { useState, useEffect } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
-import {
-  Home, Users, CheckSquare, TrendingUp, Globe, Mail,
-  UserCheck, BarChart2, Shield, User, Search, LogOut,
-  Sun, Moon, CalendarDays, PhoneCall, MessageSquare,
-  Tag, FileText, SendHorizonal, Clock, Wrench,
-  ClipboardList, Megaphone, Settings, LayoutDashboard,
-  Globe2, Briefcase, Bell
-} from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../utils/supabase'
 
-const SECTIONS = [
-  {
-    id: 'home', label: 'Home', icon: Home,
-    items: [
-      { to: '/',          label: 'Home Screen', icon: Home,            key: 'home' },
-      { to: '/dashboard', label: 'Dashboard',   icon: LayoutDashboard, key: 'dashboard' },
-    ]
-  },
-  {
-    id: 'clients', label: 'Clients', icon: Users,
-    items: [
-      { to: '/clients',     label: 'Clients',          icon: Users,         key: 'clients' },
-      { to: '/client-mgmt', label: 'Client Portal',    icon: Globe2,        key: 'clientmgmt' },
-      { to: '/support',     label: 'Support Tickets',  icon: MessageSquare, key: 'support' },
-      { to: '/appointments',label: 'Appointments',     icon: CalendarDays,  key: 'appointments' },
-      { to: '/mailing-list',label: 'Mailing List',     icon: Mail,          key: 'mailinglist' },
-    ]
-  },
-  {
-    id: 'tasks', label: 'Tasks', icon: CheckSquare,
-    items: [
-      { to: '/tasks',    label: 'All Tasks', icon: CheckSquare,  key: 'tasks' },
-      { to: '/my-tasks', label: 'My Tasks',  icon: CheckSquare,  key: 'mytasks' },
-      { to: '/schedule', label: 'Schedule',  icon: CalendarDays, key: 'schedule' },
-    ]
-  },
-  {
-    id: 'outreach', label: 'Outreach', icon: TrendingUp,
-    items: [
-      { to: '/outreach',   label: 'Clients Contacted', icon: PhoneCall, key: 'outreach' },
-      { to: '/competitor', label: 'Competitor Lookup',  icon: Tag,       key: 'competitor' },
-      { to: '/proposals',  label: 'Proposals',          icon: FileText,  key: 'proposals' },
-    ]
-  },
-  {
-    id: 'web', label: 'Web', icon: Globe,
-    items: [
-      { to: '/web-manager', label: 'Web Manager',  icon: Globe,  key: 'webmanager' },
-      { to: '/site-editor', label: 'Site Editor',  icon: Globe2, key: 'siteeditor' },
-      { to: '/domains',     label: 'Domain Checker', icon: Globe, key: 'domains' },
-    ]
-  },
-  {
-    id: 'comms', label: 'Comms', icon: Mail,
-    items: [
-      { to: '/send-email',      label: 'Send Email',      icon: SendHorizonal, key: 'sendemail' },
-      { to: '/email-templates', label: 'Email Templates', icon: Mail,          key: 'emailtemplates' },
-    ]
-  },
-  {
-    id: 'staff', label: 'Staff', icon: Briefcase,
-    items: [
-      { to: '/staff',    label: 'All Staff', icon: Users,    key: 'staff' },
-      { to: '/my-staff', label: 'My Staff',  icon: UserCheck, key: 'mystaff' },
-    ]
-  },
-  {
-    id: 'hr', label: 'HR', icon: UserCheck,
-    items: [
-      { to: '/hr/profiles',   label: 'HR Profiles',   icon: Users,        key: 'hr_profiles' },
-      { to: '/hr/timesheets', label: 'Timesheets',    icon: Clock,        key: 'hr_timesheet' },
-      { to: '/hr/leave',      label: 'Leave',         icon: CalendarDays, key: 'hr_leave' },
-      { to: '/hr/payslips',   label: 'Payslips',      icon: FileText,     key: 'hr_payslips' },
-      { to: '/hr/policies',   label: 'Policies',      icon: FileText,     key: 'hr_policies' },
-      { to: '/hr/onboarding', label: 'HR Onboarding', icon: Users,        key: 'hr_onboarding' },
-    ]
-  },
-  {
-    id: 'reports', label: 'Reports', icon: BarChart2,
-    items: [
-      { to: '/reports', label: 'Reports',   icon: BarChart2,     key: 'reports' },
-      { to: '/audit',   label: 'Audit Log', icon: ClipboardList, key: 'audit' },
-    ]
-  },
-  {
-    id: 'admin', label: 'Admin', icon: Shield,
-    items: [
-      { to: '/admin',       label: 'Admin',       icon: Shield,    key: 'admin' },
-      { to: '/banners',     label: 'Banners',     icon: Megaphone, key: 'banners' },
-      { to: '/maintenance', label: 'Maintenance', icon: Wrench,    key: 'maintenance' },
-      { to: '/settings',    label: 'Settings',    icon: Settings,  key: 'settings' },
-    ]
-  },
-  {
-    id: 'account', label: 'Account', icon: User,
-    items: [
-      { to: '/my-profile', label: 'My Profile', icon: User,     key: 'profile' },
-      { to: '/settings',   label: 'Settings',   icon: Settings, key: 'settings' },
-    ]
-  },
+const GROUPS = [
+  { label: null, items: [
+    { to:'/dashboard',  icon:'grid',     label:'Dashboard',   key:'dashboard' },
+    { to:'/my-profile', icon:'person',   label:'My Profile',  key:'dashboard' },
+    { to:'/search',     icon:'search',   label:'Search',      key:'dashboard' },
+  ]},
+  { label:'Business', items:[
+    { to:'/outreach',        icon:'phone',   label:'Clients Contacted', key:'outreach'      },
+    { to:'/clients',         icon:'people',  label:'Onboarded Clients', key:'clients'       },
+    { to:'/client-mgmt',     icon:'globe',   label:'Client Portal',     key:'clientmgmt'    },
+    { to:'/support',         icon:'chat',    label:'Support',           key:'support'       },
+    { to:'/competitor',      icon:'search',  label:'Competitor Lookup', key:'competitor'    },
+    { to:'/domains',         icon:'link',    label:'Domain Checker',    key:'domains'       },
+    { to:'/proposals',       icon:'doc',     label:'Proposal Builder',  key:'proposals'     },
+    { to:'/send-email',      icon:'send',    label:'Send Email',        key:'sendemail'     },
+  ]},
+  { label:'Tasks', items:[
+    { to:'/tasks',    icon:'check',  label:'Manage Tasks', key:'tasks'    },
+    { to:'/my-tasks', icon:'check',  label:'My Tasks',     key:'mytasks'  },
+    { to:'/schedule',      icon:'cal',      label:'Schedule',      key:'schedule'      },
+    { to:'/appointments', icon:'cal',     label:'Appointments',  key:'appointments'  },
+  ]},
+  { label:'HR', items:[
+    { to:'/hr/onboarding', icon:'star',    label:'Onboarding',  key:'hr_onboarding' },
+    { to:'/hr/leave',      icon:'cal',     label:'Leave',       key:'hr_leave'      },
+    { to:'/hr/payslips',   icon:'wallet',  label:'Payslips',    key:'hr_payslips'   },
+    { to:'/hr/policies',   icon:'doc',     label:'Policies',    key:'hr_policies'   },
+    { to:'/hr/timesheets', icon:'clock',   label:'Timesheets',  key:'hr_timesheet'  },
+  ]},
+  { label:'Admin', items:[
+    { to:'/my-staff',        icon:'people', label:'My Staff',         key:'staff'          },
+    { to:'/reports',         icon:'chart',  label:'Reports',          key:'reports'        },
+    { to:'/mailing-list',    icon:'mail',   label:'Mailing List',     key:'mailinglist'    },
+    { to:'/banners',         icon:'bell',   label:'Banners',          key:'banners'        },
+    { to:'/email-templates', icon:'mail',   label:'Email Templates',  key:'emailtemplates' },
+    { to:'/audit',           icon:'shield', label:'Audit Log',        key:'audit'          },
+    { to:'/maintenance',     icon:'wrench', label:'Maintenance',      key:'maintenance'    },
+    { to:'/settings',        icon:'gear',   label:'Settings',         key:'settings'       },
+  ]},
 ]
 
-const ALL_PAGES = SECTIONS.flatMap(s => s.items.map(i => ({ ...i, section: s.label, sectionId: s.id })))
-
-const css = `
-.dh-dock {
-  width: 56px; min-width: 56px; height: 100vh;
-  position: fixed; left: 0; top: 0; z-index: 300;
-  background: var(--bg2);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; align-items: center;
-  padding: 10px 0; gap: 1px; overflow: hidden;
+// SF Symbol-inspired SVG icons
+const Icon = ({ name, size = 14 }) => {
+  const icons = {
+    grid:    <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
+    person:  <><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></>,
+    phone:   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.5 19.79 19.79 0 012 .84h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.91 8.09a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>,
+    people:  <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></>,
+    globe:   <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
+    chat:    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>,
+    search:  <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+    link:    <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>,
+    doc:     <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
+    send:    <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
+    check:   <><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></>,
+    cal:     <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+    star:    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
+    wallet:  <><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></>,
+    clock:   <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    chart:   <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+    bell:    <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
+    mail:    <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
+    shield:  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+    wrench:  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>,
+    gear:    <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
+    logout:  <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+    sun:     <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>,
+    moon:    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>,
+    chevD:   <polyline points="6 9 12 15 18 9"/>,
+    chevR:   <polyline points="9 18 15 12 9 6"/>,
+    menu:    <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+    x:       <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    home:    <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+      {icons[name] || icons.doc}
+    </svg>
+  )
 }
-.dh-dock-logo {
-  width: 36px; height: 36px; margin-bottom: 6px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.dh-dock-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; flex-shrink: 0; }
-.dh-dock-icon {
-  width: 40px; height: 40px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; position: relative;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-  color: var(--faint); flex-shrink: 0;
-}
-.dh-dock-icon:hover { background: var(--bg3); color: var(--text); transform: scale(1.06); }
-.dh-dock-icon.dh-active { background: var(--gold-bg); color: var(--gold); }
-.dh-dock-icon.dh-active::before {
-  content: ''; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 18px; background: var(--gold); border-radius: 0 3px 3px 0;
-}
-.dh-tooltip {
-  position: absolute; left: 50px; top: 50%; transform: translateY(-50%);
-  background: var(--card); border: 1px solid var(--border2);
-  color: var(--gold); font-family: var(--font-mono);
-  font-size: 10px; padding: 4px 10px; border-radius: 6px;
-  white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity 0.12s; z-index: 400;
-  letter-spacing: 0.06em; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-.dh-dock-icon:hover .dh-tooltip { opacity: 1; }
-.dh-dock-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
-.dh-avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--gold-bg); border: 1.5px solid var(--gold-border);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-size: 13px; font-weight: 600;
-  color: var(--gold); cursor: pointer; transition: border-color 0.15s;
-}
-.dh-avatar:hover { border-color: var(--gold); }
-.dh-panel {
-  position: fixed; left: 56px; top: 0; height: 100vh;
-  width: 240px; background: var(--bg2);
-  border-right: 1px solid var(--border2);
-  transform: translateX(-110%); opacity: 0;
-  transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease;
-  z-index: 299; display: flex; flex-direction: column;
-  box-shadow: 6px 0 32px rgba(0,0,0,0.35);
-}
-.dh-panel.dh-open { transform: translateX(0); opacity: 1; }
-.dh-panel-head { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.dh-panel-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; color: var(--gold); letter-spacing: 0.01em; }
-.dh-panel-nav { flex: 1; overflow-y: auto; padding: 6px 8px; scrollbar-width: none; }
-.dh-panel-nav::-webkit-scrollbar { display: none; }
-.dh-panel-item {
-  display: flex; align-items: center; gap: 9px;
-  padding: 8px 10px; border-radius: 7px; margin-bottom: 1px;
-  cursor: pointer; color: var(--sub);
-  font-size: 13px; transition: background 0.12s, color 0.12s;
-  font-weight: 400; text-decoration: none;
-}
-.dh-panel-item:hover { background: var(--bg3); color: var(--text); }
-.dh-panel-item.dh-page-active { background: var(--gold-bg); color: var(--gold); font-weight: 500; border-left: 2px solid var(--gold); padding-left: 8px; }
-.dh-panel-footer { padding: 10px 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-.dh-panel-footer-btn {
-  width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 6px;
-  background: transparent; border: none; cursor: pointer;
-  color: var(--sub); font-size: 12px; font-family: inherit;
-  transition: background 0.12s, color 0.12s; margin-bottom: 4px;
-}
-.dh-panel-footer-btn:hover { background: var(--bg3); color: var(--text); }
-.dh-user-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border); }
-.dh-user-init { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-bg); border: 1px solid var(--gold-border); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 12px; font-weight: 600; color: var(--gold); flex-shrink: 0; }
-.dh-user-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.dh-user-email { font-family: var(--font-mono); font-size: 9px; color: var(--faint); letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; }
-.dh-logout-btn { background: transparent; border: none; color: var(--faint); padding: 4px; border-radius: 4px; display: flex; cursor: pointer; transition: color 0.15s; flex-shrink: 0; }
-.dh-logout-btn:hover { color: var(--red); }
-.dh-panel-scrim { position: fixed; inset: 0; z-index: 298; background: transparent; }
-.dh-search-backdrop { position: fixed; inset: 0; z-index: 500; background: rgba(15,13,10,0.75); backdrop-filter: blur(6px); display: none; align-items: flex-start; justify-content: center; padding-top: 72px; }
-.dh-search-backdrop.dh-open { display: flex; animation: dhFadeIn 0.15s ease; }
-@keyframes dhFadeIn { from{opacity:0} to{opacity:1} }
-.dh-search-modal { width: 580px; max-width: calc(100vw - 32px); background: var(--card); border: 1px solid var(--border2); border-radius: 14px; overflow: hidden; box-shadow: 0 28px 72px rgba(0,0,0,0.6); animation: dhSlideDown 0.18s cubic-bezier(0.16,1,0.3,1); }
-@keyframes dhSlideDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
-.dh-search-input-row { display: flex; align-items: center; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
-.dh-search-input { flex: 1; background: none; border: none; outline: none; font-family: var(--font-body); font-size: 15px; color: var(--text); caret-color: var(--gold); }
-.dh-search-input::placeholder { color: var(--faint); }
-.dh-search-esc { font-family: var(--font-mono); font-size: 10px; color: var(--faint); background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; cursor: pointer; flex-shrink: 0; }
-.dh-results { max-height: 400px; overflow-y: auto; padding: 6px; scrollbar-width: thin; }
-.dh-results-group { font-family: var(--font-mono); font-size: 9px; color: var(--faint); letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 10px 4px; }
-.dh-result-item { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: background 0.1s; }
-.dh-result-item:hover, .dh-result-item.dh-focused { background: var(--gold-bg); }
-.dh-result-item.dh-focused .dh-result-label { color: var(--gold); }
-.dh-result-icon { color: var(--faint); flex-shrink: 0; }
-.dh-result-item.dh-focused .dh-result-icon { color: var(--gold); }
-.dh-result-label { font-size: 13.5px; color: var(--text); flex: 1; }
-.dh-result-badge { font-family: var(--font-mono); font-size: 9px; color: var(--faint); background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
-.dh-search-empty { padding: 32px; text-align: center; color: var(--faint); font-size: 13px; }
-.dh-search-footer { display: flex; align-items: center; gap: 14px; padding: 9px 18px; border-top: 1px solid var(--border); background: var(--bg2); }
-.dh-search-hint { font-family: var(--font-mono); font-size: 9px; color: var(--faint); display: flex; align-items: center; gap: 5px; }
-.dh-key { background: var(--card); border: 1px solid var(--border2); border-radius: 3px; padding: 1px 5px; font-size: 9px; }
-.dh-hamburger { position: fixed; top: 12px; left: 12px; z-index: 400; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; gap: 5px; padding: 9px 8px; align-items: center; justify-content: center; cursor: pointer; }
-.dh-ham-line { display: block; width: 16px; height: 1.5px; background: var(--text); border-radius: 2px; transition: all 0.25s; }
-`
 
 export default function Sidebar() {
-  const { user, can } = useAuth()
+  const { user, can, isOnboarding } = useAuth()
   const { instance } = useMsal()
-  const navigate = useNavigate()
   const location = useLocation()
-  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
-  const [activeSection, setActiveSection] = useState(null)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [focusedIdx, setFocusedIdx] = useState(-1)
-  const [searchResults, setSearchResults] = useState([])
-  const [mobile, setMobile] = useState(window.innerWidth < 768)
+  const navigate = useNavigate()
+  const [dark, setDark]       = useState(() => localStorage.getItem('dh-theme') === 'dark')
   const [mobileOpen, setMobileOpen] = useState(false)
-  const searchInputRef = useRef(null)
+  const [tickets, setTickets] = useState(0)
+  const [collapsed, setCollapsed] = useState({})
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  const isAllowed = useCallback((key) => {
-    if (!can) return true
-    return can(key)
-  }, [can])
+  // Sync sidebar width as CSS variable so main content can respond
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-w', sidebarCollapsed ? '60px' : '248px')
+  }, [sidebarCollapsed])
 
-  useEffect(() => {
-    const fn = () => setMobile(window.innerWidth < 768)
-    window.addEventListener('resize', fn)
-    return () => window.removeEventListener('resize', fn)
-  }, [])
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
   useEffect(() => {
-    setPanelOpen(false)
-    setMobileOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    const match = SECTIONS.find(s =>
-      s.items.some(i => i.to === location.pathname || (i.to !== '/' && location.pathname.startsWith(i.to)))
-    )
-    if (match) setActiveSection(match.id)
-  }, [location.pathname])
-
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch() }
-      if (e.key === 'Escape') {
-        if (searchOpen) closeSearch()
-        else if (panelOpen) setPanelOpen(false)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [searchOpen, panelOpen])
-
-  const fuzzy = (str, q) => {
-    const s = str.toLowerCase(), qL = q.toLowerCase()
-    let qi = 0
-    for (let i = 0; i < s.length && qi < qL.length; i++) { if (s[i] === qL[qi]) qi++ }
-    return qi === qL.length
-  }
-
-  useEffect(() => {
-    if (!query.trim()) { setSearchResults([]); setFocusedIdx(-1); return }
-    const results = ALL_PAGES
-      .filter(p => isAllowed(p.key))
-      .filter(p => fuzzy(p.label, query) || fuzzy(p.section, query))
-    setSearchResults(results)
-    setFocusedIdx(-1)
-  }, [query, isAllowed])
-
-  const openSearch = () => {
-    setSearchOpen(true); setQuery(''); setSearchResults([]); setFocusedIdx(-1)
-    setTimeout(() => searchInputRef.current?.focus(), 50)
-  }
-  const closeSearch = () => { setSearchOpen(false); setQuery('') }
-  const goToResult = (r) => { navigate(r.to); closeSearch() }
-
-  const handleSearchKey = (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setFocusedIdx(i => Math.min(i + 1, searchResults.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setFocusedIdx(i => Math.max(i - 1, 0)) }
-    else if (e.key === 'Enter') { if (focusedIdx >= 0 && searchResults[focusedIdx]) goToResult(searchResults[focusedIdx]) }
-    else if (e.key === 'Escape') closeSearch()
-  }
-
-  const togglePanel = (sectionId) => {
-    if (panelOpen && activeSection === sectionId) { setPanelOpen(false) }
-    else { setActiveSection(sectionId); setPanelOpen(true) }
-  }
+    if (!user?.email) return
+    supabase.from('support_tickets').select('*', { count:'exact', head:true })
+      .eq('status','open').then(({ count }) => setTickets(count || 0)).catch(() => {})
+  }, [user?.email])
 
   const toggleTheme = () => {
     const next = dark ? 'light' : 'dark'
     document.documentElement.setAttribute('data-theme', next)
+    localStorage.setItem('dh-theme', next)
     setDark(!dark)
   }
 
-  const visibleSections = SECTIONS.filter(s => s.items.some(i => isAllowed(i.key)))
-  const activeSecData = SECTIONS.find(s => s.id === activeSection)
+  const navBody = (
+    <>
+      {/* Logo */}
+      <div style={{ padding:'18px 20px 14px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <button onClick={() => navigate('/')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, textAlign:'left' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:400, letterSpacing:'-0.02em', color:'var(--text)', lineHeight:1 }}>
+              {sidebarCollapsed ? 'DH' : <><span>DH</span><span style={{ color:'var(--accent)' }}> Portal</span></>}
+            </div>
+          </button>
+          <button onClick={() => setSidebarCollapsed(s => !s)} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{ background:'none', border:'1px solid var(--border)', borderRadius:6, cursor:'pointer', color:'var(--faint)', display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, flexShrink:0, transition:'all 0.2s' }}
+            className="hide-mob">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {sidebarCollapsed
+                ? <polyline points="9 18 15 12 9 6"/>
+                : <polyline points="15 18 9 12 15 6"/>}
+            </svg>
+          </button>
+        </div>
+        {!sidebarCollapsed && user?.name && (
+          <div style={{ marginTop:6, fontSize:12, color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'var(--font-mono)', letterSpacing:'0.02em' }}>
+            {user.name}
+          </div>
+        )}
+      </div>
 
-  const groupedResults = searchResults.reduce((acc, r) => {
-    if (!acc[r.section]) acc[r.section] = []
-    acc[r.section].push(r)
-    return acc
-  }, {})
+      {/* Nav */}
+      <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', padding:'8px 10px' }}>
+        <style>{`.dh-nav-item svg { opacity: 0.7 } .dh-nav-item.active svg { opacity: 1 } .dh-nav-item:hover svg { opacity: 0.9 }`}</style>
 
-  let resultIndex = 0
-  const dockVisible = mobile ? mobileOpen : true
+        {GROUPS.map(g => {
+          const items = (g.items || []).filter(item =>
+            isOnboarding ? item.key === 'hr_onboarding' : can(item.key)
+          )
+          if (g.label && items.length === 0) return null
+          const isCollapsed = g.label && collapsed[g.label]
+          return (
+            <div key={g.label || 'root'} style={{ marginBottom: g.label ? 6 : 2 }}>
+              {g.label && !sidebarCollapsed && (
+                <button onClick={() => setCollapsed(p => ({ ...p, [g.label]: !p[g.label] }))}
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 10px 3px', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)' }}>
+                  {g.label}
+                  <Icon name={isCollapsed ? 'chevR' : 'chevD'} size={9}/>
+                </button>
+              )}
+              {g.label && sidebarCollapsed && <div style={{ height:1, background:'var(--border)', margin:'6px 8px 4px' }}/>}
+              {!isCollapsed && items.map(item => {
+                const isActive = location.pathname === item.to
+                return (
+                  <NavLink key={item.to} to={item.to} className={({ isActive }) => 'dh-nav-item' + (isActive ? ' active' : '')} title={sidebarCollapsed ? item.label : ''} style={sidebarCollapsed ? { justifyContent:'center', padding:'8px' } : {}}>
+                    <Icon name={item.icon} size={14}/>
+                    {!sidebarCollapsed && <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>{item.label}</span>}
+                    {!sidebarCollapsed && item.to === '/support' && tickets > 0 && (
+                      <span style={{ background:'var(--red)', color:'#fff', fontSize:9, fontWeight:600, minWidth:16, height:16, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 4px', flexShrink:0 }}>
+                        {tickets}
+                      </span>
+                    )}
+                    {sidebarCollapsed && item.to === '/support' && tickets > 0 && (
+                      <span style={{ position:'absolute', top:2, right:2, background:'var(--red)', color:'#fff', fontSize:8, fontWeight:600, minWidth:14, height:14, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 2px' }}>
+                        {tickets}
+                      </span>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ borderTop:'1px solid var(--border)', padding:'10px' }}>
+        <button onClick={toggleTheme} title={dark ? 'Light mode' : 'Dark mode'} style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:7, border:'none', background:'transparent', cursor:'pointer', color:'var(--faint)', fontSize:12, marginBottom:4, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+          <Icon name={dark ? 'sun' : 'moon'} size={13}/>
+          {!sidebarCollapsed && (dark ? 'Light mode' : 'Dark mode')}
+        </button>
+        <div style={{ display:'flex', alignItems:'center', gap: sidebarCollapsed ? 0 : 9, padding: sidebarCollapsed ? '8px 4px' : '8px 10px', borderRadius:9, background:'var(--bg2)', border:'1px solid var(--border)', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, color:'var(--accent)', flexShrink:0 }}>
+            {user?.initials || '?'}
+          </div>
+          {!sidebarCollapsed && <>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:12, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text)' }}>{user?.name || '...'}</div>
+              <div style={{ fontSize:10, fontFamily:'var(--font-mono)', color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis' }}>{user?.email}</div>
+            </div>
+            <button onClick={() => instance.logoutRedirect()} title="Sign out" style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', padding:4, display:'flex', borderRadius:5 }}>
+              <Icon name="logout" size={13}/>
+            </button>
+          </>}
+        </div>
+      </div>
+    </>
+  )
 
   return (
     <>
-      <style>{css}</style>
-
-      {mobile && (
-        <button className="dh-hamburger" onClick={() => setMobileOpen(o => !o)}>
-          <span className="dh-ham-line" style={{ transform: mobileOpen ? 'rotate(45deg) translate(4px,4px)' : 'none' }} />
-          <span className="dh-ham-line" style={{ opacity: mobileOpen ? 0 : 1 }} />
-          <span className="dh-ham-line" style={{ transform: mobileOpen ? 'rotate(-45deg) translate(4px,-4px)' : 'none' }} />
-        </button>
-      )}
-
-      {dockVisible && (
-        <nav className="dh-dock">
-          <div className="dh-dock-logo">
-            <img src="/dh-logo.png" alt="DH" style={{ height: 24, filter: dark ? 'brightness(0) invert(1) opacity(0.85)' : 'none' }} />
-          </div>
-          <div className="dh-dock-sep" />
-          {visibleSections.map(sec => {
-            const Icon = sec.icon
-            const isActive = activeSection === sec.id
-            return (
-              <div key={sec.id} className={`dh-dock-icon${isActive ? ' dh-active' : ''}`} onClick={() => togglePanel(sec.id)}>
-                <Icon size={18} strokeWidth={1.8} />
-                <span className="dh-tooltip">{sec.label}</span>
-              </div>
-            )
-          })}
-          <div className="dh-dock-bottom">
-            <div className="dh-dock-sep" />
-            <div className="dh-dock-icon" onClick={openSearch}>
-              <Search size={18} strokeWidth={1.8} />
-              <span className="dh-tooltip">Search ⌘K</span>
-            </div>
-            <div className="dh-avatar" onClick={() => navigate('/my-profile')}>
-              {user?.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-          </div>
-        </nav>
-      )}
-
-      {panelOpen && <div className="dh-panel-scrim" onClick={() => setPanelOpen(false)} />}
-
-      <div className={`dh-panel${panelOpen ? ' dh-open' : ''}`}>
-        <div className="dh-panel-head">
-          <div className="dh-panel-title">{activeSecData?.label}</div>
-        </div>
-        <nav className="dh-panel-nav">
-          {activeSecData?.items.filter(i => isAllowed(i.key)).map(item => {
-            const Icon = item.icon
-            const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
-            return (
-              <NavLink key={item.to} to={item.to} className={`dh-panel-item${isActive ? ' dh-page-active' : ''}`}>
-                <Icon size={14} strokeWidth={1.8} />
-                <span>{item.label}</span>
-              </NavLink>
-            )
-          })}
-        </nav>
-        <div className="dh-panel-footer">
-          <button className="dh-panel-footer-btn" onClick={toggleTheme}>
-            {dark ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
-            <span>{dark ? 'Light mode' : 'Dark mode'}</span>
-          </button>
-          <div className="dh-user-row">
-            <div className="dh-user-init">{user?.name?.[0]?.toUpperCase() || 'U'}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="dh-user-name">{user?.name}</div>
-              <div className="dh-user-email">{user?.email}</div>
-            </div>
-            <button className="dh-logout-btn" onClick={() => instance.logoutRedirect()} title="Sign out">
-              <LogOut size={13} strokeWidth={1.8} />
-            </button>
-          </div>
-        </div>
+      {/* Desktop — always visible */}
+      <div style={{ position:'fixed', top:0, left:0, bottom:0, width: sidebarCollapsed ? 60 : 248, background:'var(--bg)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', zIndex:100, overflowY:'auto', overflowX:'hidden', transition:'width 0.25s cubic-bezier(0.16,1,0.3,1)' }} className="hide-mob">
+        {navBody}
       </div>
 
-      <div className={`dh-search-backdrop${searchOpen ? ' dh-open' : ''}`} onClick={closeSearch}>
-        <div className="dh-search-modal" onClick={e => e.stopPropagation()}>
-          <div className="dh-search-input-row">
-            <Search size={17} strokeWidth={1.8} style={{ color: 'var(--gold)', flexShrink: 0 }} />
-            <input ref={searchInputRef} className="dh-search-input" placeholder="Search pages and sections..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleSearchKey} autoComplete="off" />
-            <span className="dh-search-esc" onClick={closeSearch}>ESC</span>
+      {/* Mobile hamburger */}
+      <button className="mob-btn" onClick={() => setMobileOpen(o => !o)}>
+        <Icon name={mobileOpen ? 'x' : 'menu'} size={16}/>
+      </button>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
+          <div onClick={() => setMobileOpen(false)} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.4)' }}/>
+          <div style={{ position:'fixed', top:0, left:0, bottom:0, width:248, background:'var(--bg)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', zIndex:201, overflowY:'auto' }}>
+            {navBody}
           </div>
-          <div className="dh-results">
-            {!query.trim() && <div className="dh-search-empty">Start typing to search pages and sections</div>}
-            {query.trim() && searchResults.length === 0 && <div className="dh-search-empty">No results for &ldquo;{query}&rdquo;</div>}
-            {Object.entries(groupedResults).map(([group, items]) => (
-              <div key={group}>
-                <div className="dh-results-group">{group}</div>
-                {items.map(item => {
-                  const Icon = item.icon
-                  const idx = resultIndex++
-                  return (
-                    <div key={item.to + idx} className={`dh-result-item${focusedIdx === idx ? ' dh-focused' : ''}`} onClick={() => goToResult(item)} onMouseEnter={() => setFocusedIdx(idx)}>
-                      <span className="dh-result-icon"><Icon size={15} strokeWidth={1.8} /></span>
-                      <span className="dh-result-label">{item.label}</span>
-                      <span className="dh-result-badge">{item.section}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-          <div className="dh-search-footer">
-            <span className="dh-search-hint"><span className="dh-key">↑↓</span> navigate</span>
-            <span className="dh-search-hint"><span className="dh-key">↵</span> open</span>
-            <span className="dh-search-hint"><span className="dh-key">ESC</span> close</span>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </>
   )
 }
