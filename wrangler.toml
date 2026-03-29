@@ -11,3 +11,7 @@ compatibility_date = "2024-09-23"
 # [[kv_namespaces]]
 # binding = "KV"
 # id = "YOUR_KV_NAMESPACE_ID"
+
+name = "dh-portal"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"

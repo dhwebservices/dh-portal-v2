@@ -68,9 +68,10 @@ export default function LoginPage() {
           Sign in with Microsoft
         </button>
 
-        <p style={{ marginTop: '20px', fontSize: '12px', color: '#5A5048', textAlign: 'center', lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.02em' }}>
+                <p style={{ marginTop: '20px', fontSize: '12px', color: '#5A5048', textAlign: 'center', lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.02em' }}>
           Restricted to authorised DH Website Services staff
         </p>
       </div>
+    </div>
   )
 }
