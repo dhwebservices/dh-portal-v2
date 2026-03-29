@@ -90,7 +90,7 @@ export default function StaffProfile() {
         const data = await res.json()
         setMsUsers((data.value || [])
           .filter(u => u.userPrincipalName?.toLowerCase() !== email.toLowerCase())
-          .map(u => ({ displayName: u.displayName, userPrincipalName: u.userPrincipalName?.toLowerCase() })))
+          .map(u => ({ name: u.displayName, email: u.userPrincipalName?.toLowerCase() })))
       } catch (_) {}
     }
     loadMsUsers()
@@ -189,11 +189,13 @@ export default function StaffProfile() {
         const { data: fetched } = await supabase.from('hr_profiles')
           .select('id').ilike('user_email', email).maybeSingle()
         if (fetched?.id) setProfileId(fetched.id)
+        // Set prevManagerEmail so future changes can be detected
+        setPrevManagerEmail(profile.manager_email || '')
       }
 
       // Send manager notification if manager changed
       const newManagerEmail = profile.manager_email
-      if (newManagerEmail && newManagerEmail !== prevManagerEmail) {
+      if (newManagerEmail && newManagerEmail !== prevManagerEmail && prevManagerEmail !== null) {
         const staffName = profile.full_name || email
         const managerName = profile.manager_name || newManagerEmail
         // Portal notification
@@ -234,10 +236,12 @@ export default function StaffProfile() {
           updated_at: new Date().toISOString()
         }).eq('id', permId)
       } else {
-        const { data } = await supabase.from('user_permissions')
+        await supabase.from('user_permissions')
           .insert([{ user_email: email, permissions: editPerms, onboarding, bookable_staff: bookable }])
-          .select().maybeSingle()
-        if (data?.id) setPermId(data.id)
+        // Re-fetch to get the id
+        const { data: newPerm } = await supabase.from('user_permissions')
+          .select('id').ilike('user_email', email).maybeSingle()
+        if (newPerm?.id) setPermId(newPerm.id)
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -328,14 +332,14 @@ export default function StaffProfile() {
               <div>
                 <label className="lbl">Manager</label>
                 <select className="inp" value={profile.manager_email || ''} onChange={e => {
-                  const selected = msUsers.find(u => u.userPrincipalName === e.target.value)
+                  const selected = msUsers.find(u => u.email === e.target.value)
                   pf('manager_email', e.target.value)
-                  pf('manager_name', selected?.displayName || '')
+                  pf('manager_name', selected?.name || '')
                 }}>
                   <option value="">— No manager assigned —</option>
                   {msUsers.map(u => (
-                    <option key={u.userPrincipalName} value={u.userPrincipalName}>
-                      {u.displayName}
+                    <option key={u.email} value={u.email}>
+                      {u.name}
                     </option>
                   ))}
                 </select>
