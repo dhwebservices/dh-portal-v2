@@ -221,28 +221,30 @@ export default function StaffProfile() {
             created_at: new Date().toISOString(),
           }])
         } catch (_) {}
-        try {
-          const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+        const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
           const mgr = profile.manager_name || newMgr
-          // Email to manager
-          await fetch(WORKER, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'manager_assigned',
-              data: { to_email: newMgr, manager_name: mgr, staff_name: staffName, staff_email: email, assigned_by: user?.name || 'Admin' }
+          // Email to manager — independent try/catch so staff email always fires
+          try {
+            await fetch(WORKER, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'manager_assigned',
+                data: { to_email: newMgr, manager_name: mgr, staff_name: staffName, staff_email: email, assigned_by: user?.name || 'Admin' }
+              })
             })
-          })
-          // Email to staff member
-          await fetch(WORKER, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'staff_manager_assigned',
-              data: { to_email: email, staff_name: staffName, manager_name: mgr, manager_email: newMgr, assigned_by: user?.name || 'Admin' }
+          } catch (_) {}
+          // Email to staff member — always fires independently
+          try {
+            await fetch(WORKER, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'staff_manager_assigned',
+                data: { to_email: email, staff_name: staffName, manager_name: mgr, manager_email: newMgr, assigned_by: user?.name || 'Admin' }
+              })
             })
-          })
-        } catch (_) {}
+          } catch (_) {}
         setPrevMgr(newMgr)
       }
 
