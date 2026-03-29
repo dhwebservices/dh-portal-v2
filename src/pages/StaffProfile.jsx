@@ -206,9 +206,9 @@ export default function StaffProfile() {
         if (newPerm?.id) setPermId(newPerm.id)
       }
 
-      // Manager change notification — only if manager genuinely changed after first save
+      // Manager change notification — fires when manager genuinely changes
       const newMgr = profile.manager_email || ''
-      if (newMgr && newMgr !== prevMgr && profileId) {
+      if (newMgr && newMgr !== prevMgr) {
         const staffName = profile.full_name || email
         try {
           await supabase.from('notifications').insert([{
@@ -225,7 +225,16 @@ export default function StaffProfile() {
           await fetch('https://dh-email-worker.aged-silence-66a7.workers.dev', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'manager_assigned', data: { to_email: newMgr, staff_name: staffName, staff_email: email, assigned_by: user?.name || 'Admin' } })
+            body: JSON.stringify({
+              type: 'manager_assigned',
+              data: {
+                to_email:     newMgr,
+                manager_name: profile.manager_name || newMgr,
+                staff_name:   staffName,
+                staff_email:  email,
+                assigned_by:  user?.name || 'Admin',
+              }
+            })
           })
         } catch (_) {}
         setPrevMgr(newMgr)
