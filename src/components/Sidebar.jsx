@@ -1,237 +1,176 @@
-import React, { useState, useEffect } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useMsal } from '@azure/msal-react'
+import { useState, useEffect } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
+import { usePortalTheme } from '../hooks/usePortalTheme'
+import { Home, LayoutDashboard, Users, Globe2, PhoneCall, MessageSquare, CheckSquare, CalendarDays, UserPlus, Wallet, FileCheck, Clock, Wrench, BarChart2, Megaphone, Mail, ClipboardList, Shield, Settings, Tag, FileText, Share2, SendHorizonal, LogOut, ChevronDown, Sun, Moon } from 'lucide-react'
 
 const GROUPS = [
   { label: null, items: [
-    { to:'/dashboard',  icon:'grid',     label:'Dashboard',   key:'dashboard' },
-    { to:'/my-profile', icon:'person',   label:'My Profile',  key:'dashboard' },
-    { to:'/search',     icon:'search',   label:'Search',      key:'dashboard' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', key: 'dashboard' },
   ]},
-  { label:'Business', items:[
-    { to:'/outreach',        icon:'phone',   label:'Clients Contacted', key:'outreach'      },
-    { to:'/clients',         icon:'people',  label:'Onboarded Clients', key:'clients'       },
-    { to:'/client-mgmt',     icon:'globe',   label:'Client Portal',     key:'clientmgmt'    },
-    { to:'/support',         icon:'chat',    label:'Support',           key:'support'       },
-    { to:'/competitor',      icon:'search',  label:'Competitor Lookup', key:'competitor'    },
-    { to:'/domains',         icon:'link',    label:'Domain Checker',    key:'domains'       },
-    { to:'/proposals',       icon:'doc',     label:'Proposal Builder',  key:'proposals'     },
-    { to:'/send-email',      icon:'send',    label:'Send Email',        key:'sendemail'     },
+  { label: 'Business', items: [
+    { to: '/outreach',     icon: PhoneCall,     label: 'Clients Contacted',  key: 'outreach'      },
+    { to: '/clients',      icon: Users,         label: 'Onboarded Clients',  key: 'clients'       },
+    { to: '/client-mgmt',  icon: Globe2,        label: 'Client Portal',      key: 'clientmgmt'    },
+    { to: '/support',      icon: MessageSquare, label: 'Support',            key: 'support'       },
+    { to: '/competitor',   icon: Tag,           label: 'Competitor Lookup',  key: 'competitor'    },
+    { to: '/domains',      icon: Globe2,        label: 'Domain Checker',     key: 'domains'       },
+    { to: '/proposals',    icon: FileText,      label: 'Proposal Builder',   key: 'proposals'     },
+    { to: '/social',       icon: Share2,        label: 'Social Media',       key: 'social'        },
+    { to: '/send-email',   icon: SendHorizonal, label: 'Send Email',         key: 'sendemail'     },
   ]},
-  { label:'Tasks', items:[
-    { to:'/tasks',    icon:'check',  label:'Manage Tasks', key:'tasks'    },
-    { to:'/my-tasks', icon:'check',  label:'My Tasks',     key:'mytasks'  },
-    { to:'/schedule',      icon:'cal',      label:'Schedule',      key:'schedule'      },
-    { to:'/appointments', icon:'cal',     label:'Appointments',  key:'appointments'  },
+  { label: 'Tasks', items: [
+    { to: '/tasks',    icon: CheckSquare,  label: 'Manage Tasks', key: 'tasks'    },
+    { to: '/my-tasks', icon: CheckSquare,  label: 'My Tasks',     key: 'mytasks'  },
+    { to: '/schedule', icon: CalendarDays, label: 'Schedule',     key: 'schedule' },
   ]},
-  { label:'HR', items:[
-    { to:'/hr/onboarding', icon:'star',    label:'Onboarding',  key:'hr_onboarding' },
-    { to:'/hr/leave',      icon:'cal',     label:'Leave',       key:'hr_leave'      },
-    { to:'/hr/payslips',   icon:'wallet',  label:'Payslips',    key:'hr_payslips'   },
-    { to:'/hr/policies',   icon:'doc',     label:'Policies',    key:'hr_policies'   },
-    { to:'/hr/timesheets', icon:'clock',   label:'Timesheets',  key:'hr_timesheet'  },
+  { label: 'HR', items: [
+    { to: '/hr/onboarding', icon: UserPlus,    label: 'Onboarding', key: 'hr_onboarding' },
+    { to: '/hr/leave',      icon: CalendarDays,label: 'Leave',      key: 'hr_leave'      },
+    { to: '/hr/payslips',   icon: Wallet,      label: 'Payslips',   key: 'hr_payslips'   },
+    { to: '/hr/policies',   icon: FileCheck,   label: 'Policies',   key: 'hr_policies'   },
+    { to: '/hr/timesheet',  icon: Clock,       label: 'Timesheet',  key: 'hr_timesheet'  },
   ]},
-  { label:'Admin', items:[
-    { to:'/my-staff',        icon:'people', label:'My Staff',         key:'staff'          },
-    { to:'/reports',         icon:'chart',  label:'Reports',          key:'reports'        },
-    { to:'/mailing-list',    icon:'mail',   label:'Mailing List',     key:'mailinglist'    },
-    { to:'/banners',         icon:'bell',   label:'Banners',          key:'banners'        },
-    { to:'/email-templates', icon:'mail',   label:'Email Templates',  key:'emailtemplates' },
-    { to:'/audit',           icon:'shield', label:'Audit Log',        key:'audit'          },
-    { to:'/maintenance',     icon:'wrench', label:'Maintenance',      key:'maintenance'    },
-    { to:'/settings',        icon:'gear',   label:'Settings',         key:'settings'       },
+  { label: 'Admin', items: [
+    { to: '/website-cms',    icon: Globe2,        label: 'Website Editor',  key: 'admin'          },
+    { to: '/staff-accounts', icon: Users,         label: 'Staff Accounts',  key: 'admin'          },
+    { to: '/reports',        icon: BarChart2,     label: 'Reports',         key: 'reports'        },
+    { to: '/banners',        icon: Megaphone,     label: 'Banners',         key: 'banners'        },
+    { to: '/email-templates',icon: Mail,          label: 'Email Templates', key: 'emailtemplates' },
+    { to: '/audit',          icon: ClipboardList, label: 'Audit Log',       key: 'audit'          },
+    { to: '/maintenance',    icon: Wrench,        label: 'Maintenance',     key: 'maintenance'    },
+    { to: '/settings',       icon: Settings,      label: 'Settings',        key: 'settings'       },
   ]},
 ]
 
-// SF Symbol-inspired SVG icons
-const Icon = ({ name, size = 14 }) => {
-  const icons = {
-    grid:    <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
-    person:  <><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></>,
-    phone:   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.5 19.79 19.79 0 012 .84h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.91 8.09a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>,
-    people:  <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></>,
-    globe:   <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
-    chat:    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>,
-    search:  <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
-    link:    <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>,
-    doc:     <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
-    send:    <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
-    check:   <><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></>,
-    cal:     <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
-    star:    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
-    wallet:  <><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></>,
-    clock:   <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
-    chart:   <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
-    bell:    <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
-    mail:    <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
-    shield:  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
-    wrench:  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>,
-    gear:    <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
-    logout:  <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
-    sun:     <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>,
-    moon:    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>,
-    chevD:   <polyline points="6 9 12 15 18 9"/>,
-    chevR:   <polyline points="9 18 15 12 9 6"/>,
-    menu:    <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
-    x:       <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
-    home:    <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
-  }
+const ALL = GROUPS.flatMap(g => g.items)
+
+function Group({ label, children, open, onToggle }) {
+  if (!label) return <div style={{ marginBottom: 4 }}>{children}</div>
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
-      {icons[name] || icons.doc}
-    </svg>
+    <div style={{ marginBottom: 2 }}>
+      <button onClick={onToggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px 3px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--faint)' }}>
+        {label}
+        <ChevronDown size={10} style={{ transition: 'transform 0.2s', transform: open ? 'rotate(0)' : 'rotate(-90deg)', color: 'var(--faint)' }} />
+      </button>
+      {open && <div>{children}</div>}
+    </div>
   )
 }
 
 export default function Sidebar() {
-  const { user, can, isOnboarding } = useAuth()
+  const { user } = useAuth()
   const { instance } = useMsal()
-  const location = useLocation()
   const navigate = useNavigate()
-  const [dark, setDark]       = useState(() => localStorage.getItem('dh-theme') === 'dark')
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
+  const { dark, toggle } = usePortalTheme()
+  const [allowed, setAllowed] = useState(ALL)
+  const [openGroups, setOpenGroups] = useState({ Business: true, Tasks: true, HR: true, Admin: true })
   const [tickets, setTickets] = useState(0)
-  const [collapsed, setCollapsed] = useState({})
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobile, setMobile] = useState(window.innerWidth < 768)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Sync sidebar width as CSS variable so main content can respond
-  React.useEffect(() => {
-    document.documentElement.style.setProperty('--sidebar-w', sidebarCollapsed ? '60px' : '248px')
-  }, [sidebarCollapsed])
-
-  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  useEffect(() => setMobileOpen(false), [location])
 
   useEffect(() => {
     if (!user?.email) return
-    supabase.from('support_tickets').select('*', { count:'exact', head:true })
-      .eq('status','open').then(({ count }) => setTickets(count || 0)).catch(() => {})
-  }, [user?.email])
+    const load = async () => {
+      const isAdmin = user.roles?.includes('Administrator')
+      if (isAdmin) { setAllowed(ALL); return }
+      const { data } = await supabase.from('user_permissions').select('user_email,permissions,onboarding')
+      const row = (data||[]).find(r => r.user_email?.toLowerCase() === user.email?.toLowerCase())
+      if (row?.onboarding) { setAllowed([]); return }
+      const p = row?.permissions
+      setAllowed(p && Object.keys(p).length ? ALL.filter(n => p[n.key]) : ALL)
+    }
+    load()
+    supabase.from('support_tickets').select('id', { count: 'exact' }).eq('status','open').then(({ count }) => setTickets(count||0))
+  }, [user])
 
-  const toggleTheme = () => {
-    const next = dark ? 'light' : 'dark'
-    document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('dh-theme', next)
-    setDark(!dark)
-  }
+  const toggleGroup = (label) => setOpenGroups(p => ({ ...p, [label]: !p[label] }))
 
-  const navBody = (
-    <>
-      {/* Logo */}
-      <div style={{ padding:'18px 20px 14px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <button onClick={() => navigate('/')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, textAlign:'left' }}>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:400, letterSpacing:'-0.02em', color:'var(--text)', lineHeight:1 }}>
-              {sidebarCollapsed ? 'DH' : <><span>DH</span><span style={{ color:'var(--accent)' }}> Portal</span></>}
-            </div>
-          </button>
-          <button onClick={() => setSidebarCollapsed(s => !s)} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{ background:'none', border:'1px solid var(--border)', borderRadius:6, cursor:'pointer', color:'var(--faint)', display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, flexShrink:0, transition:'all 0.2s' }}
-            className="hide-mob">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              {sidebarCollapsed
-                ? <polyline points="9 18 15 12 9 6"/>
-                : <polyline points="15 18 9 12 15 6"/>}
-            </svg>
-          </button>
-        </div>
-        {!sidebarCollapsed && user?.name && (
-          <div style={{ marginTop:6, fontSize:12, color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'var(--font-mono)', letterSpacing:'0.02em' }}>
-            {user.name}
-          </div>
-        )}
+  const nav = (
+    <div style={{ width: 'var(--sidebar-w)', height: '100vh', position: 'fixed', left: 0, top: 0, zIndex: 200, background: 'var(--bg2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', transform: mobile ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)', transition: 'transform 0.35s cubic-bezier(0.16,1,0.3,1)' }}>
+      {/* Logo row */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <img src="/dh-logo.png" alt="DH" style={{ height: 22, filter: dark ? 'brightness(0) invert(1) opacity(0.85)' : 'none', transition: 'filter 0.3s' }} />
+        <button onClick={() => navigate('/')} title="Home" style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--faint)', transition: 'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.color='var(--gold)' }}
+          onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--faint)' }}
+        ><Home size={11} /></button>
       </div>
 
       {/* Nav */}
-      <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', padding:'8px 10px' }}>
-        <style>{`.dh-nav-item svg { opacity: 0.7 } .dh-nav-item.active svg { opacity: 1 } .dh-nav-item:hover svg { opacity: 0.9 }`}</style>
-
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 8px', scrollbarWidth: 'none' }}>
+        <style>{`nav::-webkit-scrollbar{display:none}`}</style>
         {GROUPS.map(g => {
-          const items = (g.items || []).filter(item =>
-            isOnboarding ? item.key === 'hr_onboarding' : can(item.key)
-          )
-          if (g.label && items.length === 0) return null
-          const isCollapsed = g.label && collapsed[g.label]
+          const items = g.items.filter(item => allowed.some(a => a.key === item.key && a.to === item.to))
+          if (!items.length) return null
           return (
-            <div key={g.label || 'root'} style={{ marginBottom: g.label ? 6 : 2 }}>
-              {g.label && !sidebarCollapsed && (
-                <button onClick={() => setCollapsed(p => ({ ...p, [g.label]: !p[g.label] }))}
-                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 10px 3px', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)' }}>
-                  {g.label}
-                  <Icon name={isCollapsed ? 'chevR' : 'chevD'} size={9}/>
-                </button>
-              )}
-              {g.label && sidebarCollapsed && <div style={{ height:1, background:'var(--border)', margin:'6px 8px 4px' }}/>}
-              {!isCollapsed && items.map(item => {
-                const isActive = location.pathname === item.to
-                return (
-                  <NavLink key={item.to} to={item.to} className={({ isActive }) => 'dh-nav-item' + (isActive ? ' active' : '')} title={sidebarCollapsed ? item.label : ''} style={sidebarCollapsed ? { justifyContent:'center', padding:'8px' } : {}}>
-                    <Icon name={item.icon} size={14}/>
-                    {!sidebarCollapsed && <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>{item.label}</span>}
-                    {!sidebarCollapsed && item.to === '/support' && tickets > 0 && (
-                      <span style={{ background:'var(--red)', color:'#fff', fontSize:9, fontWeight:600, minWidth:16, height:16, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 4px', flexShrink:0 }}>
-                        {tickets}
-                      </span>
-                    )}
-                    {sidebarCollapsed && item.to === '/support' && tickets > 0 && (
-                      <span style={{ position:'absolute', top:2, right:2, background:'var(--red)', color:'#fff', fontSize:8, fontWeight:600, minWidth:14, height:14, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 2px' }}>
-                        {tickets}
-                      </span>
-                    )}
-                  </NavLink>
-                )
-              })}
-            </div>
+            <Group key={g.label||'top'} label={g.label} open={g.label ? openGroups[g.label] : true} onToggle={() => g.label && toggleGroup(g.label)}>
+              {items.map(({ to, icon: Icon, label, key }) => (
+                <NavLink key={to} to={to} style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 10px', borderRadius: 6, marginBottom: 1,
+                  fontSize: 13, fontWeight: isActive ? 600 : 400,
+                  color: isActive ? 'var(--text)' : 'var(--sub)',
+                  background: isActive ? 'var(--card)' : 'transparent',
+                  borderLeft: `2px solid ${isActive ? 'var(--gold)' : 'transparent'}`,
+                  transition: 'all 0.12s', textDecoration: 'none',
+                })}
+                  onMouseOver={e => { if (!e.currentTarget.classList.contains('active')) { e.currentTarget.style.background='var(--bg3)'; e.currentTarget.style.color='var(--text)' }}}
+                  onMouseOut={e => { if (!e.currentTarget.classList.contains('active')) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}}
+                >
+                  <Icon size={13} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  {to === '/support' && tickets > 0 && <span style={{ background: 'var(--red)', color: '#fff', fontSize: 9, fontWeight: 700, minWidth: 15, height: 15, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{tickets}</span>}
+                </NavLink>
+              ))}
+            </Group>
           )
         })}
-      </div>
+      </nav>
 
       {/* Footer */}
-      <div style={{ borderTop:'1px solid var(--border)', padding:'10px' }}>
-        <button onClick={toggleTheme} title={dark ? 'Light mode' : 'Dark mode'} style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:7, border:'none', background:'transparent', cursor:'pointer', color:'var(--faint)', fontSize:12, marginBottom:4, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
-          <Icon name={dark ? 'sun' : 'moon'} size={13}/>
-          {!sidebarCollapsed && (dark ? 'Light mode' : 'Dark mode')}
+      <div style={{ padding: 10, borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        <button onClick={toggle} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--sub)', fontSize: 12, marginBottom: 4, transition: 'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background='var(--bg3)'; e.currentTarget.style.color='var(--text)' }}
+          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}
+        >
+          {dark ? <Sun size={12} /> : <Moon size={12} />}
+          <span>{dark ? 'Light mode' : 'Dark mode'}</span>
         </button>
-        <div style={{ display:'flex', alignItems:'center', gap: sidebarCollapsed ? 0 : 9, padding: sidebarCollapsed ? '8px 4px' : '8px 10px', borderRadius:9, background:'var(--bg2)', border:'1px solid var(--border)', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
-          <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, color:'var(--accent)', flexShrink:0 }}>
-            {user?.initials || '?'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--gold-bg)', border: '1px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: 'var(--gold)', flexShrink: 0 }}>{user?.name?.[0]?.toUpperCase()||'U'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--faint)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
           </div>
-          {!sidebarCollapsed && <>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text)' }}>{user?.name || '...'}</div>
-              <div style={{ fontSize:10, fontFamily:'var(--font-mono)', color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis' }}>{user?.email}</div>
-            </div>
-            <button onClick={() => instance.logoutRedirect()} title="Sign out" style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', padding:4, display:'flex', borderRadius:5 }}>
-              <Icon name="logout" size={13}/>
-            </button>
-          </>}
+          <button onClick={() => instance.logoutRedirect()} title="Sign out" style={{ background: 'transparent', border: 'none', color: 'var(--faint)', padding: 4, borderRadius: 4, display: 'flex', cursor: 'pointer', transition: 'color 0.15s' }}
+            onMouseOver={e => e.currentTarget.style.color='var(--red)'}
+            onMouseOut={e => e.currentTarget.style.color='var(--faint)'}
+          ><LogOut size={12} /></button>
         </div>
       </div>
-    </>
+    </div>
   )
 
   return (
     <>
-      {/* Desktop — always visible */}
-      <div style={{ position:'fixed', top:0, left:0, bottom:0, width: sidebarCollapsed ? 60 : 248, background:'var(--bg)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', zIndex:100, overflowY:'auto', overflowX:'hidden', transition:'width 0.25s cubic-bezier(0.16,1,0.3,1)' }} className="hide-mob">
-        {navBody}
-      </div>
-
-      {/* Mobile hamburger */}
-      <button className="mob-btn" onClick={() => setMobileOpen(o => !o)}>
-        <Icon name={mobileOpen ? 'x' : 'menu'} size={16}/>
-      </button>
-
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <>
-          <div onClick={() => setMobileOpen(false)} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.4)' }}/>
-          <div style={{ position:'fixed', top:0, left:0, bottom:0, width:248, background:'var(--bg)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', zIndex:201, overflowY:'auto' }}>
-            {navBody}
-          </div>
-        </>
+      {nav}
+      {mobile && (
+        <button onClick={() => setMobileOpen(o => !o)} style={{ position: 'fixed', top: 14, left: 14, zIndex: 300, width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', display: 'flex', flexDirection: 'column', gap: 5, padding: 8, alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          {[0,1,2].map(i => <span key={i} style={{ display: 'block', width: 16, height: 1.5, background: 'var(--text)', borderRadius: 2, transition: 'all 0.25s', transform: mobileOpen?(i===0?'rotate(45deg) translate(4px,4px)':i===2?'rotate(-45deg) translate(4px,-4px)':'none'):'none', opacity: mobileOpen&&i===1?0:1 }} />)}
+        </button>
       )}
+      {mobile && mobileOpen && <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)' }} />}
     </>
   )
 }
