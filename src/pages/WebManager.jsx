@@ -15,6 +15,38 @@ const PLANS = [
   { id:'hosting2', name:'Hosting Pro', price:null, monthly:65    },
   { id:'hosting3', name:'Hosting Biz', price:null, monthly:109   },
 ]
+const MANUAL_PAYMENT_OPTIONS = [
+  ['manual:starter', 'Starter'],
+  ['manual:growth', 'Growth'],
+  ['manual:pro', 'Pro'],
+  ['manual:enterprise', 'Enterprise'],
+  ['manual:custom', 'Manual / Custom'],
+]
+const GO_CARDLESS_TEMPLATES = [
+  { id:'tpl-hr-maintenance', name:'HR: Monthly Maintenance', amount:49 },
+  { id:'tpl-hosting-business', name:'Hosting: Business', amount:109 },
+  { id:'tpl-hosting-professional', name:'Hosting: Professional', amount:65 },
+  { id:'tpl-hosting-starter', name:'Hosting: Starter', amount:35 },
+  { id:'tpl-enterprise-hr', name:'Enterprise & HR Build', amount:2499 },
+  { id:'tpl-website-pro', name:'Website Build: Pro', amount:1499 },
+  { id:'tpl-website-growth', name:'Website Build: Growth', amount:999 },
+  { id:'tpl-website-starter', name:'Website Build: Starter', amount:499 },
+]
+
+function paymentAmountPounds(payment) {
+  const amount = Number(payment?.amount || 0)
+  return payment?.currency === 'GBP' ? amount / 100 : amount
+}
+
+function paymentTypeLabel(paymentType = '') {
+  if (paymentType === 'one_off') return 'One-off DD'
+  if (paymentType === 'subscription') return 'Subscription'
+  if (paymentType.startsWith('manual:')) {
+    const key = paymentType.split(':')[1]
+    return key === 'custom' ? 'Manual / Custom' : `Manual — ${key.charAt(0).toUpperCase()}${key.slice(1)}`
+  }
+  return paymentType || 'Payment'
+}
 
 // ── Sections ──────────────────────────────────────────────────────────
 function NavTab({ label, active, onClick, badge }) {
@@ -75,14 +107,17 @@ function SiteEditor({ url, title }) {
 // ── GoCardless Payments Panel ─────────────────────────────────────────
 function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
   const [payments, setPayments]   = useState([])
+  const [manualPayments, setManualPayments] = useState([])
   const [subs, setSubs]           = useState([])
   const [loading, setLoading]     = useState(true)
   const [settingUp, setSettingUp] = useState(false)
   const [paying, setPaying]       = useState(false)
   const [payModal, setPayModal]   = useState(false)
+  const [manualModal, setManualModal] = useState(false)
   const [subModal, setSubModal]   = useState(false)
   const [payForm, setPayForm]     = useState({ amount:'', description:'' })
   const [subForm, setSubForm]     = useState({ amount:'', name:'', day_of_month:1 })
+  const [manualForm, setManualForm] = useState({ amount:'', description:'', payment_type:'manual:custom', status:'paid' })
   const [error, setError]         = useState('')
   const [success, setSuccess]     = useState('')
 
@@ -111,21 +146,59 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
       .update({ customer_id: customerId, mandate_id: active.id, status: active.status })
       .eq('client_email', status.client_email || client.email)
 
-    setGcStatus(p => ({ ...p, customer_id: customerId, mandate_id: active.id, status: active.status }))
-    return true
+    const patch = { customer_id: customerId, mandate_id: active.id, status: active.status, billing_request_id: status.billing_request_id || null }
+    setGcStatus(p => ({ ...p, ...patch }))
+    return patch
+  }
+
+  const triggerMandateRefresh = async (status = gcStatus) => {
+    if (!(status?.customer_id || status?.billing_request_id) || status?.mandate_id) return
+    try {
+      const patch = await refreshMandateStatus(status)
+      if (patch?.mandate_id) {
+        const [paymentResult, subscriptionResult] = await Promise.all([
+          getPayments(patch.mandate_id).catch(() => ({ payments: [] })),
+          getSubscriptions(patch.mandate_id).catch(() => ({ subscriptions: [] })),
+        ])
+        setPayments(paymentResult.payments || [])
+        setSubs(subscriptionResult.subscriptions || [])
+        setSuccess('Direct Debit mandate is now active')
+      }
+    } catch {}
   }
 
   useEffect(() => {
+    const loadManualPayments = supabase
+      .from('client_payments')
+      .select('*')
+      .eq('client_email', client.email)
+      .order('created_at', { ascending:false })
+      .then(({ data }) => setManualPayments((data || []).filter(p => String(p.payment_type || '').startsWith('manual:'))))
+
     if (gcStatus?.mandate_id) {
-      Promise.all([getPayments(gcStatus.mandate_id), getSubscriptions(gcStatus.mandate_id)])
+      Promise.all([getPayments(gcStatus.mandate_id), getSubscriptions(gcStatus.mandate_id), loadManualPayments])
         .then(([p, s]) => { setPayments(p.payments||[]); setSubs(s.subscriptions||[]); setLoading(false) })
         .catch(() => setLoading(false))
     } else if ((gcStatus?.customer_id || gcStatus?.billing_request_id) && !gcStatus?.mandate_id) {
-      refreshMandateStatus(gcStatus)
+      Promise.all([refreshMandateStatus(gcStatus), loadManualPayments])
         .then(() => setLoading(false))
         .catch(() => setLoading(false))
-    } else { setLoading(false) }
-  }, [gcStatus?.mandate_id, gcStatus?.customer_id, gcStatus?.billing_request_id])
+    } else {
+      loadManualPayments.finally(() => setLoading(false))
+    }
+  }, [gcStatus?.mandate_id, gcStatus?.customer_id, gcStatus?.billing_request_id, client.email])
+
+  useEffect(() => {
+    if (!gcStatus || gcStatus?.mandate_id) return
+    const refresh = () => triggerMandateRefresh(gcStatus)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    refresh()
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [gcStatus?.billing_request_id, gcStatus?.customer_id, gcStatus?.mandate_id])
 
   const doSetup = async () => {
     setSettingUp(true); setError('')
@@ -177,7 +250,33 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
     } catch(e) { setError(e.message) }
   }
 
-  const totalCollected = payments.filter(p=>p.status==='paid_out').reduce((s,p)=>s+(p.amount||0)/100,0)
+  const doManualPayment = async () => {
+    if (!manualForm.amount) return
+    setPaying(true); setError('')
+    try {
+      const entry = {
+        client_email: client.email,
+        client_name: client.name,
+        amount: Number(manualForm.amount),
+        payment_type: manualForm.payment_type || 'manual:custom',
+        status: manualForm.status || 'paid',
+        description: manualForm.description || null,
+        created_at: new Date().toISOString(),
+      }
+      const { data, error: insertError } = await supabase.from('client_payments').insert([entry]).select()
+      if (insertError) throw insertError
+      setManualPayments(prev => [data?.[0] || entry, ...prev])
+      setSuccess('Manual payment recorded')
+      setManualModal(false)
+      setManualForm({ amount:'', description:'', payment_type:'manual:custom', status:'paid' })
+    } catch (e) { setError(e.message) }
+    setPaying(false)
+  }
+
+  const allPayments = [...manualPayments, ...payments]
+  const totalCollected = allPayments
+    .filter(p => ['paid_out', 'confirmed', 'paid'].includes(String(p.status || '').toLowerCase()))
+    .reduce((s,p)=>s+paymentAmountPounds(p),0)
 
   return (
     <div style={{ padding:'0 20px 20px' }}>
@@ -211,6 +310,7 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
           <div style={{ display:'flex', gap:10 }}>
             <button className="btn btn-primary" onClick={() => { setPayForm({amount:'',description:''}); setError(''); setPayModal(true) }}>💸 Collect Payment</button>
             <button className="btn btn-outline" onClick={() => { setSubForm({amount:'',name:'',day_of_month:1}); setError(''); setSubModal(true) }}>🔄 Set Up Subscription</button>
+            <button className="btn btn-outline" onClick={() => { setManualForm({ amount:'', description:'', payment_type:'manual:custom', status:'paid' }); setError(''); setManualModal(true) }}>🧾 Record Manual Payment</button>
           </div>
           {subs.length > 0 && (
             <div className="card" style={{ overflow:'hidden' }}>
@@ -231,16 +331,17 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
               </table>
             </div>
           )}
-          {payments.length > 0 && (
+          {allPayments.length > 0 && (
             <div className="card" style={{ overflow:'hidden' }}>
               <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)' }}>Payment History</div>
               <table className="tbl">
-                <thead><tr><th>Date</th><th>Amount</th><th>Description</th><th>Status</th></tr></thead>
+                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
                 <tbody>
-                  {payments.map(p => (
+                  {allPayments.map(p => (
                     <tr key={p.id}>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{p.charge_date||'—'}</td>
-                      <td>£{(p.amount/100).toFixed(2)}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{p.charge_date || new Date(p.created_at||Date.now()).toLocaleDateString('en-GB')}</td>
+                      <td>£{paymentAmountPounds(p).toFixed(2)}</td>
+                      <td>{paymentTypeLabel(p.payment_type)}</td>
                       <td>{p.description||'—'}</td>
                       <td><span className={`badge badge-${paymentStatusColor(p.status)}`}>{p.status}</span></td>
                     </tr>
@@ -251,8 +352,11 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
           )}
         </div>
       ) : (
-        <div style={{ padding:'16px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)' }}>
-          ⏳ Waiting for {client.name} to authorise the Direct Debit mandate. Once they complete the GoCardless page, the mandate will become active.
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ padding:'16px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)' }}>
+            ⏳ Waiting for {client.name} to authorise the Direct Debit mandate. Once they complete the GoCardless page, the mandate will become active.
+          </div>
+          <button className="btn btn-outline" onClick={() => triggerMandateRefresh(gcStatus)}>↻ Refresh Mandate Status</button>
         </div>
       )}
 
@@ -274,8 +378,41 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
             <div><label className="lbl">Subscription Name</label><input className="inp" value={subForm.name} onChange={e=>setSubForm(p=>({...p,name:e.target.value}))} placeholder="Hosting Pro Plan"/></div>
             <div><label className="lbl">Collection Day (1–28)</label><input className="inp" type="number" min="1" max="28" value={subForm.day_of_month} onChange={e=>setSubForm(p=>({...p,day_of_month:Number(e.target.value)}))}/></div>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-              {[['Hosting Starter',35],['Hosting Pro',65],['Hosting Business',109]].map(([name,price]) => (
-                <button key={name} onClick={()=>setSubForm(p=>({...p,amount:price,name}))} style={{ padding:'5px 10px', borderRadius:6, border:`1px solid ${subForm.name===name?'var(--accent)':'var(--border)'}`, background:subForm.name===name?'var(--accent-soft)':'transparent', cursor:'pointer', fontSize:11, color:'var(--text)' }}>{name} — £{price}/mo</button>
+              {GO_CARDLESS_TEMPLATES.map(template => (
+                <button key={template.id} onClick={()=>setSubForm(p=>({...p,amount:template.amount,name:template.name}))} style={{ padding:'5px 10px', borderRadius:6, border:`1px solid ${subForm.name===template.name?'var(--accent)':'var(--border)'}`, background:subForm.name===template.name?'var(--accent-soft)':'transparent', cursor:'pointer', fontSize:11, color:'var(--text)' }}>{template.name} — £{template.amount}/mo</button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {manualModal && (
+        <Modal title="Record Manual Payment" onClose={()=>setManualModal(false)} footer={<><button className="btn btn-outline" onClick={()=>setManualModal(false)}>Cancel</button><button className="btn btn-primary" onClick={doManualPayment} disabled={paying||!manualForm.amount}>{paying?'Saving...':'Record Payment'}</button></>}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {error && <div style={{ padding:'8px 12px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{error}</div>}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={manualForm.amount} onChange={e=>setManualForm(p=>({...p,amount:e.target.value}))} placeholder="449" autoFocus/></div>
+              <div><label className="lbl">Status</label>
+                <select className="inp" value={manualForm.status} onChange={e=>setManualForm(p=>({...p,status:e.target.value}))}>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+            </div>
+            <div><label className="lbl">Assign To</label>
+              <select className="inp" value={manualForm.payment_type} onChange={e=>setManualForm(p=>({...p,payment_type:e.target.value}))}>
+                {MANUAL_PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </div>
+            <div><label className="lbl">Description</label><input className="inp" value={manualForm.description} onChange={e=>setManualForm(p=>({...p,description:e.target.value}))} placeholder="Bank transfer for Growth package"/></div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {[
+                { name:'Starter', amount:499, type:'manual:starter' },
+                { name:'Growth', amount:999, type:'manual:growth' },
+                { name:'Pro', amount:1499, type:'manual:pro' },
+                { name:'Enterprise & HR Build', amount:2499, type:'manual:enterprise' },
+              ].map(template => (
+                <button key={template.type} onClick={()=>setManualForm(p=>({...p,amount:String(template.amount),payment_type:template.type,description:`Manual payment for ${template.name}`}))} style={{ padding:'5px 10px', borderRadius:6, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--text)' }}>{template.name}</button>
               ))}
             </div>
           </div>
