@@ -114,10 +114,12 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
   const [paying, setPaying]       = useState(false)
   const [payModal, setPayModal]   = useState(false)
   const [manualModal, setManualModal] = useState(false)
+  const [linkGcModal, setLinkGcModal] = useState(false)
   const [subModal, setSubModal]   = useState(false)
   const [payForm, setPayForm]     = useState({ amount:'', description:'' })
   const [subForm, setSubForm]     = useState({ amount:'', name:'', day_of_month:1 })
   const [manualForm, setManualForm] = useState({ amount:'', description:'', payment_type:'manual:custom', status:'paid' })
+  const [linkGcForm, setLinkGcForm] = useState({ customer_id:'', mandate_id:'', status:'active' })
   const [error, setError]         = useState('')
   const [success, setSuccess]     = useState('')
 
@@ -273,6 +275,34 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
     setPaying(false)
   }
 
+  const linkExistingMandate = async () => {
+    if (!linkGcForm.customer_id?.trim()) return
+    setPaying(true); setError('')
+    try {
+      const record = {
+        client_email: client.email,
+        client_name: client.name,
+        customer_id: linkGcForm.customer_id.trim(),
+        mandate_id: linkGcForm.mandate_id.trim() || null,
+        status: linkGcForm.status || 'active',
+      }
+      const { data, error: upsertError } = await supabase
+        .from('gocardless_mandates')
+        .upsert([record], { onConflict: 'client_email' })
+        .select()
+        .maybeSingle()
+      if (upsertError) throw upsertError
+      setGcStatus(data || record)
+      setSuccess('Existing GoCardless customer linked to this client')
+      setLinkGcModal(false)
+      setLinkGcForm({ customer_id:'', mandate_id:'', status:'active' })
+      if (!record.mandate_id) {
+        await triggerMandateRefresh(data || record)
+      }
+    } catch (e) { setError(e.message) }
+    setPaying(false)
+  }
+
   const allPayments = [...manualPayments, ...payments]
   const totalCollected = allPayments
     .filter(p => ['paid_out', 'confirmed', 'paid'].includes(String(p.status || '').toLowerCase()))
@@ -302,7 +332,11 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
           <div style={{ fontSize:40, marginBottom:12 }}>🏦</div>
           <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:8 }}>Set Up Direct Debit</h3>
           <p style={{ fontSize:13, color:'var(--sub)', maxWidth:340, margin:'0 auto 20px', lineHeight:1.7 }}>Collect payments automatically from {client.name} via GoCardless Direct Debit.</p>
-          <button className="btn btn-primary" onClick={doSetup} disabled={settingUp} style={{ padding:'10px 24px' }}>{settingUp?'Opening GoCardless...':'+ Set Up Direct Debit'}</button>
+          <div style={{ display:'flex', justifyContent:'center', gap:10, flexWrap:'wrap' }}>
+            <button className="btn btn-primary" onClick={doSetup} disabled={settingUp} style={{ padding:'10px 24px' }}>{settingUp?'Opening GoCardless...':'+ Set Up Direct Debit'}</button>
+            <button className="btn btn-outline" onClick={() => { setManualForm({ amount:'', description:'', payment_type:'manual:custom', status:'paid' }); setError(''); setManualModal(true) }}>🧾 Record Manual Payment</button>
+            <button className="btn btn-outline" onClick={() => { setError(''); setLinkGcModal(true) }}>🔗 Link Existing Direct Debit</button>
+          </div>
           <div style={{ fontSize:11, color:'var(--faint)', marginTop:10 }}>Client will be sent to a secure GoCardless page to authorise</div>
         </div>
       ) : gcStatus.status === 'active' ? (
@@ -414,6 +448,22 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
               ].map(template => (
                 <button key={template.type} onClick={()=>setManualForm(p=>({...p,amount:String(template.amount),payment_type:template.type,description:`Manual payment for ${template.name}`}))} style={{ padding:'5px 10px', borderRadius:6, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--text)' }}>{template.name}</button>
               ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {linkGcModal && (
+        <Modal title="Link Existing GoCardless Customer" onClose={()=>setLinkGcModal(false)} footer={<><button className="btn btn-outline" onClick={()=>setLinkGcModal(false)}>Cancel</button><button className="btn btn-primary" onClick={linkExistingMandate} disabled={paying||!linkGcForm.customer_id}>{paying?'Saving...':'Link Direct Debit'}</button></>}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {error && <div style={{ padding:'8px 12px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{error}</div>}
+            <div><label className="lbl">GoCardless Customer ID</label><input className="inp" value={linkGcForm.customer_id} onChange={e=>setLinkGcForm(p=>({...p,customer_id:e.target.value}))} placeholder="CU..." autoFocus/></div>
+            <div><label className="lbl">Mandate ID (optional)</label><input className="inp" value={linkGcForm.mandate_id} onChange={e=>setLinkGcForm(p=>({...p,mandate_id:e.target.value}))} placeholder="MD..."/></div>
+            <div><label className="lbl">Status</label>
+              <select className="inp" value={linkGcForm.status} onChange={e=>setLinkGcForm(p=>({...p,status:e.target.value}))}>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+              </select>
             </div>
           </div>
         </Modal>

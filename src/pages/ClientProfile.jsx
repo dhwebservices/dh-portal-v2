@@ -69,6 +69,8 @@ export default function ClientProfile() {
   const [settingUp, setSettingUp] = useState(false)
   const [payModal, setPayModal] = useState(null) // 'one_off' | 'subscription' | 'manual'
   const [payForm, setPayForm]   = useState({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' })
+  const [linkGcModal, setLinkGcModal] = useState(false)
+  const [linkGcForm, setLinkGcForm] = useState({ customer_id:'', mandate_id:'', status:'active' })
   const [gcError, setGcError]   = useState('')
   const [gcSuccess, setGcSuccess] = useState('')
 
@@ -285,6 +287,37 @@ export default function ClientProfile() {
     setSaving(false)
   }
 
+  const linkExistingMandate = async () => {
+    if (!linkGcForm.customer_id?.trim()) return
+    setSaving(true); setGcError('')
+    try {
+      const record = {
+        client_email: client.email,
+        client_name: client.name,
+        customer_id: linkGcForm.customer_id.trim(),
+        mandate_id: linkGcForm.mandate_id.trim() || null,
+        status: linkGcForm.status || 'active',
+        created_at: new Date().toISOString(),
+      }
+      const { data, error } = await supabase
+        .from('gocardless_mandates')
+        .upsert([record], { onConflict: 'client_email' })
+        .select()
+        .maybeSingle()
+      if (error) throw error
+      setGcStatus(data || record)
+      setGcSuccess('Existing GoCardless customer linked to this client')
+      setLinkGcModal(false)
+      setLinkGcForm({ customer_id:'', mandate_id:'', status:'active' })
+      if (!record.mandate_id) {
+        await triggerMandateRefresh(data || record, client)
+      }
+    } catch (e) {
+      setGcError(e.message)
+    }
+    setSaving(false)
+  }
+
   const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
   const sbHeaders = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
@@ -473,9 +506,17 @@ export default function ClientProfile() {
           {/* Payment buttons */}
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
             {!gcStatus ? (
-              <button className="btn btn-primary" onClick={doSetupMandate} disabled={settingUp} style={{ padding:'12px 24px' }}>
-                {settingUp ? 'Opening GoCardless...' : '🏦 Set Up Direct Debit'}
-              </button>
+              <>
+                <button className="btn btn-primary" onClick={doSetupMandate} disabled={settingUp} style={{ padding:'12px 24px' }}>
+                  {settingUp ? 'Opening GoCardless...' : '🏦 Set Up Direct Debit'}
+                </button>
+                <button className="btn btn-outline" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' }); setGcError(''); setPayModal('manual') }}>
+                  🧾 Record Manual Payment
+                </button>
+                <button className="btn btn-outline" onClick={() => { setGcError(''); setLinkGcModal(true) }}>
+                  🔗 Link Existing Direct Debit
+                </button>
+              </>
             ) : gcStatus.status === 'active' ? (
               <>
                 <button className="btn btn-primary" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1 }); setGcError(''); setPayModal('one_off') }}>
@@ -729,6 +770,26 @@ export default function ClientProfile() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {linkGcModal && (
+        <Modal title="Link Existing GoCardless Customer" onClose={() => setLinkGcModal(false)}
+          footer={<><button className="btn btn-outline" onClick={() => setLinkGcModal(false)}>Cancel</button><button className="btn btn-primary" onClick={linkExistingMandate} disabled={saving || !linkGcForm.customer_id}>{saving?'Saving...':'Link Direct Debit'}</button></>}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
+            <div><label className="lbl">GoCardless Customer ID</label><input className="inp" value={linkGcForm.customer_id} onChange={e=>setLinkGcForm(p=>({...p,customer_id:e.target.value}))} placeholder="CU..." autoFocus/></div>
+            <div><label className="lbl">Mandate ID (optional)</label><input className="inp" value={linkGcForm.mandate_id} onChange={e=>setLinkGcForm(p=>({...p,mandate_id:e.target.value}))} placeholder="MD..."/></div>
+            <div><label className="lbl">Status</label>
+              <select className="inp" value={linkGcForm.status} onChange={e=>setLinkGcForm(p=>({...p,status:e.target.value}))}>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+            <div style={{ padding:'10px 14px', background:'var(--bg2)', borderRadius:7, fontSize:13, color:'var(--sub)' }}>
+              Use this if the customer or mandate already exists in GoCardless but the portal failed to link it. If you only know the customer ID, leave mandate blank and the portal will try to refresh it.
             </div>
           </div>
         </Modal>
