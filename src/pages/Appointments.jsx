@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -75,7 +75,7 @@ export default function Appointments() {
   const [slotModal, setSlotModal] = useState(null) // { date, staffEmail, staffName }
   const [saving, setSaving] = useState(false)
 
-  const days = weekDays(anchor)
+  const days = useMemo(() => weekDays(anchor), [anchor])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -151,7 +151,7 @@ export default function Appointments() {
     setAvailability([...explicitAvailability, ...derivedAvailability])
     setAppointments(appts || [])
     setLoading(false)
-  }, [anchor, days])
+  }, [days, anchor])
 
   useEffect(() => { load() }, [load])
 
