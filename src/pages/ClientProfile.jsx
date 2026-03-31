@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
-import { setupMandate, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, mandateStatusColor, paymentStatusColor } from '../utils/gocardless'
+import { setupMandate, getBillingRequest, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, mandateStatusColor, paymentStatusColor } from '../utils/gocardless'
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
 
@@ -43,6 +43,37 @@ export default function ClientProfile() {
   const [activity, setActivity] = useState([])
   const [tickets, setTickets]   = useState([])
 
+  const refreshMandateStatus = async (status, clientRecord = client) => {
+    if (!status || !clientRecord?.email) return false
+
+    let customerId = status.customer_id || null
+
+    if (!customerId && status.billing_request_id) {
+      const billingRequest = await getBillingRequest(status.billing_request_id)
+      customerId =
+        billingRequest.billing_requests?.resources?.customer?.id ||
+        billingRequest.billing_requests?.links?.customer ||
+        billingRequest.customer?.id ||
+        null
+    }
+
+    if (!customerId) return false
+
+    const { mandates } = await getMandates(customerId)
+    const active = mandates?.find(m => m.status === 'active') || mandates?.[0]
+    if (!active) return false
+
+    const patch = { customer_id: customerId, mandate_id: active.id, status: active.status }
+    if (id) patch.client_id = id
+
+    await supabase
+      .from('gocardless_mandates')
+      .upsert({ client_email: clientRecord.email, client_name: clientRecord.name, ...patch }, { onConflict: 'client_email' })
+
+    setGcStatus(p => ({ ...p, ...patch, client_email: clientRecord.email }))
+    return true
+  }
+
   useEffect(() => {
     if (!id) return
     Promise.all([
@@ -68,6 +99,10 @@ export default function ClientProfile() {
           const [p, s] = await Promise.all([getPayments(gc.mandate_id), getSubscriptions(gc.mandate_id)])
           setPayments(p.payments || [])
           setSubs(s.subscriptions || [])
+        } catch {}
+      } else if ((gc?.customer_id || gc?.billing_request_id) && c?.email) {
+        try {
+          await refreshMandateStatus(gc, c)
         } catch {}
       }
     })
@@ -96,7 +131,7 @@ export default function ClientProfile() {
       const { data: saved } = await supabase.from('gocardless_mandates').upsert({
         client_id: id, client_email: client.email, client_name: client.name,
         customer_id: data.customer_id, billing_request_id: data.billing_request_id, status: 'pending',
-      }, { onConflict: 'client_id' }).select().maybeSingle()
+      }, { onConflict: 'client_email' }).select().maybeSingle()
       setGcStatus(saved)
       window.open(data.redirect_url, '_blank')
       setGcSuccess('GoCardless page opened in new tab. Ask the client to complete their bank details.')

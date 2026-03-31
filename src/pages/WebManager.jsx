@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import SiteEditorPage from './SiteEditor'
-import { setupMandate, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, paymentStatusColor, mandateStatusColor } from '../utils/gocardless'
+import { setupMandate, getBillingRequest, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, paymentStatusColor, mandateStatusColor } from '../utils/gocardless'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -86,22 +86,46 @@ function GoCardlessPanel({ client, gcStatus, setGcStatus }) {
   const [error, setError]         = useState('')
   const [success, setSuccess]     = useState('')
 
+  const refreshMandateStatus = async (status) => {
+    if (!status) return false
+
+    let customerId = status.customer_id || null
+
+    if (!customerId && status.billing_request_id) {
+      const billingRequest = await getBillingRequest(status.billing_request_id)
+      customerId =
+        billingRequest.billing_requests?.resources?.customer?.id ||
+        billingRequest.billing_requests?.links?.customer ||
+        billingRequest.customer?.id ||
+        null
+    }
+
+    if (!customerId) return false
+
+    const { mandates } = await getMandates(customerId)
+    const active = mandates?.find(m => m.status === 'active') || mandates?.[0]
+    if (!active) return false
+
+    await supabase
+      .from('gocardless_mandates')
+      .update({ customer_id: customerId, mandate_id: active.id, status: active.status })
+      .eq('client_email', status.client_email || client.email)
+
+    setGcStatus(p => ({ ...p, customer_id: customerId, mandate_id: active.id, status: active.status }))
+    return true
+  }
+
   useEffect(() => {
     if (gcStatus?.mandate_id) {
       Promise.all([getPayments(gcStatus.mandate_id), getSubscriptions(gcStatus.mandate_id)])
         .then(([p, s]) => { setPayments(p.payments||[]); setSubs(s.subscriptions||[]); setLoading(false) })
         .catch(() => setLoading(false))
-    } else if (gcStatus?.customer_id && !gcStatus?.mandate_id) {
-      getMandates(gcStatus.customer_id).then(({ mandates }) => {
-        const active = mandates?.find(m => m.status==='active') || mandates?.[0]
-        if (active) {
-          supabase.from('gocardless_mandates').update({ mandate_id: active.id, status: active.status }).eq('client_email', gcStatus.client_email||'')
-          setGcStatus(p => ({ ...p, mandate_id: active.id, status: active.status }))
-        }
-        setLoading(false)
-      }).catch(() => setLoading(false))
+    } else if ((gcStatus?.customer_id || gcStatus?.billing_request_id) && !gcStatus?.mandate_id) {
+      refreshMandateStatus(gcStatus)
+        .then(() => setLoading(false))
+        .catch(() => setLoading(false))
     } else { setLoading(false) }
-  }, [gcStatus?.mandate_id, gcStatus?.customer_id])
+  }, [gcStatus?.mandate_id, gcStatus?.customer_id, gcStatus?.billing_request_id])
 
   const doSetup = async () => {
     setSettingUp(true); setError('')
@@ -383,7 +407,7 @@ function ClientProfile({ client, onBack }) {
         billing_request_id: data.billing_request_id,
         status: 'pending',
       }, { onConflict: 'client_email' })
-      setGcStatus({ client_email: client.email, status: 'pending', customer_id: data.customer_id })
+      setGcStatus({ client_email: client.email, status: 'pending', customer_id: data.customer_id, billing_request_id: data.billing_request_id })
       window.open(data.redirect_url, '_blank')
       setGcSuccess('GoCardless page opened — ask the client to complete their bank details.')
     } catch(e) {
@@ -437,13 +461,20 @@ function ClientProfile({ client, onBack }) {
           </div>
           <div className="card card-pad">
             <div className="lbl" style={{ marginBottom:14 }}>GoCardless</div>
-            {gcStatus ? (
+            {gcStatus?.status === 'active' ? (
               <div>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                   <span style={{ width:8,height:8,borderRadius:'50%',background:'var(--green)',display:'inline-block' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color:'var(--green)' }}>Mandate Active</span>
                 </div>
                 <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{gcStatus.mandate_id}</div>
+              </div>
+            ) : gcStatus ? (
+              <div>
+                <p style={{ fontSize:13, color:'var(--sub)', marginBottom:14, lineHeight:1.6 }}>The client still needs to complete the secure GoCardless authorisation page before the mandate becomes active.</p>
+                {gcError && <div style={{ fontSize:12, color:'var(--red)', marginBottom:8 }}>{gcError}</div>}
+                {gcSuccess && <div style={{ fontSize:12, color:'var(--green)', marginBottom:8 }}>✓ {gcSuccess}</div>}
+                <div style={{ fontSize:12, color:'var(--amber)' }}>Pending authorisation</div>
               </div>
             ) : (
               <div>

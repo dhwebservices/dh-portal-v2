@@ -21,27 +21,34 @@ export async function setupMandate(clientEmail, clientName) {
   const [given_name, ...rest] = (clientName || '').trim().split(/\s+/)
   const family_name = rest.join(' ') || 'Client'
 
-  const customer = await call('gc_create_customer', {
-    email: clientEmail,
-    given_name: given_name || 'Client',
-    family_name,
-  })
-
   const billingRequest = await call('gc_create_billing_request', {
-    customer_id: customer.customers?.id || customer.id,
+    scheme: 'bacs',
   })
 
   const billingRequestId = billingRequest.billing_requests?.id || billingRequest.id
   const flow = await call('gc_create_billing_request_flow', {
     billing_request_id: billingRequestId,
     redirect_uri: window.location.href,
+    prefilled_customer: {
+      email: clientEmail,
+      given_name: given_name || 'Client',
+      family_name,
+    },
   })
 
   return {
     redirect_url: flow.billing_request_flows?.authorisation_url || flow.authorisation_url,
     billing_request_id: billingRequestId,
-    customer_id: customer.customers?.id || customer.id,
+    customer_id:
+      billingRequest.billing_requests?.resources?.customer?.id ||
+      billingRequest.billing_requests?.links?.customer ||
+      billingRequest.customer?.id ||
+      null,
   }
+}
+
+export async function getBillingRequest(billingRequestId) {
+  return call('gc_get_billing_request', { billing_request_id: billingRequestId })
 }
 
 /** Get all mandates for a GoCardless customer */
