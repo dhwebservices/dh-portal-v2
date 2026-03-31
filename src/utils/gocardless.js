@@ -18,16 +18,35 @@ async function call(type, data) {
 
 /** Set up a Direct Debit mandate — returns { redirect_url, billing_request_id, customer_id } */
 export async function setupMandate(clientEmail, clientName) {
-  return call('gc_create_mandate', {
-    client_email: clientEmail,
-    client_name:  clientName,
-    return_url:   window.location.href,
+  const [given_name, ...rest] = (clientName || '').trim().split(/\s+/)
+  const family_name = rest.join(' ') || 'Client'
+
+  const customer = await call('gc_create_customer', {
+    email: clientEmail,
+    given_name: given_name || 'Client',
+    family_name,
   })
+
+  const billingRequest = await call('gc_create_billing_request', {
+    customer_id: customer.customers?.id || customer.id,
+  })
+
+  const billingRequestId = billingRequest.billing_requests?.id || billingRequest.id
+  const flow = await call('gc_create_billing_request_flow', {
+    billing_request_id: billingRequestId,
+    redirect_uri: window.location.href,
+  })
+
+  return {
+    redirect_url: flow.billing_request_flows?.authorisation_url || flow.authorisation_url,
+    billing_request_id: billingRequestId,
+    customer_id: customer.customers?.id || customer.id,
+  }
 }
 
 /** Get all mandates for a GoCardless customer */
 export async function getMandates(customerId) {
-  return call('gc_get_mandates', { customer_id: customerId })
+  return call('gc_list_mandates', { customer_id: customerId })
 }
 
 /** Create a one-off payment — amount in pounds e.g. 449 = £449 */

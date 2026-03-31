@@ -4,8 +4,6 @@ import { PhoneCall, Users, HeadphonesIcon, CheckSquare, TrendingUp, ArrowRight }
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
-
 function StatCard({ icon: Icon, label, value, accent, link, loading }) {
   const nav = useNavigate()
   return (
@@ -69,7 +67,7 @@ export default function Dashboard() {
         supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
         supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'done'),
         supabase.from('commissions').select('commission_amount,status'),
-        supabase.from('audit_log').select('user_name,action,entity,created_at').order('created_at', { ascending: false }).limit(8),
+        supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(8),
       ])
       const get = (i) => results[i].status === 'fulfilled' ? results[i].value : { data: null, count: 0 }
       const outreach = get(0).count || 0
@@ -88,17 +86,22 @@ export default function Dashboard() {
 
   const getAiTip = async () => {
     setTipLoading(true)
-    try {
-      const res = await fetch(WORKER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'ai_tip', data: { stats } }),
-      })
-      const d = await res.json()
-      setAiTip(d.tip || 'Focus on converting your most engaged outreach leads today.')
-    } catch {
-      setAiTip('Follow up with interested contacts within 48 hours for the best conversion rate.')
-    }
+    const tips = [
+      stats.outreach > stats.clients * 8
+        ? 'Your outreach volume is healthy. Prioritise follow-ups with the warmest leads instead of sending more first-touch emails.'
+        : null,
+      stats.tasks > 5
+        ? 'You have a growing task backlog. Clearing operational work first will protect client response times.'
+        : null,
+      stats.tickets > 0
+        ? 'There are open support tickets. Closing those quickly is the easiest trust win for existing clients.'
+        : null,
+      stats.clients === 0
+        ? 'No active clients yet. Focus today on follow-up speed, proposal quality, and getting prospects onto a call.'
+        : null,
+      'Follow up with interested contacts within 48 hours for the best conversion rate.',
+    ].filter(Boolean)
+    setAiTip(tips[0])
     setTipLoading(false)
   }
 

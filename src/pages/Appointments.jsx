@@ -81,11 +81,19 @@ export default function Appointments() {
     setSaving(true)
     await supabase.from('appointments').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', appt.id)
     // Email client
-    fetch(WORKER, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'send_email', data:{
-      to: appt.client_email,
+    fetch(WORKER, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'outreach_contact', data:{
+      to_email: appt.client_email,
+      contact_name: appt.client_name,
       subject: 'Your call on ' + appt.date + ' has been cancelled',
-      html: '<div style="font-family:Arial,sans-serif;max-width:560px;padding:32px"><h2>Your call has been cancelled</h2><p>Hi ' + appt.client_name + ',</p><p>Your scheduled call on <strong>' + formatDate(appt.date) + ' at ' + appt.start_time + '</strong> with ' + appt.staff_name + ' has been cancelled by our team.</p><p>Please <a href="https://dhwebsiteservices.co.uk/contact">rebook at any time</a> or call us on <strong>02920024218</strong>.</p></div>',
-      from_name: 'DH Website Services', from_email: 'clients@dhwebsiteservices.co.uk'
+      message: [
+        'Your scheduled call has been cancelled by our team.',
+        '',
+        'Date: ' + formatDate(appt.date),
+        'Time: ' + appt.start_time + ' - ' + appt.end_time,
+        'With: ' + appt.staff_name,
+        '',
+        'Please rebook at https://dhwebsiteservices.co.uk/contact or call 02920024218.',
+      ].join('<br/>'),
     }})}).catch(()=>{})
     setSaving(false); setDetailAppt(null); load()
   }
@@ -142,7 +150,6 @@ export default function Appointments() {
                             const isPast = d < today
                             return (
                               <button key={d} onClick={() => !isPast && setSlotModal({ date:d, staffEmail:s.user_email, staffName:s.full_name })}
-                                title={formatDate(d)}
                                 style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
                                 title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '')}>
                                 {new Date(d+'T12:00').getDate()}

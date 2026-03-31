@@ -1,23 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
+import { sendEmail } from '../../utils/email'
 import { useAuth } from '../../contexts/AuthContext'
 import { Modal } from '../../components/Modal'
 import { StaffPicker } from '../../components/StaffPicker'
 
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const TYPES  = ['Annual Leave','Sick Leave','Compassionate','Unpaid','Other']
 const EMPTY  = { leave_type:'Annual Leave', start_date:'', end_date:'', reason:'', on_behalf_of_email:'', on_behalf_of_name:'' }
 
 async function notify(user_email, title, message, link, type='info') {
   try { await supabase.from('notifications').insert([{ user_email, title, message, type, link, read: false, created_at: new Date().toISOString() }]) } catch(e) {}
-}
-
-function sendEmail(to, subject, html) {
-  fetch(WORKER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'send_email', data: { to, subject, html, from_name: 'DH Website Services — HR', from_email: 'clients@dhwebsiteservices.co.uk' } })
-  }).catch(() => {})
 }
 
 function leaveEmailHtml(title, intro, rows) {
@@ -27,7 +20,7 @@ function leaveEmailHtml(title, intro, rows) {
     '<table style="width:100%;border-collapse:collapse;margin:16px 0">' +
     rows.map(([l,v]) => '<tr><td style="padding:9px 12px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;width:110px;font-size:13px">' + l + '</td><td style="padding:9px 12px;border:1px solid #E5E7EB;font-size:13px">' + (v||'—') + '</td></tr>').join('') +
     '</table>' +
-    '<a href="https://staffdev.dhwebsiteservices.co.uk/hr/leave" style="display:inline-block;background:#1A1612;color:#fff;padding:10px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View Leave →</a>' +
+    '<a href="' + PORTAL_URL + '/hr/leave" style="display:inline-block;background:#1A1612;color:#fff;padding:10px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View Leave →</a>' +
     '</div>'
 }
 
@@ -100,19 +93,29 @@ export default function HRLeave() {
       if (newStatus !== prevStatus) {
         const statusLabel = newStatus === 'approved' ? '✅ Leave Approved' : newStatus === 'rejected' ? '❌ Leave Rejected' : '📅 Leave Updated'
         await notify(targetEmail, statusLabel, form.start_date + ' to ' + form.end_date + ' · Updated by ' + user.name, '/hr/leave', newStatus === 'approved' ? 'success' : newStatus === 'rejected' ? 'warning' : 'info')
-        sendEmail(targetEmail, statusLabel + ' — ' + form.start_date + ' to ' + form.end_date,
-          leaveEmailHtml(statusLabel, 'Hi ' + targetName + ', your leave request has been updated by ' + user.name + '.',
+        sendEmail('send_email', {
+          to: targetEmail,
+          to_name: targetName,
+          subject: statusLabel + ' — ' + form.start_date + ' to ' + form.end_date,
+          html: leaveEmailHtml(statusLabel, 'Hi ' + targetName + ', your leave request has been updated by ' + user.name + '.',
             [['Type', form.leave_type], ['From', form.start_date], ['To', form.end_date], ['Days', days], ['Status', newStatus], ['Reason', form.reason], ['Notes', form.notes]]
-          )
-        )
+          ),
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
       } else {
         // Dates/details changed
         await notify(targetEmail, '📅 Leave request updated', 'Updated by ' + user.name + ' · ' + form.start_date + ' to ' + form.end_date, '/hr/leave', 'info')
-        sendEmail(targetEmail, '📅 Leave Request Updated — ' + form.start_date + ' to ' + form.end_date,
-          leaveEmailHtml('Leave Request Updated', 'Hi ' + targetName + ', your leave request has been updated by ' + user.name + '.',
+        sendEmail('send_email', {
+          to: targetEmail,
+          to_name: targetName,
+          subject: '📅 Leave Request Updated — ' + form.start_date + ' to ' + form.end_date,
+          html: leaveEmailHtml('Leave Request Updated', 'Hi ' + targetName + ', your leave request has been updated by ' + user.name + '.',
             [['Type', form.leave_type], ['From', form.start_date], ['To', form.end_date], ['Days', days], ['Status', newStatus], ['Reason', form.reason], ['Notes', form.notes]]
-          )
-        )
+          ),
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
       }
 
     } else {
@@ -141,11 +144,16 @@ export default function HRLeave() {
         (status === 'approved' ? 'Approved by ' + user.name + ' · ' : 'Pending approval · ') + form.start_date + ' to ' + form.end_date,
         '/hr/leave', status === 'approved' ? 'success' : 'info'
       )
-      sendEmail(reqEmail, statusLabel + ' — ' + form.start_date + ' to ' + form.end_date,
-        leaveEmailHtml(statusLabel, 'Hi ' + reqName + ', ' + (status === 'approved' ? 'your leave has been approved by ' + user.name + '.' : 'your leave request has been submitted and is pending approval.'),
+      sendEmail('send_email', {
+        to: reqEmail,
+        to_name: reqName,
+        subject: statusLabel + ' — ' + form.start_date + ' to ' + form.end_date,
+        html: leaveEmailHtml(statusLabel, 'Hi ' + reqName + ', ' + (status === 'approved' ? 'your leave has been approved by ' + user.name + '.' : 'your leave request has been submitted and is pending approval.'),
           [['Type', form.leave_type], ['From', form.start_date], ['To', form.end_date], ['Days', days], ['Reason', form.reason || '—'], ['Status', status]]
-        )
-      )
+        ),
+        sent_by: user?.name || user?.email,
+        portal_url: PORTAL_URL,
+      }).catch(() => {})
     }
 
     setSaving(false); setModal(false); setEditing(null); setForm(EMPTY); load()
@@ -155,11 +163,16 @@ export default function HRLeave() {
     if (!confirm('Delete this leave request for ' + r.user_name + '? An email will be sent to notify them.')) return
     await supabase.from('hr_leave').delete().eq('id', r.id)
     await notify(r.user_email, '🗑 Leave request deleted', r.start_date + ' to ' + r.end_date + ' deleted by ' + user.name, '/hr/leave', 'warning')
-    sendEmail(r.user_email, '🗑 Leave Request Deleted — ' + r.start_date + ' to ' + r.end_date,
-      leaveEmailHtml('Leave Request Deleted', 'Hi ' + r.user_name + ', your leave request has been deleted by ' + user.name + '. Please contact your manager if you have any questions.',
+    sendEmail('send_email', {
+      to: r.user_email,
+      to_name: r.user_name,
+      subject: '🗑 Leave Request Deleted — ' + r.start_date + ' to ' + r.end_date,
+      html: leaveEmailHtml('Leave Request Deleted', 'Hi ' + r.user_name + ', your leave request has been deleted by ' + user.name + '. Please contact your manager if you have any questions.',
         [['Type', r.leave_type], ['From', r.start_date], ['To', r.end_date], ['Days', r.days], ['Reason', r.reason], ['Deleted by', user.name]]
-      )
-    )
+      ),
+      sent_by: user?.name || user?.email,
+      portal_url: PORTAL_URL,
+    }).catch(() => {})
     load()
   }
 
@@ -167,11 +180,16 @@ export default function HRLeave() {
     await supabase.from('hr_leave').update({ status, approved_by: user.name, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', r.id)
     const label = status === 'approved' ? '✅ Leave Approved' : '❌ Leave Rejected'
     await notify(r.user_email, label, r.start_date + ' to ' + r.end_date + ' · by ' + user.name, '/hr/leave', status === 'approved' ? 'success' : 'warning')
-    sendEmail(r.user_email, label + ' — ' + r.start_date + ' to ' + r.end_date,
-      leaveEmailHtml(label, 'Hi ' + r.user_name + ', your leave request has been ' + status + ' by ' + user.name + '.',
+    sendEmail('send_email', {
+      to: r.user_email,
+      to_name: r.user_name,
+      subject: label + ' — ' + r.start_date + ' to ' + r.end_date,
+      html: leaveEmailHtml(label, 'Hi ' + r.user_name + ', your leave request has been ' + status + ' by ' + user.name + '.',
         [['Type', r.leave_type], ['From', r.start_date], ['To', r.end_date], ['Days', r.days], ['Status', status], ['By', user.name]]
-      )
-    )
+      ),
+      sent_by: user?.name || user?.email,
+      portal_url: PORTAL_URL,
+    }).catch(() => {})
     load()
   }
 

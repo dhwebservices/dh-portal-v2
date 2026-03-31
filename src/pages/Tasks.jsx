@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
+import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { StaffPicker } from '../components/StaffPicker'
 
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const EMPTY  = { title:'', description:'', assigned_to_email:'', assigned_to_name:'', due_date:'', priority:'medium', status:'todo' }
 const PRIORITIES = ['low','medium','high','urgent']
 const STATUSES   = ['todo','in_progress','done']
@@ -18,15 +19,6 @@ async function notify(user_email, title, message, link, type = 'info') {
       user_email, title, message, type, link, read: false, created_at: new Date().toISOString()
     }])
   } catch (e) { /* ignore */ }
-}
-
-// ── helper: send email via worker ─────────────────────────────────────
-function sendEmail(to, subject, html) {
-  fetch(WORKER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'send_email', data: { to, subject, html, from_name: 'DH Website Services — Client Services', from_email: 'clients@dhwebsiteservices.co.uk' } })
-  }).catch(() => {})
 }
 
 export default function Tasks() {
@@ -93,10 +85,11 @@ export default function Tasks() {
           '/my-tasks',
           'info'
         )
-        sendEmail(
-          form.assigned_to_email,
-          '📋 New Task Assigned: ' + form.title,
-          '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
+        sendEmail('send_email', {
+          to: form.assigned_to_email,
+          to_name: form.assigned_to_name,
+          subject: '📋 New Task Assigned: ' + form.title,
+          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
           '<h2 style="color:#1A1612;margin-bottom:4px">New Task Assigned</h2>' +
           '<p style="color:#6b7280;margin-bottom:24px">Hi ' + (form.assigned_to_name || form.assigned_to_email) + ',</p>' +
           '<p>You have been assigned a new task by <strong>' + (user?.name || user?.email) + '</strong>.</p>' +
@@ -104,9 +97,11 @@ export default function Tasks() {
           [['Task', form.title], ['Priority', form.priority], ['Due Date', form.due_date || '—'], ['Description', form.description || '—']]
             .map(([l, v]) => '<tr><td style="padding:10px 14px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;width:100px;font-size:13px">' + l + '</td><td style="padding:10px 14px;border:1px solid #E5E7EB;font-size:13px">' + v + '</td></tr>').join('') +
           '</table>' +
-          '<a href="https://staffdev.dhwebsiteservices.co.uk/my-tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View My Tasks →</a>' +
-          '</div>'
-        )
+          '<a href="' + PORTAL_URL + '/my-tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View My Tasks →</a>' +
+          '</div>',
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
       }
     }
     setSaving(false)
@@ -289,16 +284,18 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
           '/tasks',
           'info'
         )
-        sendEmail(
-          task.assigned_by_email,
-          '💬 New comment on task: ' + task.title,
-          '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
+        sendEmail('send_email', {
+          to: task.assigned_by_email,
+          subject: '💬 New comment on task: ' + task.title,
+          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
           '<h2 style="color:#1A1612">New Comment on Task</h2>' +
           '<p><strong>' + (user?.name || user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p>' +
           '<div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:14px">' + comment.trim() + '</div>' +
-          '<a href="https://staffdev.dhwebsiteservices.co.uk/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a>' +
-          '</div>'
-        )
+          '<a href="' + PORTAL_URL + '/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a>' +
+          '</div>',
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
       }
       // Also notify assigned person if they're not the commenter or creator
       if (task.assigned_to_email && task.assigned_to_email !== user?.email && task.assigned_to_email !== task.assigned_by_email) {

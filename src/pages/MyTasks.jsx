@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
+import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const STATUSES  = ['todo','in_progress','done']
 const prioColor = { low:'var(--sub)', medium:'var(--accent)', high:'var(--amber,#f59e0b)', urgent:'var(--red)' }
 const prioBg    = { low:'var(--bg2)', medium:'var(--accent-soft)', high:'#fef3c7', urgent:'#fee2e2' }
@@ -13,14 +14,6 @@ async function notify(user_email, title, message, link, type = 'info') {
       user_email, title, message, type, link, read: false, created_at: new Date().toISOString()
     }])
   } catch (e) { /* ignore */ }
-}
-
-function sendEmail(to, subject, html) {
-  fetch(WORKER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'send_email', data: { to, subject, html, from_name: 'DH Website Services — Client Services', from_email: 'clients@dhwebsiteservices.co.uk' } })
-  }).catch(() => {})
 }
 
 export default function MyTasks() {
@@ -146,9 +139,13 @@ function TaskDetail({ task, user, onClose, onStatusChange }) {
     if (!error) {
       if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
         await notify(task.assigned_by_email, '💬 Comment on: ' + task.title, (user?.name||user?.email) + ': ' + comment.trim().slice(0,80), '/tasks', 'info')
-        sendEmail(task.assigned_by_email, '💬 New comment on: ' + task.title,
-          '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px"><h2>New Comment</h2><p><strong>' + (user?.name||user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p><div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0">' + comment.trim() + '</div><a href="https://staffdev.dhwebsiteservices.co.uk/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a></div>'
-        )
+        sendEmail('send_email', {
+          to: task.assigned_by_email,
+          subject: '💬 New comment on: ' + task.title,
+          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px"><h2>New Comment</h2><p><strong>' + (user?.name||user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p><div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0">' + comment.trim() + '</div><a href="' + PORTAL_URL + '/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a></div>',
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
       }
       setComment('')
       loadComments()

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
+import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
-
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
 
 const FROM_OPTIONS = [
   { value: 'clients', label: 'Client Services', address: 'clients@dhwebsiteservices.co.uk' },
@@ -46,23 +45,16 @@ export default function SendEmail() {
     if (!form.to || !form.subject || !form.body) { setError('Please fill in all fields'); return }
     setSending(true); setError('')
     try {
-      const res = await fetch(WORKER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'send_email',
-          data: {
-            to:        form.to,
-            subject:   form.subject,
-            html:      form.body.replace(/\n/g, '<br/>'),
-            text:      form.body,
-            from_name: 'DH Website Services — ' + selectedFrom.label,
-            from_email: selectedFrom.address,
-          }
-        })
+      const result = await sendEmail('send_email', {
+        to: form.to,
+        subject: form.subject,
+        html: form.body.replace(/\n/g, '<br/>'),
+        text: form.body,
+        from_name: 'DH Website Services — ' + selectedFrom.label,
+        from_email: selectedFrom.address,
+        sent_by: user?.name || user?.email,
       })
-      const result = await res.json().catch(() => ({}))
-      if (res.ok) {
+      if (result.ok) {
         // Log email to email_log
         await supabase.from('email_log').insert([{
           sent_by: user?.name || user?.email,
@@ -86,7 +78,7 @@ export default function SendEmail() {
         setForm({ to: '', subject: '', body: '', template_id: '', from_key: form.from_key })
         setTimeout(() => setSent(false), 4000)
       } else {
-        setError('Failed: ' + (result?.error || res.status))
+        setError('Failed: ' + (result?.error || 'Unable to send email'))
       }
     } catch (e) { setError('Network error: ' + e.message) }
     setSending(false)
