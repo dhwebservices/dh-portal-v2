@@ -171,22 +171,31 @@ export default function StaffProfile() {
       }
 
       // Save hr_profiles via raw REST to avoid supabase-js columns= bug
-      if (profileId) {
-        const res = await fetch(`${SB_URL}/rest/v1/hr_profiles?id=eq.${profileId}`, {
-          method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify(hrPayload)
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('HR update failed: ' + e) }
-      } else {
-        const res = await fetch(`${SB_URL}/rest/v1/hr_profiles`, {
-          method: 'POST', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ ...hrPayload, created_at: new Date().toISOString() })
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('HR insert failed: ' + e) }
-        const fetched = await sbGet('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`)
-        if (fetched?.id) setProfileId(fetched.id)
-        setPrevMgr(profile.manager_email || '')
+      const existingProfile = profileId
+        ? { id: profileId }
+        : await sbGet('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`)
+
+      const hrRes = await fetch(`${SB_URL}/rest/v1/hr_profiles?on_conflict=user_email`, {
+        method: 'POST',
+        headers: {
+          ...sbHeaders,
+          'Prefer': 'resolution=merge-duplicates,return=representation',
+        },
+        body: JSON.stringify([{
+          ...(existingProfile?.created_at ? {} : { created_at: new Date().toISOString() }),
+          ...hrPayload,
+        }]),
+      })
+
+      if (!hrRes.ok) {
+        const e = await hrRes.text()
+        throw new Error('HR save failed: ' + e)
       }
+
+      const savedProfiles = await hrRes.json().catch(() => [])
+      const savedProfile = Array.isArray(savedProfiles) ? savedProfiles[0] : savedProfiles
+      if (savedProfile?.id) setProfileId(savedProfile.id)
+      setPrevMgr(profile.manager_email || '')
 
       // Save user_permissions via raw REST
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
