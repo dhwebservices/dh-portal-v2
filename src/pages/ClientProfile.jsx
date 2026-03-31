@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
+import { PaymentsHub } from '../components/PaymentsHub'
 import { setupMandate, getBillingRequest, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, mandateStatusColor, paymentStatusColor } from '../utils/gocardless'
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
@@ -484,116 +485,7 @@ export default function ClientProfile() {
 
       {/* Payments tab */}
       {tab === 'payments' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-          {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:8, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
-          {gcSuccess && <div style={{ padding:'10px 14px', background:'var(--green-bg)', border:'1px solid var(--green)', borderRadius:8, fontSize:13, color:'var(--green)' }}>✓ {gcSuccess}</div>}
-
-          {/* Stats */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
-            <div className="stat-card">
-              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background: gcStatus?.status==='active'?'var(--green)': gcStatus?'var(--amber)':'var(--border)', flexShrink:0 }}/>
-                <div className="stat-lbl" style={{ margin:0 }}>Direct Debit</div>
-              </div>
-              <div className="stat-val" style={{ fontSize:18, color: gcStatus?.status==='active'?'var(--green)':'var(--sub)' }}>
-                {gcStatus?.status==='active' ? 'Active' : gcStatus ? 'Pending' : 'Not set up'}
-              </div>
-            </div>
-            <div className="stat-card"><div className="stat-lbl">Total Collected</div><div className="stat-val" style={{ color:'var(--accent)' }}>£{totalCollected.toLocaleString()}</div></div>
-            <div className="stat-card"><div className="stat-lbl">Subscriptions</div><div className="stat-val" style={{ color:'var(--green)' }}>{subs.filter(s=>s.status==='active').length}</div></div>
-          </div>
-
-          {/* Payment buttons */}
-          <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-            {!gcStatus ? (
-              <>
-                <button className="btn btn-primary" onClick={doSetupMandate} disabled={settingUp} style={{ padding:'12px 24px' }}>
-                  {settingUp ? 'Opening GoCardless...' : '🏦 Set Up Direct Debit'}
-                </button>
-                <button className="btn btn-outline" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' }); setGcError(''); setPayModal('manual') }}>
-                  🧾 Record Manual Payment
-                </button>
-                <button className="btn btn-outline" onClick={() => { setGcError(''); setLinkGcModal(true) }}>
-                  🔗 Link Existing Direct Debit
-                </button>
-              </>
-            ) : gcStatus.status === 'active' ? (
-              <>
-                <button className="btn btn-primary" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1 }); setGcError(''); setPayModal('one_off') }}>
-                  💸 Collect One-off Payment
-                </button>
-                <button className="btn btn-outline" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1 }); setGcError(''); setPayModal('subscription') }}>
-                  🔄 Set Up Subscription
-                </button>
-                <button className="btn btn-outline" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' }); setGcError(''); setPayModal('manual') }}>
-                  🧾 Record Manual Payment
-                </button>
-              </>
-            ) : (
-              <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-                <div style={{ padding:'12px 16px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)' }}>
-                  ⏳ Waiting for client to authorise the Direct Debit mandate
-                </div>
-                <button className="btn btn-outline" onClick={() => triggerMandateRefresh(gcStatus, client)}>↻ Refresh Mandate Status</button>
-                <button className="btn btn-outline" onClick={() => { setPayForm({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' }); setGcError(''); setPayModal('manual') }}>
-                  🧾 Record Manual Payment
-                </button>
-              </div>
-            )}
-          </div>
-
-          {!gcStatus && (
-            <div style={{ padding:'12px 16px', background:'var(--bg2)', borderRadius:8, fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>
-              <strong>About Direct Debit:</strong> Once set up, you can collect one-off payments and recurring subscriptions automatically from the client's bank account via GoCardless. The client will receive a secure link to authorise the mandate.
-            </div>
-          )}
-
-          {/* Subscriptions */}
-          {subs.length > 0 && (
-            <div className="card" style={{ overflow:'hidden' }}>
-              <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)' }}>
-                Subscriptions ({subs.length})
-              </div>
-              <table className="tbl">
-                <thead><tr><th>Name</th><th>Amount</th><th>Day</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {subs.map(s => (
-                    <tr key={s.id}>
-                      <td className="t-main">{s.name}</td>
-                      <td>£{(s.amount/100).toFixed(2)}/mo</td>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>Day {s.day_of_month}</td>
-                      <td><span className={`badge badge-${s.status==='active'?'green':'grey'}`}>{s.status}</span></td>
-                      <td>{s.status==='active' && <button className="btn btn-danger btn-sm" onClick={() => doCancel(s.id)}>Cancel</button>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Payment history */}
-          {allPayments.length > 0 && (
-            <div className="card" style={{ overflow:'hidden' }}>
-              <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)' }}>
-                Payment History
-              </div>
-              <table className="tbl">
-                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
-                <tbody>
-                  {allPayments.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{p.charge_date || new Date(p.created_at||Date.now()).toLocaleDateString('en-GB')}</td>
-                      <td>£{paymentAmountPounds(p).toFixed(2)}</td>
-                      <td>{paymentTypeLabel(p.payment_type)}</td>
-                      <td>{p.description || '—'}</td>
-                      <td><span className={`badge badge-${paymentStatusColor(p.status)}`}>{p.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <PaymentsHub client={client} gcStatus={gcStatus} setGcStatus={setGcStatus} />
       )}
 
       {/* Invoices tab */}
