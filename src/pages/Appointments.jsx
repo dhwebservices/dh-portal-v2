@@ -19,14 +19,47 @@ function formatDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
 }
 
+function isoLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function weekDays(anchor) {
   const d = new Date(anchor)
   d.setDate(d.getDate() - d.getDay() + 1) // Monday
   return Array.from({ length: 7 }, (_, i) => {
     const dd = new Date(d)
     dd.setDate(d.getDate() + i)
-    return dd.toISOString().split('T')[0]
+    return isoLocalDate(dd)
   })
+}
+
+function getScheduleWeekStart(dateStr) {
+  const dt = new Date(`${dateStr}T12:00:00`)
+  const day = dt.getDay()
+  const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
+  dt.setDate(diff)
+  dt.setHours(0, 0, 0, 0)
+  return dt.toISOString().split('T')[0]
+}
+
+function dayName(dateStr) {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })
+}
+
+function buildWindowSlots(start, end) {
+  if (!start || !end) return []
+  const slots = []
+  let current = start
+
+  while (addMins(current, 30) <= end) {
+    slots.push(current)
+    current = addMins(current, 30)
+  }
+
+  return slots
 }
 
 export default function Appointments() {
@@ -47,23 +80,85 @@ export default function Appointments() {
   const load = useCallback(async () => {
     setLoading(true)
     const from = days[0], to = days[6]
-    const [{ data: staff }, { data: avail }, { data: appts }] = await Promise.all([
-      supabase.from('hr_profiles').select('user_email,full_name,role').eq('bookable', true).order('full_name'),
+    const weekKey = getScheduleWeekStart(from)
+    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }] = await Promise.all([
+      supabase.from('hr_profiles').select('user_email,full_name,role,bookable').order('full_name'),
+      supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
+      supabase.from('schedules').select('user_email,user_name,week_start,submitted,week_data').eq('week_start', weekKey).eq('submitted', true),
       supabase.from('staff_availability').select('*').gte('date', from).lte('date', to),
       supabase.from('appointments').select('*').gte('date', from).lte('date', to).neq('status','cancelled'),
     ])
-    setBookableStaff(staff || [])
-    setAvailability(avail || [])
+
+    const profileMap = new Map((profiles || []).map((item) => [String(item.user_email || '').toLowerCase(), item]))
+    const bookableEmails = new Set()
+
+    for (const item of profiles || []) {
+      if (item.bookable) bookableEmails.add(String(item.user_email || '').toLowerCase())
+    }
+    for (const item of perms || []) {
+      if (item.bookable_staff) bookableEmails.add(String(item.user_email || '').toLowerCase())
+    }
+
+    const staff = Array.from(bookableEmails)
+      .map((email) => {
+        const profile = profileMap.get(email)
+        return {
+          user_email: email,
+          full_name: profile?.full_name || email,
+          role: profile?.role || null,
+        }
+      })
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+
+    const explicitAvailability = avail || []
+    const explicitKeys = new Set(
+      explicitAvailability
+        .filter((item) => item.staff_email && item.date)
+        .map((item) => `${String(item.staff_email).toLowerCase()}::${item.date}`)
+    )
+
+    const scheduleMap = new Map(
+      (schedules || []).map((item) => [String(item.user_email || '').toLowerCase(), item])
+    )
+
+    const derivedAvailability = []
+    for (const staffMember of staff) {
+      const schedule = scheduleMap.get(staffMember.user_email)
+      if (!schedule?.week_data) continue
+
+      for (const date of days) {
+        const key = `${staffMember.user_email}::${date}`
+        if (explicitKeys.has(key)) continue
+
+        const entry = schedule.week_data?.[dayName(date)]
+        if (!entry?.start || !entry?.end) continue
+
+        derivedAvailability.push({
+          id: `schedule:${staffMember.user_email}:${date}`,
+          staff_email: staffMember.user_email,
+          staff_name: staffMember.full_name,
+          date,
+          is_available: true,
+          start_time: entry.start,
+          end_time: entry.end,
+          slots: buildWindowSlots(entry.start, entry.end),
+          source: 'schedule',
+        })
+      }
+    }
+
+    setBookableStaff(staff)
+    setAvailability([...explicitAvailability, ...derivedAvailability])
     setAppointments(appts || [])
     setLoading(false)
-  }, [anchor])
+  }, [anchor, days])
 
   useEffect(() => { load() }, [load])
 
   const prevWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()-7); setAnchor(d.toISOString().split('T')[0]) }
   const nextWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()+7); setAnchor(d.toISOString().split('T')[0]) }
 
-  const getAvail = (staffEmail, date) => availability.find(a => a.staff_email === staffEmail && a.date === date)
+  const getAvail = (staffEmail, date) => availability.find(a => String(a.staff_email || '').toLowerCase() === String(staffEmail || '').toLowerCase() && a.date === date)
   const getAppts = (staffEmail, date) => appointments.filter(a => a.staff_email === staffEmail && a.date === date)
 
   const toggleDayAvailable = async (staffEmail, staffName, date, makeAvailable) => {
@@ -145,7 +240,7 @@ export default function Appointments() {
                         <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                           {days.map(d => {
                             const avail = getAvail(s.user_email, d)
-                            const isOn = avail ? avail.is_available : true
+                            const isOn = avail ? avail.is_available : false
                             const dayAppts = getAppts(s.user_email, d)
                             const isPast = d < today
                             return (
@@ -171,7 +266,7 @@ export default function Appointments() {
                         const dayBookings = days.map(d => {
                           const appt = appointments.find(a => a.staff_email === s.user_email && a.date === d && a.start_time === time)
                           const avail = getAvail(s.user_email, d)
-                          const isOn = avail ? avail.is_available : true
+                          const isOn = avail ? avail.is_available : false
                           return { d, appt, isOn }
                         })
                         // Show the week's most relevant info - today's column
