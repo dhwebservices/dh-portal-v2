@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { StaffPicker } from '../components/StaffPicker'
+import { sendEmail } from '../utils/email'
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const HOURS = Array.from({length:19},(_,i)=>{
   const h = i + 7 // 07:00 - 23:00
   return h.toString().padStart(2,'0') + ':00'
@@ -29,6 +31,45 @@ function fmtWeek(ws) {
 }
 
 const EMPTY_SCHEDULE = Object.fromEntries(DAYS.map(d => [d, { start:'', end:'', note:'' }]))
+
+async function notify(user_email, title, message, link, type = 'info') {
+  try {
+    await supabase.from('notifications').insert([{
+      user_email,
+      title,
+      message,
+      type,
+      link,
+      read: false,
+      created_at: new Date().toISOString(),
+    }])
+  } catch (_) {
+    // Non-blocking helper for staff notifications
+  }
+}
+
+function scheduleSummary(schedule) {
+  return DAYS.map(day => {
+    const entry = schedule?.[day] || {}
+    if (!entry.start || !entry.end) return [day, 'Off']
+    const suffix = entry.note ? ' (' + entry.note + ')' : ''
+    return [day, entry.start + ' - ' + entry.end + suffix]
+  })
+}
+
+function scheduleEmailHtml({ targetName, managerName, weekStart, schedule, submitted }) {
+  const actionLabel = submitted ? 'submitted' : 'saved as a draft'
+  return '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
+    '<h2 style="color:#1A1612;margin-bottom:4px">Your schedule has been updated</h2>' +
+    '<p style="color:#6b7280;margin-bottom:20px">Hi ' + targetName + ', your manager <strong>' + managerName + '</strong> has ' + actionLabel + ' your schedule for the week starting <strong>' + fmtWeek(weekStart) + '</strong>.</p>' +
+    '<table style="width:100%;border-collapse:collapse;margin:16px 0">' +
+    scheduleSummary(schedule).map(([label, value]) =>
+      '<tr><td style="padding:9px 12px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;width:120px;font-size:13px">' + label + '</td><td style="padding:9px 12px;border:1px solid #E5E7EB;font-size:13px">' + value + '</td></tr>'
+    ).join('') +
+    '</table>' +
+    '<a href="' + PORTAL_URL + '/schedule" style="display:inline-block;background:#1A1612;color:#fff;padding:10px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View Schedule →</a>' +
+    '</div>'
+}
 
 export default function Schedule() {
   const { user, isAdmin } = useAuth()
@@ -114,6 +155,26 @@ export default function Schedule() {
       // Reload team view
       const { data: all } = await supabase.from('schedules').select('*').eq('week_start', weekStart).order('user_name')
       setAll(all || [])
+
+      if (onBehalfOf) {
+        const title = submit ? '📅 Your schedule has been submitted' : '📅 Your schedule has been updated'
+        const message = (user?.name || user?.email) + ' ' + (submit ? 'submitted' : 'saved a draft of') + ' your schedule for the week starting ' + fmtWeek(weekStart)
+        await notify(targetEmail, title, message, '/schedule', submit ? 'success' : 'info')
+        sendEmail('send_email', {
+          to: targetEmail,
+          to_name: targetName,
+          subject: title + ' — Week of ' + fmtWeek(weekStart),
+          html: scheduleEmailHtml({
+            targetName,
+            managerName: user?.name || user?.email,
+            weekStart,
+            schedule,
+            submitted: submit,
+          }),
+          sent_by: user?.name || user?.email,
+          portal_url: PORTAL_URL,
+        }).catch(() => {})
+      }
     }
     setSaving(false)
   }
