@@ -38,6 +38,32 @@ function saveRecentSearch(query) {
   localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next))
 }
 
+function dedupeStaffResults(items = []) {
+  const bestByEmail = new Map()
+
+  for (const item of items) {
+    const email = String(item.user_email || '').toLowerCase()
+    if (!email) continue
+    const current = bestByEmail.get(email)
+    const candidateName = String(item.full_name || '')
+    const currentName = String(current?.full_name || '')
+    const candidateScore =
+      (candidateName && !candidateName.includes('(') ? 3 : 0) +
+      (String(item.user_email || '') === email ? 2 : 0) +
+      (candidateName ? 1 : 0)
+    const currentScore =
+      (currentName && !currentName.includes('(') ? 3 : 0) +
+      (String(current?.user_email || '') === email ? 2 : 0) +
+      (currentName ? 1 : 0)
+
+    if (!current || candidateScore > currentScore) {
+      bestByEmail.set(email, { ...item, user_email: email })
+    }
+  }
+
+  return [...bestByEmail.values()]
+}
+
 function ResultCountCard({ label, value }) {
   return (
     <div className="stat-card" style={{ padding: 16 }}>
@@ -85,7 +111,8 @@ export default function Search() {
       try {
         const filterExpr = section.fields.map((field) => `${field}.ilike.%${q}%`).join(',')
         const { data } = await supabase.from(section.table).select('*').or(filterExpr).limit(8)
-        if (data?.length) out[section.key] = data
+        const cleaned = section.key === 'staff' ? dedupeStaffResults(data || []) : (data || [])
+        if (cleaned.length) out[section.key] = cleaned
       } catch {
         out[section.key] = []
       }

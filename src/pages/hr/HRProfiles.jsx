@@ -22,7 +22,16 @@ export default function HRProfiles() {
   const load = async () => {
     setLoading(true)
     const { data } = await supabase.from('hr_profiles').select('*').order('full_name')
-    setProfiles(data||[])
+    const bestByEmail = new Map()
+    for (const row of data || []) {
+      const email = String(row.user_email || '').toLowerCase()
+      if (!email) continue
+      const existing = bestByEmail.get(email)
+      const rowScore = (String(row.user_email || '') === email ? 2 : 0) + (row.full_name && !String(row.full_name).includes('(') ? 2 : 0)
+      const existingScore = existing ? ((String(existing.user_email || '') === email ? 2 : 0) + (existing.full_name && !String(existing.full_name).includes('(') ? 2 : 0)) : -1
+      if (!existing || rowScore >= existingScore) bestByEmail.set(email, { ...row, user_email: email })
+    }
+    setProfiles([...bestByEmail.values()])
     setLoading(false)
   }
 
@@ -30,7 +39,7 @@ export default function HRProfiles() {
   const close    = () => { setModal(false); setSelected(null) }
   const save = async () => {
     setSaving(true)
-    const payload = { ...form, updated_at: new Date().toISOString() }
+    const payload = { ...form, user_email: String(selected.user_email || '').toLowerCase(), updated_at: new Date().toISOString() }
     if (selected?.id) await supabase.from('hr_profiles').update(payload).eq('id', selected.id)
     else await supabase.from('hr_profiles').insert([{ ...payload, created_at: new Date().toISOString() }])
     setSaving(false); close(); load()

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
 
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
@@ -48,9 +49,10 @@ export default function HROnboarding() {
 
   const load = async () => {
     setLoading(true)
+    const currentEmail = normalizeEmail(user?.email || '')
     const [{ data: all }, { data: mine }] = await Promise.all([
       isHRAdmin ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
-      supabase.from('onboarding_submissions').select('*').ilike('user_email', user?.email||'').maybeSingle(),
+      supabase.from('onboarding_submissions').select('*').ilike('user_email', currentEmail).maybeSingle(),
     ])
     setSubmissions(all||[])
     if (mine) {
@@ -64,7 +66,7 @@ export default function HROnboarding() {
   }
 
   const uploadRTW = async (file) => {
-    const path = `rtw/${user.email}/${Date.now()}-${file.name}`
+    const path = `rtw/${normalizeEmail(user.email)}/${Date.now()}-${file.name}`
     const { error } = await supabase.storage.from('hr-documents').upload(path, file)
     if (!error) {
       const { data } = supabase.storage.from('hr-documents').getPublicUrl(path)
@@ -74,26 +76,37 @@ export default function HROnboarding() {
 
   const submit = async () => {
     setSaving(true)
+    const normalizedEmail = normalizeEmail(user?.email || '')
     const payload = {
-      user_email: user.email,
+      user_email: normalizedEmail,
       user_name: user.name,
       ...form,
       status: 'submitted',
       submitted_at: new Date().toISOString(),
     }
     await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
+    await syncOnboardingSubmissionToHrProfile(payload)
     setSaving(false)
     load()
   }
 
   const saveDraft = async () => {
     setSaving(true)
-    await supabase.from('onboarding_submissions').upsert({ user_email: user.email, user_name: user.name, ...form, status:'draft' }, { onConflict:'user_email' })
+    await supabase.from('onboarding_submissions').upsert({ user_email: normalizeEmail(user?.email || ''), user_name: user.name, ...form, status:'draft' }, { onConflict:'user_email' })
     setSaving(false)
   }
 
   const decide = async (email, status, notes='') => {
-    await supabase.from('onboarding_submissions').update({ status, decided_by: user.name, decided_at: new Date().toISOString(), admin_notes: notes }).eq('user_email', email)
+    const normalizedEmail = normalizeEmail(email)
+    const { data: submission } = await supabase
+      .from('onboarding_submissions')
+      .update({ status, decided_by: user.name, decided_at: new Date().toISOString(), admin_notes: notes })
+      .ilike('user_email', normalizedEmail)
+      .select('*')
+      .maybeSingle()
+    if (status === 'approved' && submission) {
+      await syncOnboardingSubmissionToHrProfile(submission, { overwrite: true })
+    }
     setViewSub(null); load()
   }
 

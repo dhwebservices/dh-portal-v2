@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
+import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'outreach',label:'Clients Contacted'},
@@ -67,13 +68,19 @@ export default function MyStaff() {
       }
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
-    const [{ data: pd }, { data: hrd }] = await Promise.all([
+    const [{ data: pd }, { data: hrd }, { data: onboard }] = await Promise.all([
       supabase.from('user_permissions').select('*'),
       supabase.from('hr_profiles').select('*'),
+      supabase.from('onboarding_submissions').select('*'),
     ])
     const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding } })
     setPermsMap(pm)
     const hm = {}; (hrd||[]).forEach(p => { hm[p.user_email?.toLowerCase()] = p })
+    ;(onboard || []).forEach((submission) => {
+      const key = submission.user_email?.toLowerCase()
+      if (!key) return
+      hm[key] = mergeHrProfileWithOnboarding(hm[key] || {}, submission)
+    })
     setProfiles(hm)
     setLoading(false)
   }

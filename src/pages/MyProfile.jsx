@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { mergeHrProfileWithOnboarding, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 
 export default function MyProfile() {
   const { user } = useAuth()
+  const normalizedEmail = user?.email?.toLowerCase?.() || ''
   const [profile, setProfile]   = useState({})
   const [profileId, setProfileId] = useState(null)
   const [loading, setLoading]   = useState(true)
@@ -20,33 +22,38 @@ export default function MyProfile() {
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
-    if (!user?.email) return
+    if (!normalizedEmail) return
     Promise.all([
-      supabase.from('hr_profiles').select('*').ilike('user_email', user.email).maybeSingle(),
-      supabase.from('staff_documents').select('*').ilike('staff_email', user.email).order('created_at', { ascending:false }),
-      supabase.from('payslips').select('*').ilike('user_email', user.email).order('created_at', { ascending:false }),
-    ]).then(([{ data: p }, { data: d }, { data: ps }]) => {
-      if (p) {
-        setProfile(p); setProfileId(p.id || null)
+      supabase.from('hr_profiles').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
+      supabase.from('onboarding_submissions').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
+      supabase.from('staff_documents').select('*').ilike('staff_email', normalizedEmail).order('created_at', { ascending:false }),
+      supabase.from('payslips').select('*').ilike('user_email', normalizedEmail).order('created_at', { ascending:false }),
+    ]).then(([{ data: p }, { data: onboarding }, { data: d }, { data: ps }]) => {
+      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboarding)
+      if (p || onboarding) {
+        setProfile(mergedProfile); setProfileId(p?.id || null)
         // Load ALL fields from the hr_profile row into form
         setForm({
-          phone:          p.phone          || '',
-          personal_email: p.personal_email || '',
-          location:       p.location       || '',
-          bio:            p.bio            || '',
-          skills:         p.skills         || '',
+          phone:          mergedProfile.phone          || '',
+          personal_email: mergedProfile.personal_email || '',
+          location:       mergedProfile.location       || '',
+          bio:            mergedProfile.bio            || '',
+          skills:         mergedProfile.skills         || '',
         })
+        if (onboarding) {
+          syncOnboardingSubmissionToHrProfile(onboarding).catch(() => {})
+        }
       }
       setDocs(d || [])
       setPayslips(ps || [])
       setLoading(false)
     })
-  }, [user?.email])
+  }, [normalizedEmail])
 
   const save = async () => {
     setSaving(true)
     const payload = {
-      user_email:     user.email,
+      user_email:     normalizedEmail,
       user_name:      user.name,
       phone:          form.phone,
       personal_email: form.personal_email,
@@ -58,7 +65,14 @@ export default function MyProfile() {
     if (profileId) {
       await supabase.from('hr_profiles').update(payload).eq('id', profileId)
     } else {
-      const { data: inserted } = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
+      const { data: existing } = await supabase.from('hr_profiles').select('id').ilike('user_email', normalizedEmail).maybeSingle()
+      let inserted = existing
+      if (existing?.id) {
+        await supabase.from('hr_profiles').update(payload).eq('id', existing.id)
+      } else {
+        const insertRes = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
+        inserted = insertRes.data
+      }
       if (inserted?.id) setProfileId(inserted.id)
     }
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)

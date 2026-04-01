@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
+import { mergeHrProfileWithOnboarding, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Business'},
@@ -95,21 +96,30 @@ export default function StaffProfile() {
     setLoading(true)
     try {
       const enc = encodeURIComponent(email)
-      const [p, perm, comms, docs] = await Promise.all([
+      const [p, perm, comms, docs, onboardingSubmission] = await Promise.all([
         sbGet('hr_profiles', `user_email=ilike.${enc}`),
         sbGet('user_permissions', `user_email=ilike.${enc}`),
         sbGetMany('commissions', `staff_email=ilike.${enc}&order=date.desc`),
         sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
+        sbGet('onboarding_submissions', `user_email=ilike.${enc}`),
       ])
 
-      if (p) {
-        setProfile(p)
-        setProfileId(p.id)
-        setPrevMgr(p.manager_email || '')
+      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
+
+      if (p || onboardingSubmission) {
+        setProfile(mergedProfile)
+        setProfileId(p?.id || null)
+        setPrevMgr(mergedProfile.manager_email || '')
       } else {
         setProfile({})
         setProfileId(null)
         setPrevMgr('')
+      }
+
+      if (onboardingSubmission) {
+        syncOnboardingSubmissionToHrProfile(onboardingSubmission).catch((err) => {
+          console.error('Onboarding sync error:', err)
+        })
       }
 
       if (perm) {

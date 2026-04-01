@@ -7,18 +7,19 @@ const Ctx = createContext(null)
 export function AuthProvider({ children }) {
   const { accounts } = useMsal()
   const account = accounts[0]
+  const normalizedEmail = account?.username?.toLowerCase?.() || null
   const [perms, setPerms]           = useState(null)
   const [isAdmin, setIsAdmin]       = useState(false)
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
-    if (!account?.username) { setLoading(false); return }
+    if (!normalizedEmail) { setLoading(false); return }
     const timeout = setTimeout(() => setLoading(false), 4000)
     supabase
       .from('user_permissions')
       .select('permissions, onboarding')
-      .ilike('user_email', account.username)
+      .ilike('user_email', normalizedEmail)
       .maybeSingle()
       .then(({ data, error }) => {
         clearTimeout(timeout)
@@ -43,8 +44,8 @@ export function AuthProvider({ children }) {
     const now = new Date().toISOString()
     // audit_log insert - ignore errors
     supabase.from('audit_log').insert([{
-      user_email: account.username,
-      user_name:  account.name || account.username,
+      user_email: normalizedEmail,
+      user_name:  account.name || normalizedEmail,
       action:     'user_login',
       entity:     'session',
       entity_id:  null,
@@ -53,18 +54,18 @@ export function AuthProvider({ children }) {
     }]).then(() => {}).catch(() => {})
     // hr_profiles last_seen update - ignore errors (column may not exist yet)
     supabase.from('hr_profiles').upsert({
-      user_email: account.username,
-      full_name:  account.name || account.username,
+      user_email: normalizedEmail,
+      full_name:  account.name || normalizedEmail,
       last_seen:  now,
       updated_at: now,
     }, { onConflict: 'user_email' }).then(() => {}).catch(() => {})
     return () => clearTimeout(timeout)
-  }, [account?.username])
+  }, [normalizedEmail, account?.name])
 
   const user = account ? {
-    email:    account.username,
-    name:     account.name || account.username,
-    initials: (account.name || account.username).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+    email:    normalizedEmail,
+    name:     account.name || normalizedEmail,
+    initials: (account.name || normalizedEmail).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   } : null
 
   // null perms = full access. Non-null perms = check specific key.
