@@ -106,6 +106,7 @@ export default function Notifications() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
+  const [pinnedAlerts, setPinnedAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
 
@@ -119,7 +120,18 @@ export default function Notifications() {
       .order('read', { ascending: true })
       .order('created_at', { ascending: false })
       .limit(100)
+    const { data: bannerData } = await supabase
+      .from('banners')
+      .select('*')
+      .eq('active', true)
+      .eq('target', 'staff')
     setNotifications(data || [])
+    setPinnedAlerts((bannerData || []).filter((banner) => {
+      if (banner.ends_at && new Date(banner.ends_at) <= new Date()) return false
+      if (banner.target_email && banner.target_email.toLowerCase() !== user.email.toLowerCase()) return false
+      const targetPage = String(banner.target_page || 'all').toLowerCase()
+      return targetPage === 'all' || targetPage === 'notifications'
+    }))
     setLoading(false)
   }
 
@@ -213,8 +225,41 @@ export default function Notifications() {
 
       {loading ? (
         <div className="spin-wrap"><div className="spin" /></div>
-      ) : filtered.length ? (
+      ) : filtered.length || pinnedAlerts.length ? (
         <div style={{ display: 'grid', gap: 12 }}>
+          {pinnedAlerts.length ? (
+            <div className="card card-pad" style={{ borderColor:'var(--accent-border)', background:'linear-gradient(180deg, var(--card), var(--accent-soft))' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12 }}>
+                <div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Pinned alerts</div>
+                  <div style={{ fontSize:14, color:'var(--sub)', marginTop:4 }}>Pinned staff notices stay visible here until the banner expires or is disabled.</div>
+                </div>
+                <span className="badge badge-blue">{pinnedAlerts.length} active</span>
+              </div>
+              <div style={{ display:'grid', gap:10 }}>
+                {pinnedAlerts.map((banner) => (
+                  <div key={banner.id} style={{ padding:14, border:'1px solid var(--border)', borderRadius:12, background:'var(--card)' }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</div>
+                      <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>{banner.type || 'info'}</span>
+                      <span className="badge badge-grey">Pinned</span>
+                    </div>
+                    <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65 }}>{banner.message}</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', marginTop:10 }}>
+                      <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                        {banner.ends_at ? `Expires ${formatWhen(banner.ends_at)}` : 'No expiry'}
+                      </span>
+                      {banner.target_page ? (
+                        <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                          {String(banner.target_page).toLowerCase()}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {filtered.map((notification) => (
             <NotificationRow
               key={notification.id}

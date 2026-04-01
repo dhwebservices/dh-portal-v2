@@ -10,7 +10,7 @@ const TYPES = [
   { key:'urgent',  label:'Urgent',  color:'var(--red)',    bg:'var(--red-bg)',      border:'var(--red)'    },
 ]
 const ICONS = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
-const EMPTY = { title:'', message:'', type:'info', display_type:'banner', target:'staff', active:true, dismissible:true, ends_at:'' }
+const EMPTY = { title:'', message:'', type:'info', display_type:'banner', target:'staff', active:true, dismissible:true, ends_at:'', target_email:'', target_page:'all' }
 
 export default function Banners() {
   const { user } = useAuth()
@@ -54,6 +54,7 @@ export default function Banners() {
   }
 
   const activeCount = banners.filter(b => b.active && (!b.ends_at || new Date(b.ends_at) > new Date())).length
+  const urgentCount = banners.filter(b => b.active && b.type === 'urgent' && (!b.ends_at || new Date(b.ends_at) > new Date())).length
   const typeInfo = (key) => TYPES.find(t => t.key === key) || TYPES[0]
 
   return (
@@ -66,75 +67,85 @@ export default function Banners() {
         <button className="btn btn-primary" onClick={openAdd}>+ Create Banner</button>
       </div>
 
+      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
+        <div className="stat-card">
+          <div className="stat-val">{activeCount}</div>
+          <div className="stat-lbl">Live banners</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val">{urgentCount}</div>
+          <div className="stat-lbl">Urgent live alerts</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val">{banners.filter(b => b.target_email).length}</div>
+          <div className="stat-lbl">Targeted to one staff member</div>
+        </div>
+      </div>
+
       {/* Active banners preview */}
       {activeCount > 0 && (
         <div style={{ marginBottom:20 }}>
           <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Live Preview</div>
+          <div style={{ display:'grid', gap:10 }}>
           {banners.filter(b => b.active && (!b.ends_at || new Date(b.ends_at) > new Date())).map(b => {
             const t = typeInfo(b.type)
             return (
-              <div key={b.id} style={{ padding:'12px 16px', background:t.bg, border:`1px solid ${t.border}`, borderRadius:9, display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+              <div key={b.id} style={{ padding:'14px 16px', background:t.bg, border:`1px solid ${t.border}`, borderRadius:12, display:'flex', alignItems:'flex-start', gap:12 }}>
                 <span>{ICONS[b.type]}</span>
                 <div style={{ flex:1 }}>
                   {b.title && <div style={{ fontWeight:600, fontSize:13, color:t.color, marginBottom:2 }}>{b.title}</div>}
-                  <div style={{ fontSize:13, color:'var(--text)' }}>{b.message}</div>
+                  <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>{b.message}</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                    <span className="badge badge-grey">{b.target_email ? b.target_email : 'all staff'}</span>
+                    <span className="badge badge-grey">{b.target_page || 'all'}</span>
+                    {b.ends_at ? <span className="badge badge-grey">expires {new Date(b.ends_at).toLocaleDateString('en-GB')}</span> : <span className="badge badge-grey">no expiry</span>}
+                  </div>
                 </div>
                 {b.dismissible && <span style={{ color:'var(--faint)', fontSize:18, cursor:'default' }}>×</span>}
               </div>
             )
           })}
+          </div>
         </div>
       )}
 
-      {/* Banners table */}
+      {/* Banners list */}
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : banners.length === 0 ? (
           <div className="empty"><p>No banners yet.<br/>Create one to show announcements to staff.</p></div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>Title</th><th>Type</th><th>Target</th><th>Expires</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {banners.map(b => {
-                const t = typeInfo(b.type)
-                const expired = b.ends_at && new Date(b.ends_at) < new Date()
-                return (
-                  <tr key={b.id}>
-                    <td>
-                      <div style={{ fontWeight:500, color:'var(--text)' }}>{b.title || b.message?.slice(0,40)+'...'}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:1 }}>{b.message?.slice(0,60)}{b.message?.length > 60 ? '...' : ''}</div>
-                    </td>
-                    <td>
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:500, color:t.color }}>
-                        {ICONS[b.type]} {b.type}
-                      </span>
-                    </td>
-                    <td><span className="badge badge-grey">{b.target}</span></td>
-                    <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>
-                      {b.ends_at ? (
-                        <span style={{ color: expired ? 'var(--red)' : 'var(--sub)' }}>
-                          {expired ? 'Expired ' : ''}{new Date(b.ends_at).toLocaleDateString('en-GB')}
-                        </span>
-                      ) : 'No expiry'}
-                    </td>
-                    <td>
-                      <span className={'badge badge-'+(b.active && !expired ? 'green' : 'grey')}>
-                        {expired ? 'Expired' : b.active ? 'Active' : 'Off'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display:'flex', gap:4 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => toggle(b.id, b.active)}>
-                          {b.active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(b)}>Edit</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => del(b.id)}>Del</button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ display:'grid', gap:0 }}>
+            {banners.map(b => {
+              const t = typeInfo(b.type)
+              const expired = b.ends_at && new Date(b.ends_at) < new Date()
+              return (
+                <div key={b.id} style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)', display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:16, alignItems:'start' }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
+                      <div style={{ fontWeight:600, color:'var(--text)', fontSize:14 }}>{b.title || b.message?.slice(0,40) || 'Untitled banner'}</div>
+                      <span className={`badge badge-${b.active && !expired ? 'green' : 'grey'}`}>{expired ? 'Expired' : b.active ? 'Active' : 'Off'}</span>
+                      <span className={`badge badge-${b.type === 'urgent' ? 'red' : b.type === 'warning' ? 'amber' : b.type === 'success' ? 'green' : 'blue'}`}>{b.type}</span>
+                    </div>
+                    <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65, marginBottom:10 }}>{b.message}</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <span className="badge badge-grey">{b.target_email ? b.target_email : 'all staff'}</span>
+                      <span className="badge badge-grey">{b.target_page || 'all pages'}</span>
+                      <span className="badge badge-grey">{b.display_type || 'banner'}</span>
+                      <span className="badge badge-grey">{b.dismissible ? 'dismissible' : 'locked'}</span>
+                      <span className="badge badge-grey">{b.ends_at ? new Date(b.ends_at).toLocaleDateString('en-GB') : 'no expiry'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => toggle(b.id, b.active)}>
+                      {b.active ? 'Disable' : 'Enable'}
+                    </button>
+                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(b)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => del(b.id)}>Delete</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
@@ -174,6 +185,21 @@ export default function Banners() {
                 </select>
               </div>
               <div><label className="lbl">Expires</label><input className="inp" type="date" value={form.ends_at} onChange={e=>sf('ends_at',e.target.value)}/></div>
+            </div>
+
+            <div className="fg">
+              <div><label className="lbl">Target Page</label>
+                <select className="inp" value={form.target_page || 'all'} onChange={e=>sf('target_page',e.target.value)}>
+                  <option value="all">All pages</option>
+                  <option value="dashboard">Dashboard only</option>
+                  <option value="notifications">Notifications only</option>
+                  <option value="my-profile">My Profile only</option>
+                </select>
+              </div>
+              <div className="fc">
+                <label className="lbl">Specific Staff Email</label>
+                <input className="inp" value={form.target_email || ''} onChange={e=>sf('target_email',e.target.value.toLowerCase())} placeholder="Leave blank for all staff" />
+              </div>
             </div>
 
             <div style={{ display:'flex', gap:20 }}>

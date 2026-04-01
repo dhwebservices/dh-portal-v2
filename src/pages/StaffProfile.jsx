@@ -104,6 +104,10 @@ export default function StaffProfile() {
     type: 'info',
     link: '/notifications',
     emailSubject: '',
+    important: false,
+    pinAsBanner: false,
+    bannerTargetPage: 'all',
+    bannerExpiresAt: '',
   })
   const fileRef = useRef()
 
@@ -368,11 +372,12 @@ export default function StaffProfile() {
 
     setSendingNotification(true)
     try {
+      const effectiveType = customNotification.important ? 'urgent' : (customNotification.type || 'info')
       const notificationPayload = {
         user_email: email,
         title: customNotification.title.trim(),
         message: customNotification.message.trim(),
-        type: customNotification.type || 'info',
+        type: effectiveType,
         link: customNotification.link?.trim() || '/notifications',
         read: false,
         created_at: new Date().toISOString(),
@@ -382,6 +387,25 @@ export default function StaffProfile() {
       if (error) throw error
 
       setNotificationHistory((current) => [notificationPayload, ...current].slice(0, 12))
+
+      if (customNotification.pinAsBanner) {
+        const { error: bannerError } = await supabase.from('banners').insert([{
+          title: customNotification.title.trim(),
+          message: customNotification.message.trim(),
+          type: effectiveType,
+          display_type: 'banner',
+          target: 'staff',
+          target_email: email,
+          target_page: customNotification.bannerTargetPage || 'all',
+          active: true,
+          dismissible: true,
+          starts_at: new Date().toISOString(),
+          ends_at: customNotification.bannerExpiresAt ? new Date(customNotification.bannerExpiresAt).toISOString() : null,
+          created_by: user?.name || 'Admin',
+          created_at: new Date().toISOString(),
+        }])
+        if (bannerError) throw bannerError
+      }
 
       const subject = (customNotification.emailSubject || customNotification.title).trim()
       const portalLink = customNotification.link?.trim()
@@ -415,6 +439,10 @@ export default function StaffProfile() {
         type: 'info',
         link: '/notifications',
         emailSubject: '',
+        important: false,
+        pinAsBanner: false,
+        bannerTargetPage: 'all',
+        bannerExpiresAt: '',
       })
     } catch (err) {
       console.error('Custom notification failed:', err)
@@ -796,10 +824,34 @@ export default function StaffProfile() {
                 </div>
                 <div><label className="lbl">Portal link</label><input className="inp" value={customNotification.link} onChange={(e) => nf('link', e.target.value)} placeholder="/notifications" /></div>
                 <div><label className="lbl">Email subject</label><input className="inp" value={customNotification.emailSubject} onChange={(e) => nf('emailSubject', e.target.value)} placeholder="Defaults to the notification title" /></div>
+                <div>
+                  <label className="lbl">Pinned banner page</label>
+                  <select className="inp" value={customNotification.bannerTargetPage} onChange={(e) => nf('bannerTargetPage', e.target.value)} disabled={!customNotification.pinAsBanner}>
+                    <option value="all">Everywhere</option>
+                    <option value="dashboard">Dashboard</option>
+                    <option value="notifications">Notifications</option>
+                    <option value="my-profile">My Profile</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="lbl">Banner expiry</label>
+                  <input className="inp" type="date" value={customNotification.bannerExpiresAt} onChange={(e) => nf('bannerExpiresAt', e.target.value)} disabled={!customNotification.pinAsBanner} />
+                </div>
                 <div className="fc">
                   <label className="lbl">Message</label>
                   <textarea className="inp" rows={7} value={customNotification.message} onChange={(e) => nf('message', e.target.value)} style={{ resize:'vertical' }} placeholder="Write the message the staff member should receive." />
                 </div>
+              </div>
+
+              <div style={{ display:'flex', gap:18, flexWrap:'wrap', marginTop:16 }}>
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
+                  <input type="checkbox" checked={customNotification.important} onChange={(e) => nf('important', e.target.checked)} style={{ accentColor:'var(--red)', width:16, height:16 }} />
+                  Mark as important
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
+                  <input type="checkbox" checked={customNotification.pinAsBanner} onChange={(e) => nf('pinAsBanner', e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }} />
+                  Pin as banner
+                </label>
               </div>
             </div>
 
@@ -826,8 +878,8 @@ export default function StaffProfile() {
                 <div style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:8 }}>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{customNotification.title || 'Notification title'}</div>
-                    <span className={`badge badge-${customNotification.type === 'warning' ? 'amber' : customNotification.type === 'success' ? 'green' : 'blue'}`}>
-                      {customNotification.type}
+                    <span className={`badge badge-${customNotification.important ? 'red' : customNotification.type === 'warning' ? 'amber' : customNotification.type === 'success' ? 'green' : 'blue'}`}>
+                      {customNotification.important ? 'urgent' : customNotification.type}
                     </span>
                   </div>
                   <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>
@@ -836,6 +888,11 @@ export default function StaffProfile() {
                   <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:10 }}>
                     Link: {customNotification.link || '/notifications'}
                   </div>
+                  {customNotification.pinAsBanner ? (
+                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:6 }}>
+                      Pinned banner on: {customNotification.bannerTargetPage || 'all'}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

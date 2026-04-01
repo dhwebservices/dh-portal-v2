@@ -119,12 +119,19 @@ function EmptyState({ text }) {
 function ActiveBanners() {
   const [banners, setBanners] = useState([])
   const [dismissed, setDismissed] = useState([])
+  const { user } = useAuth()
 
   useEffect(() => {
     supabase.from('banners').select('*').eq('active', true).eq('target', 'staff').then(({ data }) => setBanners(data || []))
   }, [])
 
-  const visible = banners.filter((banner) => !dismissed.includes(banner.id) && (!banner.ends_at || new Date(banner.ends_at) > new Date()))
+  const visible = banners.filter((banner) => {
+    if (dismissed.includes(banner.id)) return false
+    if (banner.ends_at && new Date(banner.ends_at) <= new Date()) return false
+    if (banner.target_email && banner.target_email.toLowerCase() !== (user?.email || '').toLowerCase()) return false
+    if (banner.target_page && !['all', 'dashboard'].includes(String(banner.target_page).toLowerCase())) return false
+    return true
+  })
   if (!visible.length) return null
 
   const typeStyle = {

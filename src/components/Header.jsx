@@ -44,6 +44,7 @@ export default function Header() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [notifs, setNotifs]       = useState([])
+  const [pinnedAlerts, setPinnedAlerts] = useState([])
   const [unread, setUnread]       = useState(0)
   const [bellOpen, setBellOpen]   = useState(false)
   const bellRef                   = useRef()
@@ -57,6 +58,21 @@ export default function Header() {
       .order('created_at', { ascending: false })
       .limit(8)
       .then(({ data }) => { setNotifs(data || []); setUnread((data||[]).length) })
+      .catch(() => {})
+
+    supabase.from('banners')
+      .select('*')
+      .eq('active', true)
+      .eq('target', 'staff')
+      .then(({ data }) => {
+        const filtered = (data || []).filter((banner) => {
+          if (banner.ends_at && new Date(banner.ends_at) <= new Date()) return false
+          if (banner.target_email && banner.target_email.toLowerCase() !== user.email.toLowerCase()) return false
+          const targetPage = String(banner.target_page || 'all').toLowerCase()
+          return targetPage === 'all' || targetPage === 'notifications'
+        })
+        setPinnedAlerts(filtered)
+      })
       .catch(() => {})
   }, [user?.email, pathname])
 
@@ -120,6 +136,22 @@ export default function Header() {
                 </div>
               </div>
               <div style={{ maxHeight:320, overflowY:'auto' }}>
+                {pinnedAlerts.length > 0 && (
+                  <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
+                    <div style={{ display:'grid', gap:8 }}>
+                      {pinnedAlerts.map((banner) => (
+                        <button key={banner.id} onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
+                            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
+                            <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
+                          </div>
+                          <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5 }}>{banner.message}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {notifs.length === 0 ? (
                   <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--faint)', fontSize:13 }}>No new notifications</div>
                 ) : notifs.map(n => (
