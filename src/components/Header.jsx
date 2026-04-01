@@ -18,6 +18,7 @@ const TITLES = {
   '/hr/payslips':'Payslips', '/hr/profiles':'HR Profiles',
   '/hr/policies':'Policies', '/hr/onboarding':'Onboarding',
   '/audit':'Audit Log', '/settings':'Settings',
+  '/notifications':'Notifications',
 }
 
 function BellIcon() {
@@ -112,7 +113,10 @@ export default function Header() {
             <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
-                {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
+                <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                  <button onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+                  {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
+                </div>
               </div>
               <div style={{ maxHeight:320, overflowY:'auto' }}>
                 {notifs.length === 0 ? (
@@ -125,6 +129,7 @@ export default function Header() {
                       <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
                       <div style={{ fontSize:10, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
                     </div>
+                    {n.link ? <button onClick={async () => { await markRead(n.id); setBellOpen(false); navigate(n.link) }} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
                     <button onClick={() => markRead(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:16, flexShrink:0, lineHeight:1 }}>×</button>
                   </div>
                 ))}

@@ -39,6 +39,7 @@ import Appointments   from './pages/Appointments'
 import MailingList    from './pages/MailingList'
 import AuditLog       from './pages/AuditLog'
 import Settings       from './pages/Settings'
+import Notifications  from './pages/Notifications'
 
 const msal = new PublicClientApplication(msalConfig)
 
@@ -88,6 +89,7 @@ function PortalLayout() {
             <Route path="/mailing-list"      element={<MailingList />} />
             <Route path="/audit"           element={<AuditLog />} />
             <Route path="/settings"        element={<Settings />} />
+            <Route path="/notifications"   element={<Notifications />} />
             <Route path="*"               element={<OnboardingWall><Dashboard /></OnboardingWall>} />
           </Routes>
         </main>

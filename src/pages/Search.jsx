@@ -7,6 +7,7 @@ const SECTIONS = [
   { key:'outreach', label:'Clients Contacted', table:'outreach',  fields:['business_name','contact_name','email'],  icon:'📞', route: c => '/outreach' },
   { key:'tasks',    label:'Tasks',             table:'tasks',     fields:['title','description','assigned_to_name'],icon:'✓',  route: c => '/tasks' },
   { key:'support',  label:'Support Tickets',   table:'support_tickets', fields:['subject','message','client_name'],icon:'💬', route: c => '/support' },
+  { key:'notifications', label:'Notifications', table:'notifications', fields:['title','message','type'], icon:'🔔', route: c => '/notifications' },
   { key:'staff',    label:'Staff',             table:'hr_profiles',     fields:['full_name','user_email','role','department'], icon:'🧑‍💼', route: c => `/my-staff/${encodeURIComponent(c.user_email||'')}` },
   { key:'invoices', label:'Invoices',          table:'client_invoices', fields:['client_name','description','invoice_number'], icon:'🧾', route: c => '/client-mgmt' },
 ]

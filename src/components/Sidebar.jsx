@@ -10,6 +10,7 @@ const SECTIONS = [
     id: 'home', label: 'Home', icon: 'grid',
     items: [
       { to: '/dashboard',  icon: 'grid',   label: 'Dashboard',  desc: 'Overview & stats',     key: 'dashboard' },
+      { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'dashboard' },
       { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'dashboard' },
       { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'dashboard' },
     ]
