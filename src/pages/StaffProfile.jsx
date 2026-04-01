@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { sendEmail } from '../utils/email'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
@@ -92,11 +93,21 @@ export default function StaffProfile() {
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
+  const [sendingNotification, setSendingNotification] = useState(false)
+  const [notificationSaved, setNotificationSaved] = useState(false)
   const [msUsers, setMsUsers]     = useState([])
   const [prevMgr, setPrevMgr]     = useState('')
+  const [customNotification, setCustomNotification] = useState({
+    title: '',
+    message: '',
+    type: 'info',
+    link: '/notifications',
+    emailSubject: '',
+  })
   const fileRef = useRef()
 
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
+  const nf = (k, v) => setCustomNotification((current) => ({ ...current, [k]: v }))
 
   // ── Load ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -341,6 +352,68 @@ export default function StaffProfile() {
   const enabledPermissionCount = countEnabledPermissions(editPerms)
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
 
+  const sendCustomNotification = async () => {
+    if (!customNotification.title.trim() || !customNotification.message.trim()) {
+      alert('Please add both a title and a message.')
+      return
+    }
+
+    setSendingNotification(true)
+    try {
+      const notificationPayload = {
+        user_email: email,
+        title: customNotification.title.trim(),
+        message: customNotification.message.trim(),
+        type: customNotification.type || 'info',
+        link: customNotification.link?.trim() || '/notifications',
+        read: false,
+        created_at: new Date().toISOString(),
+      }
+
+      const { error } = await supabase.from('notifications').insert([notificationPayload])
+      if (error) throw error
+
+      const subject = (customNotification.emailSubject || customNotification.title).trim()
+      const portalLink = customNotification.link?.trim()
+        ? `https://staff.dhwebsiteservices.co.uk${customNotification.link.trim().startsWith('/') ? customNotification.link.trim() : `/${customNotification.link.trim()}`}`
+        : 'https://staff.dhwebsiteservices.co.uk/notifications'
+      const recipientName = (profile.full_name || email).split(' ')[0]
+      const emailBody = `
+        <p>Hi ${recipientName || 'there'},</p>
+        <p>${customNotification.message.trim().replace(/\n/g, '<br/>')}</p>
+        <p><a href="${portalLink}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open in DH Portal</a></p>
+      `
+
+      const emailResult = await sendEmail('send_email', {
+        to: email,
+        to_name: profile.full_name || email,
+        subject: `${subject} — DH Portal`,
+        html: emailBody,
+        sent_by: user?.name || 'Admin',
+        log_outreach: false,
+      })
+
+      if (!emailResult.ok) {
+        throw new Error(emailResult.error || 'Email send failed')
+      }
+
+      setNotificationSaved(true)
+      setTimeout(() => setNotificationSaved(false), 3000)
+      setCustomNotification({
+        title: '',
+        message: '',
+        type: 'info',
+        link: '/notifications',
+        emailSubject: '',
+      })
+    } catch (err) {
+      console.error('Custom notification failed:', err)
+      alert('Notification send failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setSendingNotification(false)
+    }
+  }
+
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
   return (
@@ -395,7 +468,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -658,6 +731,104 @@ export default function StaffProfile() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {tab === 'notify' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,0.8fr)', gap:18 }} className="staff-profile-main-grid">
+            <div className="card card-pad staff-profile-form-card">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Custom notification</div>
+                  <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Send staff alert</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
+                    This sends one message to the user’s notification bell, notifications page, and work email in the same action.
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  {notificationSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Sent</span> : null}
+                  <button className="btn btn-primary" disabled={sendingNotification} onClick={sendCustomNotification}>
+                    {sendingNotification ? 'Sending...' : 'Send notification'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
+                {[
+                  ['Info update', { title: 'Portal update', type: 'info', link: '/notifications' }],
+                  ['Action needed', { title: 'Action required', type: 'warning', link: '/notifications' }],
+                  ['Schedule note', { title: 'Schedule update', type: 'success', link: '/schedule' }],
+                  ['Profile review', { title: 'Profile information request', type: 'info', link: '/my-profile' }],
+                ].map(([label, preset]) => (
+                  <button
+                    key={label}
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setCustomNotification((current) => ({
+                      ...current,
+                      ...preset,
+                      message: current.message || '',
+                    }))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="fg">
+                <div><label className="lbl">Notification title</label><input className="inp" value={customNotification.title} onChange={(e) => nf('title', e.target.value)} placeholder="What the staff member sees in the portal" /></div>
+                <div>
+                  <label className="lbl">Notification type</label>
+                  <select className="inp" value={customNotification.type} onChange={(e) => nf('type', e.target.value)}>
+                    <option value="info">Info</option>
+                    <option value="success">Success</option>
+                    <option value="warning">Warning</option>
+                  </select>
+                </div>
+                <div><label className="lbl">Portal link</label><input className="inp" value={customNotification.link} onChange={(e) => nf('link', e.target.value)} placeholder="/notifications" /></div>
+                <div><label className="lbl">Email subject</label><input className="inp" value={customNotification.emailSubject} onChange={(e) => nf('emailSubject', e.target.value)} placeholder="Defaults to the notification title" /></div>
+                <div className="fc">
+                  <label className="lbl">Message</label>
+                  <textarea className="inp" rows={7} value={customNotification.message} onChange={(e) => nf('message', e.target.value)} style={{ resize:'vertical' }} placeholder="Write the message the staff member should receive." />
+                </div>
+              </div>
+            </div>
+
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Delivery summary</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:10 }}>Where this goes</div>
+                <div style={{ display:'grid', gap:10 }}>
+                  {[
+                    ['Notification bell', 'Appears in the unread bell dropdown immediately.'],
+                    ['Notifications page', 'Stored in the full notifications centre.'],
+                    ['Staff email', `Sent to ${email} using the existing portal worker email flow.`],
+                  ].map(([title, text]) => (
+                    <div key={title} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{title}</div>
+                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4, lineHeight:1.5 }}>{text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
+                <div style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:8 }}>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{customNotification.title || 'Notification title'}</div>
+                    <span className={`badge badge-${customNotification.type === 'warning' ? 'amber' : customNotification.type === 'success' ? 'green' : 'blue'}`}>
+                      {customNotification.type}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>
+                    {customNotification.message || 'Your message preview will appear here.'}
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:10 }}>
+                    Link: {customNotification.link || '/notifications'}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
