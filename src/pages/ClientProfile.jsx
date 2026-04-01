@@ -385,6 +385,20 @@ export default function ClientProfile() {
   const totalCollected = allPayments
     .filter(p => ['paid_out', 'confirmed', 'paid'].includes(String(p.status || '').toLowerCase()))
     .reduce((s, p) => s + paymentAmountPounds(p), 0)
+  const activeSubs = subs.filter(s => s.status === 'active')
+  const unpaidInvoices = invoices.filter(i => i.status === 'unpaid')
+  const openTickets = tickets.filter(t => t.status === 'open')
+  const recentInvoices = invoices.slice(0, 3)
+  const recentTickets = tickets.slice(0, 3)
+  const recentActivity = activity.slice(0, 4)
+  const latestActivity = activity[0]
+  const latestInvoice = invoices[0]
+  const latestTicket = tickets[0]
+  const accountHealth = gcStatus?.mandate_id
+    ? 'Direct Debit active'
+    : gcStatus?.billing_request_id
+      ? 'Direct Debit pending'
+      : 'No Direct Debit set up'
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (!client) return null
@@ -401,11 +415,11 @@ export default function ClientProfile() {
       </button>
 
       {/* Hero */}
-      <div style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
+      <div className="client-profile-hero" style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
         <div style={{ width:64, height:64, borderRadius:14, background:colour+'18', border:`2px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:700, fontFamily:'var(--font-display)', color:colour, flexShrink:0 }}>
           {(client.name||'?')[0].toUpperCase()}
         </div>
-        <div style={{ flex:1 }}>
+        <div className="client-profile-hero-meta" style={{ flex:1 }}>
           <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1, color:'var(--text)' }}>{client.name}</h1>
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
             {client.contact && <span style={{ fontSize:13, color:'var(--sub)' }}>{client.contact}</span>}
@@ -419,7 +433,7 @@ export default function ClientProfile() {
             <span className={`badge badge-${client.invoice_paid?'green':'amber'}`}>{client.invoice_paid?'Invoice Paid':'Invoice Unpaid'}</span>
           </div>
         </div>
-        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+        <div className="client-profile-hero-actions" style={{ display:'flex', gap:8, flexShrink:0 }}>
           {saved && <span style={{ fontSize:13, color:'var(--green)', alignSelf:'center' }}>✓ Saved</span>}
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save Changes'}</button>
         </div>
@@ -434,50 +448,123 @@ export default function ClientProfile() {
 
       {/* Overview */}
       {tab === 'overview' && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
-          <div className="card card-pad">
-            <div className="lbl" style={{ marginBottom:14 }}>Client Details</div>
-            <div className="fg">
-              <div><label className="lbl">Business Name</label><input className="inp" value={form.name||''} onChange={e=>pf('name',e.target.value)}/></div>
-              <div><label className="lbl">Contact Person</label><input className="inp" value={form.contact||''} onChange={e=>pf('contact',e.target.value)}/></div>
-              <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email||''} onChange={e=>pf('email',e.target.value)}/></div>
-              <div><label className="lbl">Phone</label><input className="inp" value={form.phone||''} onChange={e=>pf('phone',e.target.value)}/></div>
-              <div><label className="lbl">Plan</label>
-                <select className="inp" value={form.plan||''} onChange={e=>pf('plan',e.target.value)}>
-                  {PLANS.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div><label className="lbl">Status</label>
-                <select className="inp" value={form.status||''} onChange={e=>pf('status',e.target.value)}>
-                  {STATUSES.map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div><label className="lbl">Value (£)</label><input className="inp" type="number" value={form.value||''} onChange={e=>pf('value',e.target.value)}/></div>
-              <div><label className="lbl">Website URL</label><input className="inp" value={form.website_url||''} onChange={e=>pf('website_url',e.target.value)} placeholder="https://"/></div>
-              <div className="fc"><label className="lbl">Notes</label><textarea className="inp" rows={3} value={form.notes||''} onChange={e=>pf('notes',e.target.value)} style={{ resize:'vertical' }}/></div>
+        <div className="client-profile-overview-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap:20 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+            <div className="client-profile-summary-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:12 }}>
+              <div className="stat-card"><div className="stat-val" style={{ color:'var(--accent)' }}>£{totalCollected.toLocaleString()}</div><div className="stat-lbl">Collected</div></div>
+              <div className="stat-card"><div className="stat-val" style={{ color:'var(--green)' }}>{activeSubs.length}</div><div className="stat-lbl">Active Subs</div></div>
+              <div className="stat-card"><div className="stat-val" style={{ color:'var(--amber)' }}>{unpaidInvoices.length}</div><div className="stat-lbl">Unpaid Invoices</div></div>
+              <div className="stat-card"><div className="stat-val" style={{ color:'var(--sub)' }}>{openTickets.length}</div><div className="stat-lbl">Open Tickets</div></div>
             </div>
-            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, marginTop:14 }}>
-              <input type="checkbox" checked={!!form.invoice_paid} onChange={e=>pf('invoice_paid',e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }}/>
-              Invoice Paid
-            </label>
+
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:14 }}>Account Snapshot</div>
+              <div className="client-profile-detail-list" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Payments</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>{accountHealth}</div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {gcStatus?.mandate_id
+                      ? `Mandate ${gcStatus.mandate_id}`
+                      : gcStatus?.billing_request_id
+                        ? 'Waiting for client authorisation'
+                        : 'Client has not set up Direct Debit yet'}
+                  </div>
+                </div>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Latest activity</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>{latestActivity?.event_type?.replace(/_/g, ' ') || 'No recent activity'}</div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {latestActivity ? new Date(latestActivity.created_at).toLocaleString('en-GB') : 'Activity will appear here once recorded'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:14 }}>Client Details</div>
+              <div className="fg">
+                <div><label className="lbl">Business Name</label><input className="inp" value={form.name||''} onChange={e=>pf('name',e.target.value)}/></div>
+                <div><label className="lbl">Contact Person</label><input className="inp" value={form.contact||''} onChange={e=>pf('contact',e.target.value)}/></div>
+                <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email||''} onChange={e=>pf('email',e.target.value)}/></div>
+                <div><label className="lbl">Phone</label><input className="inp" value={form.phone||''} onChange={e=>pf('phone',e.target.value)}/></div>
+                <div><label className="lbl">Plan</label>
+                  <select className="inp" value={form.plan||''} onChange={e=>pf('plan',e.target.value)}>
+                    {PLANS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div><label className="lbl">Status</label>
+                  <select className="inp" value={form.status||''} onChange={e=>pf('status',e.target.value)}>
+                    {STATUSES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div><label className="lbl">Value (£)</label><input className="inp" type="number" value={form.value||''} onChange={e=>pf('value',e.target.value)}/></div>
+                <div><label className="lbl">Website URL</label><input className="inp" value={form.website_url||''} onChange={e=>pf('website_url',e.target.value)} placeholder="https://"/></div>
+                <div className="fc"><label className="lbl">Notes</label><textarea className="inp" rows={3} value={form.notes||''} onChange={e=>pf('notes',e.target.value)} style={{ resize:'vertical' }}/></div>
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, marginTop:14 }}>
+                <input type="checkbox" checked={!!form.invoice_paid} onChange={e=>pf('invoice_paid',e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }}/>
+                Invoice Paid
+              </label>
+            </div>
           </div>
 
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            {/* Stats */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--accent)' }}>£{totalCollected.toLocaleString()}</div><div className="stat-lbl">Collected</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--green)' }}>{subs.filter(s=>s.status==='active').length}</div><div className="stat-lbl">Active Subs</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--amber)' }}>{invoices.filter(i=>i.status==='unpaid').length}</div><div className="stat-lbl">Unpaid Invoices</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--sub)' }}>{tickets.filter(t=>t.status==='open').length}</div><div className="stat-lbl">Open Tickets</div></div>
-            </div>
-            {/* Quick actions */}
+          <div className="client-profile-side-stack" style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div className="card card-pad">
               <div className="lbl" style={{ marginBottom:12 }}>Quick Actions</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div className="client-profile-actions-grid" style={{ display:'grid', gap:8 }}>
                 <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => { setTab('invoices'); setInvModal(true) }}>+ Create Invoice</button>
-                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => setTab('payments')}>💳 Manage Payments</button>
-                {client.website_url && <a href={client.website_url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ justifyContent:'flex-start' }}>🌐 View Website</a>}
+                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => setTab('payments')}>Manage Payments</button>
+                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => setTab('tickets')}>Review Support</button>
+                {client.website_url && <a href={client.website_url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ justifyContent:'flex-start' }}>View Website</a>}
               </div>
+            </div>
+
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:12 }}>Recent client signal</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:6 }}>Latest invoice</div>
+                  <div style={{ fontSize:14, fontWeight:500, color:'var(--text)' }}>{latestInvoice?.description || 'No invoices yet'}</div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {latestInvoice ? `£${Number(latestInvoice.amount || 0).toLocaleString()} · ${latestInvoice.status}` : 'Create the first invoice from this profile'}
+                  </div>
+                </div>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:6 }}>Latest support ticket</div>
+                  <div style={{ fontSize:14, fontWeight:500, color:'var(--text)' }}>{latestTicket?.subject || 'No support tickets'}</div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {latestTicket ? `${latestTicket.status} · ${new Date(latestTicket.created_at).toLocaleDateString('en-GB')}` : 'Support history will appear here'}
+                  </div>
+                </div>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:6 }}>Recent invoices</div>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
+                    {recentInvoices.length
+                      ? recentInvoices.map(inv => `${inv.invoice_number || 'Invoice'} · £${Number(inv.amount || 0).toLocaleString()}`).join(' / ')
+                      : 'No invoice trail yet'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:12 }}>Recent activity</div>
+              {recentActivity.length === 0 ? (
+                <p style={{ fontSize:13, color:'var(--faint)', lineHeight:1.7 }}>No client activity has been recorded yet.</p>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {recentActivity.map(item => (
+                    <div key={item.id} className="client-profile-list-row" style={{ paddingBottom:10, borderBottom:'1px solid var(--border)' }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                        <div style={{ fontSize:13, fontWeight:500, color:'var(--text)', textTransform:'capitalize' }}>{item.event_type?.replace(/_/g, ' ')}</div>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)' }}>{new Date(item.created_at).toLocaleDateString('en-GB')}</div>
+                      </div>
+                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4, lineHeight:1.6 }}>{item.description || 'No description'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -496,21 +583,23 @@ export default function ClientProfile() {
           </div>
           <div className="card" style={{ overflow:'hidden' }}>
             {invoices.length === 0 ? <div className="empty"><p>No invoices yet</p></div> : (
-              <table className="tbl">
-                <thead><tr><th>Invoice #</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {invoices.map(inv => (
-                    <tr key={inv.id}>
-                      <td className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
-                      <td>{inv.description}</td>
-                      <td>£{Number(inv.amount||0).toLocaleString()}</td>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{inv.due_date || '—'}</td>
-                      <td><span className={`badge badge-${inv.status==='paid'?'green':'amber'}`}>{inv.status}</span></td>
-                      <td>{inv.status==='unpaid' && <button className="btn btn-ghost btn-sm" onClick={() => markPaid(inv.id)}>Mark Paid</button>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead><tr><th>Invoice #</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {invoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
+                        <td>{inv.description}</td>
+                        <td>£{Number(inv.amount||0).toLocaleString()}</td>
+                        <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{inv.due_date || '—'}</td>
+                        <td><span className={`badge badge-${inv.status==='paid'?'green':'amber'}`}>{inv.status}</span></td>
+                        <td>{inv.status==='unpaid' && <button className="btn btn-ghost btn-sm" onClick={() => markPaid(inv.id)}>Mark Paid</button>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -520,18 +609,20 @@ export default function ClientProfile() {
       {tab === 'tickets' && (
         <div className="card" style={{ overflow:'hidden' }}>
           {tickets.length === 0 ? <div className="empty"><p>No support tickets from this client</p></div> : (
-            <table className="tbl">
-              <thead><tr><th>Subject</th><th>Date</th><th>Status</th></tr></thead>
-              <tbody>
-                {tickets.map(t => (
-                  <tr key={t.id}>
-                    <td className="t-main">{t.subject}</td>
-                    <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
-                    <td><span className={`badge badge-${t.status==='open'?'amber':'green'}`}>{t.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead><tr><th>Subject</th><th>Date</th><th>Status</th></tr></thead>
+                <tbody>
+                  {tickets.map(t => (
+                    <tr key={t.id}>
+                      <td className="t-main">{t.subject}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                      <td><span className={`badge badge-${t.status==='open'?'amber':'green'}`}>{t.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -540,18 +631,20 @@ export default function ClientProfile() {
       {tab === 'activity' && (
         <div className="card" style={{ overflow:'hidden' }}>
           {activity.length === 0 ? <div className="empty"><p>No activity recorded</p></div> : (
-            <table className="tbl">
-              <thead><tr><th>Event</th><th>Description</th><th>Date</th></tr></thead>
-              <tbody>
-                {activity.map(a => (
-                  <tr key={a.id}>
-                    <td><span className="badge badge-blue">{a.event_type?.replace(/_/g,' ')}</span></td>
-                    <td>{a.description}</td>
-                    <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(a.created_at).toLocaleDateString('en-GB')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead><tr><th>Event</th><th>Description</th><th>Date</th></tr></thead>
+                <tbody>
+                  {activity.map(a => (
+                    <tr key={a.id}>
+                      <td><span className="badge badge-blue">{a.event_type?.replace(/_/g,' ')}</span></td>
+                      <td>{a.description}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(a.created_at).toLocaleDateString('en-GB')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

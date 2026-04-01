@@ -201,6 +201,11 @@ button { cursor: pointer; font-family: inherit; }
   .staff-profile-form-card,
   .staff-profile-admin-card { padding: 16px !important; }
   .staff-profile-admin-column { order: -1; }
+  .client-profile-overview-grid,
+  .client-profile-summary-grid,
+  .client-profile-detail-list { grid-template-columns: 1fr !important; }
+  .client-profile-hero { flex-direction: column; align-items: flex-start !important; }
+  .client-profile-hero-actions { width: 100%; }
   .dashboard-activity-row { flex-direction: column; align-items: flex-start !important; }
   [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="grid-template-columns: 1fr 320px"] { grid-template-columns: 1fr !important; }
@@ -215,6 +220,28 @@ button { cursor: pointer; font-family: inherit; }
   .dashboard-fourup > div:nth-last-child(-n+2) { border-bottom: none !important; }
   .stat-card { padding: 16px; min-height: auto !important; }
   .payments-hub-shell .card-pad { padding: 16px; }
+  .client-profile-hero { padding: 18px !important; }
+}
+
+@media (max-width: 1080px) {
+  .client-profile-overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .client-profile-summary-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .client-profile-hero-actions {
+    justify-content: flex-end;
+  }
+
+  .client-profile-summary-grid,
+  .client-profile-detail-list {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ── Nav items ── */
@@ -247,6 +274,22 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-form-card,
 .staff-profile-admin-card { min-width: 0; }
 .staff-profile-admin-column { align-self: start; }
+
+.client-profile-overview-grid,
+.client-profile-summary-grid,
+.client-profile-detail-list,
+.client-profile-actions-grid {
+  width: 100%;
+}
+
+.client-profile-side-stack {
+  min-width: 0;
+}
+
+.client-profile-list-row:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
 
 /* ── Table ── */
 .tbl { width: 100%; border-collapse: collapse; }
