@@ -141,9 +141,9 @@ function AuthenticatedApp() {
     <AuthProvider>
       <Suspense fallback={<RouteLoader />}>
         <Routes>
-          <Route path="/"              element={<HomeScreen />} />
-          <Route path="/web-manager/*" element={<PermissionGate permKey="website_editor"><WebManager /></PermissionGate>} />
-          <Route path="/*"             element={<PortalLayout />} />
+          <Route path="/"              element={<OnboardingWall><HomeScreen /></OnboardingWall>} />
+          <Route path="/web-manager/*" element={<OnboardingWall><PermissionGate permKey="website_editor"><WebManager /></PermissionGate></OnboardingWall>} />
+          <Route path="/*"             element={<OnboardingWall><PortalLayout /></OnboardingWall>} />
         </Routes>
       </Suspense>
     </AuthProvider>
