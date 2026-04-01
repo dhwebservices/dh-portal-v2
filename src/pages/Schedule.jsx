@@ -5,11 +5,17 @@ import { StaffPicker } from '../components/StaffPicker'
 import { sendEmail } from '../utils/email'
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+const WEEKDAYS = DAYS.slice(0, 5)
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const HOURS = Array.from({length:19},(_,i)=>{
   const h = i + 7 // 07:00 - 23:00
   return h.toString().padStart(2,'0') + ':00'
 })
+const QUICK_PATTERNS = [
+  { id: 'starter', label: 'Weekdays 09:00-17:00', start: '09:00', end: '17:00', days: WEEKDAYS },
+  { id: 'extended', label: 'Weekdays 10:00-18:00', start: '10:00', end: '18:00', days: WEEKDAYS },
+  { id: 'full-week', label: 'Mon-Sat 10:00-18:00', start: '10:00', end: '18:00', days: DAYS.slice(0, 6) },
+]
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
@@ -24,6 +30,12 @@ function dayHours(d) {
   const [sh,sm] = d.start.split(':').map(Number)
   const [eh,em] = d.end.split(':').map(Number)
   return Math.max(0, (eh*60+em - sh*60-sm) / 60)
+}
+
+function shiftWeek(ws, offsetDays) {
+  const d = new Date(ws + 'T12:00:00')
+  d.setDate(d.getDate() + offsetDays)
+  return d.toISOString().split('T')[0]
 }
 
 function fmtWeek(ws) {
@@ -83,6 +95,7 @@ export default function Schedule() {
   const [tab, setTab]             = useState('mine')
   // Admin: set schedule on behalf of another staff member
   const [onBehalfOf, setOnBehalfOf] = useState(null) // { email, name }
+  const [patternForm, setPatternForm] = useState({ start: '09:00', end: '17:00', note: '' })
 
   const targetEmail = onBehalfOf ? onBehalfOf.email : user?.email
   const targetName  = onBehalfOf ? onBehalfOf.name  : user?.name
@@ -179,6 +192,49 @@ export default function Schedule() {
     setSaving(false)
   }
 
+  const copyPreviousWeek = async () => {
+    if (!targetEmail) return
+    setSaving(true)
+    const previousWeek = shiftWeek(weekStart, -7)
+    const { data } = await supabase
+      .from('schedules')
+      .select('week_data')
+      .ilike('user_email', targetEmail)
+      .eq('week_start', previousWeek)
+      .maybeSingle()
+
+    if (data?.week_data) {
+      setSchedule(data.week_data)
+      setSubmitted(false)
+      setRecordId(null)
+    }
+    setSaving(false)
+  }
+
+  const clearWeek = () => {
+    setSchedule(EMPTY_SCHEDULE)
+    setSubmitted(false)
+    setRecordId(null)
+  }
+
+  const applyPattern = ({ start, end, days, note = '' }) => {
+    setSchedule((current) => {
+      const next = { ...current }
+      DAYS.forEach((day) => {
+        if (days.includes(day)) {
+          next[day] = { start, end, note }
+        }
+      })
+      return next
+    })
+    setSubmitted(false)
+  }
+
+  const applyCustomWeekdayPattern = () => {
+    if (!patternForm.start || !patternForm.end) return
+    applyPattern({ start: patternForm.start, end: patternForm.end, days: WEEKDAYS, note: patternForm.note || '' })
+  }
+
   const editSchedule = async () => {
     // Unlock for editing — don't wipe the data
     if (recordId) {
@@ -187,8 +243,8 @@ export default function Schedule() {
     setSubmitted(false)
   }
 
-  const prevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate()-7); setWeekStart(d.toISOString().split('T')[0]) }
-  const nextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate()+7); setWeekStart(d.toISOString().split('T')[0]) }
+  const prevWeek = () => setWeekStart(shiftWeek(weekStart, -7))
+  const nextWeek = () => setWeekStart(shiftWeek(weekStart, 7))
 
   const totalHours = Object.values(schedule).reduce((sum, d) => sum + dayHours(d), 0)
   const isEditing = !submitted
@@ -254,6 +310,65 @@ export default function Schedule() {
 
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
             <>
+              <div className="card card-pad" style={{ marginBottom: 16, display:'grid', gap:16 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>Weekly shortcuts</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.6 }}>
+                      Reuse a previous rota, apply a standard weekday pattern, or clear the week before rebuilding it.
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button className="btn btn-outline btn-sm" onClick={copyPreviousWeek} disabled={saving}>
+                      {saving ? 'Loading...' : 'Copy previous week'}
+                    </button>
+                    <button className="btn btn-outline btn-sm" onClick={clearWeek}>
+                      Clear week
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {QUICK_PATTERNS.map((pattern) => (
+                    <button
+                      key={pattern.id}
+                      className="btn btn-outline btn-sm"
+                      onClick={() => applyPattern(pattern)}
+                    >
+                      {pattern.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="fg">
+                  <div>
+                    <label className="lbl">Weekday start</label>
+                    <select className="inp" value={patternForm.start} onChange={e => setPatternForm(p => ({ ...p, start: e.target.value }))}>
+                      {HOURS.map(h => <option key={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="lbl">Weekday end</label>
+                    <select className="inp" value={patternForm.end} onChange={e => setPatternForm(p => ({ ...p, end: e.target.value }))}>
+                      {HOURS.map(h => <option key={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div className="fc">
+                    <label className="lbl">Shared note</label>
+                    <input className="inp" value={patternForm.note} onChange={e => setPatternForm(p => ({ ...p, note: e.target.value }))} placeholder="Optional note applied Monday to Friday" />
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <button className="btn btn-primary btn-sm" onClick={applyCustomWeekdayPattern}>
+                    Apply weekday pattern
+                  </button>
+                  <div style={{ fontSize:12, color:'var(--faint)', display:'flex', alignItems:'center' }}>
+                    Fills Monday to Friday only. Weekend shifts stay as they are unless you edit them below.
+                  </div>
+                </div>
+              </div>
+
               <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
                 <table className="tbl">
                   <thead>
