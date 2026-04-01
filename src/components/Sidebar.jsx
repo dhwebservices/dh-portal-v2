@@ -303,6 +303,65 @@ const css = `
 
 /* Mobile */
 .mob-btn { position: fixed; top: 12px; left: 12px; z-index: 300; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); }
+.dh-mobile-drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; width: min(340px, 88vw);
+  background: var(--bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 201; overflow: hidden;
+  box-shadow: 12px 0 32px rgba(0,0,0,0.16);
+}
+.dh-mobile-head {
+  padding: 14px 14px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.dh-mobile-brand {
+  font-family: var(--font-display); font-size: 22px; font-weight: 400; color: var(--text);
+}
+.dh-mobile-close {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--card); display: flex; align-items: center; justify-content: center;
+  color: var(--sub); cursor: pointer; flex-shrink: 0;
+}
+.dh-mobile-body {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+.dh-mobile-sections {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 12px;
+  scrollbar-width: none;
+}
+.dh-mobile-sections::-webkit-scrollbar { display: none; }
+.dh-mobile-section-btn {
+  border: 1px solid var(--border); background: var(--card); color: var(--sub);
+  border-radius: 999px; padding: 8px 12px; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; white-space: nowrap; cursor: pointer; flex-shrink: 0;
+}
+.dh-mobile-section-btn.active {
+  color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border);
+}
+.dh-mobile-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.dh-mobile-tile {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 12px; border-radius: 10px; text-decoration: none; color: var(--text);
+  background: var(--card); border: 1px solid var(--border); min-height: 94px; position: relative;
+}
+.dh-mobile-tile.active {
+  border-color: var(--accent); background: var(--accent-soft);
+}
+.dh-mobile-tile-icon {
+  width: 30px; height: 30px; border-radius: 8px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg2);
+}
+.dh-mobile-tile-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.3; margin-bottom: 2px;
+}
+.dh-mobile-tile-desc {
+  font-size: 10.5px; line-height: 1.35; color: var(--faint); font-family: var(--font-mono);
+}
+.dh-mobile-footer {
+  padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg);
+}
 @media (min-width: 769px) { .mob-btn { display: none !important; } }
 @media (max-width: 768px) { .dh-dock { display: none !important; } .dh-panel { left: 0 !important; width: 85vw !important; } }
 `
@@ -524,33 +583,53 @@ export default function Sidebar() {
         <Ico name={mobileOpen ? 'x' : 'menu'} size={16} />
       </button>
 
-      {/* Mobile drawer — flat list */}
+      {/* Mobile drawer */}
       {mobileOpen && (
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.4)' }} />
-          <div style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 260, background: 'var(--bg)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 201, overflowY: 'auto' }}>
-            <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 400, color: 'var(--text)' }}>
+          <div className="dh-mobile-drawer">
+            <div className="dh-mobile-head">
+              <div className="dh-mobile-brand">
                 DH <span style={{ color: 'var(--accent)' }}>Portal</span>
               </div>
+              <button className="dh-mobile-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+                <Ico name="x" size={15} />
+              </button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
-              {visibleSections.map(sec => (
-                <div key={sec.id} style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--faint)', padding: '6px 10px 3px' }}>{sec.label}</div>
-                  {sec.items.filter(i => isAllowed(i.key)).map(item => {
-                    const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
-                    return (
-                      <NavLink key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 7, marginBottom: 1, textDecoration: 'none', color: isActive ? 'var(--accent)' : 'var(--sub)', background: isActive ? 'var(--accent-soft)' : 'transparent', fontSize: 13.5, fontWeight: isActive ? 500 : 400 }}>
-                        <Ico name={item.icon} size={14} />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    )
-                  })}
-                </div>
-              ))}
+            <div className="dh-mobile-body">
+              <div className="dh-mobile-sections">
+                {visibleSections.map(sec => (
+                  <button
+                    key={sec.id}
+                    className={`dh-mobile-section-btn${activeSection === sec.id ? ' active' : ''}`}
+                    onClick={() => setActiveSection(sec.id)}
+                  >
+                    <Ico name={sec.icon} size={13} />
+                    <span>{sec.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="dh-mobile-grid">
+                {activeSec?.items.filter(i => isAllowed(i.key)).map(item => {
+                  const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
+                  return (
+                    <NavLink key={item.to} to={item.to} className={`dh-mobile-tile${isActive ? ' active' : ''}`}>
+                      <div className="dh-mobile-tile-icon" style={{ background: isActive ? accentColor.bg : 'var(--bg2)' }}>
+                        <Ico name={item.icon} size={15} />
+                      </div>
+                      <div className="dh-mobile-tile-name">{item.label}</div>
+                      <div className="dh-mobile-tile-desc">{item.desc}</div>
+                      {item.to === '/support' && tickets > 0 && (
+                        <span className="dh-tile-badge">{tickets}</span>
+                      )}
+                    </NavLink>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ padding: 10, borderTop: '1px solid var(--border)' }}>
+
+            <div className="dh-mobile-footer">
               <button className="dh-footer-btn" onClick={toggleTheme}>
                 <Ico name={dark ? 'sun' : 'moon'} size={13} />
                 <span>{dark ? 'Light mode' : 'Dark mode'}</span>
