@@ -17,7 +17,7 @@ const TITLES = {
   '/competitor':'Competitor Lookup', '/maintenance':'Maintenance',
   '/hr/leave':'Leave', '/hr/timesheets':'Timesheets',
   '/hr/payslips':'Payslips', '/hr/profiles':'HR Profiles',
-  '/hr/policies':'Policies', '/hr/onboarding':'Onboarding',
+  '/hr/policies':'Policies', '/hr/documents':'HR Documents', '/hr/onboarding':'Onboarding',
   '/audit':'Audit Log', '/settings':'Settings',
   '/notifications':'Notifications',
 }

@@ -10,6 +10,7 @@ const PERMISSION_FALLBACKS = {
   my_profile: 'dashboard',
   org_chart: 'staff',
   safeguards: 'settings',
+  hr_documents: 'hr_policies',
 }
 
 export function AuthProvider({ children }) {

@@ -37,6 +37,7 @@ const HRLeave = lazy(() => import('./pages/hr/HRLeave'))
 const HRTimesheets = lazy(() => import('./pages/hr/HRTimesheets'))
 const HRPayslips = lazy(() => import('./pages/hr/HRPayslips'))
 const HRPolicies = lazy(() => import('./pages/hr/HRPolicies'))
+const HRDocuments = lazy(() => import('./pages/hr/HRDocuments'))
 const HROnboarding = lazy(() => import('./pages/hr/HROnboarding'))
 const Appointments = lazy(() => import('./pages/Appointments'))
 const MailingList = lazy(() => import('./pages/MailingList'))
@@ -119,6 +120,7 @@ function PortalLayout() {
               <Route path="/hr/timesheets"   element={<PermissionGate permKey="hr_timesheet"><HRTimesheets /></PermissionGate>} />
               <Route path="/hr/payslips"     element={<PermissionGate permKey="hr_payslips"><HRPayslips /></PermissionGate>} />
               <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
+              <Route path="/hr/documents"    element={<PermissionGate permKey="hr_documents"><HRDocuments /></PermissionGate>} />
               <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
               <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
               <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />

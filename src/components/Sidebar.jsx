@@ -46,6 +46,7 @@ const SECTIONS = [
       { to: '/hr/leave',      icon: 'cal',    label: 'Leave',         desc: 'Leave requests',    key: 'hr_leave'      },
       { to: '/hr/payslips',   icon: 'wallet', label: 'Payslips',      desc: 'Payroll docs',      key: 'hr_payslips'   },
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
+      { to: '/hr/documents',  icon: 'doc',    label: 'Documents',     desc: 'Coverage & risks',  key: 'hr_documents'  },
       { to: '/hr/onboarding', icon: 'star',   label: 'Onboarding',    desc: 'New starters',      key: 'hr_onboarding' },
       { to: '/my-staff',      icon: 'people', label: 'My Staff',      desc: 'Staff management',  key: 'staff'         },
       { to: '/org-chart',     icon: 'people', label: 'Org Chart',     desc: 'Live reporting lines', key: 'org_chart'   },

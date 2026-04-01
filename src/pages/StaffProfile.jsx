@@ -27,6 +27,7 @@ const ALL_PAGES = [
   {key:'hr_leave',      label:'HR Leave',           group:'HR'},
   {key:'hr_payslips',   label:'HR Payslips',        group:'HR'},
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
+  {key:'hr_documents',  label:'HR Documents',       group:'HR', category:'Records', desc:'Document coverage and expiry checks'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
   {key:'org_chart',     label:'Org Chart',          group:'HR', category:'Structure', desc:'Live reporting lines'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
@@ -44,7 +45,7 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist','safeguards'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
