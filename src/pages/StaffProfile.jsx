@@ -400,7 +400,7 @@ export default function StaffProfile() {
         ))}
       </div>
 
-      <div style={{ maxWidth:640 }} className="staff-profile-content">
+      <div style={{ maxWidth:tab === 'profile' ? 980 : 640 }} className="staff-profile-content">
         {tab === 'profile' && (
           <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 320px', gap:18 }}>
             <div className="card card-pad">
