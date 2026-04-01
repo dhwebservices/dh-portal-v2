@@ -24,6 +24,8 @@ export default function HROnboarding() {
   const [step, setStep]               = useState(0)
   const [saving, setSaving]           = useState(false)
   const [viewSub, setViewSub]         = useState(null)
+  const [adminBusyEmail, setAdminBusyEmail] = useState('')
+  const [adminMessage, setAdminMessage] = useState('')
   const rtwRef = useRef()
 
   const [form, setForm] = useState({
@@ -98,16 +100,70 @@ export default function HROnboarding() {
 
   const decide = async (email, status, notes='') => {
     const normalizedEmail = normalizeEmail(email)
-    const { data: submission } = await supabase
-      .from('onboarding_submissions')
-      .update({ status, decided_by: user.name, decided_at: new Date().toISOString(), admin_notes: notes })
-      .ilike('user_email', normalizedEmail)
-      .select('*')
-      .maybeSingle()
-    if (status === 'approved' && submission) {
-      await syncOnboardingSubmissionToHrProfile(submission, { overwrite: true })
+    setAdminBusyEmail(normalizedEmail)
+    setAdminMessage('')
+    try {
+      const { data, error } = await supabase
+        .from('onboarding_submissions')
+        .update({ status, decided_by: user.name, decided_at: new Date().toISOString(), admin_notes: notes })
+        .ilike('user_email', normalizedEmail)
+        .select('*')
+
+      if (error) throw error
+      const submission = Array.isArray(data) ? data[0] : data
+      if (!submission) throw new Error('No onboarding submission was updated for this staff member.')
+
+      if (status === 'approved') {
+        await syncOnboardingSubmissionToHrProfile(submission, { overwrite: true })
+      }
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          normalizeEmail(item.user_email) === normalizedEmail
+            ? { ...item, ...submission }
+            : item
+        )
+      )
+      if (viewSub && normalizeEmail(viewSub.user_email) === normalizedEmail) {
+        setViewSub({ ...viewSub, ...submission })
+      } else {
+        setViewSub(null)
+      }
+      setAdminMessage(status === 'approved' ? 'Onboarding approved successfully.' : 'Onboarding marked as rejected.')
+    } catch (err) {
+      console.error('Onboarding decision failed:', err)
+      alert('Onboarding update failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setAdminBusyEmail('')
     }
-    setViewSub(null); load()
+  }
+
+  const removeSubmission = async (email) => {
+    const normalizedEmail = normalizeEmail(email)
+    const confirmed = confirm(`Remove the onboarding record for ${normalizedEmail}? This only clears the onboarding submission from the queue.`)
+    if (!confirmed) return
+
+    setAdminBusyEmail(normalizedEmail)
+    setAdminMessage('')
+    try {
+      const { error } = await supabase
+        .from('onboarding_submissions')
+        .delete()
+        .ilike('user_email', normalizedEmail)
+
+      if (error) throw error
+
+      setSubmissions((current) => current.filter((item) => normalizeEmail(item.user_email) !== normalizedEmail))
+      if (viewSub && normalizeEmail(viewSub.user_email) === normalizedEmail) {
+        setViewSub(null)
+      }
+      setAdminMessage('Onboarding record removed from the queue.')
+    } catch (err) {
+      console.error('Onboarding removal failed:', err)
+      alert('Could not remove onboarding record: ' + (err.message || 'Unknown error'))
+    } finally {
+      setAdminBusyEmail('')
+    }
   }
 
   const completionPct = () => {
@@ -146,6 +202,11 @@ export default function HROnboarding() {
           <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)' }}>
             Submissions ({submissions.length})
           </div>
+          {adminMessage && (
+            <div style={{ padding:'10px 18px', borderBottom:'1px solid var(--border)', fontSize:12.5, color:'var(--green)', background:'var(--green-bg)' }}>
+              {adminMessage}
+            </div>
+          )}
           <table className="tbl">
             <thead><tr><th>Staff Member</th><th>Email</th><th>Submitted</th><th>Status</th><th>Completion</th><th></th></tr></thead>
             <tbody>
@@ -166,9 +227,10 @@ export default function HROnboarding() {
                     <div style={{ display:'flex', gap:4 }}>
                       <button className="btn btn-outline btn-sm" onClick={() => setViewSub(s)}>Review</button>
                       {s.status==='submitted' && <>
-                        <button className="btn btn-sm" style={{ background:'var(--green)', color:'#fff' }} onClick={() => decide(s.user_email,'approved')}>✓</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => decide(s.user_email,'rejected')}>✗</button>
+                        <button className="btn btn-sm" style={{ background:'var(--green)', color:'#fff' }} disabled={adminBusyEmail === normalizeEmail(s.user_email)} onClick={() => decide(s.user_email,'approved')}>✓</button>
+                        <button className="btn btn-danger btn-sm" disabled={adminBusyEmail === normalizeEmail(s.user_email)} onClick={() => decide(s.user_email,'rejected')}>✗</button>
                       </>}
+                      <button className="btn btn-outline btn-sm" disabled={adminBusyEmail === normalizeEmail(s.user_email)} onClick={() => removeSubmission(s.user_email)}>Remove</button>
                     </div>
                   </td>
                 </tr>
@@ -443,8 +505,9 @@ export default function HROnboarding() {
               )}
               {viewSub.status === 'submitted' && (
                 <div style={{ display:'flex', gap:8, paddingTop:14, borderTop:'1px solid var(--border)' }}>
-                  <button className="btn btn-primary" onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
-                  <button className="btn btn-danger" onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
+                  <button className="btn btn-primary" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
+                  <button className="btn btn-danger" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
+                  <button className="btn btn-outline" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => removeSubmission(viewSub.user_email)}>Remove record</button>
                 </div>
               )}
             </div>
