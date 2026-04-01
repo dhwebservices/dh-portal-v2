@@ -105,12 +105,12 @@ export default function Clients() {
         <button className="btn btn-primary" onClick={openAdd}>+ Add Client</button>
       </div>
 
-      <div style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
+      <div className="legacy-toolbar" style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
         <div style={{ position:'relative', flex:1, minWidth:200 }}>
           <svg style={{ position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input className="inp" style={{ paddingLeft:34, borderRadius:100 }} placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6 }}>
           {['all','active','pending','inactive'].map(s => (
             <button key={s} onClick={() => setFilter(s)} className={'pill'+(filter===s?' on':'')}>{s}</button>
           ))}
@@ -118,7 +118,7 @@ export default function Clients() {
       </div>
 
       {loading ? (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
           {[1,2,3,4,5,6].map(i => (
             <div key={i} className="card" style={{ padding:24 }}>
               <div className="skel" style={{ width:52, height:52, borderRadius:12, marginBottom:14 }}/>
@@ -128,7 +128,7 @@ export default function Clients() {
           ))}
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
           {filtered.map(r => {
             const colour = colourFor(r.email || r.name)
             return (

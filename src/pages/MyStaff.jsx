@@ -106,7 +106,7 @@ export default function MyStaff() {
       </div>
 
       {loading ? (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
           {[1,2,3,4,5,6].map(i => (
             <div key={i} className="card" style={{ padding:24 }}>
               <div className="skel" style={{ width:56, height:56, borderRadius:'50%', marginBottom:12 }}/>
@@ -116,7 +116,7 @@ export default function MyStaff() {
           ))}
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
           {filtered.map(u => {
             const userEmail = u.email?.toLowerCase()
             const profile = profiles[userEmail] || {}

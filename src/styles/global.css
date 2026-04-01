@@ -174,6 +174,7 @@ button { cursor: pointer; font-family: inherit; }
   .payments-stats-grid,
   .payments-main-grid,
   .payments-two-col-grid { grid-template-columns: 1fr !important; }
+  .compact-card-grid { grid-template-columns: 1fr !important; }
   .payments-main-pane { border-right: none !important; border-bottom: 1px solid var(--border); }
   .payments-side-pane { padding-top: 16px !important; }
   .payments-mode-row,
@@ -185,6 +186,13 @@ button { cursor: pointer; font-family: inherit; }
   .payments-mode-row > *,
   .payments-template-row > *,
   .payments-action-row > * { flex: 0 0 auto; }
+  .legacy-toolbar { align-items: stretch !important; gap: 10px !important; }
+  .legacy-toolbar > * { margin-left: 0 !important; }
+  .legacy-toolbar-actions { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 4px; margin-bottom: -4px; }
+  .legacy-toolbar-actions::-webkit-scrollbar { display: none; }
+  .legacy-toolbar-actions > * { flex: 0 0 auto; }
+  .legacy-side-sheet { width: 100% !important; max-width: 100% !important; }
+  .mobile-only { display: block !important; }
   .dashboard-activity-row { flex-direction: column; align-items: flex-start !important; }
   [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="grid-template-columns: 1fr 320px"] { grid-template-columns: 1fr !important; }
@@ -361,4 +369,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .tbl-wrap {
   width: 100%;
+}
+
+.mobile-only {
+  display: none;
 }

@@ -203,16 +203,16 @@ export default function Appointments() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:4, marginBottom:24, background:'var(--bg2)', borderRadius:10, padding:4, width:'fit-content' }}>
+      <div className="tabs" style={{ marginBottom:24 }}>
         {[['calendar','📅 Calendar'],['bookings','📋 All Bookings']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ padding:'7px 18px', borderRadius:7, border:'none', background:tab===k?'var(--card)':'transparent', color:tab===k?'var(--text)':'var(--faint)', fontSize:13, fontWeight:tab===k?500:400, cursor:'pointer', transition:'all 0.15s', boxShadow:tab===k?'0 1px 4px rgba(0,0,0,0.08)':'none' }}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
 
       {tab === 'calendar' && (
         <>
           {/* Week navigator */}
-          <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
+          <div className="legacy-toolbar" style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
             <button className="btn btn-ghost btn-sm" onClick={prevWeek}>← Prev</button>
             <span style={{ fontSize:14, fontWeight:500, color:'var(--text)', minWidth:280, textAlign:'center' }}>{weekLabel}</span>
             <button className="btn btn-ghost btn-sm" onClick={nextWeek}>Next →</button>
@@ -220,7 +220,7 @@ export default function Appointments() {
           </div>
 
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-            <div style={{ overflowX:'auto' }}>
+            <div className="tbl-wrap">
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr>
@@ -341,39 +341,71 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
     .sort((a,b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
-    <div>
-      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+      <div>
+      <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap' }}>
         {[['upcoming','Upcoming'],['past','Past'],['all','All']].map(([k,l]) => (
           <button key={k} onClick={() => setFilter(k)} className={'pill'+(filter===k?' on':'')}>{l}</button>
         ))}
       </div>
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-          <table className="tbl">
-            <thead><tr><th>Client</th><th>Business</th><th>Date</th><th>Time</th><th>Duration</th><th>Staff</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {filtered.map(a => (
-                <tr key={a.id}>
-                  <td className="t-main">
-                    <div style={{ fontWeight:500 }}>{a.client_name}</div>
-                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
-                  </td>
-                  <td style={{ fontSize:13 }}>{a.client_business || '—'}</td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11, whiteSpace:'nowrap' }}>{formatDate(a.date)}</td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{a.start_time} – {a.end_time}</td>
-                  <td style={{ fontSize:12 }}>{a.duration} min</td>
-                  <td style={{ fontSize:12 }}>{a.staff_name?.split(' ')[0]}</td>
-                  <td><span className={'badge badge-'+(a.status==='confirmed'?'green':a.status==='cancelled'?'red':'amber')}>{a.status}</span></td>
-                  <td>
-                    {a.status === 'confirmed' && (
-                      <button className="btn btn-danger btn-sm" onClick={() => onCancel(a)} disabled={saving}>Cancel</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No appointments found</td></tr>}
-            </tbody>
-          </table>
+          <>
+            <div className="tbl-wrap hide-mob">
+              <table className="tbl">
+                <thead><tr><th>Client</th><th>Business</th><th>Date</th><th>Time</th><th>Duration</th><th>Staff</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {filtered.map(a => (
+                    <tr key={a.id}>
+                      <td className="t-main">
+                        <div style={{ fontWeight:500 }}>{a.client_name}</div>
+                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
+                      </td>
+                      <td style={{ fontSize:13 }}>{a.client_business || '—'}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11, whiteSpace:'nowrap' }}>{formatDate(a.date)}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{a.start_time} – {a.end_time}</td>
+                      <td style={{ fontSize:12 }}>{a.duration} min</td>
+                      <td style={{ fontSize:12 }}>{a.staff_name?.split(' ')[0]}</td>
+                      <td><span className={'badge badge-'+(a.status==='confirmed'?'green':a.status==='cancelled'?'red':'amber')}>{a.status}</span></td>
+                      <td>
+                        {a.status === 'confirmed' && (
+                          <button className="btn btn-danger btn-sm" onClick={() => onCancel(a)} disabled={saving}>Cancel</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No appointments found</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="mobile-only" style={{ display:'none' }}>
+              {filtered.length ? (
+                <div style={{ display:'grid', gap:10, padding:12 }}>
+                  {filtered.map((a) => (
+                    <div key={a.id} className="card" style={{ padding:14, display:'grid', gap:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{a.client_name}</div>
+                          <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
+                        </div>
+                        <span className={'badge badge-'+(a.status==='confirmed'?'green':a.status==='cancelled'?'red':'amber')}>{a.status}</span>
+                      </div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <span className="badge badge-grey">{formatDate(a.date)}</span>
+                        <span className="badge badge-grey">{a.start_time} - {a.end_time}</span>
+                        <span className="badge badge-grey">{a.duration} min</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--sub)' }}>
+                        {a.client_business || 'No business name'} · {a.staff_name}
+                      </div>
+                      {a.status === 'confirmed' ? (
+                        <button className="btn btn-danger btn-sm" onClick={() => onCancel(a)} disabled={saving}>Cancel</button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : <div style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No appointments found</div>}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -399,7 +431,7 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, onClose, onSa
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
-      <div style={{ position:'relative', width:480, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
+      <div className="legacy-side-sheet" style={{ position:'relative', width:480, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
         <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>{staffName?.split(' ')[0]}</div>
@@ -463,7 +495,7 @@ function ApptDetail({ appt, onClose, onCancel, saving }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
-      <div style={{ position:'relative', width:420, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', padding:'24px', display:'flex', flexDirection:'column', gap:20, boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
+      <div className="legacy-side-sheet" style={{ position:'relative', width:420, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', padding:'24px', display:'flex', flexDirection:'column', gap:20, boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>Appointment Details</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>

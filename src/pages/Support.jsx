@@ -52,12 +52,12 @@ export default function Support() {
         </div>
       </div>
 
-      <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+      <div className="legacy-toolbar" style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
         <div className="search-wrap" style={{ flex:1, minWidth:200 }}>
           <Search size={13} className="search-icon"/>
           <input className="inp" style={{ paddingLeft:34 }} placeholder="Search tickets..." value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6 }}>
           {['all','open','resolved'].map(s => (
             <button key={s} onClick={()=>setFilter(s)} className={"pill"+(filter===s?' on':'')}>{s}</button>
           ))}
@@ -66,29 +66,61 @@ export default function Support() {
 
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-          <table className="tbl">
-            <thead><tr><th>Subject</th><th>Client</th><th>Priority</th><th>Status</th><th>Date</th><th></th></tr></thead>
-            <tbody>
-              {filtered.map(t => (
-                <tr key={t.id}>
-                  <td className="t-main">{t.subject}</td>
-                  <td>{t.client_name}</td>
-                  <td><span className={"badge badge-"+(priorityColor[t.priority]||'grey')}>{t.priority}</span></td>
-                  <td><span className={"badge badge-"+(t.status==='open'?'amber':'green')}>{t.status}</span></td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
-                  <td>
-                    <div style={{ display:'flex', gap:4 }}>
-                      <button className="btn btn-outline btn-sm" onClick={() => { setSelected(t); setReply(t.staff_reply||'') }}>
-                      {t.status==='open' ? 'Reply' : 'View'}
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteTicket(t.id)}>Del</button>
+          <>
+            <div className="tbl-wrap hide-mob">
+              <table className="tbl">
+                <thead><tr><th>Subject</th><th>Client</th><th>Priority</th><th>Status</th><th>Date</th><th></th></tr></thead>
+                <tbody>
+                  {filtered.map(t => (
+                    <tr key={t.id}>
+                      <td className="t-main">{t.subject}</td>
+                      <td>{t.client_name}</td>
+                      <td><span className={"badge badge-"+(priorityColor[t.priority]||'grey')}>{t.priority}</span></td>
+                      <td><span className={"badge badge-"+(t.status==='open'?'amber':'green')}>{t.status}</span></td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                      <td>
+                        <div style={{ display:'flex', gap:4 }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => { setSelected(t); setReply(t.staff_reply||'') }}>
+                            {t.status==='open' ? 'Reply' : 'View'}
+                          </button>
+                          <button className="btn btn-danger btn-sm" onClick={() => deleteTicket(t.id)}>Del</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length===0 && <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tickets found</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-only" style={{ display:'none' }}>
+              {filtered.length ? (
+                <div style={{ display:'grid', gap:10, padding:12 }}>
+                  {filtered.map((t) => (
+                    <div key={t.id} className="card" style={{ padding:14, display:'grid', gap:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{t.subject}</div>
+                          <div style={{ fontSize:12, color:'var(--sub)' }}>{t.client_name}</div>
+                        </div>
+                        <span className={"badge badge-"+(t.status==='open'?'amber':'green')}>{t.status}</span>
+                      </div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <span className={"badge badge-"+(priorityColor[t.priority]||'grey')}>{t.priority}</span>
+                        <span className="badge badge-grey">{new Date(t.created_at).toLocaleDateString('en-GB')}</span>
+                      </div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => { setSelected(t); setReply(t.staff_reply||'') }}>
+                          {t.status==='open' ? 'Reply' : 'View'}
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => deleteTicket(t.id)}>Delete</button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length===0 && <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tickets found</td></tr>}
-            </tbody>
-          </table>
+                  ))}
+                </div>
+              ) : <div style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tickets found</div>}
+            </div>
+          </>
         )}
       </div>
 
