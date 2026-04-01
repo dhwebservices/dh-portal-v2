@@ -66,6 +66,7 @@ export default function Appointments() {
   const { user, isAdmin } = useAuth()
   const [tab, setTab] = useState('calendar')
   const [anchor, setAnchor] = useState(() => new Date().toISOString().split('T')[0])
+  const [staffFilter, setStaffFilter] = useState('all')
   const [bookableStaff, setBookableStaff] = useState([])
   const [availability, setAvailability] = useState([]) // staff_availability rows
   const [appointments, setAppointments] = useState([]) // appointments rows
@@ -195,6 +196,9 @@ export default function Appointments() {
 
   const today = new Date().toISOString().split('T')[0]
   const weekLabel = formatDate(days[0]) + ' – ' + formatDate(days[6])
+  const visibleStaff = staffFilter === 'all'
+    ? bookableStaff
+    : bookableStaff.filter((staffMember) => staffMember.user_email === staffFilter)
 
   return (
     <div className="fade-in">
@@ -217,6 +221,16 @@ export default function Appointments() {
             <span style={{ fontSize:14, fontWeight:500, color:'var(--text)', minWidth:280, textAlign:'center' }}>{weekLabel}</span>
             <button className="btn btn-ghost btn-sm" onClick={nextWeek}>Next →</button>
             <button className="btn btn-outline btn-sm" onClick={() => setAnchor(today)} style={{ marginLeft:8 }}>Today</button>
+            <div style={{ minWidth:220, marginLeft:'auto' }}>
+              <select className="inp" value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
+                <option value="all">All bookable staff</option>
+                {bookableStaff.map((staffMember) => (
+                  <option key={staffMember.user_email} value={staffMember.user_email}>
+                    {staffMember.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
@@ -225,7 +239,7 @@ export default function Appointments() {
                 <thead>
                   <tr>
                     <th style={{ width:60, padding:'8px 12px', borderBottom:'2px solid var(--border)', color:'var(--faint)', fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textAlign:'left' }}>TIME</th>
-                    {bookableStaff.map(s => (
+                    {visibleStaff.map(s => (
                       <th key={s.user_email} style={{ padding:'8px 12px', borderBottom:'2px solid var(--border)', borderLeft:'1px solid var(--border)', minWidth:140 }}>
                         <div style={{ fontWeight:600, color:'var(--text)', fontSize:12, marginBottom:2 }}>{s.full_name?.split(' ')[0]}</div>
                         <div style={{ fontSize:10, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{s.role}</div>
@@ -235,7 +249,7 @@ export default function Appointments() {
                   {/* Day headers */}
                   <tr style={{ background:'var(--bg2)' }}>
                     <td style={{ padding:'6px 12px', borderBottom:'1px solid var(--border)', fontSize:10, color:'var(--faint)' }}>STAFF →</td>
-                    {bookableStaff.map(s => (
+                    {visibleStaff.map(s => (
                       <td key={s.user_email} style={{ padding:'6px 12px', borderBottom:'1px solid var(--border)', borderLeft:'1px solid var(--border)' }}>
                         <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                           {days.map(d => {
@@ -260,7 +274,7 @@ export default function Appointments() {
                   {HOURS.map((time, ti) => (
                     <tr key={time} style={{ background: ti%2===0 ? 'transparent' : 'var(--bg2)' }}>
                       <td style={{ padding:'4px 12px', borderBottom:'1px solid var(--border-light)', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', verticalAlign:'middle', whiteSpace:'nowrap' }}>{time}</td>
-                      {bookableStaff.map(s => {
+                      {visibleStaff.map(s => {
                         // Show all 7 days compressed in weekly view
                         // Find if any day this week has a booking at this time for this staff
                         const dayBookings = days.map(d => {
@@ -335,17 +349,28 @@ export default function Appointments() {
 
 function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, onRefresh }) {
   const [filter, setFilter] = useState('upcoming')
+  const [staffFilter, setStaffFilter] = useState('all')
   const today = new Date().toISOString().split('T')[0]
+  const staffOptions = Array.from(new Set(appointments.map((appointment) => appointment.staff_name).filter(Boolean)))
   const filtered = appointments
     .filter(a => filter === 'all' ? true : filter === 'upcoming' ? a.date >= today : a.date < today)
+    .filter(a => staffFilter === 'all' ? true : a.staff_name === staffFilter)
     .sort((a,b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
-      <div>
+    <div>
       <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap' }}>
         {[['upcoming','Upcoming'],['past','Past'],['all','All']].map(([k,l]) => (
           <button key={k} onClick={() => setFilter(k)} className={'pill'+(filter===k?' on':'')}>{l}</button>
         ))}
+        <div style={{ minWidth:220 }}>
+          <select className="inp" value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
+            <option value="all">All staff</option>
+            {staffOptions.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (

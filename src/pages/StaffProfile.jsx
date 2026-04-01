@@ -307,11 +307,11 @@ export default function StaffProfile() {
       </div>
 
       {/* Hero */}
-      <div style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
+      <div className="staff-profile-hero" style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
         <div style={{ width:72, height:72, borderRadius:'50%', background:'var(--accent-soft)', border:'2px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:600, fontFamily:'var(--font-display)', color:'var(--accent)', flexShrink:0 }}>
           {getInitials(displayName)}
         </div>
-        <div style={{ flex:1 }}>
+        <div style={{ flex:1, minWidth:0 }}>
           <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1, color:'var(--text)' }}>{displayName}</h1>
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
             {profile.role && <span style={{ fontSize:13, color:'var(--sub)' }}>{profile.role}</span>}
@@ -320,7 +320,7 @@ export default function StaffProfile() {
             <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)' }}>{email}</span>
           </div>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+        <div className="staff-profile-actions" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ fontSize:12, color: onboarding ? 'var(--amber)' : 'var(--green)', fontWeight:500 }}>
               {onboarding ? '⏳ Onboarding' : '✅ Active'}
@@ -329,7 +329,7 @@ export default function StaffProfile() {
               <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
             </button>
           </div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
+          <div className="staff-profile-toggle-card" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
             <div>
               <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>📅 Bookable for Calls</div>
               <div style={{ fontSize:11, color:'var(--faint)' }}>Shows in public booking calendar</div>
@@ -355,7 +355,7 @@ export default function StaffProfile() {
         ))}
       </div>
 
-      <div style={{ maxWidth:640 }}>
+      <div style={{ maxWidth:640 }} className="staff-profile-content">
         {tab === 'profile' && (
           <div className="card card-pad">
             <div className="fg">
@@ -447,25 +447,49 @@ export default function StaffProfile() {
             {docs.length === 0 ? (
               <div className="empty"><p>No documents uploaded yet.</p></div>
             ) : (
-              <table className="tbl">
-                <thead><tr><th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th></th></tr></thead>
-                <tbody>
-                  {docs.map(d => (
-                    <tr key={d.id}>
-                      <td className="t-main">{d.name}</td>
-                      <td><span className="badge badge-blue">{d.type}</span></td>
-                      <td>{d.uploaded_by || '—'}</td>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</td>
-                      <td>
-                        <div style={{ display:'flex', gap:4 }}>
-                          <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View</a>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Del</button>
+              <>
+                <div className="tbl-wrap hide-mob">
+                  <table className="tbl">
+                    <thead><tr><th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th></th></tr></thead>
+                    <tbody>
+                      {docs.map(d => (
+                        <tr key={d.id}>
+                          <td className="t-main">{d.name}</td>
+                          <td><span className="badge badge-blue">{d.type}</span></td>
+                          <td>{d.uploaded_by || '—'}</td>
+                          <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</td>
+                          <td>
+                            <div style={{ display:'flex', gap:4 }}>
+                              <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View</a>
+                              <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Del</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mobile-only" style={{ display:'none' }}>
+                  <div style={{ display:'grid', gap:10, padding:12 }}>
+                    {docs.map((d) => (
+                      <div key={d.id} className="card" style={{ padding:14, display:'grid', gap:10 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{d.name}</div>
+                            <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</div>
+                          </div>
+                          <span className="badge badge-blue">{d.type}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div style={{ fontSize:12, color:'var(--sub)' }}>Uploaded by {d.uploaded_by || '—'}</div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                          <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View</a>
+                          <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -475,20 +499,41 @@ export default function StaffProfile() {
             {commissions.length === 0 ? (
               <div className="empty"><p>No commissions recorded for this staff member</p></div>
             ) : (
-              <table className="tbl">
-                <thead><tr><th>Client</th><th>Sale Value</th><th>Commission</th><th>Date</th><th>Status</th></tr></thead>
-                <tbody>
-                  {commissions.map(c => (
-                    <tr key={c.id}>
-                      <td className="t-main">{c.client}</td>
-                      <td>£{Number(c.sale_value||0).toLocaleString()}</td>
-                      <td>£{Number(c.commission_amount||0).toLocaleString()}</td>
-                      <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{c.date}</td>
-                      <td><span className={'badge badge-'+(c.status==='paid'?'green':'amber')}>{c.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <div className="tbl-wrap hide-mob">
+                  <table className="tbl">
+                    <thead><tr><th>Client</th><th>Sale Value</th><th>Commission</th><th>Date</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {commissions.map(c => (
+                        <tr key={c.id}>
+                          <td className="t-main">{c.client}</td>
+                          <td>£{Number(c.sale_value||0).toLocaleString()}</td>
+                          <td>£{Number(c.commission_amount||0).toLocaleString()}</td>
+                          <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{c.date}</td>
+                          <td><span className={'badge badge-'+(c.status==='paid'?'green':'amber')}>{c.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mobile-only" style={{ display:'none' }}>
+                  <div style={{ display:'grid', gap:10, padding:12 }}>
+                    {commissions.map((c) => (
+                      <div key={c.id} className="card" style={{ padding:14, display:'grid', gap:8 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                          <div style={{ fontSize:14, fontWeight:600 }}>{c.client}</div>
+                          <span className={'badge badge-'+(c.status==='paid'?'green':'amber')}>{c.status}</span>
+                        </div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                          <span className="badge badge-grey">Sale £{Number(c.sale_value||0).toLocaleString()}</span>
+                          <span className="badge badge-blue">Commission £{Number(c.commission_amount||0).toLocaleString()}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{c.date}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
