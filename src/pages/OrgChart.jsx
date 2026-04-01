@@ -9,6 +9,7 @@ const cardStyle = {
 }
 
 const normalizeEmail = (email = '') => email.toLowerCase().trim()
+const EXCLUDED_EMAIL_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
 
 function pickBest(rows = []) {
   return rows
@@ -45,6 +46,13 @@ function deriveManagerKey(profile, byEmail, byName) {
   if (nameKey && byName.has(nameKey)) return byName.get(nameKey)
 
   return null
+}
+
+function isRealStaffProfile(profile = {}) {
+  const email = normalizeEmail(profile.user_email || '')
+  if (!email) return false
+  if (EXCLUDED_EMAIL_PREFIXES.some((prefix) => email.startsWith(prefix))) return false
+  return true
 }
 
 function PersonCard({ person, reportsCount, onOpen }) {
@@ -229,12 +237,14 @@ export default function OrgChart() {
         (onboarding || []).map((row) => [normalizeEmail(row.user_email || ''), row.photo_url || null])
       )
 
-      const merged = deduped.map((profile) => ({
-        ...profile,
-        user_email: normalizeEmail(profile.user_email || ''),
-        onboarding: permissionMap.get(normalizeEmail(profile.user_email || '')) || false,
-        photo_url: photoMap.get(normalizeEmail(profile.user_email || '')) || null,
-      }))
+      const merged = deduped
+        .map((profile) => ({
+          ...profile,
+          user_email: normalizeEmail(profile.user_email || ''),
+          onboarding: permissionMap.get(normalizeEmail(profile.user_email || '')) || false,
+          photo_url: photoMap.get(normalizeEmail(profile.user_email || '')) || null,
+        }))
+        .filter(isRealStaffProfile)
 
       setPeople(merged)
       setUpdatedAt(new Date().toISOString())
