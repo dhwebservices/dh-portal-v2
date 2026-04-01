@@ -1,49 +1,58 @@
+import { lazy, Suspense } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import LoginPage    from './pages/LoginPage'
-import HomeScreen   from './pages/HomeScreen'
-import WebManager   from './pages/WebManager'
-import Dashboard      from './pages/Dashboard'
-import Outreach       from './pages/Outreach'
-import Clients        from './pages/Clients'
-import ClientMgmt     from './pages/ClientMgmt'
-import Support        from './pages/Support'
-import Tasks          from './pages/Tasks'
-import MyTasks        from './pages/MyTasks'
-import MyProfile      from './pages/MyProfile'
-import ClientProfile  from './pages/ClientProfile'
-import MyStaff        from './pages/MyStaff'
-import StaffProfile   from './pages/StaffProfile'
-import Search         from './pages/Search'
-import Schedule       from './pages/Schedule'
-import Reports        from './pages/Reports'
-import OrgChart       from './pages/OrgChart'
-import AdminSafeguards from './pages/AdminSafeguards'
-import Proposals      from './pages/Proposals'
-import SendEmail      from './pages/SendEmail'
-import EmailTemplates from './pages/EmailTemplates'
-import Banners        from './pages/Banners'
-import Domains        from './pages/Domains'
-import Competitor     from './pages/Competitor'
-import Maintenance    from './pages/Maintenance'
-import HRLeave        from './pages/hr/HRLeave'
-import HRTimesheets   from './pages/hr/HRTimesheets'
-import HRPayslips     from './pages/hr/HRPayslips'
-import HRPolicies     from './pages/hr/HRPolicies'
-import HROnboarding   from './pages/hr/HROnboarding'
-import Appointments   from './pages/Appointments'
-import MailingList    from './pages/MailingList'
-import AuditLog       from './pages/AuditLog'
-import Settings       from './pages/Settings'
-import Notifications  from './pages/Notifications'
+
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const HomeScreen = lazy(() => import('./pages/HomeScreen'))
+const WebManager = lazy(() => import('./pages/WebManager'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Outreach = lazy(() => import('./pages/Outreach'))
+const Clients = lazy(() => import('./pages/Clients'))
+const ClientMgmt = lazy(() => import('./pages/ClientMgmt'))
+const Support = lazy(() => import('./pages/Support'))
+const Tasks = lazy(() => import('./pages/Tasks'))
+const MyTasks = lazy(() => import('./pages/MyTasks'))
+const MyProfile = lazy(() => import('./pages/MyProfile'))
+const ClientProfile = lazy(() => import('./pages/ClientProfile'))
+const MyStaff = lazy(() => import('./pages/MyStaff'))
+const StaffProfile = lazy(() => import('./pages/StaffProfile'))
+const Search = lazy(() => import('./pages/Search'))
+const Schedule = lazy(() => import('./pages/Schedule'))
+const Reports = lazy(() => import('./pages/Reports'))
+const OrgChart = lazy(() => import('./pages/OrgChart'))
+const AdminSafeguards = lazy(() => import('./pages/AdminSafeguards'))
+const Proposals = lazy(() => import('./pages/Proposals'))
+const SendEmail = lazy(() => import('./pages/SendEmail'))
+const EmailTemplates = lazy(() => import('./pages/EmailTemplates'))
+const Banners = lazy(() => import('./pages/Banners'))
+const Domains = lazy(() => import('./pages/Domains'))
+const Competitor = lazy(() => import('./pages/Competitor'))
+const Maintenance = lazy(() => import('./pages/Maintenance'))
+const HRLeave = lazy(() => import('./pages/hr/HRLeave'))
+const HRTimesheets = lazy(() => import('./pages/hr/HRTimesheets'))
+const HRPayslips = lazy(() => import('./pages/hr/HRPayslips'))
+const HRPolicies = lazy(() => import('./pages/hr/HRPolicies'))
+const HROnboarding = lazy(() => import('./pages/hr/HROnboarding'))
+const Appointments = lazy(() => import('./pages/Appointments'))
+const MailingList = lazy(() => import('./pages/MailingList'))
+const AuditLog = lazy(() => import('./pages/AuditLog'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Notifications = lazy(() => import('./pages/Notifications'))
 
 const msal = new PublicClientApplication(msalConfig)
+
+function RouteLoader() {
+  return (
+    <div className="spin-wrap" style={{ minHeight: '40vh' }}>
+      <div className="spin" />
+    </div>
+  )
+}
 
 // Wraps any page — if user is in onboarding mode, show only the onboarding form
 function OnboardingWall({ children }) {
@@ -81,42 +90,44 @@ function PortalLayout() {
       <div className="main-area">
         <Header />
         <main className="main-content">
-          <Routes>
-            <Route path="/dashboard"       element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
-            <Route path="/my-profile"      element={<PermissionGate permKey="my_profile"><MyProfile /></PermissionGate>} />
-            <Route path="/search"          element={<PermissionGate permKey="search"><Search /></PermissionGate>} />
-            <Route path="/outreach"        element={<PermissionGate permKey="outreach"><Outreach /></PermissionGate>} />
-            <Route path="/clients"         element={<PermissionGate permKey="clients"><Clients /></PermissionGate>} />
-            <Route path="/clients/:id"     element={<PermissionGate permKey="clients"><ClientProfile /></PermissionGate>} />
-            <Route path="/client-mgmt"     element={<PermissionGate permKey="clientmgmt"><ClientMgmt /></PermissionGate>} />
-            <Route path="/support"         element={<PermissionGate permKey="support"><Support /></PermissionGate>} />
-            <Route path="/tasks"           element={<PermissionGate permKey="tasks"><Tasks /></PermissionGate>} />
-            <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
-            <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
-            <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
-            <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
-            <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
-            <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
-            <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
-            <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
-            <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
-            <Route path="/email-templates" element={<PermissionGate permKey="emailtemplates"><EmailTemplates /></PermissionGate>} />
-            <Route path="/banners"         element={<PermissionGate permKey="banners"><Banners /></PermissionGate>} />
-            <Route path="/domains"         element={<PermissionGate permKey="domains"><Domains /></PermissionGate>} />
-            <Route path="/competitor"      element={<PermissionGate permKey="competitor"><Competitor /></PermissionGate>} />
-            <Route path="/maintenance"     element={<PermissionGate permKey="maintenance"><Maintenance /></PermissionGate>} />
-            <Route path="/hr/leave"        element={<PermissionGate permKey="hr_leave"><HRLeave /></PermissionGate>} />
-            <Route path="/hr/timesheets"   element={<PermissionGate permKey="hr_timesheet"><HRTimesheets /></PermissionGate>} />
-            <Route path="/hr/payslips"     element={<PermissionGate permKey="hr_payslips"><HRPayslips /></PermissionGate>} />
-            <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
-            <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
-            <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
-            <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />
-            <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />
-            <Route path="/settings"        element={<PermissionGate permKey="settings"><Settings /></PermissionGate>} />
-            <Route path="/notifications"   element={<PermissionGate permKey="notifications"><Notifications /></PermissionGate>} />
-            <Route path="*"               element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
-          </Routes>
+          <Suspense fallback={<RouteLoader />}>
+            <Routes>
+              <Route path="/dashboard"       element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
+              <Route path="/my-profile"      element={<PermissionGate permKey="my_profile"><MyProfile /></PermissionGate>} />
+              <Route path="/search"          element={<PermissionGate permKey="search"><Search /></PermissionGate>} />
+              <Route path="/outreach"        element={<PermissionGate permKey="outreach"><Outreach /></PermissionGate>} />
+              <Route path="/clients"         element={<PermissionGate permKey="clients"><Clients /></PermissionGate>} />
+              <Route path="/clients/:id"     element={<PermissionGate permKey="clients"><ClientProfile /></PermissionGate>} />
+              <Route path="/client-mgmt"     element={<PermissionGate permKey="clientmgmt"><ClientMgmt /></PermissionGate>} />
+              <Route path="/support"         element={<PermissionGate permKey="support"><Support /></PermissionGate>} />
+              <Route path="/tasks"           element={<PermissionGate permKey="tasks"><Tasks /></PermissionGate>} />
+              <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
+              <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
+              <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
+              <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
+              <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
+              <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
+              <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
+              <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
+              <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
+              <Route path="/email-templates" element={<PermissionGate permKey="emailtemplates"><EmailTemplates /></PermissionGate>} />
+              <Route path="/banners"         element={<PermissionGate permKey="banners"><Banners /></PermissionGate>} />
+              <Route path="/domains"         element={<PermissionGate permKey="domains"><Domains /></PermissionGate>} />
+              <Route path="/competitor"      element={<PermissionGate permKey="competitor"><Competitor /></PermissionGate>} />
+              <Route path="/maintenance"     element={<PermissionGate permKey="maintenance"><Maintenance /></PermissionGate>} />
+              <Route path="/hr/leave"        element={<PermissionGate permKey="hr_leave"><HRLeave /></PermissionGate>} />
+              <Route path="/hr/timesheets"   element={<PermissionGate permKey="hr_timesheet"><HRTimesheets /></PermissionGate>} />
+              <Route path="/hr/payslips"     element={<PermissionGate permKey="hr_payslips"><HRPayslips /></PermissionGate>} />
+              <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
+              <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
+              <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
+              <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />
+              <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />
+              <Route path="/settings"        element={<PermissionGate permKey="settings"><Settings /></PermissionGate>} />
+              <Route path="/notifications"   element={<PermissionGate permKey="notifications"><Notifications /></PermissionGate>} />
+              <Route path="*"               element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
@@ -126,11 +137,13 @@ function PortalLayout() {
 function AuthenticatedApp() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/"              element={<HomeScreen />} />
-        <Route path="/web-manager/*" element={<PermissionGate permKey="website_editor"><WebManager /></PermissionGate>} />
-        <Route path="/*"             element={<PortalLayout />} />
-      </Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
+          <Route path="/"              element={<HomeScreen />} />
+          <Route path="/web-manager/*" element={<PermissionGate permKey="website_editor"><WebManager /></PermissionGate>} />
+          <Route path="/*"             element={<PortalLayout />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   )
 }
@@ -141,7 +154,9 @@ export default function App() {
       <BrowserRouter>
         <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
         <UnauthenticatedTemplate>
-          <Routes><Route path="*" element={<LoginPage />} /></Routes>
+          <Suspense fallback={<RouteLoader />}>
+            <Routes><Route path="*" element={<LoginPage />} /></Routes>
+          </Suspense>
         </UnauthenticatedTemplate>
       </BrowserRouter>
     </MsalProvider>
