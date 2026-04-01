@@ -15,6 +15,18 @@ const STEPS = [
 
 const RTW_DOCS = ['UK Passport','British National (Overseas) Passport','EU/EEA Passport','BRP Card (Biometric Residence Permit)','UK Birth Certificate + NI evidence','Certificate of Naturalisation','Visa (specify type)','Other']
 
+function completionForSubmission(submission = {}) {
+  const required = ['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type']
+  const filled = required.filter((key) => submission[key] && submission[key].toString().trim() !== '').length
+  return Math.round((filled / required.length) * 100)
+}
+
+function daysUntil(dateString) {
+  if (!dateString) return null
+  const diff = new Date(dateString).getTime() - Date.now()
+  return Math.ceil(diff / 86400000)
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isOnboarding } = useAuth()
   const isHRAdmin = isAdmin && !isOnboarding
@@ -167,12 +179,28 @@ export default function HROnboarding() {
   }
 
   const completionPct = () => {
-    const required = ['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type']
-    const filled = required.filter(k => form[k] && form[k].toString().trim() !== '').length
-    return Math.round((filled / required.length) * 100)
+    return completionForSubmission(form)
   }
 
   const pct = completionPct()
+  const adminSummary = isHRAdmin
+    ? (() => {
+        const submitted = submissions.filter((item) => item.status === 'submitted').length
+        const drafts = submissions.filter((item) => item.status === 'draft').length
+        const approved = submissions.filter((item) => item.status === 'approved').length
+        const rejected = submissions.filter((item) => item.status === 'rejected').length
+        const stale = submissions.filter((item) => ['draft', 'submitted', 'in_progress'].includes(item.status)).filter((item) => {
+          const sourceDate = item.submitted_at || item.updated_at || item.created_at
+          if (!sourceDate) return false
+          return (Date.now() - new Date(sourceDate).getTime()) / 86400000 >= 7
+        }).length
+        const expiringDocs = submissions.filter((item) => {
+          const remaining = daysUntil(item.rtw_expiry)
+          return remaining !== null && remaining >= 0 && remaining <= 45
+        }).length
+        return { submitted, drafts, approved, rejected, stale, expiringDocs }
+      })()
+    : null
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
@@ -197,6 +225,17 @@ export default function HROnboarding() {
       )}
 
       {/* Admin panel */}
+      {isHRAdmin && (
+        <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(6, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+          <div className="stat-card"><div className="stat-val">{submissions.length}</div><div className="stat-lbl">Total submissions</div></div>
+          <div className="stat-card"><div className="stat-val">{adminSummary.submitted}</div><div className="stat-lbl">Awaiting review</div></div>
+          <div className="stat-card"><div className="stat-val">{adminSummary.drafts}</div><div className="stat-lbl">Drafts</div></div>
+          <div className="stat-card"><div className="stat-val">{adminSummary.approved}</div><div className="stat-lbl">Approved</div></div>
+          <div className="stat-card"><div className="stat-val">{adminSummary.stale}</div><div className="stat-lbl">Stale 7+ days</div></div>
+          <div className="stat-card"><div className="stat-val">{adminSummary.expiringDocs}</div><div className="stat-lbl">RTW expiring soon</div></div>
+        </div>
+      )}
+
       {isHRAdmin && submissions.length > 0 && (
         <div className="card" style={{ overflow:'hidden', marginBottom:24 }}>
           <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)' }}>
@@ -219,8 +258,24 @@ export default function HROnboarding() {
                   <td>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <div style={{ flex:1, height:4, background:'var(--bg3)', borderRadius:2, overflow:'hidden', minWidth:60 }}>
-                        <div style={{ height:'100%', background:'var(--accent)', borderRadius:2, width: `${(() => { const r=['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type']; const f=r.filter(k=>s[k]&&s[k].toString().trim()!=='').length; return Math.round(f/r.length*100) })()}%` }}/>
+                        <div style={{ height:'100%', background:'var(--accent)', borderRadius:2, width: `${completionForSubmission(s)}%` }}/>
                       </div>
+                      {s.rtw_expiry ? (
+                        <span className={`badge badge-${(() => {
+                          const remaining = daysUntil(s.rtw_expiry)
+                          if (remaining === null) return 'grey'
+                          if (remaining <= 14) return 'red'
+                          if (remaining <= 45) return 'amber'
+                          return 'green'
+                        })()}`}>
+                          {(() => {
+                            const remaining = daysUntil(s.rtw_expiry)
+                            if (remaining === null) return 'RTW'
+                            if (remaining < 0) return 'expired'
+                            return `${remaining}d left`
+                          })()}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   <td>

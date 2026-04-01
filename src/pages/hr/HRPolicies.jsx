@@ -7,6 +7,7 @@ export default function HRPolicies() {
   const isManager = can('admin')
   const [policies, setPolicies]   = useState([])
   const [acks, setAcks]           = useState([])
+  const [allAcks, setAllAcks]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
   const [form, setForm]           = useState({ title:'', description:'' })
@@ -15,12 +16,14 @@ export default function HRPolicies() {
   useEffect(() => { load() }, [user?.email])
   const load = async () => {
     setLoading(true)
-    const [{ data: p }, { data: a }] = await Promise.all([
+    const [{ data: p }, { data: a }, { data: all }] = await Promise.all([
       supabase.from('hr_policies').select('*').order('created_at',{ascending:false}),
       supabase.from('policy_acknowledgements').select('policy_id').ilike('user_email',user?.email||''),
+      isManager ? supabase.from('policy_acknowledgements').select('policy_id,user_email,acknowledged_at') : Promise.resolve({ data: [] }),
     ])
     setPolicies(p||[])
     setAcks((a||[]).map(a=>a.policy_id))
+    setAllAcks(all || [])
     setLoading(false)
   }
 
@@ -49,9 +52,59 @@ export default function HRPolicies() {
     setAcks(p => [...p, policyId])
   }
 
+  const summary = (() => {
+    const outstanding = policies.filter((policy) => !acks.includes(policy.id)).length
+    const ackByPolicy = allAcks.reduce((acc, item) => {
+      acc[item.policy_id] = acc[item.policy_id] || 0
+      acc[item.policy_id] += 1
+      return acc
+    }, {})
+    return {
+      total: policies.length,
+      outstanding,
+      acknowledged: policies.length - outstanding,
+      leastRead: isManager ? policies
+        .map((policy) => ({ policy, count: ackByPolicy[policy.id] || 0 }))
+        .sort((a, b) => a.count - b.count)
+        .slice(0, 3) : [],
+      ackByPolicy,
+    }
+  })()
+
   return (
     <div className="fade-in">
       <div className="page-hd"><div><h1 className="page-title">HR Policies</h1><p className="page-sub">{policies.length} policies</p></div></div>
+
+      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+        <div className="stat-card"><div className="stat-val">{summary.total}</div><div className="stat-lbl">Policies</div></div>
+        <div className="stat-card"><div className="stat-val">{summary.acknowledged}</div><div className="stat-lbl">{isManager ? 'With reads' : 'Acknowledged'}</div></div>
+        <div className="stat-card"><div className="stat-val">{summary.outstanding}</div><div className="stat-lbl">{isManager ? 'Need attention' : 'Still to read'}</div></div>
+      </div>
+
+      {!isManager && summary.outstanding > 0 && (
+        <div className="card card-pad" style={{ marginBottom:20, borderColor:'var(--amber)', background:'linear-gradient(180deg, var(--card), var(--amber-bg))' }}>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Action needed</div>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:6 }}>You still have {summary.outstanding} policy{summary.outstanding === 1 ? '' : 'ies'} to acknowledge.</div>
+          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>Open each policy below, review the PDF, and acknowledge it so your HR record stays current.</div>
+        </div>
+      )}
+
+      {isManager && summary.leastRead.length > 0 && (
+        <div className="card card-pad" style={{ marginBottom:20 }}>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Coverage snapshot</div>
+          <div style={{ display:'grid', gap:10 }}>
+            {summary.leastRead.map(({ policy, count }) => (
+              <div key={policy.id} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{policy.title}</div>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:3 }}>{policy.description || 'No description provided.'}</div>
+                </div>
+                <span className={`badge badge-${count === 0 ? 'red' : count < 2 ? 'amber' : 'green'}`}>{count} acknowledgements</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isManager && (
         <div className="card card-pad" style={{ marginBottom:20, maxWidth:480 }}>
@@ -70,12 +123,16 @@ export default function HRPolicies() {
           {policies.length===0 && <div className="empty"><p>No policies uploaded yet</p></div>}
           {policies.map(p => {
             const acknowledged = acks.includes(p.id)
+            const ackCount = summary.ackByPolicy[p.id] || 0
             return (
               <div key={p.id} className="card card-pad" style={{ display:'flex', alignItems:'center', gap:16 }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:14, fontWeight:600, marginBottom:3 }}>{p.title}</div>
                   {p.description && <div style={{ fontSize:13, color:'var(--sub)', marginBottom:4 }}>{p.description}</div>}
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)' }}>Uploaded {new Date(p.created_at).toLocaleDateString('en-GB')}</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+                    <span className="badge badge-grey">Uploaded {new Date(p.created_at).toLocaleDateString('en-GB')}</span>
+                    {isManager ? <span className={`badge badge-${ackCount === 0 ? 'red' : ackCount < 2 ? 'amber' : 'green'}`}>{ackCount} acknowledgements</span> : null}
+                  </div>
                 </div>
                 <div style={{ display:'flex', gap:8, flexShrink:0 }}>
                   <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View PDF</a>

@@ -10,6 +10,8 @@ export default function HRPayslips() {
   const [uploading, setUploading] = useState(false)
   const [staff, setStaff]       = useState([])
   const [form, setForm]         = useState({ user_email:'', user_name:'', period:'' })
+  const [periodFilter, setPeriodFilter] = useState('all')
+  const [staffFilter, setStaffFilter] = useState('all')
   const fileRef = useRef()
 
   useEffect(() => { load() }, [user?.email])
@@ -43,9 +45,30 @@ export default function HRPayslips() {
     setUploading(false)
   }
 
+  const availablePeriods = [...new Set(payslips.map((p) => p.period).filter(Boolean))]
+  const filteredPayslips = payslips.filter((p) => {
+    const periodMatch = periodFilter === 'all' || p.period === periodFilter
+    const staffMatch = !isManager || staffFilter === 'all' || p.user_email === staffFilter
+    return periodMatch && staffMatch
+  })
+
+  const summary = {
+    total: payslips.length,
+    visible: filteredPayslips.length,
+    staffCovered: new Set(payslips.map((p) => p.user_email)).size,
+    latestUpload: payslips[0]?.uploaded_at,
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd"><div><h1 className="page-title">Payslips</h1></div></div>
+
+      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+        <div className="stat-card"><div className="stat-val">{summary.total}</div><div className="stat-lbl">Payslips stored</div></div>
+        <div className="stat-card"><div className="stat-val">{summary.visible}</div><div className="stat-lbl">Visible in view</div></div>
+        <div className="stat-card"><div className="stat-val">{isManager ? summary.staffCovered : availablePeriods.length}</div><div className="stat-lbl">{isManager ? 'Staff covered' : 'Periods available'}</div></div>
+        <div className="stat-card"><div className="stat-val">{summary.latestUpload ? new Date(summary.latestUpload).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—'}</div><div className="stat-lbl">Latest upload</div></div>
+      </div>
 
       {isManager && (
         <div className="card card-pad" style={{ marginBottom:20, maxWidth:560 }}>
@@ -64,12 +87,39 @@ export default function HRPayslips() {
         </div>
       )}
 
+      <div className="card card-pad" style={{ marginBottom:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, flexWrap:'wrap', alignItems:'flex-end' }}>
+          <div>
+            <div className="lbl" style={{ marginBottom:6 }}>Library view</div>
+            <div style={{ fontSize:13, color:'var(--sub)' }}>Filter payslips by period and, for admins, by staff member.</div>
+          </div>
+          <div className="fg" style={{ width:'min(560px, 100%)' }}>
+            <div>
+              <label className="lbl">Period</label>
+              <select className="inp" value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}>
+                <option value="all">All periods</option>
+                {availablePeriods.map((period) => <option key={period} value={period}>{period}</option>)}
+              </select>
+            </div>
+            {isManager ? (
+              <div>
+                <label className="lbl">Staff member</label>
+                <select className="inp" value={staffFilter} onChange={(e) => setStaffFilter(e.target.value)}>
+                  <option value="all">All staff</option>
+                  {staff.map((person) => <option key={person.email} value={person.email}>{person.name}</option>)}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
       <div className="card" style={{ overflow:'hidden' }}>
-        {loading ? <div className="spin-wrap"><div className="spin"/></div> : payslips.length===0 ? <div className="empty"><p>No payslips uploaded yet</p></div> : (
+        {loading ? <div className="spin-wrap"><div className="spin"/></div> : filteredPayslips.length===0 ? <div className="empty"><p>No payslips match this view yet.</p></div> : (
           <table className="tbl">
             <thead><tr>{isManager&&<th>Staff</th>}<th>Period</th><th>Uploaded</th><th></th></tr></thead>
             <tbody>
-              {payslips.map(p => (
+              {filteredPayslips.map(p => (
                 <tr key={p.id}>
                   {isManager&&<td className="t-main">{p.user_name}</td>}
                   <td>{p.period}</td>
