@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
-import { mergeHrProfileWithOnboarding, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Business'},
@@ -96,14 +96,15 @@ export default function StaffProfile() {
     setLoading(true)
     try {
       const enc = encodeURIComponent(email)
-      const [p, perm, comms, docs, onboardingSubmission] = await Promise.all([
-        sbGet('hr_profiles', `user_email=ilike.${enc}`),
+      const [profileRows, perm, comms, docs, onboardingSubmission] = await Promise.all([
+        sbGetMany('hr_profiles', `user_email=ilike.${enc}`),
         sbGet('user_permissions', `user_email=ilike.${enc}`),
         sbGetMany('commissions', `staff_email=ilike.${enc}&order=date.desc`),
         sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
         sbGet('onboarding_submissions', `user_email=ilike.${enc}`),
       ])
 
+      const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
 
       if (p || onboardingSubmission) {
@@ -183,7 +184,7 @@ export default function StaffProfile() {
       // Save hr_profiles via raw REST to avoid supabase-js columns= bug
       const existingProfile = profileId
         ? { id: profileId }
-        : await sbGet('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`)
+        : pickBestProfileRow(await sbGetMany('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`))
 
       const hrRes = await fetch(`${SB_URL}/rest/v1/hr_profiles?on_conflict=user_email`, {
         method: 'POST',
