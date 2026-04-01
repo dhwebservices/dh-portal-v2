@@ -46,6 +46,32 @@ const ROLE_DEFAULTS = {
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
+const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Admin']
+
+function countEnabledPermissions(perms) {
+  return ALL_PAGES.filter((page) => perms?.[page.key]).length
+}
+
+function detectPreset(perms) {
+  return Object.entries(ROLE_DEFAULTS).find(([, preset]) =>
+    ALL_PAGES.every((page) => !!perms?.[page.key] === !!preset[page.key])
+  )?.[0] || 'Custom'
+}
+
+function getLifecycleMeta({ onboarding, startDate, contractType }) {
+  if (onboarding) {
+    return { label: 'Onboarding', tone: 'amber', note: 'Portal access is still being set up.' }
+  }
+  if (startDate) {
+    return {
+      label: 'Active',
+      tone: 'green',
+      note: `${contractType || 'Staff member'} · started ${new Date(startDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}`,
+    }
+  }
+  return { label: 'Active', tone: 'green', note: contractType || 'Staff member is active in the portal.' }
+}
+
 export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
   const email = decodeURIComponent(encodedEmail || '').toLowerCase().trim()
@@ -310,6 +336,10 @@ export default function StaffProfile() {
 
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
+  const activePreset = detectPreset(editPerms)
+  const lifecycle = getLifecycleMeta({ onboarding, startDate: profile.start_date, contractType: profile.contract_type })
+  const enabledPermissionCount = countEnabledPermissions(editPerms)
+  const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
@@ -372,26 +402,124 @@ export default function StaffProfile() {
 
       <div style={{ maxWidth:640 }} className="staff-profile-content">
         {tab === 'profile' && (
-          <div className="card card-pad">
-            <div className="fg">
-              <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
-              <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
-              <div><label className="lbl">Department</label><input className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}/></div>
-              <div>
-                <label className="lbl">Manager</label>
-                <select className="inp" value={profile.manager_email || ''} onChange={e => {
-                  const u = msUsers.find(u => u.email === e.target.value)
-                  pf('manager_email', e.target.value)
-                  pf('manager_name', u?.name || '')
-                }}>
-                  <option value="">— No manager assigned —</option>
-                  {msUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
-                </select>
-                {profile.manager_email && <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>{profile.manager_email}</div>}
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 320px', gap:18 }}>
+            <div className="card card-pad">
+              <div className="fg">
+                <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
+                <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
+                <div><label className="lbl">Department</label><input className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}/></div>
+                <div>
+                  <label className="lbl">Manager</label>
+                  <select className="inp" value={profile.manager_email || ''} onChange={e => {
+                    const u = msUsers.find(u => u.email === e.target.value)
+                    pf('manager_email', e.target.value)
+                    pf('manager_name', u?.name || '')
+                  }}>
+                    <option value="">— No manager assigned —</option>
+                    {msUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+                  </select>
+                  {profile.manager_email && <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>{profile.manager_email}</div>}
+                </div>
+                <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
+                <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
+                <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={profile.address || ''} onChange={e=>pf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
               </div>
-              <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
-              <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
-              <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={profile.address || ''} onChange={e=>pf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
+            </div>
+
+            <div style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad">
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Admin controls</div>
+                    <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Lifecycle & access</div>
+                  </div>
+                  <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+                </div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:8, lineHeight:1.5 }}>{lifecycle.note}</div>
+
+                <div style={{ display:'grid', gap:10, marginTop:16 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Access preset</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{activePreset}</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{enabledPermissionCount} pages enabled</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                      {Object.keys(ROLE_DEFAULTS).map((role) => (
+                        <button
+                          key={role}
+                          className={activePreset === role ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                          onClick={() => setEditPerms({ ...ROLE_DEFAULTS[role] })}
+                        >
+                          {role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Manager</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{profile.manager_name || managerOption?.name || 'Unassigned'}</div>
+                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>
+                      {profile.manager_email || 'No manager selected'}
+                    </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Portal controls</div>
+                    <div style={{ display:'grid', gap:8 }}>
+                      <label style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Onboarding mode</div>
+                          <div style={{ fontSize:11, color:'var(--sub)' }}>Restricts the portal to onboarding-safe access</div>
+                        </div>
+                        <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', position:'relative', flexShrink:0 }}>
+                          <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                        </button>
+                      </label>
+                      <label style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Bookable for calls</div>
+                          <div style={{ fontSize:11, color:'var(--sub)' }}>Controls public appointment availability</div>
+                        </div>
+                        <button onClick={() => setBookable(b => !b)} style={{ width:40, height:22, borderRadius:11, background: bookable ? 'var(--accent)' : 'var(--bg3)', border:'none', position:'relative', flexShrink:0 }}>
+                          <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                        </button>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Quick admin jumps</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      {[
+                        ['Permissions', 'permissions'],
+                        ['Documents', 'docs'],
+                        ['Commissions', 'commissions'],
+                        ['HR Details', 'hr'],
+                      ].map(([label, nextTab]) => (
+                        <button key={nextTab} className="btn btn-outline btn-sm" onClick={() => setTab(nextTab)}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Coverage</div>
+                    <div style={{ display:'grid', gap:6 }}>
+                      {PERMISSION_GROUPS.map((group) => {
+                        const groupItems = ALL_PAGES.filter((page) => page.group === group)
+                        const enabled = groupItems.filter((page) => editPerms[page.key]).length
+                        return (
+                          <div key={group} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, fontSize:12.5 }}>
+                            <span style={{ color:'var(--sub)' }}>{group}</span>
+                            <span style={{ fontFamily:'var(--font-mono)', color:'var(--text)' }}>{enabled}/{groupItems.length}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
