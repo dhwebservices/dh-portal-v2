@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 
 const cardStyle = {
@@ -46,7 +47,7 @@ function deriveManagerKey(profile, byEmail, byName) {
   return null
 }
 
-function PersonCard({ person, reportsCount }) {
+function PersonCard({ person, reportsCount, onOpen }) {
   const initials = (person.full_name || person.user_email || '?')
     .split(' ')
     .map((word) => word[0])
@@ -55,34 +56,65 @@ function PersonCard({ person, reportsCount }) {
     .toUpperCase()
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
       style={{
         ...cardStyle,
         padding: 14,
         minWidth: 220,
         maxWidth: 280,
         boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+        textAlign: 'left',
+        cursor: 'pointer',
+        transition: 'transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease',
+        width: '100%',
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.borderColor = 'var(--accent-border)'
+        e.currentTarget.style.boxShadow = '0 10px 18px rgba(0,0,0,0.08)'
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.borderColor = 'var(--border)'
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: '50%',
-            background: 'var(--accent-soft)',
-            border: '1px solid var(--accent-border)',
-            color: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 600,
-            fontSize: 13,
-            flexShrink: 0,
-          }}
-        >
-          {initials}
-        </div>
+        {person.photo_url ? (
+          <img
+            src={person.photo_url}
+            alt={person.full_name || person.user_email}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '1px solid var(--accent-border)',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: '50%',
+              background: 'var(--accent-soft)',
+              border: '1px solid var(--accent-border)',
+              color: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 600,
+              fontSize: 13,
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+        )}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>
             {person.full_name || person.user_email}
@@ -117,11 +149,14 @@ function PersonCard({ person, reportsCount }) {
           {reportsCount} {reportsCount === 1 ? 'report' : 'reports'}
         </span>
       </div>
-    </div>
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
+        Open staff profile {'->'}
+      </div>
+    </button>
   )
 }
 
-function TreeBranch({ nodeKey, peopleMap, childrenMap, level = 0, visited = new Set() }) {
+function TreeBranch({ nodeKey, peopleMap, childrenMap, visited = new Set(), onOpenProfile }) {
   if (!nodeKey || visited.has(nodeKey)) return null
 
   const person = peopleMap.get(nodeKey)
@@ -133,7 +168,7 @@ function TreeBranch({ nodeKey, peopleMap, childrenMap, level = 0, visited = new 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>
-      <PersonCard person={person} reportsCount={children.length} />
+      <PersonCard person={person} reportsCount={children.length} onOpen={() => onOpenProfile(person.user_email)} />
 
       {children.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, width: '100%' }}>
@@ -155,8 +190,8 @@ function TreeBranch({ nodeKey, peopleMap, childrenMap, level = 0, visited = new 
                   nodeKey={childKey}
                   peopleMap={peopleMap}
                   childrenMap={childrenMap}
-                  level={level + 1}
                   visited={nextVisited}
+                  onOpenProfile={onOpenProfile}
                 />
               </div>
             ))}
@@ -168,6 +203,7 @@ function TreeBranch({ nodeKey, peopleMap, childrenMap, level = 0, visited = new 
 }
 
 export default function OrgChart() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [people, setPeople] = useState([])
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -177,9 +213,10 @@ export default function OrgChart() {
 
     const load = async () => {
       setLoading(true)
-      const [{ data: profiles }, { data: permissions }] = await Promise.all([
+      const [{ data: profiles }, { data: permissions }, { data: onboarding }] = await Promise.all([
         supabase.from('hr_profiles').select('*'),
         supabase.from('user_permissions').select('user_email,onboarding'),
+        supabase.from('onboarding_submissions').select('user_email,photo_url'),
       ])
 
       if (!alive) return
@@ -188,11 +225,15 @@ export default function OrgChart() {
       const permissionMap = new Map(
         (permissions || []).map((row) => [normalizeEmail(row.user_email || ''), !!row.onboarding])
       )
+      const photoMap = new Map(
+        (onboarding || []).map((row) => [normalizeEmail(row.user_email || ''), row.photo_url || null])
+      )
 
       const merged = deduped.map((profile) => ({
         ...profile,
         user_email: normalizeEmail(profile.user_email || ''),
         onboarding: permissionMap.get(normalizeEmail(profile.user_email || '')) || false,
+        photo_url: photoMap.get(normalizeEmail(profile.user_email || '')) || null,
       }))
 
       setPeople(merged)
@@ -206,6 +247,7 @@ export default function OrgChart() {
       .channel('org-chart-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hr_profiles' }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_permissions' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'onboarding_submissions' }, load)
       .subscribe()
 
     return () => {
@@ -311,7 +353,13 @@ export default function OrgChart() {
         >
           <div style={{ minWidth: 760, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
             {roots.map((rootKey) => (
-              <TreeBranch key={rootKey} nodeKey={rootKey} peopleMap={peopleMap} childrenMap={childrenMap} />
+              <TreeBranch
+                key={rootKey}
+                nodeKey={rootKey}
+                peopleMap={peopleMap}
+                childrenMap={childrenMap}
+                onOpenProfile={(email) => navigate(`/my-staff/${encodeURIComponent(email)}`)}
+              />
             ))}
           </div>
         </div>
