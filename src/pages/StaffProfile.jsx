@@ -400,10 +400,10 @@ export default function StaffProfile() {
         ))}
       </div>
 
-      <div style={{ maxWidth:tab === 'profile' ? 980 : 640 }} className="staff-profile-content">
+      <div style={{ maxWidth:tab === 'profile' ? 'none' : 760, width:'100%' }} className="staff-profile-content">
         {tab === 'profile' && (
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 320px', gap:18 }}>
-            <div className="card card-pad">
+          <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
+            <div className="card card-pad staff-profile-form-card">
               <div className="fg">
                 <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
                 <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
@@ -426,8 +426,8 @@ export default function StaffProfile() {
               </div>
             </div>
 
-            <div style={{ display:'grid', gap:14 }}>
-              <div className="card card-pad">
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                   <div>
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Admin controls</div>

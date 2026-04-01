@@ -197,6 +197,10 @@ button { cursor: pointer; font-family: inherit; }
   .staff-profile-actions { width: 100%; align-items: stretch !important; }
   .staff-profile-toggle-card { width: 100%; }
   .staff-profile-content { max-width: none !important; }
+  .staff-profile-main-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .staff-profile-form-card,
+  .staff-profile-admin-card { padding: 16px !important; }
+  .staff-profile-admin-column { order: -1; }
   .dashboard-activity-row { flex-direction: column; align-items: flex-start !important; }
   [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
   [style*="grid-template-columns: 1fr 320px"] { grid-template-columns: 1fr !important; }
@@ -238,6 +242,11 @@ button { cursor: pointer; font-family: inherit; }
   border-radius: var(--radius);
 }
 .card-pad { padding: 20px 24px; }
+
+.staff-profile-main-grid { width: 100%; }
+.staff-profile-form-card,
+.staff-profile-admin-card { min-width: 0; }
+.staff-profile-admin-column { align-self: start; }
 
 /* ── Table ── */
 .tbl { width: 100%; border-collapse: collapse; }
