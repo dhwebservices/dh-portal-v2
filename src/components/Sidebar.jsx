@@ -66,7 +66,7 @@ const SECTIONS = [
   {
     id: 'account', label: 'Account', icon: 'person',
     items: [
-      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',      key: 'dashboard' },
+      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',      key: 'my_profile' },
       { to: '/settings',   icon: 'gear',   label: 'Settings',   desc: 'Preferences',       key: 'settings'  },
     ]
   },

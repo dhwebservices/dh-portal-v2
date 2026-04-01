@@ -4,13 +4,23 @@ import { supabase } from '../utils/supabase'
 
 const Ctx = createContext(null)
 
-const PERMISSION_FALLBACKS = {
-  notifications: 'dashboard',
-  search: 'dashboard',
-  my_profile: 'dashboard',
-  org_chart: 'staff',
-  safeguards: 'settings',
-  hr_documents: 'hr_policies',
+const OWNER_EMAILS = new Set([
+  'david@dhwebsiteservices.co.uk',
+])
+
+const BASE_PERMISSIONS = {
+  dashboard: true,
+  notifications: true,
+  my_profile: true,
+  search: true,
+}
+
+function sanitizePermissions(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ...BASE_PERMISSIONS }
+  }
+
+  return { ...BASE_PERMISSIONS, ...raw }
 }
 
 export function AuthProvider({ children }) {
@@ -25,6 +35,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!normalizedEmail) { setLoading(false); return }
     const timeout = setTimeout(() => setLoading(false), 4000)
+    const isOwner = OWNER_EMAILS.has(normalizedEmail)
     supabase
       .from('user_permissions')
       .select('permissions, onboarding')
@@ -33,21 +44,24 @@ export function AuthProvider({ children }) {
       .then(({ data, error }) => {
         clearTimeout(timeout)
         if (!error && data) {
-          const p = data.permissions
-          // If permissions object has keys, use it. If empty object or null, treat as full access
-          const hasKeys = p && typeof p === 'object' && Object.keys(p).length > 0
-          setPerms(hasKeys ? p : null)
-          // Admin if no restrictions OR if admin key is explicitly true
-          setIsAdmin(!hasKeys || p?.admin === true)
+          const safePerms = sanitizePermissions(data.permissions)
+          setPerms(isOwner ? null : safePerms)
+          setIsAdmin(isOwner || data.permissions?.admin === true)
           setIsOnboarding(data.onboarding === true)
         } else {
-          // No row = no restrictions = full access
-          setPerms(null)
-          setIsAdmin(true)
+          setPerms(isOwner ? null : { ...BASE_PERMISSIONS })
+          setIsAdmin(isOwner)
+          setIsOnboarding(false)
         }
         setLoading(false)
       })
-      .catch(() => { clearTimeout(timeout); setLoading(false) })
+      .catch(() => {
+        clearTimeout(timeout)
+        setPerms(isOwner ? null : { ...BASE_PERMISSIONS })
+        setIsAdmin(isOwner)
+        setIsOnboarding(false)
+        setLoading(false)
+      })
 
     // Log login - fire and forget, never block the app
     const now = new Date().toISOString()
@@ -77,15 +91,12 @@ export function AuthProvider({ children }) {
     initials: (account.name || normalizedEmail).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   } : null
 
-  // null perms = full access. Non-null perms = check specific key.
   const can = (key) => {
-    if (perms === null) return true          // no restrictions
-    if (isAdmin) return true                 // admin bypasses all
-    if (typeof perms !== 'object') return true
+    if (isAdmin) return true
+    if (perms === null) return false
+    if (typeof perms !== 'object') return false
     if (perms[key] === true) return true
     if (perms[key] === false) return false
-    const fallbackKey = PERMISSION_FALLBACKS[key]
-    if (fallbackKey) return perms[fallbackKey] === true
     return false
   }
 
