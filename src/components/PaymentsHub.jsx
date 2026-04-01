@@ -7,9 +7,12 @@ import {
   getMandates,
   createPayment,
   createSubscription,
+  createPaymentLink,
+  createInstalmentSchedule,
   cancelSubscription,
   getPayments,
   getSubscriptions,
+  listBillingRequestTemplates,
   paymentStatusColor,
   mandateStatusColor,
 } from '../utils/gocardless'
@@ -18,6 +21,7 @@ const PAYMENT_MODES = [
   ['customer', 'Customer only'],
   ['one_off', 'One-off'],
   ['subscription', 'Subscription'],
+  ['instalments', 'Instalments'],
   ['manual', 'Manual'],
 ]
 
@@ -51,6 +55,7 @@ function paymentAmountPounds(payment) {
 function paymentTypeLabel(paymentType = '') {
   if (paymentType === 'one_off') return 'One-off DD'
   if (paymentType === 'subscription') return 'Subscription'
+  if (paymentType === 'instalments') return 'Instalments'
   if (paymentType.startsWith('manual:')) {
     const key = paymentType.split(':')[1]
     return key === 'custom' ? 'Manual / Custom' : `Manual — ${key.charAt(0).toUpperCase()}${key.slice(1)}`
@@ -125,16 +130,28 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [setupUrl, setSetupUrl] = useState('')
+  const [hostedLink, setHostedLink] = useState('')
+  const [linkKind, setLinkKind] = useState('')
   const [linkGcModal, setLinkGcModal] = useState(false)
   const [linkGcForm, setLinkGcForm] = useState({ customer_id: '', mandate_id: '', status: 'active' })
   const [editingSub, setEditingSub] = useState(null)
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [billingTemplates, setBillingTemplates] = useState([])
   const [oneOffForm, setOneOffForm] = useState({ template_id: '', amount: '', description: '', reference: 'DH-PAY' })
   const [subscriptionForm, setSubscriptionForm] = useState({ template_id: '', amount: '', name: '', day_of_month: 1 })
+  const [instalmentForm, setInstalmentForm] = useState({
+    name: '',
+    amounts: '',
+    interval: 1,
+    interval_unit: 'monthly',
+    start_date: '',
+    payment_reference: 'DH-INST',
+  })
   const [manualForm, setManualForm] = useState({ amount: '', description: '', payment_type: 'manual:custom', status: 'paid' })
 
   const activeMandate = gcStatus?.status === 'active' && !!gcStatus?.mandate_id
   const pendingMandate = !!gcStatus && !activeMandate
-  const requiresMandate = mode === 'one_off' || mode === 'subscription'
+  const requiresMandate = mode === 'one_off' || mode === 'subscription' || mode === 'instalments'
   const allPayments = [...manualPayments, ...payments].sort((a, b) => new Date(b.created_at || b.charge_date || 0) - new Date(a.created_at || a.charge_date || 0))
   const totalCollected = allPayments
     .filter((payment) => ['paid_out', 'confirmed', 'paid'].includes(String(payment.status || '').toLowerCase()))
@@ -219,6 +236,18 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
   }, [client?.email, gcStatus?.mandate_id, gcStatus?.customer_id, gcStatus?.billing_request_id])
 
   useEffect(() => {
+    if (mode !== 'subscription' || billingTemplates.length) return
+    setTemplateLoading(true)
+    listBillingRequestTemplates()
+      .then((result) => {
+        const templates = result.billing_request_templates || result.templates || []
+        setBillingTemplates(templates)
+      })
+      .catch(() => {})
+      .finally(() => setTemplateLoading(false))
+  }, [mode, billingTemplates.length])
+
+  useEffect(() => {
     if (!pendingMandate) return
     const refresh = () => {
       triggerMandateRefresh(gcStatus)
@@ -274,9 +303,10 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
   }
 
   const copySetupLink = async () => {
-    if (!setupUrl) return
+    const url = hostedLink || setupUrl
+    if (!url) return
     try {
-      await navigator.clipboard.writeText(setupUrl)
+      await navigator.clipboard.writeText(url)
       setSuccess('Setup link copied')
     } catch {
       setError('Could not copy the setup link')
@@ -350,6 +380,33 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
     }
   }
 
+  const generatePaymentLink = async () => {
+    if (!oneOffForm.amount) return
+    setSaving(true)
+    setError('')
+    try {
+      const result = await createPaymentLink(
+        client.email,
+        client.name,
+        Number(oneOffForm.amount),
+        oneOffForm.description || 'DH Website Services'
+      )
+      const url =
+        result.billing_request_flows?.authorisation_url ||
+        result.authorisation_url ||
+        result.redirect_url ||
+        ''
+      setHostedLink(url)
+      setLinkKind('One-off payment link')
+      setSuccess('Customer payment link created')
+      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (paymentLinkError) {
+      setError(paymentLinkError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const doCancel = async (subId) => {
     if (!confirm('Cancel this subscription?')) return
     setError('')
@@ -414,6 +471,59 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
       }
     } catch (linkError) {
       setError(linkError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const doInstalmentSchedule = async () => {
+    if (!activeMandate || !instalmentForm.amounts.trim()) return
+    const amounts = instalmentForm.amounts
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => !Number.isNaN(value) && value > 0)
+
+    if (!amounts.length) {
+      setError('Enter instalment amounts separated by commas')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      const schedule = await createInstalmentSchedule(gcStatus.mandate_id, {
+        name: instalmentForm.name || 'Instalment schedule',
+        amounts_pence: amounts.map((amount) => Math.round(amount * 100)),
+        total_amount_pence: amounts.reduce((sum, amount) => sum + Math.round(amount * 100), 0),
+        interval: Number(instalmentForm.interval || 1),
+        interval_unit: instalmentForm.interval_unit,
+        start_date: instalmentForm.start_date || null,
+        payment_reference: instalmentForm.payment_reference || 'DH-INST',
+      })
+
+      await supabase.from('client_payments').insert([{
+        client_email: client.email,
+        client_name: client.name,
+        amount: amounts.reduce((sum, amount) => sum + amount, 0),
+        payment_type: 'instalments',
+        status: schedule.instalment_schedules?.status || schedule.status || 'pending',
+        gocardless_id: schedule.instalment_schedules?.id || schedule.id || null,
+        description: instalmentForm.name || 'Instalment schedule',
+        created_at: new Date().toISOString(),
+      }])
+
+      setSuccess('Instalment schedule created')
+      setInstalmentForm({
+        name: '',
+        amounts: '',
+        interval: 1,
+        interval_unit: 'monthly',
+        start_date: '',
+        payment_reference: 'DH-INST',
+      })
+      await loadState(gcStatus)
+    } catch (instalmentError) {
+      setError(instalmentError.message)
     } finally {
       setSaving(false)
     }
@@ -560,6 +670,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn btn-primary" onClick={doPayment} disabled={saving || !activeMandate || !oneOffForm.amount}>{saving ? 'Creating payment...' : 'Collect one-off payment'}</button>
+                  {!activeMandate ? <button className="btn btn-outline" onClick={generatePaymentLink} disabled={saving || !oneOffForm.amount}>{saving ? 'Generating link...' : 'Create customer payment link'}</button> : null}
                   {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
                 </div>
               </div>
@@ -602,6 +713,92 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   {editingSub ? <button className="btn btn-outline" onClick={() => { setEditingSub(null); setSubscriptionForm({ template_id: '', amount: '', name: '', day_of_month: 1 }) }}>Clear change</button> : null}
                   {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
                 </div>
+                {!activeMandate ? (
+                  <div style={{ padding: 16, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>GoCardless template links</div>
+                    <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 12 }}>
+                      These templates come from your live GoCardless account. Use them when you want to send a ready-made recurring setup link without creating the mandate first inside the portal.
+                    </div>
+                    {templateLoading ? (
+                      <div style={{ fontSize: 12, color: 'var(--sub)' }}>Loading templates...</div>
+                    ) : billingTemplates.length ? (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {billingTemplates.map((template) => {
+                          const url = template.authorisation_url || template.billing_request_templates?.authorisation_url || ''
+                          const name = template.name || template.billing_request_templates?.name || template.id
+                          return (
+                            <div key={template.id || name} style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
+                                <div style={{ fontSize: 11, color: 'var(--sub)' }}>{url || 'Template link unavailable in worker response'}</div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn btn-outline btn-sm" onClick={() => { if (!url) return; setHostedLink(url); setLinkKind('Subscription template'); window.open(url, '_blank', 'noopener,noreferrer') }}>Open</button>
+                                <button className="btn btn-outline btn-sm" onClick={async () => { if (!url) return; setHostedLink(url); setLinkKind('Subscription template'); try { await navigator.clipboard.writeText(url); setSuccess('Template link copied') } catch { setError('Could not copy the template link') } }}>Copy</button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: 'var(--sub)' }}>No billing request templates were returned by the worker yet.</div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {mode === 'instalments' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Create an instalment schedule</div>
+                  <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>
+                    Use this for staged collections after a mandate is already active. Enter the instalment amounts in order, separated by commas.
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label className="lbl">Schedule name</label>
+                    <input className="inp" value={instalmentForm.name} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Website build split plan" />
+                  </div>
+                  <div>
+                    <label className="lbl">Start date</label>
+                    <input className="inp" type="date" value={instalmentForm.start_date} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, start_date: e.target.value }))} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label className="lbl">Amounts (£)</label>
+                    <input className="inp" value={instalmentForm.amounts} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, amounts: e.target.value }))} placeholder="500, 500, 500" />
+                  </div>
+                  <div>
+                    <label className="lbl">Payment reference</label>
+                    <input className="inp" value={instalmentForm.payment_reference} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, payment_reference: e.target.value }))} placeholder="DH-INST" />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label className="lbl">Interval</label>
+                    <input className="inp" type="number" min="1" value={instalmentForm.interval} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, interval: Number(e.target.value || 1) }))} />
+                  </div>
+                  <div>
+                    <label className="lbl">Interval unit</label>
+                    <select className="inp" value={instalmentForm.interval_unit} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, interval_unit: e.target.value }))}>
+                      <option value="monthly">Monthly</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary" onClick={doInstalmentSchedule} disabled={saving || !activeMandate || !instalmentForm.amounts.trim()}>{saving ? 'Creating instalments...' : 'Create instalment schedule'}</button>
+                  {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
+                </div>
+                {!activeMandate ? (
+                  <div style={{ padding: 14, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)', fontSize: 12, color: 'var(--sub)', lineHeight: 1.6 }}>
+                    Instalments need an active mandate first in the current portal flow. Once the client has completed the customer setup, you can create the staged schedule here.
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -683,6 +880,22 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   {gcStatus?.billing_request_id ? <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>Billing request: {gcStatus.billing_request_id}</div> : null}
                 </div>
               </div>
+
+              {(hostedLink || setupUrl) ? (
+                <div className="card card-pad" style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{linkKind || 'Hosted customer link'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.6 }}>
+                    Use this link when the client needs to complete a hosted bank setup or payment journey outside the portal.
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg2)', wordBreak: 'break-all' }}>
+                    {hostedLink || setupUrl}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => window.open(hostedLink || setupUrl, '_blank', 'noopener,noreferrer')}>Open link</button>
+                    <button className="btn btn-outline btn-sm" onClick={copySetupLink}>Copy link</button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="card" style={{ overflow: 'hidden' }}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 600 }}>Live subscriptions</div>

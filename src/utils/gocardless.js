@@ -92,12 +92,40 @@ export async function getSubscriptions(mandateId) {
   return call('gc_list_subscriptions', { mandate_id: mandateId })
 }
 
+export async function listBillingRequestTemplates() {
+  return call('gc_list_billing_request_templates', {})
+}
+
+export async function createPaymentLink(clientEmail, clientName, amountPounds, description) {
+  const [given_name, ...rest] = (clientName || '').trim().split(/\s+/)
+  const family_name = rest.join(' ') || 'Client'
+
+  return call('gc_create_payment_request_flow', {
+    amount_pence: Math.round(amountPounds * 100),
+    description: description || 'DH Website Services',
+    redirect_uri: window.location.href,
+    prefilled_customer: {
+      email: clientEmail,
+      given_name: given_name || 'Client',
+      family_name,
+    },
+  })
+}
+
+export async function createInstalmentSchedule(mandateId, schedule) {
+  return call('gc_create_instalment_schedule', {
+    mandate_id: mandateId,
+    ...schedule,
+  })
+}
+
 /** Badge colours for payment/mandate statuses */
 export function paymentStatusColor(status) {
   return {
     pending_submission: 'amber', submitted: 'amber',
     confirmed: 'blue', paid_out: 'green',
     failed: 'red', cancelled: 'grey', charged_back: 'red',
+    pending: 'amber', active: 'green', successful: 'green',
   }[status] || 'grey'
 }
 
