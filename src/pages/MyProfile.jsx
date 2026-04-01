@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { mergeHrProfileWithOnboarding, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 
 export default function MyProfile() {
   const { user } = useAuth()
@@ -24,14 +24,18 @@ export default function MyProfile() {
   useEffect(() => {
     if (!normalizedEmail) return
     Promise.all([
-      supabase.from('hr_profiles').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
+      supabase.from('hr_profiles').select('*').ilike('user_email', normalizedEmail),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
       supabase.from('staff_documents').select('*').ilike('staff_email', normalizedEmail).order('created_at', { ascending:false }),
       supabase.from('payslips').select('*').ilike('user_email', normalizedEmail).order('created_at', { ascending:false }),
-    ]).then(([{ data: p }, { data: onboarding }, { data: d }, { data: ps }]) => {
-      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboarding)
-      if (p || onboarding) {
-        setProfile(mergedProfile); setProfileId(p?.id || null)
+    ]).then(([{ data: profileRows, error: profileError }, { data: onboarding }, { data: d }, { data: ps }]) => {
+      if (profileError) {
+        console.error('My Profile load error:', profileError)
+      }
+      const bestProfile = pickBestProfileRow(profileRows || [])
+      const mergedProfile = mergeHrProfileWithOnboarding(bestProfile || {}, onboarding)
+      if (bestProfile || onboarding) {
+        setProfile(mergedProfile); setProfileId(bestProfile?.id || null)
         // Load ALL fields from the hr_profile row into form
         setForm({
           phone:          mergedProfile.phone          || '',
@@ -52,30 +56,46 @@ export default function MyProfile() {
 
   const save = async () => {
     setSaving(true)
-    const payload = {
-      user_email:     normalizedEmail,
-      user_name:      user.name,
-      phone:          form.phone,
-      personal_email: form.personal_email,
-      location:       form.location,
-      bio:            form.bio,
-      skills:         form.skills,
-      updated_at:     new Date().toISOString(),
-    }
-    if (profileId) {
-      await supabase.from('hr_profiles').update(payload).eq('id', profileId)
-    } else {
-      const { data: existing } = await supabase.from('hr_profiles').select('id').ilike('user_email', normalizedEmail).maybeSingle()
-      let inserted = existing
-      if (existing?.id) {
-        await supabase.from('hr_profiles').update(payload).eq('id', existing.id)
-      } else {
-        const insertRes = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
-        inserted = insertRes.data
+    try {
+      const payload = {
+        user_email:     normalizedEmail,
+        user_name:      user.name,
+        phone:          form.phone,
+        personal_email: form.personal_email,
+        location:       form.location,
+        bio:            form.bio,
+        skills:         form.skills,
+        updated_at:     new Date().toISOString(),
       }
-      if (inserted?.id) setProfileId(inserted.id)
+
+      if (profileId) {
+        const { error } = await supabase.from('hr_profiles').update(payload).eq('id', profileId)
+        if (error) throw error
+      } else {
+        const { data: existingRows, error: existingError } = await supabase.from('hr_profiles').select('id,user_email,full_name,updated_at,created_at').ilike('user_email', normalizedEmail)
+        if (existingError) throw existingError
+        const existing = pickBestProfileRow(existingRows || [])
+        let inserted = existing
+        if (existing?.id) {
+          const { error } = await supabase.from('hr_profiles').update(payload).eq('id', existing.id)
+          if (error) throw error
+        } else {
+          const insertRes = await supabase.from('hr_profiles').insert([payload]).select().maybeSingle()
+          if (insertRes.error) throw insertRes.error
+          inserted = insertRes.data
+        }
+        if (inserted?.id) setProfileId(inserted.id)
+      }
+
+      setProfile((prev) => ({ ...prev, ...payload }))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('My Profile save error:', error)
+      alert('Could not save your profile right now. Please try again.')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>

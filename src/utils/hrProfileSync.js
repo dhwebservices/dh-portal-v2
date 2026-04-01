@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 export const normalizeEmail = (email = '') => email.toLowerCase().trim()
 
-const pickBestProfileRow = (rows = []) =>
+export const pickBestProfileRow = (rows = []) =>
   rows
     .slice()
     .sort((a, b) => {
