@@ -10,6 +10,8 @@ export default function HRPolicies() {
   const [allAcks, setAllAcks]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [uploadError, setUploadError] = useState('')
   const [form, setForm]           = useState({ title:'', description:'' })
   const fileRef = useRef()
 
@@ -34,15 +36,39 @@ export default function HRPolicies() {
     load()
   }
 
-  const upload = async (file) => {
-    if (!file || !form.title) return
+  const upload = async () => {
+    if (!selectedFile) {
+      setUploadError('Choose a PDF file first.')
+      return
+    }
+    if (!form.title.trim()) {
+      setUploadError('Enter a policy title before uploading.')
+      return
+    }
     setUploading(true)
-    const path = `policies/${Date.now()}-${file.name}`
-    const { error } = await supabase.storage.from('hr-documents').upload(path, file)
+    setUploadError('')
+    const path = `policies/${Date.now()}-${selectedFile.name}`
+    const { error } = await supabase.storage.from('hr-documents').upload(path, selectedFile, { upsert: false })
     if (!error) {
       const { data: urlData } = supabase.storage.from('hr-documents').getPublicUrl(path)
-      await supabase.from('hr_policies').insert([{ title: form.title, description: form.description, file_url: urlData.publicUrl, file_path: path, uploaded_by: user?.name, created_at: new Date().toISOString() }])
-      setForm({ title:'', description:'' }); load()
+      const { error: insertError } = await supabase.from('hr_policies').insert([{
+        title: form.title.trim(),
+        description: form.description.trim(),
+        file_url: urlData.publicUrl,
+        file_path: path,
+        uploaded_by: user?.name,
+        created_at: new Date().toISOString(),
+      }])
+      if (insertError) {
+        setUploadError(insertError.message || 'Could not save the policy record.')
+      } else {
+        setForm({ title:'', description:'' })
+        setSelectedFile(null)
+        if (fileRef.current) fileRef.current.value = ''
+        await load()
+      }
+    } else {
+      setUploadError(error.message || 'Could not upload the PDF.')
     }
     setUploading(false)
   }
@@ -110,10 +136,31 @@ export default function HRPolicies() {
         <div className="card card-pad" style={{ marginBottom:20, maxWidth:480 }}>
           <div className="lbl" style={{ marginBottom:12 }}>Upload Policy</div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <div><label className="lbl">Title</label><input className="inp" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Remote Working Policy"/></div>
+            <div><label className="lbl">Title</label><input className="inp" value={form.title} onChange={e=>{ setForm(p=>({...p,title:e.target.value})); if (uploadError) setUploadError('') }} placeholder="e.g. Remote Working Policy"/></div>
             <div><label className="lbl">Description</label><input className="inp" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Short description..."/></div>
-            <input type="file" accept=".pdf" ref={fileRef} style={{ display:'none' }} onChange={e=>upload(e.target.files[0])}/>
-            <button className="btn btn-primary" style={{ alignSelf:'flex-start' }} onClick={()=>fileRef.current?.click()} disabled={uploading}>{uploading?'Uploading...':'Upload PDF'}</button>
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              ref={fileRef}
+              style={{ display:'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0] || null
+                setSelectedFile(file)
+                setUploadError('')
+              }}
+            />
+            <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+              <button className="btn btn-outline" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
+                {selectedFile ? 'Change PDF' : 'Choose PDF'}
+              </button>
+              <button className="btn btn-primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
+                {uploading ? 'Uploading...' : 'Upload PDF'}
+              </button>
+            </div>
+            <div style={{ fontSize:12, color:selectedFile ? 'var(--text)' : 'var(--sub)' }}>
+              {selectedFile ? `Selected: ${selectedFile.name}` : 'No PDF selected yet.'}
+            </div>
+            {uploadError ? <div style={{ fontSize:12, color:'var(--red)' }}>{uploadError}</div> : null}
           </div>
         </div>
       )}
