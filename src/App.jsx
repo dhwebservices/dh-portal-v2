@@ -23,6 +23,7 @@ import StaffProfile   from './pages/StaffProfile'
 import Search         from './pages/Search'
 import Schedule       from './pages/Schedule'
 import Reports        from './pages/Reports'
+import OrgChart       from './pages/OrgChart'
 import Proposals      from './pages/Proposals'
 import SendEmail      from './pages/SendEmail'
 import EmailTemplates from './pages/EmailTemplates'
@@ -71,6 +72,7 @@ function PortalLayout() {
             <Route path="/my-tasks"        element={<MyTasks />} />
             <Route path="/schedule"        element={<Schedule />} />
             <Route path="/reports"         element={<Reports />} />
+            <Route path="/org-chart"       element={<OrgChart />} />
             <Route path="/my-staff"        element={<MyStaff />} />
             <Route path="/my-staff/:email" element={<StaffProfile />} />
             <Route path="/proposals"       element={<Proposals />} />

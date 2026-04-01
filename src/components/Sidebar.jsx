@@ -48,6 +48,7 @@ const SECTIONS = [
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
       { to: '/hr/onboarding', icon: 'star',   label: 'Onboarding',    desc: 'New starters',      key: 'hr_onboarding' },
       { to: '/my-staff',      icon: 'people', label: 'My Staff',      desc: 'Staff management',  key: 'staff'         },
+      { to: '/org-chart',     icon: 'people', label: 'Org Chart',     desc: 'Live reporting lines', key: 'staff'       },
     ]
   },
   {
