@@ -4,6 +4,13 @@ import { supabase } from '../utils/supabase'
 
 const Ctx = createContext(null)
 
+const PERMISSION_FALLBACKS = {
+  notifications: 'dashboard',
+  search: 'dashboard',
+  my_profile: 'dashboard',
+  org_chart: 'staff',
+}
+
 export function AuthProvider({ children }) {
   const { accounts } = useMsal()
   const account = accounts[0]
@@ -73,7 +80,11 @@ export function AuthProvider({ children }) {
     if (perms === null) return true          // no restrictions
     if (isAdmin) return true                 // admin bypasses all
     if (typeof perms !== 'object') return true
-    return perms[key] === true
+    if (perms[key] === true) return true
+    if (perms[key] === false) return false
+    const fallbackKey = PERMISSION_FALLBACKS[key]
+    if (fallbackKey) return perms[fallbackKey] === true
+    return false
   }
 
   return (

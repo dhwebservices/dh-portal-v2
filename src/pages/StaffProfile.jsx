@@ -6,7 +6,10 @@ import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
-  {key:'dashboard',     label:'Dashboard',          group:'Business'},
+  {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
+  {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
+  {key:'my_profile',    label:'My Profile',         group:'Home', category:'Core', desc:'Personal account page'},
+  {key:'search',        label:'Search',             group:'Home', category:'Core', desc:'Portal-wide search'},
   {key:'outreach',      label:'Clients Contacted',  group:'Business'},
   {key:'clients',       label:'Onboarded Clients',  group:'Business'},
   {key:'clientmgmt',    label:'Client Portal',      group:'Business'},
@@ -24,6 +27,7 @@ const ALL_PAGES = [
   {key:'hr_payslips',   label:'HR Payslips',        group:'HR'},
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
+  {key:'org_chart',     label:'Org Chart',          group:'HR', category:'Structure', desc:'Live reporting lines'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
   {key:'mailinglist',   label:'Mailing List',       group:'Admin'},
@@ -39,7 +43,7 @@ const ALL_PAGES = [
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
   Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
 export default function StaffProfile() {
@@ -422,27 +426,110 @@ export default function StaffProfile() {
 
         {tab === 'permissions' && (
           <div className="card card-pad">
-            <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-              {Object.keys(ROLE_DEFAULTS).map(role => (
-                <button key={role} onClick={() => setEditPerms({ ...ROLE_DEFAULTS[role] })} className="btn btn-outline btn-sm">Reset to {role}</button>
-              ))}
-            </div>
-            {['Business','Tasks','HR','Admin'].map(group => (
-              <div key={group} style={{ marginBottom:20 }}>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8, paddingBottom:6, borderBottom:'1px solid var(--border)' }}>{group}</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-                  {ALL_PAGES.filter(p => p.group === group).map(({ key, label }) => (
-                    <button key={key} onClick={() => setEditPerms(p => ({ ...p, [key]: !p[key] }))}
-                      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', borderRadius:7, border:'1px solid', borderColor: editPerms[key] ? 'var(--green)' : 'var(--border)', background: editPerms[key] ? 'var(--green-bg)' : 'transparent', cursor:'pointer', transition:'all 0.15s' }}>
-                      <span style={{ fontSize:12, color:'var(--text)' }}>{label}</span>
-                      <div style={{ width:28, height:16, borderRadius:8, background: editPerms[key] ? 'var(--green)' : 'var(--border)', position:'relative', flexShrink:0 }}>
-                        <div style={{ position:'absolute', top:2, left: editPerms[key] ? 14 : 2, width:12, height:12, borderRadius:'50%', background:'#fff', transition:'left 0.18s' }}/>
-                      </div>
-                    </button>
-                  ))}
+            <div style={{ ...{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:18 } }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', alignItems:'flex-start' }}>
+                <div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Access controls</div>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4, maxWidth:420 }}>
+                    These switches now control both navigation visibility and actual page access. Disabled pages will show an access-disabled screen if someone tries to open them directly.
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:8, minWidth:280, flex:1, maxWidth:420 }}>
+                  {Object.keys(ROLE_DEFAULTS).map(role => {
+                    const enabledCount = Object.values(ROLE_DEFAULTS[role]).filter(Boolean).length
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => setEditPerms({ ...ROLE_DEFAULTS[role] })}
+                        className="btn btn-outline btn-sm"
+                        style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:2, padding:'10px 12px', height:'auto' }}
+                      >
+                        <span>Reset to {role}</span>
+                        <span style={{ fontSize:10, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{enabledCount} pages enabled</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-            ))}
+            </div>
+
+            {['Home','Business','Tasks','HR','Admin'].map(group => {
+              const items = ALL_PAGES.filter((page) => page.group === group)
+              const enabledCount = items.filter(({ key }) => editPerms[key]).length
+              return (
+                <div key={group} style={{ marginBottom:18, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', background:'var(--bg)' }}>
+                  <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>{group}</div>
+                      <div style={{ fontSize:13, color:'var(--sub)', marginTop:3 }}>
+                        {enabledCount} of {items.length} enabled
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        const next = { ...current }
+                        items.forEach(({ key }) => { next[key] = true })
+                        return next
+                      })}>Enable all</button>
+                      <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        const next = { ...current }
+                        items.forEach(({ key }) => { next[key] = false })
+                        return next
+                      })}>Disable all</button>
+                    </div>
+                  </div>
+
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10, padding:12 }}>
+                    {items.map(({ key, label, desc }) => {
+                      const enabled = !!editPerms[key]
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setEditPerms((current) => ({ ...current, [key]: !current[key] }))}
+                          style={{
+                            display:'flex',
+                            alignItems:'flex-start',
+                            justifyContent:'space-between',
+                            gap:12,
+                            padding:'12px 14px',
+                            borderRadius:10,
+                            border:'1px solid',
+                            borderColor: enabled ? 'var(--accent-border)' : 'var(--border)',
+                            background: enabled ? 'var(--accent-soft)' : 'var(--card)',
+                            cursor:'pointer',
+                            transition:'all 0.15s',
+                            textAlign:'left',
+                          }}
+                        >
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', lineHeight:1.3 }}>{label}</div>
+                            <div style={{ fontSize:11, color:'var(--sub)', marginTop:4, lineHeight:1.45 }}>
+                              {desc || 'Page access control'}
+                            </div>
+                          </div>
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8, flexShrink:0 }}>
+                            <span
+                              style={{
+                                fontSize:10,
+                                fontFamily:'var(--font-mono)',
+                                letterSpacing:'0.06em',
+                                textTransform:'uppercase',
+                                color: enabled ? 'var(--accent)' : 'var(--faint)',
+                              }}
+                            >
+                              {enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <div style={{ width:32, height:18, borderRadius:9, background: enabled ? 'var(--accent)' : 'var(--border)', position:'relative' }}>
+                              <div style={{ position:'absolute', top:2, left: enabled ? 16 : 2, width:14, height:14, borderRadius:'50%', background:'#fff', transition:'left 0.18s' }} />
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
 

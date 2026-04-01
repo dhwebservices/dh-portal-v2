@@ -10,9 +10,9 @@ const SECTIONS = [
     id: 'home', label: 'Home', icon: 'grid',
     items: [
       { to: '/dashboard',  icon: 'grid',   label: 'Dashboard',  desc: 'Overview & stats',     key: 'dashboard' },
-      { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'dashboard' },
-      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'dashboard' },
-      { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'dashboard' },
+      { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'notifications' },
+      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'my_profile' },
+      { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'search' },
     ]
   },
   {
@@ -48,7 +48,7 @@ const SECTIONS = [
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
       { to: '/hr/onboarding', icon: 'star',   label: 'Onboarding',    desc: 'New starters',      key: 'hr_onboarding' },
       { to: '/my-staff',      icon: 'people', label: 'My Staff',      desc: 'Staff management',  key: 'staff'         },
-      { to: '/org-chart',     icon: 'people', label: 'Org Chart',     desc: 'Live reporting lines', key: 'staff'       },
+      { to: '/org-chart',     icon: 'people', label: 'Org Chart',     desc: 'Live reporting lines', key: 'org_chart'   },
     ]
   },
   {

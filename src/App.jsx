@@ -52,6 +52,27 @@ function OnboardingWall({ children }) {
   return children
 }
 
+function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
+  const { can, loading, isOnboarding } = useAuth()
+
+  if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (isOnboarding && !allowDuringOnboarding) return <HROnboarding />
+  if (!permKey || can(permKey)) return children
+
+  return (
+    <div className="fade-in">
+      <div className="card card-pad" style={{ maxWidth: 560 }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize: 24, fontWeight: 400, marginBottom: 8, color: 'var(--text)' }}>
+          Access disabled
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--sub)', lineHeight: 1.6 }}>
+          This page is disabled for this staff profile. Re-enable it from the permissions tab in My Staff if access is needed.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PortalLayout() {
   return (
     <div className="app-layout">
@@ -60,39 +81,39 @@ function PortalLayout() {
         <Header />
         <main className="main-content">
           <Routes>
-            <Route path="/dashboard"       element={<OnboardingWall><Dashboard /></OnboardingWall>} />
-            <Route path="/my-profile"      element={<MyProfile />} />
-            <Route path="/search"          element={<Search />} />
-            <Route path="/outreach"        element={<Outreach />} />
-            <Route path="/clients"         element={<Clients />} />
-            <Route path="/clients/:id"     element={<ClientProfile />} />
-            <Route path="/client-mgmt"     element={<ClientMgmt />} />
-            <Route path="/support"         element={<Support />} />
-            <Route path="/tasks"           element={<Tasks />} />
-            <Route path="/my-tasks"        element={<MyTasks />} />
-            <Route path="/schedule"        element={<Schedule />} />
-            <Route path="/reports"         element={<Reports />} />
-            <Route path="/org-chart"       element={<OrgChart />} />
-            <Route path="/my-staff"        element={<MyStaff />} />
-            <Route path="/my-staff/:email" element={<StaffProfile />} />
-            <Route path="/proposals"       element={<Proposals />} />
-            <Route path="/send-email"      element={<SendEmail />} />
-            <Route path="/email-templates" element={<EmailTemplates />} />
-            <Route path="/banners"         element={<Banners />} />
-            <Route path="/domains"         element={<Domains />} />
-            <Route path="/competitor"      element={<Competitor />} />
-            <Route path="/maintenance"     element={<Maintenance />} />
-            <Route path="/hr/leave"        element={<HRLeave />} />
-            <Route path="/hr/timesheets"   element={<HRTimesheets />} />
-            <Route path="/hr/payslips"     element={<HRPayslips />} />
-            <Route path="/hr/policies"     element={<HRPolicies />} />
-            <Route path="/hr/onboarding"   element={<HROnboarding />} />
-            <Route path="/appointments"      element={<Appointments />} />
-            <Route path="/mailing-list"      element={<MailingList />} />
-            <Route path="/audit"           element={<AuditLog />} />
-            <Route path="/settings"        element={<Settings />} />
-            <Route path="/notifications"   element={<Notifications />} />
-            <Route path="*"               element={<OnboardingWall><Dashboard /></OnboardingWall>} />
+            <Route path="/dashboard"       element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
+            <Route path="/my-profile"      element={<PermissionGate permKey="my_profile"><MyProfile /></PermissionGate>} />
+            <Route path="/search"          element={<PermissionGate permKey="search"><Search /></PermissionGate>} />
+            <Route path="/outreach"        element={<PermissionGate permKey="outreach"><Outreach /></PermissionGate>} />
+            <Route path="/clients"         element={<PermissionGate permKey="clients"><Clients /></PermissionGate>} />
+            <Route path="/clients/:id"     element={<PermissionGate permKey="clients"><ClientProfile /></PermissionGate>} />
+            <Route path="/client-mgmt"     element={<PermissionGate permKey="clientmgmt"><ClientMgmt /></PermissionGate>} />
+            <Route path="/support"         element={<PermissionGate permKey="support"><Support /></PermissionGate>} />
+            <Route path="/tasks"           element={<PermissionGate permKey="tasks"><Tasks /></PermissionGate>} />
+            <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
+            <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
+            <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
+            <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
+            <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
+            <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
+            <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
+            <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
+            <Route path="/email-templates" element={<PermissionGate permKey="emailtemplates"><EmailTemplates /></PermissionGate>} />
+            <Route path="/banners"         element={<PermissionGate permKey="banners"><Banners /></PermissionGate>} />
+            <Route path="/domains"         element={<PermissionGate permKey="domains"><Domains /></PermissionGate>} />
+            <Route path="/competitor"      element={<PermissionGate permKey="competitor"><Competitor /></PermissionGate>} />
+            <Route path="/maintenance"     element={<PermissionGate permKey="maintenance"><Maintenance /></PermissionGate>} />
+            <Route path="/hr/leave"        element={<PermissionGate permKey="hr_leave"><HRLeave /></PermissionGate>} />
+            <Route path="/hr/timesheets"   element={<PermissionGate permKey="hr_timesheet"><HRTimesheets /></PermissionGate>} />
+            <Route path="/hr/payslips"     element={<PermissionGate permKey="hr_payslips"><HRPayslips /></PermissionGate>} />
+            <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
+            <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
+            <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
+            <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />
+            <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />
+            <Route path="/settings"        element={<PermissionGate permKey="settings"><Settings /></PermissionGate>} />
+            <Route path="/notifications"   element={<PermissionGate permKey="notifications"><Notifications /></PermissionGate>} />
+            <Route path="*"               element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
           </Routes>
         </main>
       </div>
@@ -105,7 +126,7 @@ function AuthenticatedApp() {
     <AuthProvider>
       <Routes>
         <Route path="/"              element={<HomeScreen />} />
-        <Route path="/web-manager/*" element={<WebManager />} />
+        <Route path="/web-manager/*" element={<PermissionGate permKey="website_editor"><WebManager /></PermissionGate>} />
         <Route path="/*"             element={<PortalLayout />} />
       </Routes>
     </AuthProvider>
