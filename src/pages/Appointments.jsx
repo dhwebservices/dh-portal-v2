@@ -62,6 +62,10 @@ function buildWindowSlots(start, end) {
   return slots
 }
 
+function startsWithinWindow(appt, from, to) {
+  return appt.date >= from && appt.date <= to
+}
+
 export default function Appointments() {
   const { user, isAdmin } = useAuth()
   const [tab, setTab] = useState('calendar')
@@ -200,15 +204,60 @@ export default function Appointments() {
     ? bookableStaff
     : bookableStaff.filter((staffMember) => staffMember.user_email === staffFilter)
 
+  const weeklySummary = useMemo(() => {
+    const visibleEmails = new Set(visibleStaff.map((staffMember) => staffMember.user_email))
+    const weekAppointments = appointments.filter((appt) => visibleEmails.has(appt.staff_email) && startsWithinWindow(appt, days[0], days[6]))
+    const todayAppointments = weekAppointments.filter((appt) => appt.date === today)
+    const availableToday = visibleStaff.filter((staffMember) => {
+      const avail = getAvail(staffMember.user_email, today)
+      return avail?.is_available
+    }).length
+    const bookedToday = todayAppointments.filter((appt) => appt.status === 'confirmed').length
+    return {
+      staff: visibleStaff.length,
+      availableToday,
+      weekBookings: weekAppointments.filter((appt) => appt.status === 'confirmed').length,
+      bookedToday,
+    }
+  }, [appointments, visibleStaff, availability, today, days])
+
+  const todayOverview = useMemo(() => {
+    return visibleStaff.map((staffMember) => {
+      const avail = getAvail(staffMember.user_email, today)
+      const staffAppointments = getAppts(staffMember.user_email, today)
+      return {
+        ...staffMember,
+        available: !!avail?.is_available,
+        window: avail?.start_time && avail?.end_time ? `${avail.start_time} – ${avail.end_time}` : 'Unavailable',
+        bookings: staffAppointments.length,
+      }
+    })
+  }, [visibleStaff, availability, appointments, today])
+
   return (
     <div className="fade-in">
       <div className="page-hd">
         <div><h1 className="page-title">Appointment Manager</h1><p className="page-sub">Manage staff availability and client bookings</p></div>
       </div>
 
+      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
+        {[
+          ['Bookable staff', weeklySummary.staff, 'Shown in this view'],
+          ['Available today', weeklySummary.availableToday, formatDate(today)],
+          ['Booked today', weeklySummary.bookedToday, 'Confirmed appointments'],
+          ['Week bookings', weeklySummary.weekBookings, 'Current week confirmed'],
+        ].map(([label, value, hint]) => (
+          <div key={label} className="stat-card">
+            <div className="stat-val">{value}</div>
+            <div className="stat-lbl">{label}</div>
+            <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>{hint}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div className="tabs" style={{ marginBottom:24 }}>
-        {[['calendar','📅 Calendar'],['bookings','📋 All Bookings']].map(([k,l]) => (
+        {[['calendar','Calendar'],['bookings','All Bookings']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -230,6 +279,35 @@ export default function Appointments() {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="card card-pad" style={{ marginBottom:18 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:12, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Today overview</div>
+                <div style={{ fontSize:14, color:'var(--sub)', marginTop:4 }}>Quick view of who is available and how many calls are already booked.</div>
+              </div>
+              <span className="badge badge-grey">{formatDate(today)}</span>
+            </div>
+            <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+              {todayOverview.map((staffMember) => (
+                <div key={staffMember.user_email} style={{ padding:'14px 15px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{staffMember.full_name}</div>
+                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:2 }}>{staffMember.role || 'Bookable staff'}</div>
+                    </div>
+                    <span className={`badge badge-${staffMember.available ? (staffMember.bookings ? 'blue' : 'green') : 'red'}`}>
+                      {staffMember.available ? (staffMember.bookings ? 'Booked' : 'Free') : 'Off'}
+                    </span>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <span className="badge badge-grey">{staffMember.window}</span>
+                    <span className="badge badge-grey">{staffMember.bookings} booking{staffMember.bookings === 1 ? '' : 's'}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -350,11 +428,19 @@ export default function Appointments() {
 function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, onRefresh }) {
   const [filter, setFilter] = useState('upcoming')
   const [staffFilter, setStaffFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('confirmed')
+  const [search, setSearch] = useState('')
   const today = new Date().toISOString().split('T')[0]
   const staffOptions = Array.from(new Set(appointments.map((appointment) => appointment.staff_name).filter(Boolean)))
   const filtered = appointments
     .filter(a => filter === 'all' ? true : filter === 'upcoming' ? a.date >= today : a.date < today)
     .filter(a => staffFilter === 'all' ? true : a.staff_name === staffFilter)
+    .filter(a => statusFilter === 'all' ? true : a.status === statusFilter)
+    .filter(a => {
+      if (!search.trim()) return true
+      const haystack = `${a.client_name || ''} ${a.client_email || ''} ${a.client_business || ''} ${a.staff_name || ''}`.toLowerCase()
+      return haystack.includes(search.trim().toLowerCase())
+    })
     .sort((a,b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
@@ -370,6 +456,16 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+        </div>
+        <div style={{ minWidth:180 }}>
+          <select className="inp" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="confirmed">Confirmed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="all">All statuses</option>
+          </select>
+        </div>
+        <div style={{ minWidth:220, flex:1 }}>
+          <input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search client, business, email..." />
         </div>
       </div>
       <div className="card" style={{ overflow:'hidden' }}>
