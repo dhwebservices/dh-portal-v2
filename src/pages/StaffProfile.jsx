@@ -95,6 +95,7 @@ export default function StaffProfile() {
   const [saved, setSaved]         = useState(false)
   const [sendingNotification, setSendingNotification] = useState(false)
   const [notificationSaved, setNotificationSaved] = useState(false)
+  const [notificationHistory, setNotificationHistory] = useState([])
   const [msUsers, setMsUsers]     = useState([])
   const [prevMgr, setPrevMgr]     = useState('')
   const [customNotification, setCustomNotification] = useState({
@@ -175,6 +176,13 @@ export default function StaffProfile() {
 
       setComms(comms || [])
       setDocs(docs || [])
+      const { data: notificationRows } = await supabase
+        .from('notifications')
+        .select('*')
+        .ilike('user_email', email)
+        .order('created_at', { ascending: false })
+        .limit(12)
+      setNotificationHistory(notificationRows || [])
     } catch (err) {
       console.error('Load error:', err)
     }
@@ -372,6 +380,8 @@ export default function StaffProfile() {
 
       const { error } = await supabase.from('notifications').insert([notificationPayload])
       if (error) throw error
+
+      setNotificationHistory((current) => [notificationPayload, ...current].slice(0, 12))
 
       const subject = (customNotification.emailSubject || customNotification.title).trim()
       const portalLink = customNotification.link?.trim()
@@ -827,6 +837,41 @@ export default function StaffProfile() {
                     Link: {customNotification.link || '/notifications'}
                   </div>
                 </div>
+              </div>
+
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:10 }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>History</div>
+                    <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Recent notifications</div>
+                  </div>
+                  <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{notificationHistory.length} shown</span>
+                </div>
+                {notificationHistory.length ? (
+                  <div style={{ display:'grid', gap:10 }}>
+                    {notificationHistory.map((item, index) => (
+                      <div key={`${item.created_at || 'notification'}-${index}`} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:6 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title || 'Notification'}</div>
+                          <span className={`badge badge-${item.type === 'warning' ? 'amber' : item.type === 'success' ? 'green' : 'blue'}`}>{item.type || 'info'}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.55, whiteSpace:'pre-wrap' }}>{item.message || '—'}</div>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginTop:8, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                            {item.created_at ? new Date(item.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'Unknown time'}
+                          </span>
+                          <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                            {item.link || '/notifications'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding:'16px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                    No recent notifications have been sent to this staff member yet.
+                  </div>
+                )}
               </div>
             </div>
           </div>
