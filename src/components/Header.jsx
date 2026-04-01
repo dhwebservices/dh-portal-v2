@@ -79,16 +79,16 @@ export default function Header() {
   const typeIcon = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
 
   return (
-    <header style={{ height:52, background:'rgba(255,255,255,0.85)', backdropFilter:'saturate(180%) blur(20px)', WebkitBackdropFilter:'saturate(180%) blur(20px)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', position:'sticky', top:0, zIndex:50, flexShrink:0 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+    <header className="main-header">
+      <div className="header-crumbs">
         <button onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
         <span style={{ color:'var(--border2)', fontSize:14 }}>/</span>
-        <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
+        <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
           {TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')}
         </span>
       </div>
 
-      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+      <div className="header-actions">
         {/* Search */}
         <button onClick={() => navigate('/search')} title="Search" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
@@ -109,7 +109,7 @@ export default function Header() {
 
           {/* Dropdown */}
           {bellOpen && (
-            <div style={{ position:'absolute', top:'calc(100% + 8px)', right:0, width:320, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
+            <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
                 {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}

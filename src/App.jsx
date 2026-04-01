@@ -52,11 +52,11 @@ function OnboardingWall({ children }) {
 
 function PortalLayout() {
   return (
-    <div style={{ display:'flex', minHeight:'100vh' }}>
+    <div className="app-layout">
       <Sidebar />
-      <div className="main-area" style={{ flex:1, display:'flex', flexDirection:'column', minHeight:'100vh', minWidth:0 }}>
+      <div className="main-area">
         <Header />
-        <main className="main-content" style={{ flex:1, overflowX:'hidden' }}>
+        <main className="main-content">
           <Routes>
             <Route path="/dashboard"       element={<OnboardingWall><Dashboard /></OnboardingWall>} />
             <Route path="/my-profile"      element={<MyProfile />} />

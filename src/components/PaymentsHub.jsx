@@ -568,11 +568,11 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
   ) : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="payments-hub-shell" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {error ? <div style={{ padding: '10px 14px', background: 'var(--red-bg)', border: '1px solid var(--red)', borderRadius: 8, fontSize: 13, color: 'var(--red)' }}>{error}</div> : null}
       {success ? <div style={{ padding: '10px 14px', background: 'var(--green-bg)', border: '1px solid var(--green)', borderRadius: 8, fontSize: 13, color: 'var(--green)' }}>✓ {success}</div> : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
+      <div className="payments-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
         <InfoCard title="Direct Debit" value={activeMandate ? 'Active' : pendingMandate ? 'Pending' : 'Not set'} hint={activeMandate ? 'Ready for collections and subscriptions' : pendingMandate ? 'Awaiting client completion' : 'Create or link a mandate first'} tone={activeMandate ? 'var(--green)' : pendingMandate ? 'var(--amber)' : 'var(--sub)'} />
         <InfoCard title="Collected" value={formatMoney(totalCollected)} hint="GoCardless and manual payments combined" tone="var(--accent)" />
         <InfoCard title="Subscriptions" value={subs.filter((sub) => sub.status === 'active').length} hint={subs.length ? 'Active recurring arrangements' : 'No subscriptions live yet'} tone="var(--green)" />
@@ -585,15 +585,15 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Payments Hub</div>
             <div style={{ fontSize: 13, color: 'var(--sub)' }}>Choose how you want to collect or log payment for {client.name}.</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="payments-mode-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {PAYMENT_MODES.map(([key, label]) => (
               <ModeButton key={key} active={mode === key} onClick={() => setMode(key)}>{label}</ModeButton>
             ))}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)', gap: 0 }}>
-          <div style={{ padding: 20, borderRight: '1px solid var(--border)' }}>
+        <div className="payments-main-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)', gap: 0 }}>
+          <div className="payments-main-pane" style={{ padding: 20, borderRight: '1px solid var(--border)' }}>
             {guardCard}
 
             {mode === 'customer' ? (
@@ -626,7 +626,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   </div>
                 ) : null}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div style={{ padding: 16, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>When to use this</div>
                     <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.6 }}>
@@ -649,12 +649,12 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Create a one-off collection</div>
                   <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>Pick a pricing template or enter a custom amount, then collect directly against the client’s active mandate.</div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-template-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {ONE_OFF_TEMPLATES.map((template) => (
                     <TemplateChip key={template.id} active={oneOffForm.template_id === template.id} label={template.name} amount={template.amount} onClick={() => applyOneOffTemplate(template)} />
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="lbl">Amount (£)</label>
                     <input className="inp" type="number" value={oneOffForm.amount} onChange={(e) => setOneOffForm((prev) => ({ ...prev, amount: e.target.value, template_id: '' }))} placeholder="449" />
@@ -668,7 +668,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   <label className="lbl">Description</label>
                   <input className="inp" value={oneOffForm.description} onChange={(e) => setOneOffForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Website build payment" />
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-action-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn btn-primary" onClick={doPayment} disabled={saving || !activeMandate || !oneOffForm.amount}>{saving ? 'Creating payment...' : 'Collect one-off payment'}</button>
                   {!activeMandate ? <button className="btn btn-outline" onClick={generatePaymentLink} disabled={saving || !oneOffForm.amount}>{saving ? 'Generating link...' : 'Create customer payment link'}</button> : null}
                   {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
@@ -689,12 +689,12 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                     You are preparing an updated subscription for <strong>{editingSub.name}</strong>. After creating the new subscription, cancel the previous one from the list on the right when you are ready to switch the client over.
                   </div>
                 ) : null}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-template-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {SUBSCRIPTION_TEMPLATES.map((template) => (
                     <TemplateChip key={template.id} active={subscriptionForm.template_id === template.id} label={template.name} amount={template.amount} onClick={() => applySubscriptionTemplate(template)} />
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="lbl">Monthly amount (£)</label>
                     <input className="inp" type="number" value={subscriptionForm.amount} onChange={(e) => setSubscriptionForm((prev) => ({ ...prev, amount: e.target.value, template_id: '' }))} placeholder="49" />
@@ -708,7 +708,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   <label className="lbl">Subscription name</label>
                   <input className="inp" value={subscriptionForm.name} onChange={(e) => setSubscriptionForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Hosting Professional" />
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-action-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn btn-primary" onClick={doSubscription} disabled={saving || !activeMandate || !subscriptionForm.amount}>{saving ? 'Creating subscription...' : editingSub ? 'Create updated subscription' : 'Create subscription'}</button>
                   {editingSub ? <button className="btn btn-outline" onClick={() => { setEditingSub(null); setSubscriptionForm({ template_id: '', amount: '', name: '', day_of_month: 1 }) }}>Clear change</button> : null}
                   {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
@@ -722,7 +722,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                     {templateLoading ? (
                       <div style={{ fontSize: 12, color: 'var(--sub)' }}>Loading templates...</div>
                     ) : billingTemplates.length ? (
-                      <div style={{ display: 'grid', gap: 10 }}>
+                      <div className="payments-template-list" style={{ display: 'grid', gap: 10 }}>
                         {billingTemplates.map((template) => {
                           const url = template.authorisation_url || template.billing_request_templates?.authorisation_url || ''
                           const name = template.name || template.billing_request_templates?.name || template.id
@@ -756,7 +756,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                     Use this for staged collections after a mandate is already active. Enter the instalment amounts in order, separated by commas.
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="lbl">Schedule name</label>
                     <input className="inp" value={instalmentForm.name} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Website build split plan" />
@@ -766,7 +766,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                     <input className="inp" type="date" value={instalmentForm.start_date} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, start_date: e.target.value }))} />
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="lbl">Amounts (£)</label>
                     <input className="inp" value={instalmentForm.amounts} onChange={(e) => setInstalmentForm((prev) => ({ ...prev, amounts: e.target.value }))} placeholder="500, 500, 500" />
@@ -790,7 +790,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-action-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn btn-primary" onClick={doInstalmentSchedule} disabled={saving || !activeMandate || !instalmentForm.amounts.trim()}>{saving ? 'Creating instalments...' : 'Create instalment schedule'}</button>
                   {!activeMandate ? <button className="btn btn-outline" onClick={() => setMode('customer')}>Set up Direct Debit first</button> : null}
                 </div>
@@ -808,7 +808,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Record a manual payment</div>
                   <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>Log bank transfers, cash, card, or any payment collected outside the GoCardless mandate flow.</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="payments-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label className="lbl">Amount (£)</label>
                     <input className="inp" type="number" value={manualForm.amount} onChange={(e) => setManualForm((prev) => ({ ...prev, amount: e.target.value }))} placeholder="449" />
@@ -831,7 +831,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
                   <label className="lbl">Description</label>
                   <input className="inp" value={manualForm.description} onChange={(e) => setManualForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Bank transfer for Growth package" />
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="payments-template-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {[...ONE_OFF_TEMPLATES].map((template) => (
                     <button
                       key={template.id}
@@ -860,7 +860,7 @@ export function PaymentsHub({ client, gcStatus, setGcStatus }) {
             ) : null}
           </div>
 
-          <div style={{ padding: 20, background: 'var(--bg2)' }}>
+          <div className="payments-side-pane" style={{ padding: 20, background: 'var(--bg2)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ padding: 16, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }}>
