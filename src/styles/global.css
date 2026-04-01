@@ -203,7 +203,8 @@ button { cursor: pointer; font-family: inherit; }
   .staff-profile-admin-column { order: -1; }
   .client-profile-overview-grid,
   .client-profile-summary-grid,
-  .client-profile-detail-list { grid-template-columns: 1fr !important; }
+  .client-profile-detail-list,
+  .admin-safeguards-summary-grid { grid-template-columns: 1fr !important; }
   .client-profile-hero { flex-direction: column; align-items: flex-start !important; }
   .client-profile-hero-actions { width: 100%; }
   .dashboard-activity-row { flex-direction: column; align-items: flex-start !important; }
@@ -274,6 +275,7 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-form-card,
 .staff-profile-admin-card { min-width: 0; }
 .staff-profile-admin-column { align-self: start; }
+.admin-safeguards-summary-grid { width: 100%; }
 
 .client-profile-overview-grid,
 .client-profile-summary-grid,

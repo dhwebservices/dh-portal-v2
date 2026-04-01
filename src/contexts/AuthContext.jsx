@@ -9,6 +9,7 @@ const PERMISSION_FALLBACKS = {
   search: 'dashboard',
   my_profile: 'dashboard',
   org_chart: 'staff',
+  safeguards: 'settings',
 }
 
 export function AuthProvider({ children }) {

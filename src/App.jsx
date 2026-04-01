@@ -24,6 +24,7 @@ import Search         from './pages/Search'
 import Schedule       from './pages/Schedule'
 import Reports        from './pages/Reports'
 import OrgChart       from './pages/OrgChart'
+import AdminSafeguards from './pages/AdminSafeguards'
 import Proposals      from './pages/Proposals'
 import SendEmail      from './pages/SendEmail'
 import EmailTemplates from './pages/EmailTemplates'
@@ -93,6 +94,7 @@ function PortalLayout() {
             <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
             <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
             <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
+            <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
             <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
             <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
             <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />

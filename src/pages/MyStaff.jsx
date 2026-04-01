@@ -6,14 +6,19 @@ import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
-  {key:'dashboard',label:'Dashboard'},{key:'outreach',label:'Clients Contacted'},
+  {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},
+  {key:'my_profile',label:'My Profile'},{key:'search',label:'Search'},
+  {key:'outreach',label:'Clients Contacted'},
   {key:'clients',label:'Onboarded Clients'},{key:'clientmgmt',label:'Client Portal'},
   {key:'support',label:'Support'},{key:'competitor',label:'Competitor Lookup'},
   {key:'domains',label:'Domain Checker'},{key:'proposals',label:'Proposal Builder'},
-  {key:'sendemail',label:'Send Email'},{key:'tasks',label:'Manage Tasks'},
+  {key:'sendemail',label:'Send Email'},{key:'appointments',label:'Appointments'},
+  {key:'tasks',label:'Manage Tasks'},
   {key:'mytasks',label:'My Tasks'},{key:'schedule',label:'Schedule'},
   {key:'reports',label:'Reports'},{key:'staff',label:'My Staff'},
+  {key:'org_chart',label:'Org Chart'},{key:'mailinglist',label:'Mailing List'},
   {key:'banners',label:'Banners'},{key:'emailtemplates',label:'Email Templates'},
+  {key:'safeguards',label:'Admin Safeguards'},
   {key:'audit',label:'Audit Log'},{key:'maintenance',label:'Maintenance'},
   {key:'admin',label:'Admin'},{key:'settings',label:'Settings'},
   {key:'hr_leave',label:'HR Leave'},{key:'hr_payslips',label:'HR Payslips'},
@@ -24,8 +29,8 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist','safeguards'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
 const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }
