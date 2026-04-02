@@ -54,6 +54,26 @@ export const DASHBOARD_HEADER_OPTIONS = [
   ['minimal', 'Minimal header'],
 ]
 
+export const TEXT_SCALE_OPTIONS = [
+  ['standard', 'Standard'],
+  ['large', 'Large text'],
+]
+
+export const MOTION_OPTIONS = [
+  ['full', 'Standard motion'],
+  ['reduced', 'Reduced motion'],
+]
+
+export const NAV_DENSITY_OPTIONS = [
+  ['comfortable', 'Comfortable nav'],
+  ['compact', 'Compact nav'],
+]
+
+export const CONTRAST_OPTIONS = [
+  ['normal', 'Standard contrast'],
+  ['high', 'High contrast'],
+]
+
 export const ACCENT_SCHEMES = {
   blue: {
     label: 'DH Blue',
@@ -98,6 +118,10 @@ export const DEFAULT_PORTAL_PREFERENCES = {
   dashboardDensity: 'comfortable',
   dashboardHeader: 'full',
   showSystemBanners: true,
+  textScale: 'standard',
+  motionMode: 'full',
+  navDensity: 'comfortable',
+  contrastMode: 'normal',
   defaultLanding: 'dashboard',
   quickActions: ['mytasks', 'notifications', 'schedule', 'clients'],
   dashboardOrder: DASHBOARD_SECTIONS.map(([key]) => key),
@@ -134,6 +158,18 @@ export function sanitizePortalPreferences(raw = {}) {
     ? raw.dashboardHeader
     : DEFAULT_PORTAL_PREFERENCES.dashboardHeader
   const showSystemBanners = raw?.showSystemBanners !== false
+  const textScale = TEXT_SCALE_OPTIONS.some(([key]) => key === raw?.textScale)
+    ? raw.textScale
+    : DEFAULT_PORTAL_PREFERENCES.textScale
+  const motionMode = MOTION_OPTIONS.some(([key]) => key === raw?.motionMode)
+    ? raw.motionMode
+    : DEFAULT_PORTAL_PREFERENCES.motionMode
+  const navDensity = NAV_DENSITY_OPTIONS.some(([key]) => key === raw?.navDensity)
+    ? raw.navDensity
+    : DEFAULT_PORTAL_PREFERENCES.navDensity
+  const contrastMode = CONTRAST_OPTIONS.some(([key]) => key === raw?.contrastMode)
+    ? raw.contrastMode
+    : DEFAULT_PORTAL_PREFERENCES.contrastMode
   const defaultLanding = DEFAULT_LANDING_OPTIONS.some(([key]) => key === raw?.defaultLanding)
     ? raw.defaultLanding
     : DEFAULT_PORTAL_PREFERENCES.defaultLanding
@@ -165,6 +201,10 @@ export function sanitizePortalPreferences(raw = {}) {
     dashboardDensity,
     dashboardHeader,
     showSystemBanners,
+    textScale,
+    motionMode,
+    navDensity,
+    contrastMode,
     defaultLanding,
     quickActions: quickActions.length ? quickActions : DEFAULT_PORTAL_PREFERENCES.quickActions,
     dashboardOrder,
@@ -197,6 +237,10 @@ export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) 
   const isDark = safe.themeMode === 'dark'
 
   root.setAttribute('data-theme', safe.themeMode)
+  root.setAttribute('data-text-scale', safe.textScale)
+  root.setAttribute('data-motion-mode', safe.motionMode)
+  root.setAttribute('data-nav-density', safe.navDensity)
+  root.setAttribute('data-contrast-mode', safe.contrastMode)
   root.style.setProperty('--accent', scheme.accent)
   root.style.setProperty('--accent-hover', scheme.hover)
   root.style.setProperty('--accent-soft', scheme.soft)
@@ -208,6 +252,10 @@ export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) 
   root.style.setProperty('--page-tint-strong', isDark ? `rgba(${r}, ${g}, ${b}, 0.14)` : `rgba(${r}, ${g}, ${b}, 0.09)`)
   root.style.setProperty('--panel-tint', isDark ? `rgba(${r}, ${g}, ${b}, 0.06)` : `rgba(${r}, ${g}, ${b}, 0.045)`)
   root.style.setProperty('--accent-contrast', '#FFFFFF')
+  root.style.setProperty('--font-size-base', safe.textScale === 'large' ? '15.5px' : '14px')
+  root.style.setProperty('--line-height-base', safe.textScale === 'large' ? '1.6' : '1.5')
+  root.style.setProperty('--sw', safe.navDensity === 'compact' ? '50px' : '56px')
+  root.style.setProperty('--sidebar-panel-w', safe.navDensity === 'compact' ? '272px' : '300px')
 
   try {
     localStorage.setItem('dh-theme', safe.themeMode)

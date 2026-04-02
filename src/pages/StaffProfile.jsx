@@ -8,14 +8,18 @@ import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
   ACCENT_SCHEMES,
   buildPreferenceSettingKey,
+  CONTRAST_OPTIONS,
   DEFAULT_LANDING_OPTIONS,
   DASHBOARD_DENSITY_OPTIONS,
   DASHBOARD_HEADER_OPTIONS,
   DASHBOARD_SECTIONS,
   DEFAULT_PORTAL_PREFERENCES,
+  MOTION_OPTIONS,
+  NAV_DENSITY_OPTIONS,
   NOTIFICATION_CATEGORY_OPTIONS,
   NOTIFICATION_DELIVERY_OPTIONS,
   QUICK_ACTION_OPTIONS,
+  TEXT_SCALE_OPTIONS,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
@@ -837,6 +841,61 @@ export default function StaffProfile() {
                 </div>
               </div>
 
+              <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Comfort & accessibility</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }} className="dashboard-personalise-grid">
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Text size</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {TEXT_SCALE_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => gp('textScale', key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${portalPrefs.textScale === key ? 'var(--accent-border)' : 'var(--border)'}`, background: portalPrefs.textScale === key ? 'var(--accent-soft)' : 'var(--card)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                          <span className={`badge badge-${portalPrefs.textScale === key ? 'blue' : 'grey'}`}>{portalPrefs.textScale === key ? 'On' : 'Off'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Motion</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {MOTION_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => gp('motionMode', key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${portalPrefs.motionMode === key ? 'var(--accent-border)' : 'var(--border)'}`, background: portalPrefs.motionMode === key ? 'var(--accent-soft)' : 'var(--card)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                          <span className={`badge badge-${portalPrefs.motionMode === key ? 'blue' : 'grey'}`}>{portalPrefs.motionMode === key ? 'On' : 'Off'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }} className="dashboard-personalise-grid">
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Navigation density</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {NAV_DENSITY_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => gp('navDensity', key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${portalPrefs.navDensity === key ? 'var(--accent-border)' : 'var(--border)'}`, background: portalPrefs.navDensity === key ? 'var(--accent-soft)' : 'var(--card)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                          <span className={`badge badge-${portalPrefs.navDensity === key ? 'blue' : 'grey'}`}>{portalPrefs.navDensity === key ? 'On' : 'Off'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Contrast</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {CONTRAST_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => gp('contrastMode', key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${portalPrefs.contrastMode === key ? 'var(--accent-border)' : 'var(--border)'}`, background: portalPrefs.contrastMode === key ? 'var(--accent-soft)' : 'var(--card)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                          <span className={`badge badge-${portalPrefs.contrastMode === key ? 'blue' : 'grey'}`}>{portalPrefs.contrastMode === key ? 'On' : 'Off'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18 }} className="dashboard-personalise-grid">
                 <div>
                   <div className="lbl" style={{ marginBottom:8 }}>Dashboard density</div>
@@ -1022,6 +1081,15 @@ export default function StaffProfile() {
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Layout</div>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
                       {(DASHBOARD_DENSITY_OPTIONS.find(([key]) => key === portalPrefs.dashboardDensity)?.[1]) || 'Comfortable'} · {(DASHBOARD_HEADER_OPTIONS.find(([key]) => key === portalPrefs.dashboardHeader)?.[1]) || 'Full header'}
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Comfort</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <span className="badge badge-blue">{TEXT_SCALE_OPTIONS.find(([key]) => key === portalPrefs.textScale)?.[1] || 'Standard'}</span>
+                      <span className="badge badge-blue">{MOTION_OPTIONS.find(([key]) => key === portalPrefs.motionMode)?.[1] || 'Standard motion'}</span>
+                      <span className="badge badge-blue">{NAV_DENSITY_OPTIONS.find(([key]) => key === portalPrefs.navDensity)?.[1] || 'Comfortable nav'}</span>
+                      <span className="badge badge-blue">{CONTRAST_OPTIONS.find(([key]) => key === portalPrefs.contrastMode)?.[1] || 'Standard contrast'}</span>
                     </div>
                   </div>
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>

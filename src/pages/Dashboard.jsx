@@ -20,9 +20,15 @@ import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
 import {
   ACCENT_SCHEMES,
+  CONTRAST_OPTIONS,
+  DEFAULT_LANDING_OPTIONS,
   DASHBOARD_DENSITY_OPTIONS,
   DASHBOARD_HEADER_OPTIONS,
   DASHBOARD_SECTIONS,
+  MOTION_OPTIONS,
+  NAV_DENSITY_OPTIONS,
+  QUICK_ACTION_OPTIONS,
+  TEXT_SCALE_OPTIONS,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
@@ -223,6 +229,8 @@ export default function Dashboard() {
   const dashboardDensity = preferences?.dashboardDensity || 'comfortable'
   const dashboardHeader = preferences?.dashboardHeader || 'full'
   const showSystemBanners = preferences?.showSystemBanners !== false
+  const quickActions = preferences?.quickActions || []
+  const dashboardOrder = preferences?.dashboardOrder || DASHBOARD_SECTIONS.map(([key]) => key)
 
   useEffect(() => {
     setPersonalisePrefs(mergePortalPreferences(preferences))
@@ -404,6 +412,29 @@ export default function Dashboard() {
     setPersonalisePrefs((current) => mergePortalPreferences(current, patch))
   }
 
+  const toggleQuickAction = (key) => {
+    setPersonalisePrefs((current) => {
+      const active = current.quickActions || []
+      const next = active.includes(key)
+        ? active.filter((item) => item !== key)
+        : [...active, key].slice(0, 6)
+      return mergePortalPreferences(current, { quickActions: next })
+    })
+  }
+
+  const moveSection = (key, direction) => {
+    setPersonalisePrefs((current) => {
+      const order = [...(current.dashboardOrder || [])]
+      const index = order.indexOf(key)
+      if (index < 0) return current
+      const nextIndex = direction === 'up' ? Math.max(0, index - 1) : Math.min(order.length - 1, index + 1)
+      if (nextIndex === index) return current
+      const [item] = order.splice(index, 1)
+      order.splice(nextIndex, 0, item)
+      return mergePortalPreferences(current, { dashboardOrder: order })
+    })
+  }
+
   const togglePersonaliseSection = (key) => {
     setPersonalisePrefs((current) => mergePortalPreferences(current, {
       dashboardSections: {
@@ -422,6 +453,125 @@ export default function Dashboard() {
       console.error('Dashboard personalisation save failed:', error)
     } finally {
       setSavingPersonalise(false)
+    }
+  }
+
+  const visibleOrderedSections = dashboardOrder.filter((key) => dashboardSections[key] !== false)
+  const nonStatsSections = visibleOrderedSections.filter((key) => key !== 'stats')
+  const sectionPairs = []
+  for (let i = 0; i < nonStatsSections.length; i += 2) {
+    sectionPairs.push(nonStatsSections.slice(i, i + 2))
+  }
+
+  const quickActionMeta = Object.fromEntries(QUICK_ACTION_OPTIONS.map(([key, label, route]) => [key, { label, route }]))
+
+  const renderDashboardSection = (key) => {
+    switch (key) {
+      case 'today':
+        return (
+          <Panel key={key} title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
+            <div className="dashboard-fourup" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0 }}>
+              {[
+                { icon: CalendarDays, label: 'Shifts today', value: stats.todaysShifts, hint: `${stats.todayHours} total hours`, color: 'var(--blue)' },
+                { icon: Clock3, label: 'Upcoming calls', value: stats.upcomingAppointments, hint: 'Next 7 days', color: 'var(--accent)' },
+                { icon: CircleAlert, label: 'Leave approvals', value: stats.pendingLeave, hint: 'Waiting for review', color: 'var(--amber)' },
+                { icon: UserCheck, label: 'Onboarding', value: stats.pendingOnboarding, hint: 'Submitted forms', color: 'var(--green)' },
+              ].map((item, index) => {
+                const Icon = item.icon
+                return (
+                  <div key={item.label} style={{ padding: '18px', borderRight: index < 3 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                      <Icon size={16} color={item.color} />
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>{loading ? '—' : item.value}</div>
+                    <div style={{ fontSize: 12, color: 'var(--sub)' }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 5 }}>{item.hint}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </Panel>
+        )
+      case 'insight':
+        return (
+          <div key={key} className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)' }}>Operations Insight</div>
+            <div style={{ flex: 1, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
+              {insight || 'Generate a quick operational read based on the live queues in the portal.'}
+            </div>
+            <button onClick={getInsight} disabled={insightLoading} className="btn btn-outline btn-sm" style={{ alignSelf: 'flex-start' }}>
+              {insightLoading ? <><div className="spin" style={{ width: 12, height: 12, borderWidth: 1.5 }} />Generating…</> : 'Generate insight'}
+            </button>
+          </div>
+        )
+      case 'priority':
+        return (
+          <Panel key={key} title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
+            {priorityItems.length ? (
+              priorityItems.map((item, index) => (
+                <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={index >= 0 ? () => navigate(item.route) : undefined} />
+              ))
+            ) : <EmptyState text="Nothing urgent is stacked up right now." />}
+          </Panel>
+        )
+      case 'notifications':
+        return (
+          <Panel key={key} title="Unread Notifications" actionLabel="View Header Bell" onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            {notifications.length ? (
+              notifications.map((notification) => (
+                <QueueRow
+                  key={notification.id}
+                  title={notification.title || 'Notification'}
+                  meta={notification.message}
+                  status={notification.type || 'info'}
+                  tone={notification.type === 'success' ? 'green' : notification.type === 'warning' ? 'amber' : notification.type === 'urgent' ? 'red' : 'blue'}
+                  onClick={notification.link ? () => navigate(notification.link) : undefined}
+                />
+              ))
+            ) : <EmptyState text="No unread notifications at the moment." />}
+          </Panel>
+        )
+      case 'schedule':
+        return (
+          <Panel key={key} title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
+            {todaySchedule.length ? (
+              todaySchedule.map((shift) => (
+                <QueueRow key={`${shift.user_email}-${shift.start}`} title={shift.user_name} meta={`${shift.start} to ${shift.end}${shift.note ? ` · ${shift.note}` : ''}`} status={`${shift.hours}h`} tone="blue" onClick={() => navigate('/schedule')} />
+              ))
+            ) : <EmptyState text="No submitted schedule hours were found for today." />}
+          </Panel>
+        )
+      case 'appointments':
+        return (
+          <Panel key={key} title="Upcoming Appointments" actionLabel="Open Calendar" onAction={() => navigate('/appointments')}>
+            {upcomingAppointments.length ? (
+              upcomingAppointments.map((appointment) => (
+                <QueueRow key={appointment.id} title={appointment.client_name || 'Booked call'} meta={`${formatDayLabel(appointment.date)} · ${appointment.start_time}${appointment.staff_name ? ` · ${appointment.staff_name}` : ''}`} status={appointment.status || 'scheduled'} tone="green" onClick={() => navigate('/appointments')} />
+              ))
+            ) : <EmptyState text="No upcoming appointments in the next 7 days." />}
+          </Panel>
+        )
+      case 'activity':
+        return (
+          <Panel key={key} title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
+            {recentActivity.length ? (
+              recentActivity.map((activity, index) => (
+                <div className="dashboard-activity-row" key={`${activity.created_at}-${index}`} style={{ padding: '12px 18px', borderBottom: index < recentActivity.length - 1 ? '1px solid var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{activity.user_name}</span>
+                    <span style={{ fontSize: 13, color: 'var(--sub)' }}> — {activity.action?.replace(/_/g, ' ')}</span>
+                    {activity.target ? <span style={{ fontSize: 12, color: 'var(--faint)' }}> ({activity.target})</span> : null}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--faint)', flexShrink: 0 }}>
+                    {new Date(activity.created_at).toLocaleDateString('en-GB')}
+                  </div>
+                </div>
+              ))
+            ) : <EmptyState text="No recent audit activity available." />}
+          </Panel>
+        )
+      default:
+        return null
     }
   }
 
@@ -477,6 +627,52 @@ export default function Dashboard() {
               </div>
 
               <div className="card card-pad">
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Comfort & accessibility</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }} className="dashboard-personalise-grid">
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Text size</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {TEXT_SCALE_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ textScale: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.textScale === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.textScale === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Motion</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {MOTION_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ motionMode: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.motionMode === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.motionMode === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Navigation density</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {NAV_DENSITY_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ navDensity: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.navDensity === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.navDensity === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Contrast</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {CONTRAST_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ contrastMode: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.contrastMode === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.contrastMode === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card card-pad">
                 <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Dashboard layout</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:16 }}>
                   <div>
@@ -501,6 +697,17 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                <div style={{ marginBottom:16 }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Default landing page</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                    {DEFAULT_LANDING_OPTIONS.map(([key, label]) => (
+                      <button key={key} onClick={() => patchPersonalise({ defaultLanding: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.defaultLanding === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.defaultLanding === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <div className="lbl" style={{ marginBottom:8 }}>Behaviour</div>
                   <button onClick={() => patchPersonalise({ showSystemBanners: !personalisePrefs.showSystemBanners })} style={{ width:'100%', padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.showSystemBanners ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.showSystemBanners ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left', display:'flex', justifyContent:'space-between', gap:12 }}>
@@ -514,15 +721,37 @@ export default function Dashboard() {
               </div>
 
               <div className="card card-pad">
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Pinned quick actions</div>
+                <div style={{ fontSize:12.5, color:'var(--sub)', marginBottom:14 }}>Pick up to 6 shortcuts for your dashboard.</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10, marginBottom:18 }}>
+                  {QUICK_ACTION_OPTIONS.map(([key, label]) => {
+                    const enabled = personalisePrefs.quickActions?.includes(key)
+                    return (
+                      <button key={key} onClick={() => toggleQuickAction(key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`, background: enabled ? 'var(--accent-soft)' : 'var(--card)', display:'flex', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'Pinned' : 'Off'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
                 <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Visible sections</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
-                  {DASHBOARD_SECTIONS.map(([key, label]) => {
+                  {dashboardOrder.map((key) => {
+                    const label = DASHBOARD_SECTIONS.find(([sectionKey]) => sectionKey === key)?.[1] || key
                     const enabled = personalisePrefs.dashboardSections?.[key] !== false
                     return (
-                      <button key={key} onClick={() => togglePersonaliseSection(key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`, background: enabled ? 'var(--accent-soft)' : 'var(--card)', display:'flex', justifyContent:'space-between', gap:12, textAlign:'left' }}>
-                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
-                        <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'On' : 'Off'}</span>
-                      </button>
+                      <div key={key} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`, background: enabled ? 'var(--accent-soft)' : 'var(--card)', display:'grid', gap:10 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                          <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'On' : 'Off'}</span>
+                        </div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => togglePersonaliseSection(key)}>{enabled ? 'Hide' : 'Show'}</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => moveSection(key, 'up')}>Move up</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => moveSection(key, 'down')}>Move down</button>
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
@@ -547,10 +776,33 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Comfort</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <span className="badge badge-blue">{TEXT_SCALE_OPTIONS.find(([key]) => key === personalisePrefs.textScale)?.[1] || 'Standard'}</span>
+                    <span className="badge badge-blue">{MOTION_OPTIONS.find(([key]) => key === personalisePrefs.motionMode)?.[1] || 'Standard motion'}</span>
+                    <span className="badge badge-blue">{NAV_DENSITY_OPTIONS.find(([key]) => key === personalisePrefs.navDensity)?.[1] || 'Comfortable nav'}</span>
+                    <span className="badge badge-blue">{CONTRAST_OPTIONS.find(([key]) => key === personalisePrefs.contrastMode)?.[1] || 'Standard contrast'}</span>
+                  </div>
+                </div>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Landing page</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                    {(DEFAULT_LANDING_OPTIONS.find(([key]) => key === personalisePrefs.defaultLanding)?.[1]) || 'Dashboard'}
+                  </div>
+                </div>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Pinned actions</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {(personalisePrefs.quickActions || []).map((key) => (
+                      <span key={key} className="badge badge-blue">{quickActionMeta[key]?.label || key}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
                   <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Visible sections</div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    {DASHBOARD_SECTIONS.filter(([key]) => personalisePrefs.dashboardSections?.[key] !== false).map(([, label]) => (
-                      <span key={label} className="badge badge-blue">{label}</span>
+                    {dashboardOrder.filter((key) => personalisePrefs.dashboardSections?.[key] !== false).map((key) => (
+                      <span key={key} className="badge badge-blue">{DASHBOARD_SECTIONS.find(([sectionKey]) => sectionKey === key)?.[1] || key}</span>
                     ))}
                   </div>
                 </div>
@@ -609,6 +861,35 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {quickActions.length ? (
+        <div className="card card-pad" style={{ marginBottom: dashboardDensity === 'compact' ? 16 : 22 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Pinned actions</div>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Your most-used shortcuts, right where you need them.</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowPersonalise(true)}>Edit</button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
+            {quickActions.map((key) => {
+              const item = quickActionMeta[key]
+              if (!item) return null
+              return (
+                <button
+                  key={key}
+                  className="btn btn-outline"
+                  onClick={() => navigate(item.route)}
+                  style={{ justifyContent:'space-between', padding:'12px 14px', borderRadius:12 }}
+                >
+                  <span>{item.label}</span>
+                  <ArrowRight size={13} />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {dashboardSections.stats !== false ? (
       <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: dashboardDensity === 'compact' ? 12 : 16, marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
         <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
@@ -621,178 +902,12 @@ export default function Dashboard() {
       </div>
       ) : null}
 
-      {(dashboardSections.today !== false || dashboardSections.insight !== false) ? (
-      <div className="dashboard-top-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: dashboardDensity === 'compact' ? 14 : 20, marginBottom: dashboardDensity === 'compact' ? 14 : 20 }}>
-        {dashboardSections.today !== false ? (
-        <Panel title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
-          <div className="dashboard-fourup" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0 }}>
-            {[
-              { icon: CalendarDays, label: 'Shifts today', value: stats.todaysShifts, hint: `${stats.todayHours} total hours`, color: 'var(--blue)' },
-              { icon: Clock3, label: 'Upcoming calls', value: stats.upcomingAppointments, hint: 'Next 7 days', color: 'var(--accent)' },
-              { icon: CircleAlert, label: 'Leave approvals', value: stats.pendingLeave, hint: 'Waiting for review', color: 'var(--amber)' },
-              { icon: UserCheck, label: 'Onboarding', value: stats.pendingOnboarding, hint: 'Submitted forms', color: 'var(--green)' },
-            ].map((item, index) => {
-              const Icon = item.icon
-              return (
-                <div key={item.label} style={{ padding: '18px', borderRight: index < 3 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                    <Icon size={16} color={item.color} />
-                  </div>
-                  <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>{loading ? '—' : item.value}</div>
-                  <div style={{ fontSize: 12, color: 'var(--sub)' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 5 }}>{item.hint}</div>
-                </div>
-              )
-            })}
-          </div>
-        </Panel>
-        ) : <div />}
-
-        {dashboardSections.insight !== false ? (
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)' }}>Operations Insight</div>
-          <div style={{ flex: 1, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
-            {insight || 'Generate a quick operational read based on the live queues in the portal.'}
-          </div>
-          <button onClick={getInsight} disabled={insightLoading} className="btn btn-outline btn-sm" style={{ alignSelf: 'flex-start' }}>
-            {insightLoading ? <><div className="spin" style={{ width: 12, height: 12, borderWidth: 1.5 }} />Generating…</> : 'Generate insight'}
-          </button>
+      {sectionPairs.map((pair, index) => (
+        <div key={`section-row-${index}`} className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20, marginBottom: index < sectionPairs.length - 1 ? (dashboardDensity === 'compact' ? 14 : 20) : 0, marginTop: index === 0 ? 0 : 0 }}>
+          {pair.map((key) => renderDashboardSection(key))}
+          {pair.length === 1 ? <div /> : null}
         </div>
-        ) : <div />}
-      </div>
-      ) : null}
-
-      {(dashboardSections.priority !== false || dashboardSections.notifications !== false) ? (
-      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20, marginBottom: dashboardDensity === 'compact' ? 14 : 20 }}>
-        {dashboardSections.priority !== false ? (
-        <Panel title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
-          {priorityItems.length ? (
-            priorityItems.map((item, index) => (
-              <QueueRow
-                key={item.id}
-                title={item.title}
-                meta={item.meta}
-                status={item.status}
-                tone={item.tone}
-                onClick={index >= 0 ? () => navigate(item.route) : undefined}
-              />
-            ))
-          ) : (
-            <EmptyState text="Nothing urgent is stacked up right now." />
-          )}
-        </Panel>
-        ) : <div />}
-
-        {dashboardSections.notifications !== false ? (
-        <Panel title="Unread Notifications" actionLabel="View Header Bell" onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          {notifications.length ? (
-            notifications.map((notification) => (
-              <QueueRow
-                key={notification.id}
-                title={notification.title || 'Notification'}
-                meta={notification.message}
-                status={notification.type || 'info'}
-                tone={
-                  notification.type === 'success'
-                    ? 'green'
-                    : notification.type === 'warning'
-                      ? 'amber'
-                      : notification.type === 'urgent'
-                        ? 'red'
-                        : 'blue'
-                }
-                onClick={notification.link ? () => navigate(notification.link) : undefined}
-              />
-            ))
-          ) : (
-            <EmptyState text="No unread notifications at the moment." />
-          )}
-        </Panel>
-        ) : <div />}
-      </div>
-      ) : null}
-
-      {(dashboardSections.schedule !== false || dashboardSections.appointments !== false || dashboardSections.activity !== false) ? (
-      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20 }}>
-        {dashboardSections.schedule !== false ? (
-        <Panel title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
-          {todaySchedule.length ? (
-            todaySchedule.map((shift) => (
-              <QueueRow
-                key={`${shift.user_email}-${shift.start}`}
-                title={shift.user_name}
-                meta={`${shift.start} to ${shift.end}${shift.note ? ` · ${shift.note}` : ''}`}
-                status={`${shift.hours}h`}
-                tone="blue"
-                onClick={() => navigate('/schedule')}
-              />
-            ))
-          ) : (
-            <EmptyState text="No submitted schedule hours were found for today." />
-          )}
-        </Panel>
-        ) : <div />}
-
-        {dashboardSections.appointments !== false ? (
-        <Panel title="Upcoming Appointments" actionLabel="Open Calendar" onAction={() => navigate('/appointments')}>
-          {upcomingAppointments.length ? (
-            upcomingAppointments.map((appointment) => (
-              <QueueRow
-                key={appointment.id}
-                title={appointment.client_name || 'Booked call'}
-                meta={`${formatDayLabel(appointment.date)} · ${appointment.start_time}${appointment.staff_name ? ` · ${appointment.staff_name}` : ''}`}
-                status={appointment.status || 'scheduled'}
-                tone="green"
-                onClick={() => navigate('/appointments')}
-              />
-            ))
-          ) : (
-            <EmptyState text="No upcoming appointments in the next 7 days." />
-          )}
-        </Panel>
-        ) : <div />}
-      </div>
-      ) : null}
-
-      {dashboardSections.activity !== false ? (
-      <div style={{ marginTop: dashboardDensity === 'compact' ? 14 : 20, display:'grid', gridTemplateColumns:'1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20 }} className="dashboard-panel-grid">
-        <Panel title="Active Staff Now" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
-          {activeUsers.length ? (
-            activeUsers.map((person) => (
-              <QueueRow
-                key={person.user_email}
-                title={person.full_name || person.user_email}
-                meta={`${person.role || 'Staff'} · seen ${formatPresenceTime(person.last_seen)}`}
-                status="live"
-                tone="green"
-                onClick={() => navigate('/audit')}
-              />
-            ))
-          ) : (
-            <EmptyState text="No staff activity detected in the last 5 minutes." />
-          )}
-        </Panel>
-
-        <Panel title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
-          {recentActivity.length ? (
-            recentActivity.map((activity, index) => (
-              <div className="dashboard-activity-row" key={`${activity.created_at}-${index}`} style={{ padding: '12px 18px', borderBottom: index < recentActivity.length - 1 ? '1px solid var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{activity.user_name}</span>
-                  <span style={{ fontSize: 13, color: 'var(--sub)' }}> — {activity.action?.replace(/_/g, ' ')}</span>
-                  {activity.target ? <span style={{ fontSize: 12, color: 'var(--faint)' }}> ({activity.target})</span> : null}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--faint)', flexShrink: 0 }}>
-                  {new Date(activity.created_at).toLocaleDateString('en-GB')}
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState text="No recent audit activity available." />
-          )}
-        </Panel>
-      </div>
-      ) : null}
+      ))}
     </div>
   )
 }

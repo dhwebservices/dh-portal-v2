@@ -129,7 +129,7 @@ const SECTION_COLORS = {
 const css = `
 /* Dock */
 .dh-dock {
-  width: 56px; height: 100vh; position: fixed; left: 0; top: 0; z-index: 100;
+  width: var(--sw); height: 100vh; position: fixed; left: 0; top: 0; z-index: 100;
   background: var(--bg); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center;
   padding: 12px 0; gap: 2px;
@@ -174,7 +174,7 @@ const css = `
 
 /* Settings-style panel */
 .dh-panel {
-  position: fixed; left: 56px; top: 0; height: 100vh; width: 300px;
+  position: fixed; left: var(--sw); top: 0; height: 100vh; width: var(--sidebar-panel-w);
   background:
     linear-gradient(180deg, var(--panel-tint), transparent 18%),
     color-mix(in srgb, var(--bg2) 88%, var(--page-tint-strong) 12%);
@@ -407,6 +407,88 @@ const css = `
 }
 .dh-mobile-footer {
   padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg);
+}
+[data-nav-density="compact"] .dh-dock {
+  padding: 10px 0;
+}
+[data-nav-density="compact"] .dh-dock-logo {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 6px;
+}
+[data-nav-density="compact"] .dh-dock-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  gap: 2px;
+}
+[data-nav-density="compact"] .dh-dock-label {
+  font-size: 6px;
+}
+[data-nav-density="compact"] .dh-panel-head {
+  padding: 16px 14px 12px;
+}
+[data-nav-density="compact"] .dh-panel-title {
+  font-size: 16px;
+}
+[data-nav-density="compact"] .dh-tiles,
+[data-nav-density="compact"] .dh-mobile-body {
+  padding: 10px;
+}
+[data-nav-density="compact"] .dh-tile-grid,
+[data-nav-density="compact"] .dh-mobile-grid {
+  gap: 7px;
+}
+[data-nav-density="compact"] .dh-tile,
+[data-nav-density="compact"] .dh-mobile-tile {
+  padding: 10px 10px 9px;
+  border-radius: 9px;
+}
+[data-nav-density="compact"] .dh-tile-icon,
+[data-nav-density="compact"] .dh-mobile-tile-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 6px;
+}
+[data-nav-density="compact"] .dh-tile-name,
+[data-nav-density="compact"] .dh-mobile-tile-name {
+  font-size: 11.5px;
+}
+[data-nav-density="compact"] .dh-tile-desc,
+[data-nav-density="compact"] .dh-mobile-tile-desc {
+  font-size: 10px;
+}
+[data-text-scale="large"] .dh-panel-title {
+  font-size: 20px;
+}
+[data-text-scale="large"] .dh-tile-name,
+[data-text-scale="large"] .dh-user-name,
+[data-text-scale="large"] .dh-footer-btn,
+[data-text-scale="large"] .dh-mobile-tile-name,
+[data-text-scale="large"] .dh-mobile-section-btn {
+  font-size: 13px;
+}
+[data-text-scale="large"] .dh-tile-desc,
+[data-text-scale="large"] .dh-user-email,
+[data-text-scale="large"] .dh-mobile-tile-desc {
+  font-size: 11px;
+}
+[data-contrast-mode="high"] .dh-dock,
+[data-contrast-mode="high"] .dh-panel,
+[data-contrast-mode="high"] .dh-tile,
+[data-contrast-mode="high"] .dh-user-row,
+[data-contrast-mode="high"] .dh-mobile-drawer,
+[data-contrast-mode="high"] .dh-mobile-tile {
+  border-color: var(--border2);
+}
+[data-contrast-mode="high"] .dh-tile,
+[data-contrast-mode="high"] .dh-mobile-tile {
+  background: color-mix(in srgb, var(--card) 86%, var(--page-tint-strong) 14%);
+}
+[data-contrast-mode="high"] .dh-dock-btn:hover,
+[data-contrast-mode="high"] .dh-footer-btn:hover,
+[data-contrast-mode="high"] .dh-mobile-close:hover {
+  background: color-mix(in srgb, var(--bg3) 74%, var(--page-tint-strong) 26%);
 }
 @media (min-width: 769px) { .mob-btn { display: none !important; } }
 @media (max-width: 768px) { .dh-dock { display: none !important; } .dh-panel { left: 0 !important; width: 85vw !important; } }
