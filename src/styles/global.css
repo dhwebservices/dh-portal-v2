@@ -28,6 +28,11 @@
   --accent-hover:  #0077ED;
   --accent-soft:   rgba(0,113,227,0.08);
   --accent-border: rgba(0,113,227,0.2);
+  --accent-rgb:    0, 113, 227;
+  --accent-contrast:#FFFFFF;
+  --page-tint:     rgba(0,113,227,0.04);
+  --page-tint-strong: rgba(0,113,227,0.09);
+  --panel-tint:    rgba(0,113,227,0.045);
 
   /* Status */
   --green:     #1D8348;
@@ -65,6 +70,11 @@
   --accent-hover:  #419CFF;
   --accent-soft:   rgba(41,151,255,0.1);
   --accent-border: rgba(41,151,255,0.25);
+  --accent-rgb:    41, 151, 255;
+  --accent-contrast:#FFFFFF;
+  --page-tint:     rgba(41,151,255,0.075);
+  --page-tint-strong: rgba(41,151,255,0.14);
+  --panel-tint:    rgba(41,151,255,0.06);
   --green:     #30D158;
   --green-bg:  rgba(48,209,88,0.1);
   --red:       #FF453A;
@@ -120,10 +130,13 @@ button { cursor: pointer; font-family: inherit; }
   margin-left: var(--sw); flex: 1;
   display: flex; flex-direction: column;
   min-height: 100vh; min-width: 0;
+  background:
+    radial-gradient(circle at top right, var(--page-tint-strong), transparent 28%),
+    linear-gradient(180deg, var(--page-tint), transparent 22%);
 }
 .main-header {
   height: 52px;
-  background: rgba(255,255,255,0.85);
+  background: color-mix(in srgb, var(--card) 88%, var(--page-tint-strong) 12%);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--border);
@@ -133,9 +146,15 @@ button { cursor: pointer; font-family: inherit; }
   flex-shrink: 0;
 }
 [data-theme="dark"] .main-header {
-  background: rgba(0,0,0,0.8);
+  background: color-mix(in srgb, var(--card) 82%, var(--page-tint-strong) 18%);
 }
-.main-content { flex: 1; padding: 28px 32px; overflow-x: hidden; }
+.main-content {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-x: hidden;
+  background:
+    linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.015));
+}
 
 /* Mobile hamburger */
 .mob-btn {
@@ -367,10 +386,10 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .page-sub   { font-size: 13px; color: var(--faint); margin-top: 4px; }
 
 /* ── Tabs — pill style matching dhwebsiteservices.co.uk ── */
-.tabs   { display: flex; gap: 4px; background: var(--bg2); border-radius: 10px; padding: 4px; margin-bottom: 22px; width: fit-content; }
+.tabs   { display: flex; gap: 4px; background: color-mix(in srgb, var(--bg2) 78%, var(--page-tint-strong) 22%); border-radius: 10px; padding: 4px; margin-bottom: 22px; width: fit-content; border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent-border) 30%); }
 .tab    { padding: 7px 16px; background: transparent; border: none; font-size: 13px; font-weight: 400; color: var(--faint); cursor: pointer; border-radius: 7px; transition: all 0.18s; white-space: nowrap; }
-.tab.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; box-shadow: 0 0 0 1px var(--accent-border); }
-.tab:hover:not(.on) { color: var(--sub); background: rgba(0,0,0,0.03); }
+.tab.on { background: var(--accent); color: var(--accent-contrast); font-weight: 600; box-shadow: 0 0 0 1px var(--accent-border); }
+.tab:hover:not(.on) { color: var(--accent); background: var(--accent-soft); }
 [data-theme="dark"] .tab:hover:not(.on) { background: rgba(255,255,255,0.04); }
 
 /* ── Form grid ── */
@@ -398,7 +417,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .empty p { font-size: 14px; line-height: 1.7; }
 
 /* ── Stat card ── */
-.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; transition: border-color 0.2s; }
+.stat-card { background: color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; transition: border-color 0.2s, background 0.2s; }
 .stat-card:hover { border-color: var(--accent-border); }
 .stat-val  { font-size: clamp(26px,3vw,36px); font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
 .stat-lbl  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-top: 6px; }

@@ -66,6 +66,19 @@ export const DEFAULT_PORTAL_PREFERENCES = {
   dashboardSections: Object.fromEntries(DASHBOARD_SECTIONS.map(([key]) => [key, true])),
 }
 
+function hexToRgb(hex = '#0071E3') {
+  const safe = String(hex).replace('#', '')
+  const expanded = safe.length === 3
+    ? safe.split('').map((part) => `${part}${part}`).join('')
+    : safe
+  const int = Number.parseInt(expanded, 16)
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  }
+}
+
 export function buildPreferenceSettingKey(email = '') {
   return `user_pref:${String(email || '').toLowerCase().trim()}`
 }
@@ -110,7 +123,9 @@ export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) 
   if (typeof document === 'undefined') return
   const safe = sanitizePortalPreferences(preferences)
   const scheme = ACCENT_SCHEMES[safe.accentScheme] || ACCENT_SCHEMES.blue
+  const { r, g, b } = hexToRgb(scheme.accent)
   const root = document.documentElement
+  const isDark = safe.themeMode === 'dark'
 
   root.setAttribute('data-theme', safe.themeMode)
   root.style.setProperty('--accent', scheme.accent)
@@ -119,6 +134,11 @@ export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) 
   root.style.setProperty('--accent-border', scheme.border)
   root.style.setProperty('--blue', scheme.accent)
   root.style.setProperty('--blue-bg', scheme.soft)
+  root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`)
+  root.style.setProperty('--page-tint', isDark ? `rgba(${r}, ${g}, ${b}, 0.075)` : `rgba(${r}, ${g}, ${b}, 0.04)`)
+  root.style.setProperty('--page-tint-strong', isDark ? `rgba(${r}, ${g}, ${b}, 0.14)` : `rgba(${r}, ${g}, ${b}, 0.09)`)
+  root.style.setProperty('--panel-tint', isDark ? `rgba(${r}, ${g}, ${b}, 0.06)` : `rgba(${r}, ${g}, ${b}, 0.045)`)
+  root.style.setProperty('--accent-contrast', '#FFFFFF')
 
   try {
     localStorage.setItem('dh-theme', safe.themeMode)

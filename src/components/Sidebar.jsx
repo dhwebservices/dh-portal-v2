@@ -175,7 +175,10 @@ const css = `
 /* Settings-style panel */
 .dh-panel {
   position: fixed; left: 56px; top: 0; height: 100vh; width: 300px;
-  background: var(--bg2); border-right: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, var(--panel-tint), transparent 18%),
+    color-mix(in srgb, var(--bg2) 88%, var(--page-tint-strong) 12%);
+  border-right: 1px solid var(--border);
   transform: translateX(-102%);
   transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);
   z-index: 99; display: flex; flex-direction: column;
@@ -206,6 +209,18 @@ const css = `
 }
 .dh-tile:hover { background: var(--bg3); border-color: var(--border2); transform: translateY(-1px); }
 .dh-tile.dh-tile-active { border-color: var(--accent); background: var(--accent-soft); }
+.dh-tile.dh-tile-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+.dh-tile.dh-tile-active .dh-tile-name,
+.dh-tile.dh-tile-active .dh-tile-desc { color: var(--accent-contrast); }
+.dh-tile.dh-tile-active .dh-tile-desc { opacity: 0.78; }
+.dh-tile.dh-tile-active .dh-tile-icon {
+  background: rgba(255,255,255,0.14);
+  color: var(--accent-contrast);
+}
 .dh-tile-icon {
   width: 32px; height: 32px; border-radius: 8px; margin-bottom: 8px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -308,7 +323,10 @@ const css = `
 .mob-btn { position: fixed; top: 12px; left: 12px; z-index: 300; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); }
 .dh-mobile-drawer {
   position: fixed; top: 0; left: 0; bottom: 0; width: min(340px, 88vw);
-  background: var(--bg); border-right: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, var(--panel-tint), transparent 18%),
+    color-mix(in srgb, var(--bg) 90%, var(--page-tint-strong) 10%);
+  border-right: 1px solid var(--border);
   display: flex; flex-direction: column; z-index: 201; overflow: hidden;
   box-shadow: 12px 0 32px rgba(0,0,0,0.16);
 }
@@ -338,7 +356,7 @@ const css = `
   font-size: 12px; white-space: nowrap; cursor: pointer; flex-shrink: 0;
 }
 .dh-mobile-section-btn.active {
-  color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border);
+  color: var(--accent-contrast); background: var(--accent); border-color: var(--accent);
 }
 .dh-mobile-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -349,7 +367,20 @@ const css = `
   background: var(--card); border: 1px solid var(--border); min-height: 94px; position: relative;
 }
 .dh-mobile-tile.active {
-  border-color: var(--accent); background: var(--accent-soft);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.dh-mobile-tile.active .dh-mobile-tile-name,
+.dh-mobile-tile.active .dh-mobile-tile-desc {
+  color: var(--accent-contrast);
+}
+.dh-mobile-tile.active .dh-mobile-tile-desc {
+  opacity: 0.78;
+}
+.dh-mobile-tile.active .dh-mobile-tile-icon {
+  background: rgba(255,255,255,0.14);
+  color: var(--accent-contrast);
 }
 .dh-mobile-tile-icon {
   width: 30px; height: 30px; border-radius: 8px; margin-bottom: 8px;
