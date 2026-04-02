@@ -1115,6 +1115,7 @@ export default function Outreach() {
                     const age = daysSince(touched)
                     const temperature = getLeadTemperature(r)
                     const overdue = isOverdue(r)
+                    const timelineItems = buildLeadTimeline(r, emails, appointments, getClientMatch(r)).slice(0, 3)
                     return (
                       <div key={`mobile-${r.id}`} className="card outreach-mobile-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
@@ -1149,6 +1150,21 @@ export default function Outreach() {
                             </>
                           ) : null}
                         </div>
+                        {timelineItems.length ? (
+                          <div style={{ display:'grid', gap:8, marginBottom:12 }}>
+                            <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Recent timeline</div>
+                            {timelineItems.map((item) => (
+                              <div key={item.id} style={{ padding:'9px 10px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)' }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:4 }}>
+                                  <span className={`badge badge-${item.tone}`}>{item.title}</span>
+                                  <span style={{ fontSize:10.5, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
+                                </div>
+                                <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.5 }}>{item.body}</div>
+                                {item.meta ? <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:4 }}>{item.meta}</div> : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                         <div className="outreach-mobile-actions">
                           {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
                           {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
