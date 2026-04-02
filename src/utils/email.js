@@ -18,6 +18,7 @@ function normalizeEmailPayload(type, data = {}) {
       contact_name: data.contact_name || data.to_name || '',
       subject: data.subject,
       message,
+      from_email: data.from_email,
       sent_by: data.sent_by,
       business_name: data.business_name,
       website: data.website,

@@ -30,19 +30,39 @@ export function AuthProvider({ children }) {
   const [perms, setPerms]           = useState(null)
   const [isAdmin, setIsAdmin]       = useState(false)
   const [isOnboarding, setIsOnboarding] = useState(false)
+  const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     if (!normalizedEmail) { setLoading(false); return }
     const timeout = setTimeout(() => setLoading(false), 4000)
     const isOwner = OWNER_EMAILS.has(normalizedEmail)
-    supabase
-      .from('user_permissions')
-      .select('permissions, onboarding')
-      .ilike('user_email', normalizedEmail)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    Promise.all([
+      supabase
+        .from('user_permissions')
+        .select('permissions, onboarding')
+        .ilike('user_email', normalizedEmail)
+        .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', 'portal_maintenance')
+        .maybeSingle(),
+    ])
+      .then(([permissionsResult, maintenanceResult]) => {
         clearTimeout(timeout)
+        const { data, error } = permissionsResult
+        if (!maintenanceResult?.error && maintenanceResult?.data) {
+          const raw = maintenanceResult.data.value?.value ?? maintenanceResult.data.value ?? {}
+          setMaintenance({
+            enabled: raw?.enabled === true,
+            message: raw?.message || '',
+            eta: raw?.eta || '',
+          })
+        } else {
+          setMaintenance({ enabled: false, message: '', eta: '' })
+        }
+
         if (!error && data) {
           const safePerms = sanitizePermissions(data.permissions)
           setPerms(isOwner ? null : safePerms)
@@ -60,6 +80,7 @@ export function AuthProvider({ children }) {
         setPerms(isOwner ? null : { ...BASE_PERMISSIONS })
         setIsAdmin(isOwner)
         setIsOnboarding(false)
+        setMaintenance({ enabled: false, message: '', eta: '' })
         setLoading(false)
       })
 
@@ -101,7 +122,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, loading }}>
+    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, maintenance, loading }}>
       {children}
     </Ctx.Provider>
   )

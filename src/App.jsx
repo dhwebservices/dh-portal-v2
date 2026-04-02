@@ -55,11 +55,43 @@ function RouteLoader() {
   )
 }
 
+function MaintenanceLock() {
+  const { maintenance } = useAuth()
+  return (
+    <div className="fade-in" style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', background:'var(--bg2)' }}>
+      <div className="card card-pad" style={{ maxWidth:640, width:'100%', textAlign:'center', border:'2px solid var(--amber)' }}>
+        <div style={{ fontSize:44, marginBottom:12 }}>🛠</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:30, fontWeight:400, color:'var(--text)', marginBottom:10 }}>
+          Portal Under Maintenance
+        </div>
+        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:14 }}>
+          {maintenance?.message || 'The staff portal is currently undergoing maintenance. Please come back later.'}
+        </div>
+        {maintenance?.eta ? (
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:999, background:'var(--amber-bg)', color:'var(--amber)', fontSize:12, fontWeight:600, marginBottom:14 }}>
+            Expected back: {maintenance.eta}
+          </div>
+        ) : null}
+        <div style={{ fontSize:12, color:'var(--faint)' }}>
+          Admin users can still access the portal during maintenance.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Wraps any page — if user is in onboarding mode, show only the onboarding form
 function OnboardingWall({ children }) {
   const { isOnboarding, loading } = useAuth()
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (isOnboarding) return <HROnboarding />
+  return children
+}
+
+function MaintenanceWall({ children }) {
+  const { maintenance, isAdmin, loading } = useAuth()
+  if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (maintenance?.enabled && !isAdmin) return <MaintenanceLock />
   return children
 }
 
@@ -141,9 +173,9 @@ function AuthenticatedApp() {
     <AuthProvider>
       <Suspense fallback={<RouteLoader />}>
         <Routes>
-          <Route path="/"              element={<OnboardingWall><HomeScreen /></OnboardingWall>} />
-          <Route path="/web-manager/*" element={<OnboardingWall><PermissionGate permKey="website_editor"><WebManager /></PermissionGate></OnboardingWall>} />
-          <Route path="/*"             element={<OnboardingWall><PortalLayout /></OnboardingWall>} />
+          <Route path="/"              element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
+          <Route path="/web-manager/*" element={<MaintenanceWall><OnboardingWall><PermissionGate permKey="website_editor"><WebManager /></PermissionGate></OnboardingWall></MaintenanceWall>} />
+          <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />
         </Routes>
       </Suspense>
     </AuthProvider>
