@@ -7,7 +7,7 @@ import { logAction } from '../utils/audit'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
-const FILTERS = ['all', 'follow_up_queue', 'overdue', 'hot', 'recent', 'converted', 'not_interested']
+const FILTERS = ['all', 'assigned_to_me', 'due_today', 'follow_up_queue', 'overdue', 'hot', 'recent', 'converted', 'not_interested']
 const CALL_OUTCOMES = [
   ['none', 'No outcome set'],
   ['no_answer', 'No answer'],
@@ -321,6 +321,8 @@ export default function Outreach() {
   const [viewEmail, setViewEmail] = useState(null)
   const [bookingLead, setBookingLead] = useState(null)
   const [bookingForm, setBookingForm] = useState({ date: '', start_time: '10:00', duration: 30, staff_email: '' })
+  const [quickNoteLead, setQuickNoteLead] = useState(null)
+  const [quickNote, setQuickNote] = useState('')
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
 
@@ -519,6 +521,49 @@ export default function Outreach() {
       updated_at: new Date().toISOString(),
     }).eq('id', row.id)
     if (!error) load()
+  }
+
+  const openQuickNote = (row) => {
+    setQuickNoteLead(row)
+    setQuickNote('')
+  }
+
+  const saveQuickNote = async () => {
+    if (!quickNoteLead) return
+    const noteText = String(quickNote || '').trim()
+    if (!noteText) {
+      alert('Add a note first.')
+      return
+    }
+    const existingPlainNotes = String(quickNoteLead.plainNotes || '').trim()
+    const nextPlainNotes = existingPlainNotes ? `${noteText}\n\n${existingPlainNotes}` : noteText
+    const meta = {
+      outcome: quickNoteLead.outcome || 'none',
+      follow_up_date: quickNoteLead.follow_up_date || '',
+      assigned_to_email: quickNoteLead.assigned_to_email || '',
+      assigned_to_name: quickNoteLead.assigned_to_name || '',
+      creator_email: quickNoteLead.creator_email || '',
+      reminder_notice_key: quickNoteLead.reminder_notice_key || '',
+      history: [
+        buildHistoryEntry({
+          action: 'note',
+          value: noteText,
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(quickNoteLead.history || []),
+      ].slice(0, 12),
+    }
+    const { error } = await supabase.from('outreach').update({
+      notes: buildOutreachNotes(nextPlainNotes, meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', quickNoteLead.id)
+    if (error) {
+      alert('Could not save note: ' + error.message)
+      return
+    }
+    setQuickNoteLead(null)
+    setQuickNote('')
+    load()
   }
 
   const del = async (id, name) => {
@@ -830,6 +875,8 @@ export default function Outreach() {
 
       const matchF =
         filter === 'all'
+        || (filter === 'assigned_to_me' && !!user?.email && String(r.assigned_to_email || '').toLowerCase() === String(user.email || '').toLowerCase())
+        || (filter === 'due_today' && !!r.follow_up_date && r.follow_up_date <= new Date().toISOString().split('T')[0] && needsFollowUp(r))
         || (filter === 'follow_up_queue' && needsFollowUp(r))
         || (filter === 'overdue' && isOverdue(r))
         || (filter === 'hot' && r.status === 'interested')
@@ -840,7 +887,7 @@ export default function Outreach() {
 
       return matchQ && matchF
     })
-  }, [enrichedRows, search, filter])
+  }, [enrichedRows, search, filter, user?.email])
 
   const filteredEmails = emails.filter((e) => {
     const q = search.toLowerCase()
@@ -1040,6 +1087,9 @@ export default function Outreach() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                              {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
+                              {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
+                              <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
                               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
                               <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
                               <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
@@ -1100,6 +1150,9 @@ export default function Outreach() {
                           ) : null}
                         </div>
                         <div className="outreach-mobile-actions">
+                          {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
+                          {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
+                          <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
                           <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
                           <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
@@ -1344,6 +1397,31 @@ export default function Outreach() {
                   {[30, 45, 60].map((mins) => <option key={mins} value={mins}>{mins} mins</option>)}
                 </select>
               </div>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {quickNoteLead ? (
+        <Modal
+          title={`Log note for ${quickNoteLead.business_name || quickNoteLead.contact_name || 'lead'}`}
+          onClose={() => { setQuickNoteLead(null); setQuickNote('') }}
+          footer={<><button className="btn btn-outline" onClick={() => { setQuickNoteLead(null); setQuickNote('') }}>Cancel</button><button className="btn btn-primary" onClick={saveQuickNote}>Save note</button></>}
+        >
+          <div style={{ display:'grid', gap:12 }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+              {quickNoteLead.contact_name || 'No contact name'}{quickNoteLead.email ? ` · ${quickNoteLead.email}` : ''}{quickNoteLead.phone ? ` · ${quickNoteLead.phone}` : ''}
+            </div>
+            <div>
+              <label className="lbl">Quick note</label>
+              <textarea
+                className="inp"
+                rows={5}
+                value={quickNote}
+                onChange={(e) => setQuickNote(e.target.value)}
+                style={{ resize:'vertical' }}
+                placeholder="Log the latest call, voicemail, objection, or next step..."
+              />
             </div>
           </div>
         </Modal>
