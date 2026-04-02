@@ -6,7 +6,29 @@ import { logAction } from '../utils/audit'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
 const FILTERS = ['all', 'follow_up_queue', 'overdue', 'hot', 'recent', 'converted', 'not_interested']
-const EMPTY = { business_name: '', contact_name: '', phone: '', email: '', website: '', status: 'new', notes: '' }
+const CALL_OUTCOMES = [
+  ['none', 'No outcome set'],
+  ['no_answer', 'No answer'],
+  ['follow_up_later', 'Follow up later'],
+  ['interested', 'Interested'],
+  ['send_info', 'Send info'],
+  ['booked_call', 'Booked call'],
+  ['proposal_requested', 'Proposal requested'],
+  ['not_interested', 'Not interested'],
+  ['converted', 'Converted'],
+]
+const NOTES_META_PREFIX = '[dh-outreach-meta]'
+const EMPTY = {
+  business_name: '',
+  contact_name: '',
+  phone: '',
+  email: '',
+  website: '',
+  status: 'new',
+  notes: '',
+  outcome: 'none',
+  follow_up_date: '',
+}
 
 const statusColor = {
   new: 'grey',
@@ -19,6 +41,62 @@ const statusColor = {
 
 function labelize(value = '') {
   return String(value || '').replace(/_/g, ' ')
+}
+
+function normalizeStatus(value = '') {
+  const safe = String(value || '').toLowerCase().replace(/\s+/g, '_')
+  return STATUSES.includes(safe) ? safe : 'new'
+}
+
+function parseOutreachNotes(raw = '') {
+  const text = String(raw || '')
+  if (!text.startsWith(NOTES_META_PREFIX)) {
+    return {
+      plainNotes: text,
+      meta: { outcome: 'none', follow_up_date: '', history: [] },
+    }
+  }
+
+  const newlineIndex = text.indexOf('\n')
+  const metaLine = newlineIndex >= 0 ? text.slice(NOTES_META_PREFIX.length, newlineIndex).trim() : text.slice(NOTES_META_PREFIX.length).trim()
+  const remaining = newlineIndex >= 0 ? text.slice(newlineIndex + 1).trim() : ''
+
+  try {
+    const parsed = JSON.parse(metaLine || '{}')
+    return {
+      plainNotes: remaining,
+      meta: {
+        outcome: parsed.outcome || 'none',
+        follow_up_date: parsed.follow_up_date || '',
+        history: Array.isArray(parsed.history) ? parsed.history : [],
+      },
+    }
+  } catch {
+    return {
+      plainNotes: remaining || text,
+      meta: { outcome: 'none', follow_up_date: '', history: [] },
+    }
+  }
+}
+
+function buildOutreachNotes(plainNotes, meta = {}) {
+  const safeMeta = {
+    outcome: meta.outcome || 'none',
+    follow_up_date: meta.follow_up_date || '',
+    history: Array.isArray(meta.history) ? meta.history.slice(0, 12) : [],
+  }
+  const metaBlock = `${NOTES_META_PREFIX} ${JSON.stringify(safeMeta)}`
+  const body = String(plainNotes || '').trim()
+  return body ? `${metaBlock}\n${body}` : metaBlock
+}
+
+function buildHistoryEntry({ action, value, actor }) {
+  return {
+    action,
+    value,
+    actor,
+    at: new Date().toISOString(),
+  }
 }
 
 function formatDateTime(value) {
@@ -43,16 +121,17 @@ function daysSince(value) {
 }
 
 function getLeadTemperature(row) {
-  if (row.status === 'converted') return { label: 'Won', tone: 'green' }
-  if (row.status === 'interested') return { label: 'Hot', tone: 'red' }
-  if (row.status === 'follow_up') return { label: 'Warm', tone: 'amber' }
-  if (row.status === 'contacted') return { label: 'Warm', tone: 'blue' }
-  if (row.status === 'not_interested') return { label: 'Cold', tone: 'grey' }
+  const status = normalizeStatus(row.status)
+  if (status === 'converted') return { label: 'Won', tone: 'green' }
+  if (status === 'interested') return { label: 'Hot', tone: 'red' }
+  if (status === 'follow_up') return { label: 'Warm', tone: 'amber' }
+  if (status === 'contacted') return { label: 'Warm', tone: 'blue' }
+  if (status === 'not_interested') return { label: 'Cold', tone: 'grey' }
   return { label: 'New', tone: 'grey' }
 }
 
 function needsFollowUp(row) {
-  return ['contacted', 'interested', 'follow_up'].includes(row.status)
+  return ['contacted', 'interested', 'follow_up'].includes(normalizeStatus(row.status))
 }
 
 function isRecent(row) {
@@ -63,20 +142,25 @@ function isRecent(row) {
 
 function isOverdue(row) {
   if (!needsFollowUp(row)) return false
+  if (row.follow_up_date) {
+    return new Date(`${row.follow_up_date}T23:59:59`).getTime() < Date.now()
+  }
   const touched = getTouchedAt(row)
   const age = daysSince(touched)
   if (age === null) return false
-  if (row.status === 'interested') return age >= 2
-  if (row.status === 'follow_up') return age >= 2
+  const status = normalizeStatus(row.status)
+  if (status === 'interested') return age >= 2
+  if (status === 'follow_up') return age >= 2
   return age >= 4
 }
 
 function getNextAction(row) {
-  if (row.status === 'new') return 'First outreach'
-  if (row.status === 'contacted') return 'Send follow-up'
-  if (row.status === 'interested') return 'Book a call'
-  if (row.status === 'follow_up') return 'Chase today'
-  if (row.status === 'converted') return 'Hand over to delivery'
+  const status = normalizeStatus(row.status)
+  if (status === 'new') return 'First outreach'
+  if (status === 'contacted') return 'Send follow-up'
+  if (status === 'interested') return 'Book a call'
+  if (status === 'follow_up') return 'Chase today'
+  if (status === 'converted') return 'Hand over to delivery'
   return 'Close out or archive'
 }
 
@@ -156,20 +240,43 @@ export default function Outreach() {
   }
 
   const openAdd = () => { setEditing(null); setForm(EMPTY); setModal(true) }
-  const openEdit = (r) => { setEditing(r); setForm({ ...r }); setModal(true) }
+  const openEdit = (r) => {
+    setEditing(r)
+    setForm({
+      ...r,
+      status: normalizeStatus(r.status),
+      notes: r.plainNotes || '',
+      outcome: r.outcome || 'none',
+      follow_up_date: r.follow_up_date || '',
+    })
+    setModal(true)
+  }
   const close = () => { setModal(false); setEditing(null) }
   const sf = (k, v) => setForm((p) => ({ ...p, [k]: v }))
 
   const save = async () => {
     setSaving(true)
+    const nextStatus = normalizeStatus(form.status)
+    const noteMeta = {
+      outcome: form.outcome || 'none',
+      follow_up_date: form.follow_up_date || '',
+      history: [
+        buildHistoryEntry({
+          action: editing ? 'updated' : 'created',
+          value: editing ? 'Lead updated' : 'Lead added',
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(editing?.history || []),
+      ].slice(0, 12),
+    }
     const payload = {
       business_name: form.business_name,
       contact_name: form.contact_name,
       phone: form.phone,
       email: form.email,
       website: form.website,
-      status: form.status,
-      notes: form.notes,
+      status: nextStatus,
+      notes: buildOutreachNotes(form.notes, noteMeta),
       updated_at: new Date().toISOString(),
     }
     if (editing) {
@@ -186,8 +293,81 @@ export default function Outreach() {
     load()
   }
 
-  const quickStatus = async (id, status) => {
-    const { error } = await supabase.from('outreach').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+  const quickStatus = async (row, status) => {
+    const nextStatus = normalizeStatus(status)
+    const meta = {
+      outcome: row.outcome || 'none',
+      follow_up_date: row.follow_up_date || '',
+      history: [
+        buildHistoryEntry({
+          action: 'status',
+          value: labelize(nextStatus),
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(row.history || []),
+      ].slice(0, 12),
+    }
+    const { error } = await supabase.from('outreach').update({
+      status: nextStatus,
+      notes: buildOutreachNotes(row.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
+    if (!error) load()
+  }
+
+  const quickOutcome = async (row, outcome) => {
+    const normalizedOutcome = CALL_OUTCOMES.some(([key]) => key === outcome) ? outcome : 'none'
+    const statusFromOutcome = normalizedOutcome === 'converted'
+      ? 'converted'
+      : normalizedOutcome === 'not_interested'
+        ? 'not_interested'
+        : normalizedOutcome === 'interested' || normalizedOutcome === 'booked_call' || normalizedOutcome === 'proposal_requested'
+          ? 'interested'
+          : normalizedOutcome === 'follow_up_later' || normalizedOutcome === 'send_info' || normalizedOutcome === 'no_answer'
+            ? 'follow_up'
+            : normalizeStatus(row.status)
+
+    const meta = {
+      outcome: normalizedOutcome,
+      follow_up_date: row.follow_up_date || '',
+      history: [
+        buildHistoryEntry({
+          action: 'outcome',
+          value: labelize(normalizedOutcome),
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(row.history || []),
+      ].slice(0, 12),
+    }
+
+    const { error } = await supabase.from('outreach').update({
+      status: statusFromOutcome,
+      notes: buildOutreachNotes(row.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
+
+    if (!error) load()
+  }
+
+  const quickFollowUpDate = async (row, daysAhead) => {
+    const target = new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0]
+    const meta = {
+      outcome: row.outcome || 'none',
+      follow_up_date: target,
+      history: [
+        buildHistoryEntry({
+          action: 'follow_up_date',
+          value: target,
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(row.history || []),
+      ].slice(0, 12),
+    }
+    const { error } = await supabase.from('outreach').update({
+      status: normalizeStatus(row.status) === 'new' ? 'follow_up' : normalizeStatus(row.status),
+      notes: buildOutreachNotes(row.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
     if (!error) load()
   }
 
@@ -198,26 +378,39 @@ export default function Outreach() {
     load()
   }
 
-  const followUpQueue = useMemo(() => buildQueue(rows, emails), [rows, emails])
+  const enrichedRows = useMemo(() => rows.map((row) => {
+    const parsed = parseOutreachNotes(row.notes)
+    return {
+      ...row,
+      status: normalizeStatus(row.status),
+      plainNotes: parsed.plainNotes,
+      outcome: parsed.meta.outcome,
+      follow_up_date: parsed.meta.follow_up_date,
+      history: parsed.meta.history,
+    }
+  }), [rows])
+
+  const followUpQueue = useMemo(() => buildQueue(enrichedRows, emails), [enrichedRows, emails])
 
   const stats = useMemo(() => ({
-    total: rows.length,
+    total: enrichedRows.length,
     queue: followUpQueue.length,
     overdue: followUpQueue.filter((row) => row.overdue).length,
-    hot: rows.filter((row) => row.status === 'interested').length,
-    converted: rows.filter((row) => row.status === 'converted').length,
-    recent: rows.filter((row) => isRecent(row)).length,
-  }), [rows, followUpQueue])
+    hot: enrichedRows.filter((row) => row.status === 'interested').length,
+    converted: enrichedRows.filter((row) => row.status === 'converted').length,
+    recent: enrichedRows.filter((row) => isRecent(row)).length,
+  }), [enrichedRows, followUpQueue])
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    return enrichedRows.filter((r) => {
       const q = search.toLowerCase()
       const matchQ = !q
         || r.business_name?.toLowerCase().includes(q)
         || r.contact_name?.toLowerCase().includes(q)
         || r.email?.toLowerCase().includes(q)
         || r.added_by?.toLowerCase().includes(q)
-        || r.notes?.toLowerCase().includes(q)
+        || r.plainNotes?.toLowerCase().includes(q)
+        || labelize(r.outcome).toLowerCase().includes(q)
 
       const matchF =
         filter === 'all'
@@ -231,7 +424,7 @@ export default function Outreach() {
 
       return matchQ && matchF
     })
-  }, [rows, search, filter])
+  }, [enrichedRows, search, filter])
 
   const filteredEmails = emails.filter((e) => {
     const q = search.toLowerCase()
@@ -298,8 +491,8 @@ export default function Outreach() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => openEdit(row)}>Open</button>
-                    {row.status !== 'interested' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row.id, 'interested')}>Mark hot</button> : null}
-                    {row.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row.id, 'follow_up')}>Set follow-up</button> : null}
+                    {row.status !== 'interested' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'interested')}>Mark hot</button> : null}
+                    {row.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'follow_up')}>Set follow-up</button> : null}
                   </div>
                 </div>
               )
@@ -396,16 +589,23 @@ export default function Outreach() {
                               className="inp"
                               style={{ padding: '4px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', width: 132, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', cursor: 'pointer' }}
                               value={r.status || 'new'}
-                              onChange={(e) => quickStatus(r.id, e.target.value)}
+                              onChange={(e) => quickStatus(r, e.target.value)}
                             >
                               {STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
                             </select>
                           </td>
-                          <td><span className={`badge badge-${temperature.tone}`}>{temperature.label}</span></td>
+                          <td>
+                            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                              <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
+                              {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
+                            </div>
+                          </td>
                           <td style={{ minWidth: 160 }}>
                             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{nextAction}</div>
                             <div style={{ fontSize: 11, color: overdue ? 'var(--red)' : 'var(--faint)', marginTop: 4 }}>
-                              {overdue ? 'Overdue follow-up' : `${getLastContactMethod(r, emails)}${age !== null ? ` · ${age}d ago` : ''}`}
+                              {r.follow_up_date
+                                ? `Follow up ${new Date(`${r.follow_up_date}T12:00:00`).toLocaleDateString('en-GB', { day:'numeric', month:'short' })}`
+                                : overdue ? 'Overdue follow-up' : `${getLastContactMethod(r, emails)}${age !== null ? ` · ${age}d ago` : ''}`}
                             </div>
                           </td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>{formatDateTime(touched)}</td>
@@ -422,8 +622,8 @@ export default function Outreach() {
                           <td>
                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                              {r.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'follow_up')}>Follow-up</button> : null}
-                              {r.status !== 'converted' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'converted')}>Convert</button> : null}
+                              {r.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button> : null}
+                              {r.status !== 'converted' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'converted')}>Convert</button> : null}
                               <button className="btn btn-danger btn-sm" onClick={() => del(r.id, r.business_name)}>Del</button>
                             </div>
                           </td>
@@ -455,6 +655,7 @@ export default function Outreach() {
                         </div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
                           <span className={`badge badge-${statusColor[r.status || 'new'] || 'grey'}`}>{labelize(r.status || 'new')}</span>
+                          {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
                           {overdue ? <span className="badge badge-red">Overdue</span> : null}
                         </div>
                         <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 12 }}>
@@ -463,18 +664,24 @@ export default function Outreach() {
                         <div style={{ display:'grid', gap:8, marginBottom:12 }}>
                           <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Last touch</div>
                           <div style={{ fontSize:12.5, color:'var(--text)' }}>{formatDateTime(touched)}</div>
-                          {r.notes ? (
+                          {r.follow_up_date ? (
+                            <>
+                              <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Next follow-up</div>
+                              <div style={{ fontSize:12.5, color: overdue ? 'var(--red)' : 'var(--text)' }}>{new Date(`${r.follow_up_date}T12:00:00`).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}</div>
+                            </>
+                          ) : null}
+                          {r.plainNotes ? (
                             <>
                               <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Latest note</div>
-                              <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.55 }}>{r.notes}</div>
+                              <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.55 }}>{r.plainNotes}</div>
                             </>
                           ) : null}
                         </div>
                         <div className="outreach-mobile-actions">
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'follow_up')}>Follow-up</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'interested')}>Hot</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'converted')}>Convert</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'interested')}>Hot</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'converted')}>Convert</button>
                         </div>
                       </div>
                     )
@@ -602,6 +809,12 @@ export default function Outreach() {
                   {STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
                 </select>
               </div>
+              <div><label className="lbl">Call outcome</label>
+                <select className="inp" value={form.outcome} onChange={(e) => sf('outcome', e.target.value)}>
+                  {CALL_OUTCOMES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </div>
+              <div><label className="lbl">Next follow-up date</label><input className="inp" type="date" value={form.follow_up_date} onChange={(e) => sf('follow_up_date', e.target.value)} /></div>
             </div>
             {!editing && (
               <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderRadius: 7, fontSize: 13, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -609,7 +822,34 @@ export default function Outreach() {
                 <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user?.name}</span>
               </div>
             )}
+            {editing?.history?.length ? (
+              <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Recent outreach history</div>
+                <div style={{ display:'grid', gap:8 }}>
+                  {editing.history.slice(0, 4).map((entry, index) => (
+                    <div key={`${entry.at}-${index}`} style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.5 }}>
+                      <strong style={{ color:'var(--text)' }}>{labelize(entry.action)}</strong> · {entry.value}
+                      <span style={{ color:'var(--faint)' }}> · {entry.actor} · {formatDateTime(entry.at)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} style={{ resize: 'vertical' }} placeholder="What happened on the call? What should happen next?" /></div>
+            {editing ? (
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                {[
+                  ['no_answer', 'No answer'],
+                  ['follow_up_later', 'Follow up later'],
+                  ['send_info', 'Send info'],
+                  ['booked_call', 'Booked call'],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" className="btn btn-outline btn-sm" onClick={() => quickOutcome(editing, key)}>{label}</button>
+                ))}
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 1)}>Tomorrow</button>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 3)}>+3 days</button>
+              </div>
+            ) : null}
           </div>
         </Modal>
       )}
