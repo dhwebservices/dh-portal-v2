@@ -5,6 +5,19 @@ import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
 
+function isRecentlyActive(value) {
+  if (!value) return false
+  return Date.now() - new Date(value).getTime() <= 5 * 60 * 1000
+}
+
+function formatPresenceLabel(value) {
+  if (!value) return 'No recent activity'
+  const diffMs = Date.now() - new Date(value).getTime()
+  const diffMins = Math.max(0, Math.round(diffMs / 60000))
+  if (diffMins <= 1) return 'Active now'
+  return `Seen ${diffMins} mins ago`
+}
+
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},
   {key:'my_profile',label:'My Profile'},{key:'search',label:'Search'},
@@ -119,6 +132,8 @@ export default function MyStaff() {
     return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
   })
 
+  const activeCount = filtered.filter((u) => isRecentlyActive(profiles[u.email?.toLowerCase()]?.last_seen)).length
+
   const getInitials = (name) => (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
 
   const COLOURS = ['#0071E3','#30A46C','#E54D2E','#8E4EC6','#C2500D','#0197C8','#D6409F']
@@ -127,11 +142,26 @@ export default function MyStaff() {
   return (
     <div className="fade-in">
       <div className="page-hd">
-        <div><h1 className="page-title">My Staff</h1><p className="page-sub">{msUsers.length} team members</p></div>
+        <div><h1 className="page-title">My Staff</h1><p className="page-sub">{msUsers.length} team members · {activeCount} active now</p></div>
         <button className="btn btn-outline" onClick={load} disabled={loading} style={{ display:'flex', alignItems:'center', gap:6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
+        <div className="stat-card">
+          <div className="stat-val">{msUsers.length}</div>
+          <div className="stat-lbl">Total staff</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val" style={{ color:'var(--green)' }}>{activeCount}</div>
+          <div className="stat-lbl">Active now</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-val" style={{ color:'var(--amber)' }}>{filtered.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length}</div>
+          <div className="stat-lbl">Onboarding</div>
+        </div>
       </div>
 
       {error && <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)', marginBottom:16 }}>{error}</div>}
@@ -158,6 +188,7 @@ export default function MyStaff() {
             const profile = profiles[userEmail] || {}
             const userPm = permsMap[userEmail]
             const isOnboarding = userPm?.onboarding || false
+            const isActiveNow = isRecentlyActive(profile.last_seen)
             const colour = colourFor(userEmail)
             return (
               <button
@@ -181,9 +212,14 @@ export default function MyStaff() {
                 </div>
 
                 {/* Status */}
-                <span className={`badge badge-${isOnboarding?'amber':'green'}`}>
-                  {isOnboarding ? 'Onboarding' : 'Active'}
-                </span>
+                <div style={{ display:'grid', gap:8, justifyItems:'center' }}>
+                  <span className={`badge badge-${isOnboarding?'amber':'green'}`}>
+                    {isOnboarding ? 'Onboarding' : 'Active'}
+                  </span>
+                  <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>
+                    {formatPresenceLabel(profile.last_seen)}
+                  </span>
+                </div>
               </button>
             )
           })}
