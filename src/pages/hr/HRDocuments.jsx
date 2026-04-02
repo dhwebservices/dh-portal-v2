@@ -45,6 +45,17 @@ function getComplianceTone(status) {
   return 'green'
 }
 
+function formatTimelineDate(value) {
+  if (!value) return 'Unknown time'
+  return new Date(value).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function HRDocuments() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -177,6 +188,44 @@ export default function HRDocuments() {
         return score(a) - score(b)
       })
   }, [staff, docMap, onboardingMap, payslipMap])
+
+  const documentTimeline = useMemo(() => {
+    const docEvents = documents.map((doc) => ({
+      id: `doc-${doc.id}`,
+      date: doc.created_at,
+      title: doc.name,
+      subtitle: `${doc.staff_name || doc.staff_email} · ${doc.type || 'Document'}`,
+      tone: String(doc.type || '').toLowerCase().includes('contract') ? 'green' : 'blue',
+      action: doc.file_url,
+      actionLabel: 'Open file',
+    }))
+
+    const payslipEvents = payslips.map((slip) => ({
+      id: `payslip-${slip.id}`,
+      date: slip.uploaded_at,
+      title: `Payslip uploaded: ${slip.period || 'Unknown period'}`,
+      subtitle: slip.user_name || slip.user_email,
+      tone: 'green',
+      action: slip.file_url,
+      actionLabel: 'Open payslip',
+    }))
+
+    const rtwEvents = onboarding
+      .filter((row) => row.rtw_document_url || row.rtw_expiry)
+      .map((row) => ({
+        id: `rtw-${row.user_email}`,
+        date: row.submitted_at || row.updated_at || row.created_at || null,
+        title: row.rtw_document_url ? 'Right-to-work record updated' : 'Right-to-work expiry tracked',
+        subtitle: `${row.user_name || row.user_email}${row.rtw_expiry ? ` · expires ${new Date(row.rtw_expiry).toLocaleDateString('en-GB')}` : ''}`,
+        tone: row.rtw_document_url ? 'amber' : 'red',
+        action: row.rtw_document_url || null,
+        actionLabel: row.rtw_document_url ? 'Open RTW file' : null,
+      }))
+
+    return [...docEvents, ...payslipEvents, ...rtwEvents]
+      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+      .slice(0, 12)
+  }, [documents, payslips, onboarding])
 
   const filteredCoverage = filter === 'all'
     ? payslipCoverage
@@ -347,6 +396,30 @@ export default function HRDocuments() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Panel>
+
+      <div style={{ height: 18 }} />
+
+      <Panel title="Document timeline" subtitle="Recent document, payroll, and right-to-work activity across the team.">
+        {!documentTimeline.length ? (
+          <EmptyState text="No document activity recorded yet." />
+        ) : (
+          <div style={{ display: 'grid' }}>
+            {documentTimeline.map((item, index) => (
+              <div key={item.id} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span className={`badge badge-${item.tone}`}>{item.tone === 'green' ? 'Compliant' : item.tone === 'amber' ? 'Review' : 'Risk'}</span>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{item.title}</div>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5 }}>{item.subtitle}</div>
+                  <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)', marginTop: 6 }}>{formatTimelineDate(item.date)}</div>
+                </div>
+                {item.action ? <a className="btn btn-outline btn-sm" href={item.action} target="_blank" rel="noreferrer">{item.actionLabel || 'Open'}</a> : null}
+              </div>
+            ))}
           </div>
         )}
       </Panel>
