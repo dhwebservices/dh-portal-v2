@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
@@ -110,6 +111,15 @@ function formatDateTime(value) {
   })
 }
 
+function formatShortDate(value) {
+  if (!value) return '—'
+  return new Date(`${value}T12:00:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 function getTouchedAt(row) {
   return row.updated_at || row.created_at || null
 }
@@ -199,6 +209,76 @@ function buildQueue(rows, emails) {
     })
 }
 
+function matchesLeadEmail(entry, row) {
+  const sentTo = Array.isArray(entry?.sent_to) ? entry.sent_to.join(' ').toLowerCase() : String(entry?.sent_to || '').toLowerCase()
+  const email = String(row?.email || '').toLowerCase()
+  return !!email && sentTo.includes(email)
+}
+
+function matchesLeadBusiness(value, row) {
+  const left = String(value || '').trim().toLowerCase()
+  const right = String(row?.business_name || '').trim().toLowerCase()
+  return !!left && !!right && left === right
+}
+
+function buildLeadTimeline(row, emails, appointments, clientRecord) {
+  const items = []
+
+  for (const entry of row.history || []) {
+    items.push({
+      id: `history-${entry.at}-${entry.action}`,
+      type: 'history',
+      tone: entry.action === 'created' ? 'blue' : entry.action === 'outcome' ? 'amber' : 'grey',
+      title: labelize(entry.action),
+      body: entry.value,
+      meta: entry.actor || 'Portal user',
+      at: entry.at,
+    })
+  }
+
+  for (const email of emails.filter((entry) => matchesLeadEmail(entry, row)).slice(0, 8)) {
+    items.push({
+      id: `email-${email.id}`,
+      type: 'email',
+      tone: 'blue',
+      title: email.subject || 'Email sent',
+      body: Array.isArray(email.sent_to) ? email.sent_to.join(', ') : email.sent_to,
+      meta: email.sent_by || email.from_address || 'Portal email',
+      at: email.sent_at,
+    })
+  }
+
+  for (const appointment of appointments
+    .filter((entry) => matchesLeadEmail({ sent_to: entry.client_email }, row) || matchesLeadBusiness(entry.client_business, row))
+    .slice(0, 8)) {
+    items.push({
+      id: `appointment-${appointment.id}`,
+      type: 'appointment',
+      tone: appointment.status === 'cancelled' ? 'red' : 'green',
+      title: appointment.status === 'cancelled' ? 'Call cancelled' : 'Call booked',
+      body: `${formatShortDate(appointment.date)} · ${appointment.start_time} – ${appointment.end_time}${appointment.staff_name ? ` · ${appointment.staff_name}` : ''}`,
+      meta: appointment.client_name || appointment.client_email || 'Appointment',
+      at: appointment.created_at || `${appointment.date}T${appointment.start_time || '09:00'}:00`,
+    })
+  }
+
+  if (clientRecord) {
+    items.push({
+      id: `client-${clientRecord.id}`,
+      type: 'client',
+      tone: 'green',
+      title: 'Client record created',
+      body: `${clientRecord.name || row.business_name} · ${clientRecord.plan || 'Starter'} · ${clientRecord.status || 'pending'}`,
+      meta: clientRecord.email || 'Onboarded client',
+      at: clientRecord.updated_at || clientRecord.created_at,
+    })
+  }
+
+  return items
+    .filter((item) => item.at)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+}
+
 function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
   return (
     <div className="card" style={{ padding: '18px 18px 16px', minHeight: 122 }}>
@@ -214,15 +294,21 @@ function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
 
 export default function Outreach() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('contacts')
   const [rows, setRows] = useState([])
   const [emails, setEmails] = useState([])
+  const [appointments, setAppointments] = useState([])
+  const [clients, setClients] = useState([])
+  const [bookableStaff, setBookableStaff] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [viewEmail, setViewEmail] = useState(null)
+  const [bookingLead, setBookingLead] = useState(null)
+  const [bookingForm, setBookingForm] = useState({ date: '', start_time: '10:00', duration: 30, staff_email: '' })
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
 
@@ -230,12 +316,34 @@ export default function Outreach() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: contacts }, { data: emailLog }] = await Promise.all([
+    const [{ data: contacts }, { data: emailLog }, { data: apptData }, { data: clientData }, { data: profileData }, { data: permData }] = await Promise.all([
       supabase.from('outreach').select('*').order('created_at', { ascending: false }),
       supabase.from('email_log').select('*').order('sent_at', { ascending: false }).limit(200),
+      supabase.from('appointments').select('*').order('created_at', { ascending: false }).limit(120),
+      supabase.from('clients').select('*').order('created_at', { ascending: false }).limit(120),
+      supabase.from('hr_profiles').select('user_email,full_name,role,bookable').order('full_name'),
+      supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
     ])
     setRows(contacts || [])
     setEmails(emailLog || [])
+    setAppointments(apptData || [])
+    setClients(clientData || [])
+    const profileMap = new Map((profileData || []).map((item) => [String(item.user_email || '').toLowerCase(), item]))
+    const emailsWithAccess = new Set()
+    for (const item of profileData || []) {
+      if (item.bookable) emailsWithAccess.add(String(item.user_email || '').toLowerCase())
+    }
+    for (const item of permData || []) {
+      if (item.bookable_staff) emailsWithAccess.add(String(item.user_email || '').toLowerCase())
+    }
+    setBookableStaff(Array.from(emailsWithAccess).map((email) => {
+      const profile = profileMap.get(email)
+      return {
+        user_email: email,
+        full_name: profile?.full_name || email,
+        role: profile?.role || 'Bookable staff',
+      }
+    }).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')))
     setLoading(false)
   }
 
@@ -253,6 +361,7 @@ export default function Outreach() {
   }
   const close = () => { setModal(false); setEditing(null) }
   const sf = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const sbf = (k, v) => setBookingForm((p) => ({ ...p, [k]: v }))
 
   const save = async () => {
     setSaving(true)
@@ -378,6 +487,156 @@ export default function Outreach() {
     load()
   }
 
+  const getClientMatch = (row) => clients.find((client) => {
+    const leadEmail = String(row.email || '').toLowerCase()
+    const clientEmail = String(client.email || '').toLowerCase()
+    if (leadEmail && clientEmail && leadEmail === clientEmail) return true
+    return matchesLeadBusiness(client.name, row)
+  }) || null
+
+  const openProposalBuilder = (row) => {
+    const params = new URLSearchParams()
+    if (row.business_name) params.set('business', row.business_name)
+    if (row.contact_name) params.set('name', row.contact_name)
+    if (row.email) params.set('email', row.email)
+    if (row.phone) params.set('phone', row.phone)
+    if (row.website) params.set('website', row.website)
+    if (row.plainNotes) params.set('notes', row.plainNotes)
+    navigate(`/proposals?${params.toString()}`)
+  }
+
+  const openBookingModal = (row) => {
+    setBookingLead(row)
+    setBookingForm({
+      date: row.follow_up_date || new Date().toISOString().split('T')[0],
+      start_time: '10:00',
+      duration: 30,
+      staff_email: bookableStaff[0]?.user_email || '',
+    })
+  }
+
+  const saveAppointment = async () => {
+    if (!bookingLead) return
+    if (!bookingForm.date || !bookingForm.start_time || !bookingForm.staff_email) {
+      alert('Choose a staff member, date, and time first.')
+      return
+    }
+
+    const staffMember = bookableStaff.find((item) => item.user_email === bookingForm.staff_email)
+    const duration = Number(bookingForm.duration || 30)
+    const [hours, minutes] = String(bookingForm.start_time).split(':').map(Number)
+    const endTotal = hours * 60 + minutes + duration
+    const end_time = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`
+
+    const conflict = appointments.find((entry) =>
+      String(entry.staff_email || '').toLowerCase() === String(bookingForm.staff_email || '').toLowerCase()
+      && entry.date === bookingForm.date
+      && entry.start_time === bookingForm.start_time
+      && entry.status !== 'cancelled'
+    )
+    if (conflict) {
+      alert('That staff member already has a booking at that time.')
+      return
+    }
+
+    const appointmentPayload = {
+      client_name: bookingLead.contact_name || bookingLead.business_name,
+      client_business: bookingLead.business_name || null,
+      client_email: bookingLead.email || null,
+      date: bookingForm.date,
+      start_time: bookingForm.start_time,
+      end_time,
+      duration,
+      staff_email: bookingForm.staff_email,
+      staff_name: staffMember?.full_name || bookingForm.staff_email,
+      status: 'confirmed',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('appointments').insert([appointmentPayload])
+    if (error) {
+      alert('Booking failed: ' + error.message)
+      return
+    }
+
+    const meta = {
+      outcome: 'booked_call',
+      follow_up_date: bookingForm.date,
+      history: [
+        buildHistoryEntry({
+          action: 'appointment',
+          value: `${formatShortDate(bookingForm.date)} · ${bookingForm.start_time} with ${staffMember?.full_name || bookingForm.staff_email}`,
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(bookingLead.history || []),
+      ].slice(0, 12),
+    }
+
+    await supabase.from('outreach').update({
+      status: 'interested',
+      notes: buildOutreachNotes(bookingLead.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', bookingLead.id)
+
+    await logAction(user?.email, user?.name, 'outreach_appointment_booked', bookingLead.business_name, bookingLead.id, appointmentPayload).catch(() => {})
+    setBookingLead(null)
+    load()
+  }
+
+  const convertToClient = async (row) => {
+    const existing = getClientMatch(row)
+    if (existing) {
+      await quickOutcome(row, 'converted')
+      navigate(`/clients/${existing.id}`)
+      return
+    }
+
+    const payload = {
+      name: row.business_name || row.contact_name || 'New Client',
+      contact: row.contact_name || null,
+      email: row.email || null,
+      phone: row.phone || null,
+      plan: 'Starter',
+      status: 'pending',
+      value: null,
+      invoice_paid: false,
+      website_url: row.website || null,
+      notes: row.plainNotes || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase.from('clients').insert([payload]).select('id').single()
+    if (error) {
+      alert('Could not convert lead: ' + error.message)
+      return
+    }
+
+    const meta = {
+      outcome: 'converted',
+      follow_up_date: row.follow_up_date || '',
+      history: [
+        buildHistoryEntry({
+          action: 'converted',
+          value: `Client record created${data?.id ? ` (#${data.id.slice(0, 8)})` : ''}`,
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(row.history || []),
+      ].slice(0, 12),
+    }
+
+    await supabase.from('outreach').update({
+      status: 'converted',
+      notes: buildOutreachNotes(row.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
+
+    await logAction(user?.email, user?.name, 'outreach_converted_to_client', row.business_name, row.id, { client_id: data?.id }).catch(() => {})
+    await load()
+    if (data?.id) navigate(`/clients/${data.id}`)
+  }
+
   const enrichedRows = useMemo(() => rows.map((row) => {
     const parsed = parseOutreachNotes(row.notes)
     return {
@@ -491,6 +750,7 @@ export default function Outreach() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => openEdit(row)}>Open</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(row)}>Book call</button>
                     {row.status !== 'interested' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'interested')}>Mark hot</button> : null}
                     {row.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'follow_up')}>Set follow-up</button> : null}
                   </div>
@@ -622,8 +882,10 @@ export default function Outreach() {
                           <td>
                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
                               {r.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button> : null}
-                              {r.status !== 'converted' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'converted')}>Convert</button> : null}
+                              {r.status !== 'converted' ? <button className="btn btn-outline btn-sm" onClick={() => convertToClient(r)}>Convert</button> : null}
                               <button className="btn btn-danger btn-sm" onClick={() => del(r.id, r.business_name)}>Del</button>
                             </div>
                           </td>
@@ -679,9 +941,11 @@ export default function Outreach() {
                         </div>
                         <div className="outreach-mobile-actions">
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
                           <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button>
                           <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'interested')}>Hot</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'converted')}>Convert</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => convertToClient(r)}>Convert</button>
                         </div>
                       </div>
                     )
@@ -795,10 +1059,12 @@ export default function Outreach() {
         <Modal
           title={editing ? 'Edit Contact' : 'Add Contact'}
           onClose={close}
+          width={editing ? 980 : undefined}
           footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="fg">
+          <div style={{ display: 'grid', gridTemplateColumns: editing ? 'minmax(0,1.15fr) minmax(280px,0.85fr)' : '1fr', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="fg">
               <div><label className="lbl">Business Name</label><input className="inp" value={form.business_name} onChange={(e) => sf('business_name', e.target.value)} placeholder="Acme Ltd" /></div>
               <div><label className="lbl">Contact Name</label><input className="inp" value={form.contact_name} onChange={(e) => sf('contact_name', e.target.value)} placeholder="John Smith" /></div>
               <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email} onChange={(e) => sf('email', e.target.value)} /></div>
@@ -815,44 +1081,96 @@ export default function Outreach() {
                 </select>
               </div>
               <div><label className="lbl">Next follow-up date</label><input className="inp" type="date" value={form.follow_up_date} onChange={(e) => sf('follow_up_date', e.target.value)} /></div>
-            </div>
-            {!editing && (
-              <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderRadius: 7, fontSize: 13, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--faint)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Added by</span>
-                <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user?.name}</span>
               </div>
-            )}
-            {editing?.history?.length ? (
-              <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
-                <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Recent outreach history</div>
-                <div style={{ display:'grid', gap:8 }}>
-                  {editing.history.slice(0, 4).map((entry, index) => (
-                    <div key={`${entry.at}-${index}`} style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.5 }}>
-                      <strong style={{ color:'var(--text)' }}>{labelize(entry.action)}</strong> · {entry.value}
-                      <span style={{ color:'var(--faint)' }}> · {entry.actor} · {formatDateTime(entry.at)}</span>
-                    </div>
-                  ))}
+              {!editing && (
+                <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderRadius: 7, fontSize: 13, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--faint)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Added by</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user?.name}</span>
                 </div>
-              </div>
-            ) : null}
-            <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} style={{ resize: 'vertical' }} placeholder="What happened on the call? What should happen next?" /></div>
+              )}
+              <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} style={{ resize: 'vertical' }} placeholder="What happened on the call? What should happen next?" /></div>
+              {editing ? (
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {[
+                    ['no_answer', 'No answer'],
+                    ['follow_up_later', 'Follow up later'],
+                    ['send_info', 'Send info'],
+                    ['booked_call', 'Booked call'],
+                  ].map(([key, label]) => (
+                    <button key={key} type="button" className="btn btn-outline btn-sm" onClick={() => quickOutcome(editing, key)}>{label}</button>
+                  ))}
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 1)}>Tomorrow</button>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 3)}>+3 days</button>
+                </div>
+              ) : null}
+            </div>
             {editing ? (
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {[
-                  ['no_answer', 'No answer'],
-                  ['follow_up_later', 'Follow up later'],
-                  ['send_info', 'Send info'],
-                  ['booked_call', 'Booked call'],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" className="btn btn-outline btn-sm" onClick={() => quickOutcome(editing, key)}>{label}</button>
-                ))}
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 1)}>Tomorrow</button>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 3)}>+3 days</button>
+              <div style={{ display:'grid', gap:12 }}>
+                <div className="card" style={{ padding:'14px 16px' }}>
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Lead actions</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(editing)}>Send proposal</button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openBookingModal(editing)}>Book appointment</button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => convertToClient(editing)}>Convert to client</button>
+                  </div>
+                  {getClientMatch(editing) ? (
+                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:10 }}>
+                      Already linked to client record <strong style={{ color:'var(--text)' }}>{getClientMatch(editing)?.name}</strong>.
+                    </div>
+                  ) : null}
+                </div>
+                <div className="card" style={{ padding:'14px 16px' }}>
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Lead timeline</div>
+                  <div style={{ display:'grid', gap:10, maxHeight:360, overflowY:'auto' }}>
+                    {buildLeadTimeline(editing, emails, appointments, getClientMatch(editing)).slice(0, 12).map((item) => (
+                      <div key={item.id} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
+                          <span className={`badge badge-${item.tone}`}>{item.title}</span>
+                          <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
+                        </div>
+                        <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.55 }}>{item.body}</div>
+                        {item.meta ? <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5 }}>{item.meta}</div> : null}
+                      </div>
+                    ))}
+                    {!buildLeadTimeline(editing, emails, appointments, getClientMatch(editing)).length ? (
+                      <div style={{ color:'var(--faint)', fontSize:12.5 }}>No timeline items yet.</div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
         </Modal>
       )}
+
+      {bookingLead ? (
+        <Modal
+          title={`Book call for ${bookingLead.business_name || bookingLead.contact_name || 'lead'}`}
+          onClose={() => setBookingLead(null)}
+          footer={<><button className="btn btn-outline" onClick={() => setBookingLead(null)}>Cancel</button><button className="btn btn-primary" onClick={saveAppointment}>Save booking</button></>}
+        >
+          <div style={{ display:'grid', gap:12 }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+              {bookingLead.contact_name || 'No contact name'}{bookingLead.email ? ` · ${bookingLead.email}` : ''}{bookingLead.phone ? ` · ${bookingLead.phone}` : ''}
+            </div>
+            <div className="fg">
+              <div><label className="lbl">Staff member</label>
+                <select className="inp" value={bookingForm.staff_email} onChange={(e) => sbf('staff_email', e.target.value)}>
+                  <option value="">Select staff</option>
+                  {bookableStaff.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
+                </select>
+              </div>
+              <div><label className="lbl">Date</label><input className="inp" type="date" value={bookingForm.date} onChange={(e) => sbf('date', e.target.value)} /></div>
+              <div><label className="lbl">Start time</label><input className="inp" type="time" step="1800" value={bookingForm.start_time} onChange={(e) => sbf('start_time', e.target.value)} /></div>
+              <div><label className="lbl">Duration</label>
+                <select className="inp" value={bookingForm.duration} onChange={(e) => sbf('duration', Number(e.target.value))}>
+                  {[30, 45, 60].map((mins) => <option key={mins} value={mins}>{mins} mins</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   )
 }

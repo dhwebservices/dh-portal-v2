@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const BUILDS = [
@@ -25,7 +26,18 @@ const EXTRAS = [
 
 export default function Proposals() {
   const { user } = useAuth()
-  const [form, setForm] = useState({ clientBusiness:'', clientName:'', clientEmail:'', clientPhone:'', clientIndustry:'', timeline:'', requirements:'', preparedBy: user?.name || 'DH Team', validUntil:'' })
+  const [params] = useSearchParams()
+  const [form, setForm] = useState({
+    clientBusiness: params.get('business') || '',
+    clientName: params.get('name') || '',
+    clientEmail: params.get('email') || '',
+    clientPhone: params.get('phone') || '',
+    clientIndustry:'',
+    timeline:'',
+    requirements: params.get('notes') || '',
+    preparedBy: user?.name || 'DH Team',
+    validUntil:'',
+  })
   const [selectedBuild, setBuild]   = useState(null)
   const [payMonthly, setPayMonthly] = useState(false)
   const [selectedHosting, setHosting] = useState(null)
