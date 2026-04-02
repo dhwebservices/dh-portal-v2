@@ -20,6 +20,9 @@ import {
   NOTIFICATION_DELIVERY_OPTIONS,
   QUICK_ACTION_OPTIONS,
   TEXT_SCALE_OPTIONS,
+  WORKSPACE_PRESET_OPTIONS,
+  applyWorkspacePreset,
+  describeWorkspacePreset,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
@@ -155,8 +158,10 @@ export default function StaffProfile() {
 
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
   const nf = (k, v) => setCustomNotification((current) => ({ ...current, [k]: v }))
-  const gp = (k, v) => setPortalPrefs((current) => mergePortalPreferences(current, { [k]: v }))
+  const gp = (k, v) => setPortalPrefs((current) => mergePortalPreferences(current, { workspacePreset: 'custom', [k]: v }))
+  const applyPortalPreset = (presetKey) => setPortalPrefs((current) => applyWorkspacePreset(current, presetKey))
   const togglePortalSection = (key) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    workspacePreset: 'custom',
     dashboardSections: {
       ...current.dashboardSections,
       [key]: !current.dashboardSections?.[key],
@@ -165,9 +170,10 @@ export default function StaffProfile() {
   const togglePortalQuickAction = (key) => setPortalPrefs((current) => {
     const active = current.quickActions || []
     const next = active.includes(key) ? active.filter((item) => item !== key) : [...active, key].slice(0, 6)
-    return mergePortalPreferences(current, { quickActions: next })
+    return mergePortalPreferences(current, { workspacePreset: 'custom', quickActions: next })
   })
   const setPortalNotificationDelivery = (category, delivery) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    workspacePreset: 'custom',
     notificationPreferences: {
       ...current.notificationPreferences,
       [category]: delivery,
@@ -792,6 +798,27 @@ export default function StaffProfile() {
               </div>
 
               <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Workspace preset</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
+                  {WORKSPACE_PRESET_OPTIONS.map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => applyPortalPreset(key)}
+                      style={{
+                        padding:'13px 14px',
+                        borderRadius:12,
+                        border:`1px solid ${portalPrefs.workspacePreset === key ? 'var(--accent-border)' : 'var(--border)'}`,
+                        background: portalPrefs.workspacePreset === key ? 'var(--accent-soft)' : 'var(--card)',
+                        textAlign:'left',
+                      }}
+                    >
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
                 <div className="lbl" style={{ marginBottom:8 }}>Theme mode</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
@@ -1060,6 +1087,10 @@ export default function StaffProfile() {
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Current setup</div>
                 <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:10 }}>Live staff view</div>
                 <div style={{ display:'grid', gap:10 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Workspace preset</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{describeWorkspacePreset(portalPrefs)}</div>
+                  </div>
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Theme</div>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{portalPrefs.themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</div>

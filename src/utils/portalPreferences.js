@@ -74,6 +74,13 @@ export const CONTRAST_OPTIONS = [
   ['high', 'High contrast'],
 ]
 
+export const WORKSPACE_PRESET_OPTIONS = [
+  ['custom', 'Custom workspace'],
+  ['outreach', 'Outreach'],
+  ['manager', 'Manager'],
+  ['hr_admin', 'HR / Admin'],
+]
+
 export const ACCENT_SCHEMES = {
   blue: {
     label: 'DH Blue',
@@ -113,6 +120,7 @@ export const ACCENT_SCHEMES = {
 }
 
 export const DEFAULT_PORTAL_PREFERENCES = {
+  workspacePreset: 'custom',
   themeMode: 'light',
   accentScheme: 'blue',
   dashboardDensity: 'comfortable',
@@ -144,11 +152,83 @@ function hexToRgb(hex = '#0071E3') {
   }
 }
 
+const PRESET_SECTION_STATE = {
+  outreach: {
+    stats: true,
+    today: true,
+    insight: true,
+    priority: true,
+    notifications: true,
+    schedule: false,
+    appointments: true,
+    activity: false,
+  },
+  manager: {
+    stats: true,
+    today: true,
+    insight: true,
+    priority: true,
+    notifications: true,
+    schedule: true,
+    appointments: true,
+    activity: true,
+  },
+  hr_admin: {
+    stats: true,
+    today: true,
+    insight: true,
+    priority: true,
+    notifications: true,
+    schedule: true,
+    appointments: false,
+    activity: true,
+  },
+}
+
+const PRESET_PAYLOADS = {
+  outreach: {
+    workspacePreset: 'outreach',
+    defaultLanding: 'dashboard',
+    dashboardDensity: 'compact',
+    dashboardHeader: 'minimal',
+    showSystemBanners: true,
+    navDensity: 'compact',
+    quickActions: ['mytasks', 'notifications', 'clients', 'support', 'schedule', 'appointments'],
+    dashboardOrder: ['stats', 'priority', 'notifications', 'appointments', 'today', 'insight', 'schedule', 'activity'],
+    dashboardSections: PRESET_SECTION_STATE.outreach,
+  },
+  manager: {
+    workspacePreset: 'manager',
+    defaultLanding: 'dashboard',
+    dashboardDensity: 'comfortable',
+    dashboardHeader: 'full',
+    showSystemBanners: true,
+    navDensity: 'comfortable',
+    quickActions: ['dashboard', 'mytasks', 'notifications', 'schedule', 'appointments', 'clients'],
+    dashboardOrder: ['stats', 'today', 'priority', 'schedule', 'appointments', 'notifications', 'insight', 'activity'],
+    dashboardSections: PRESET_SECTION_STATE.manager,
+  },
+  hr_admin: {
+    workspacePreset: 'hr_admin',
+    defaultLanding: 'dashboard',
+    dashboardDensity: 'comfortable',
+    dashboardHeader: 'full',
+    showSystemBanners: true,
+    navDensity: 'comfortable',
+    quickActions: ['dashboard', 'notifications', 'mytasks', 'schedule', 'reports', 'clients'],
+    dashboardOrder: ['stats', 'today', 'priority', 'activity', 'notifications', 'insight', 'schedule', 'appointments'],
+    dashboardSections: PRESET_SECTION_STATE.hr_admin,
+  },
+}
+
 export function buildPreferenceSettingKey(email = '') {
   return `user_pref:${String(email || '').toLowerCase().trim()}`
 }
 
 export function sanitizePortalPreferences(raw = {}) {
+  const workspacePreset = WORKSPACE_PRESET_OPTIONS.some(([key]) => key === raw?.workspacePreset)
+    ? raw.workspacePreset
+    : DEFAULT_PORTAL_PREFERENCES.workspacePreset
   const themeMode = raw?.themeMode === 'dark' ? 'dark' : 'light'
   const accentScheme = ACCENT_SCHEMES[raw?.accentScheme] ? raw.accentScheme : DEFAULT_PORTAL_PREFERENCES.accentScheme
   const dashboardDensity = DASHBOARD_DENSITY_OPTIONS.some(([key]) => key === raw?.dashboardDensity)
@@ -196,6 +276,7 @@ export function sanitizePortalPreferences(raw = {}) {
   )
 
   return {
+    workspacePreset,
     themeMode,
     accentScheme,
     dashboardDensity,
@@ -226,6 +307,19 @@ export function mergePortalPreferences(base = DEFAULT_PORTAL_PREFERENCES, patch 
       ...(patch.notificationPreferences || {}),
     },
   })
+}
+
+export function applyWorkspacePreset(current = DEFAULT_PORTAL_PREFERENCES, presetKey = 'custom') {
+  if (presetKey === 'custom' || !PRESET_PAYLOADS[presetKey]) {
+    return mergePortalPreferences(current, { workspacePreset: 'custom' })
+  }
+
+  return mergePortalPreferences(current, PRESET_PAYLOADS[presetKey])
+}
+
+export function describeWorkspacePreset(preferences = DEFAULT_PORTAL_PREFERENCES) {
+  const safe = sanitizePortalPreferences(preferences)
+  return WORKSPACE_PRESET_OPTIONS.find(([key]) => key === safe.workspacePreset)?.[1] || 'Custom workspace'
 }
 
 export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) {
