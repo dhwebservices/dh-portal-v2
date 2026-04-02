@@ -117,12 +117,12 @@ function Ico({ name, size = 16 }) {
 
 // Section accent colours — subtle, matches light/dark
 const SECTION_COLORS = {
-  home:     { bg: 'rgba(0,113,227,0.1)',   color: '#0071E3' },
-  business: { bg: 'rgba(52,199,89,0.1)',   color: '#1D8348' },
-  tasks:    { bg: 'rgba(255,159,10,0.1)',  color: '#B45309' },
-  hr:       { bg: 'rgba(175,82,222,0.1)',  color: '#7C3AED' },
-  admin:    { bg: 'rgba(255,69,58,0.1)',   color: '#C0392B' },
-  account:  { bg: 'rgba(0,113,227,0.1)',   color: '#0071E3' },
+  home:     { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  business: { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  tasks:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  hr:       { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  admin:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  account:  { bg: 'var(--accent-soft)', color: 'var(--accent)' },
 }
 
 // ─── CSS ───────────────────────────────────────────────────────────────────

@@ -369,7 +369,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 /* ── Tabs — pill style matching dhwebsiteservices.co.uk ── */
 .tabs   { display: flex; gap: 4px; background: var(--bg2); border-radius: 10px; padding: 4px; margin-bottom: 22px; width: fit-content; }
 .tab    { padding: 7px 16px; background: transparent; border: none; font-size: 13px; font-weight: 400; color: var(--faint); cursor: pointer; border-radius: 7px; transition: all 0.18s; white-space: nowrap; }
-.tab.on { background: var(--card); color: var(--text); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px var(--border); }
+.tab.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; box-shadow: 0 0 0 1px var(--accent-border); }
 .tab:hover:not(.on) { color: var(--sub); background: rgba(0,0,0,0.03); }
 [data-theme="dark"] .tab:hover:not(.on) { background: rgba(255,255,255,0.04); }
 
@@ -399,7 +399,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 /* ── Stat card ── */
 .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; transition: border-color 0.2s; }
-.stat-card:hover { border-color: var(--border2); }
+.stat-card:hover { border-color: var(--accent-border); }
 .stat-val  { font-size: clamp(26px,3vw,36px); font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
 .stat-lbl  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-top: 6px; }
 

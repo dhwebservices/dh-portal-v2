@@ -9,6 +9,16 @@ export const DASHBOARD_SECTIONS = [
   ['activity', 'Recent activity'],
 ]
 
+export const DASHBOARD_DENSITY_OPTIONS = [
+  ['comfortable', 'Comfortable'],
+  ['compact', 'Compact'],
+]
+
+export const DASHBOARD_HEADER_OPTIONS = [
+  ['full', 'Full header'],
+  ['minimal', 'Minimal header'],
+]
+
 export const ACCENT_SCHEMES = {
   blue: {
     label: 'DH Blue',
@@ -50,6 +60,9 @@ export const ACCENT_SCHEMES = {
 export const DEFAULT_PORTAL_PREFERENCES = {
   themeMode: 'light',
   accentScheme: 'blue',
+  dashboardDensity: 'comfortable',
+  dashboardHeader: 'full',
+  showSystemBanners: true,
   dashboardSections: Object.fromEntries(DASHBOARD_SECTIONS.map(([key]) => [key, true])),
 }
 
@@ -60,6 +73,13 @@ export function buildPreferenceSettingKey(email = '') {
 export function sanitizePortalPreferences(raw = {}) {
   const themeMode = raw?.themeMode === 'dark' ? 'dark' : 'light'
   const accentScheme = ACCENT_SCHEMES[raw?.accentScheme] ? raw.accentScheme : DEFAULT_PORTAL_PREFERENCES.accentScheme
+  const dashboardDensity = DASHBOARD_DENSITY_OPTIONS.some(([key]) => key === raw?.dashboardDensity)
+    ? raw.dashboardDensity
+    : DEFAULT_PORTAL_PREFERENCES.dashboardDensity
+  const dashboardHeader = DASHBOARD_HEADER_OPTIONS.some(([key]) => key === raw?.dashboardHeader)
+    ? raw.dashboardHeader
+    : DEFAULT_PORTAL_PREFERENCES.dashboardHeader
+  const showSystemBanners = raw?.showSystemBanners !== false
   const inputSections = raw?.dashboardSections && typeof raw.dashboardSections === 'object' ? raw.dashboardSections : {}
   const dashboardSections = Object.fromEntries(
     DASHBOARD_SECTIONS.map(([key]) => [key, inputSections[key] !== false])
@@ -68,6 +88,9 @@ export function sanitizePortalPreferences(raw = {}) {
   return {
     themeMode,
     accentScheme,
+    dashboardDensity,
+    dashboardHeader,
+    showSystemBanners,
     dashboardSections,
   }
 }

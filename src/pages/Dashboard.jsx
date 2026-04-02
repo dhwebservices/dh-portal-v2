@@ -12,11 +12,19 @@ import {
   TrendingUp,
   UserCheck,
   Users,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
+import {
+  ACCENT_SCHEMES,
+  DASHBOARD_DENSITY_OPTIONS,
+  DASHBOARD_HEADER_OPTIONS,
+  DASHBOARD_SECTIONS,
+  mergePortalPreferences,
+} from '../utils/portalPreferences'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -158,7 +166,7 @@ function ActiveBanners() {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin, preferences } = useAuth()
+  const { user, isAdmin, preferences, updatePreferences } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState({
     outreach: 0,
@@ -183,6 +191,9 @@ export default function Dashboard() {
   const [insightLoading, setInsightLoading] = useState(false)
   const [whatsNew, setWhatsNew] = useState(null)
   const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [showPersonalise, setShowPersonalise] = useState(false)
+  const [personalisePrefs, setPersonalisePrefs] = useState(() => mergePortalPreferences(preferences))
+  const [savingPersonalise, setSavingPersonalise] = useState(false)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -199,6 +210,13 @@ export default function Dashboard() {
   const todayIso = new Date().toISOString().split('T')[0]
   const sevenDaysOut = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
   const dashboardSections = preferences?.dashboardSections || {}
+  const dashboardDensity = preferences?.dashboardDensity || 'comfortable'
+  const dashboardHeader = preferences?.dashboardHeader || 'full'
+  const showSystemBanners = preferences?.showSystemBanners !== false
+
+  useEffect(() => {
+    setPersonalisePrefs(mergePortalPreferences(preferences))
+  }, [preferences])
 
   useEffect(() => {
     async function load() {
@@ -363,8 +381,166 @@ export default function Dashboard() {
     setShowWhatsNew(false)
   }
 
+  const patchPersonalise = (patch) => {
+    setPersonalisePrefs((current) => mergePortalPreferences(current, patch))
+  }
+
+  const togglePersonaliseSection = (key) => {
+    setPersonalisePrefs((current) => mergePortalPreferences(current, {
+      dashboardSections: {
+        ...current.dashboardSections,
+        [key]: !current.dashboardSections?.[key],
+      },
+    }))
+  }
+
+  const saveDashboardPersonalise = async () => {
+    setSavingPersonalise(true)
+    try {
+      await updatePreferences(personalisePrefs)
+      setShowPersonalise(false)
+    } catch (error) {
+      console.error('Dashboard personalisation save failed:', error)
+    } finally {
+      setSavingPersonalise(false)
+    }
+  }
+
   return (
     <div className="fade-in">
+      {showPersonalise ? (
+        <Modal
+          title="Personalise dashboard"
+          onClose={() => setShowPersonalise(false)}
+          width={920}
+          footer={
+            <>
+              <button className="btn btn-outline" onClick={() => navigate('/my-profile')}>Open full portal settings</button>
+              <button className="btn btn-outline" onClick={() => setShowPersonalise(false)}>Close</button>
+              <button className="btn btn-primary" onClick={saveDashboardPersonalise} disabled={savingPersonalise}>
+                {savingPersonalise ? 'Saving...' : 'Save dashboard'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.1fr) minmax(260px,0.9fr)', gap:18 }} className="dashboard-personalise-grid">
+            <div style={{ display:'grid', gap:16 }}>
+              <div className="card card-pad">
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Portal style</div>
+                <div style={{ display:'grid', gap:12 }}>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Theme mode</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                      {[
+                        ['light', 'Light'],
+                        ['dark', 'Dark'],
+                      ].map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ themeMode: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.themeMode === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.themeMode === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Accent scheme</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10 }}>
+                      {Object.entries(ACCENT_SCHEMES).map(([key, scheme]) => (
+                        <button key={key} onClick={() => patchPersonalise({ accentScheme: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.accentScheme === key ? scheme.border : 'var(--border)'}`, background: personalisePrefs.accentScheme === key ? scheme.soft : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                            <span style={{ width:12, height:12, borderRadius:'50%', background:scheme.accent }} />
+                            <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{scheme.label}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card card-pad">
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Dashboard layout</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:16 }}>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Density</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {DASHBOARD_DENSITY_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ dashboardDensity: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.dashboardDensity === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.dashboardDensity === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="lbl" style={{ marginBottom:8 }}>Header style</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {DASHBOARD_HEADER_OPTIONS.map(([key, label]) => (
+                        <button key={key} onClick={() => patchPersonalise({ dashboardHeader: key })} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.dashboardHeader === key ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.dashboardHeader === key ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="lbl" style={{ marginBottom:8 }}>Behaviour</div>
+                  <button onClick={() => patchPersonalise({ showSystemBanners: !personalisePrefs.showSystemBanners })} style={{ width:'100%', padding:'13px 14px', borderRadius:12, border:`1px solid ${personalisePrefs.showSystemBanners ? 'var(--accent-border)' : 'var(--border)'}`, background: personalisePrefs.showSystemBanners ? 'var(--accent-soft)' : 'var(--card)', textAlign:'left', display:'flex', justifyContent:'space-between', gap:12 }}>
+                    <span>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>Show system banners</div>
+                      <div style={{ fontSize:12, color:'var(--sub)' }}>Display maintenance and live service notices on your dashboard.</div>
+                    </span>
+                    <span className={`badge badge-${personalisePrefs.showSystemBanners ? 'blue' : 'grey'}`}>{personalisePrefs.showSystemBanners ? 'Visible' : 'Hidden'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="card card-pad">
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Visible sections</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
+                  {DASHBOARD_SECTIONS.map(([key, label]) => {
+                    const enabled = personalisePrefs.dashboardSections?.[key] !== false
+                    return (
+                      <button key={key} onClick={() => togglePersonaliseSection(key)} style={{ padding:'13px 14px', borderRadius:12, border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`, background: enabled ? 'var(--accent-soft)' : 'var(--card)', display:'flex', justifyContent:'space-between', gap:12, textAlign:'left' }}>
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'On' : 'Off'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="card card-pad" style={{ alignSelf:'start' }}>
+              <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
+              <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Your dashboard style</div>
+              <div style={{ display:'grid', gap:10 }}>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Theme & accent</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                    <span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{personalisePrefs.themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</span>
+                    <span className="badge badge-blue">{(ACCENT_SCHEMES[personalisePrefs.accentScheme] || ACCENT_SCHEMES.blue).label}</span>
+                  </div>
+                </div>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Layout</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                    {(DASHBOARD_DENSITY_OPTIONS.find(([key]) => key === personalisePrefs.dashboardDensity)?.[1]) || 'Comfortable'} · {(DASHBOARD_HEADER_OPTIONS.find(([key]) => key === personalisePrefs.dashboardHeader)?.[1]) || 'Full header'}
+                  </div>
+                </div>
+                <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Visible sections</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {DASHBOARD_SECTIONS.filter(([key]) => personalisePrefs.dashboardSections?.[key] !== false).map(([, label]) => (
+                      <span key={label} className="badge badge-blue">{label}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       {showWhatsNew && whatsNew ? (
         <Modal
           title={whatsNew.title || 'What’s New'}
@@ -392,17 +568,30 @@ export default function Dashboard() {
         </Modal>
       ) : null}
 
-      <ActiveBanners />
+      {showSystemBanners ? <ActiveBanners /> : null}
 
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px,3vw,42px)', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>
-          {greeting}, <em style={{ color: 'var(--sub)', fontStyle: 'italic' }}>{firstName}</em>
-        </h1>
-        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)', marginTop: 8 }}>{dateStr}</p>
+      <div style={{ marginBottom: dashboardDensity === 'compact' ? 20 : 28, display:'flex', justifyContent:'space-between', alignItems: dashboardHeader === 'minimal' ? 'center' : 'flex-end', gap:16, flexWrap:'wrap' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: dashboardHeader === 'minimal' ? 'clamp(24px,2.3vw,34px)' : 'clamp(26px,3vw,42px)', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {dashboardHeader === 'minimal' ? `${firstName} dashboard` : <>{greeting}, <em style={{ color: 'var(--sub)', fontStyle: 'italic' }}>{firstName}</em></>}
+          </h1>
+          {dashboardHeader === 'minimal' ? (
+            <p style={{ fontSize: 13, color: 'var(--sub)', marginTop: 8 }}>Live overview of your workspace, activity, and priorities.</p>
+          ) : (
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)', marginTop: 8 }}>{dateStr}</p>
+          )}
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <button className="btn btn-outline" onClick={() => setShowPersonalise(true)}>
+            <SlidersHorizontal size={14} />
+            Personalise dashboard
+          </button>
+          <button className="btn btn-ghost" onClick={() => navigate('/my-profile')}>Portal settings</button>
+        </div>
       </div>
 
       {dashboardSections.stats !== false ? (
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 28 }}>
+      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: dashboardDensity === 'compact' ? 12 : 16, marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
         <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
         <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
         <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
@@ -413,7 +602,7 @@ export default function Dashboard() {
       ) : null}
 
       {(dashboardSections.today !== false || dashboardSections.insight !== false) ? (
-      <div className="dashboard-top-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 20, marginBottom: 20 }}>
+      <div className="dashboard-top-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: dashboardDensity === 'compact' ? 14 : 20, marginBottom: dashboardDensity === 'compact' ? 14 : 20 }}>
         {dashboardSections.today !== false ? (
         <Panel title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
           <div className="dashboard-fourup" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0 }}>
@@ -454,7 +643,7 @@ export default function Dashboard() {
       ) : null}
 
       {(dashboardSections.priority !== false || dashboardSections.notifications !== false) ? (
-      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20, marginBottom: dashboardDensity === 'compact' ? 14 : 20 }}>
         {dashboardSections.priority !== false ? (
         <Panel title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
           {priorityItems.length ? (
@@ -504,7 +693,7 @@ export default function Dashboard() {
       ) : null}
 
       {(dashboardSections.schedule !== false || dashboardSections.appointments !== false) ? (
-      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20 }}>
         {dashboardSections.schedule !== false ? (
         <Panel title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
           {todaySchedule.length ? (
@@ -546,7 +735,7 @@ export default function Dashboard() {
       ) : null}
 
       {dashboardSections.activity !== false ? (
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: dashboardDensity === 'compact' ? 14 : 20 }}>
         <Panel title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
           {recentActivity.length ? (
             recentActivity.map((activity, index) => (

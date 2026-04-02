@@ -5,7 +5,15 @@ import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 import { sendEmail } from '../utils/email'
-import { ACCENT_SCHEMES, buildPreferenceSettingKey, DASHBOARD_SECTIONS, DEFAULT_PORTAL_PREFERENCES, mergePortalPreferences } from '../utils/portalPreferences'
+import {
+  ACCENT_SCHEMES,
+  buildPreferenceSettingKey,
+  DASHBOARD_DENSITY_OPTIONS,
+  DASHBOARD_HEADER_OPTIONS,
+  DASHBOARD_SECTIONS,
+  DEFAULT_PORTAL_PREFERENCES,
+  mergePortalPreferences,
+} from '../utils/portalPreferences'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
@@ -812,6 +820,85 @@ export default function StaffProfile() {
                 </div>
               </div>
 
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18 }} className="dashboard-personalise-grid">
+                <div>
+                  <div className="lbl" style={{ marginBottom:8 }}>Dashboard density</div>
+                  <div style={{ display:'grid', gap:10 }}>
+                    {DASHBOARD_DENSITY_OPTIONS.map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => gp('dashboardDensity', key)}
+                        style={{
+                          padding:'13px 14px',
+                          borderRadius:12,
+                          border:`1px solid ${portalPrefs.dashboardDensity === key ? 'var(--accent-border)' : 'var(--border)'}`,
+                          background: portalPrefs.dashboardDensity === key ? 'var(--accent-soft)' : 'var(--card)',
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent:'space-between',
+                          gap:12,
+                          textAlign:'left',
+                        }}
+                      >
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${portalPrefs.dashboardDensity === key ? 'blue' : 'grey'}`}>{portalPrefs.dashboardDensity === key ? 'On' : 'Off'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="lbl" style={{ marginBottom:8 }}>Header style</div>
+                  <div style={{ display:'grid', gap:10 }}>
+                    {DASHBOARD_HEADER_OPTIONS.map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => gp('dashboardHeader', key)}
+                        style={{
+                          padding:'13px 14px',
+                          borderRadius:12,
+                          border:`1px solid ${portalPrefs.dashboardHeader === key ? 'var(--accent-border)' : 'var(--border)'}`,
+                          background: portalPrefs.dashboardHeader === key ? 'var(--accent-soft)' : 'var(--card)',
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent:'space-between',
+                          gap:12,
+                          textAlign:'left',
+                        }}
+                      >
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${portalPrefs.dashboardHeader === key ? 'blue' : 'grey'}`}>{portalPrefs.dashboardHeader === key ? 'On' : 'Off'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Dashboard behaviour</div>
+                <button
+                  onClick={() => gp('showSystemBanners', !portalPrefs.showSystemBanners)}
+                  style={{
+                    width:'100%',
+                    padding:'13px 14px',
+                    borderRadius:12,
+                    border:`1px solid ${portalPrefs.showSystemBanners ? 'var(--accent-border)' : 'var(--border)'}`,
+                    background: portalPrefs.showSystemBanners ? 'var(--accent-soft)' : 'var(--card)',
+                    display:'flex',
+                    alignItems:'center',
+                    justifyContent:'space-between',
+                    gap:12,
+                    textAlign:'left',
+                  }}
+                >
+                  <span>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>Show system banners</div>
+                    <div style={{ fontSize:12, color:'var(--sub)' }}>Show maintenance and system-status notices at the top of this staff member’s dashboard.</div>
+                  </span>
+                  <span className={`badge badge-${portalPrefs.showSystemBanners ? 'blue' : 'grey'}`}>{portalPrefs.showSystemBanners ? 'Visible' : 'Hidden'}</span>
+                </button>
+              </div>
+
               <div>
                 <div className="lbl" style={{ marginBottom:8 }}>Dashboard sections</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
@@ -857,6 +944,16 @@ export default function StaffProfile() {
                       <span style={{ width:12, height:12, borderRadius:'50%', background:(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).accent }} />
                       <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).label}</div>
                     </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Layout</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                      {(DASHBOARD_DENSITY_OPTIONS.find(([key]) => key === portalPrefs.dashboardDensity)?.[1]) || 'Comfortable'} · {(DASHBOARD_HEADER_OPTIONS.find(([key]) => key === portalPrefs.dashboardHeader)?.[1]) || 'Full header'}
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>System banners</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{portalPrefs.showSystemBanners ? 'Shown on dashboard' : 'Hidden from dashboard'}</div>
                   </div>
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Dashboard shown</div>
