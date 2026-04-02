@@ -249,7 +249,7 @@ export default function Outreach() {
         {tab === 'contacts' && <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>}
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 22 }}>
+      <div className="dashboard-stat-grid outreach-mobile-hero" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 22 }}>
         <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--accent)" />
         <StatCard label="Follow-up queue" value={stats.queue} hint="Leads that still need another touch" tone="var(--amber)" />
         <StatCard label="Overdue" value={stats.overdue} hint="Follow-ups that are now late" tone="var(--red)" />
@@ -365,7 +365,7 @@ export default function Outreach() {
         <div className="card" style={{ overflow: 'hidden' }}>
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <>
-              <div className="tbl-wrap">
+              <div className="tbl-wrap desktop-only">
                 <table className="tbl">
                   <thead>
                     <tr>
@@ -438,14 +438,14 @@ export default function Outreach() {
               </div>
 
               <div className="mobile-only" style={{ display: 'none', padding: 14 }}>
-                <div style={{ display: 'grid', gap: 10 }}>
+                <div className="outreach-mobile-stack">
                   {filtered.map((r) => {
                     const touched = getTouchedAt(r)
                     const age = daysSince(touched)
                     const temperature = getLeadTemperature(r)
                     const overdue = isOverdue(r)
                     return (
-                      <div key={`mobile-${r.id}`} className="card" style={{ padding: 14 }}>
+                      <div key={`mobile-${r.id}`} className="card outreach-mobile-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.business_name}</div>
@@ -453,14 +453,28 @@ export default function Outreach() {
                           </div>
                           <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
                         </div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+                          <span className={`badge badge-${statusColor[r.status || 'new'] || 'grey'}`}>{labelize(r.status || 'new')}</span>
+                          {overdue ? <span className="badge badge-red">Overdue</span> : null}
+                        </div>
                         <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 12 }}>
                           {getNextAction(r)} · {getLastContactMethod(r, emails)}{age !== null ? ` · ${age}d ago` : ''}
-                          {overdue ? <span style={{ color: 'var(--red)' }}> · overdue</span> : null}
                         </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display:'grid', gap:8, marginBottom:12 }}>
+                          <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Last touch</div>
+                          <div style={{ fontSize:12.5, color:'var(--text)' }}>{formatDateTime(touched)}</div>
+                          {r.notes ? (
+                            <>
+                              <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Latest note</div>
+                              <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.55 }}>{r.notes}</div>
+                            </>
+                          ) : null}
+                        </div>
+                        <div className="outreach-mobile-actions">
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
                           <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'follow_up')}>Follow-up</button>
                           <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'interested')}>Hot</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r.id, 'converted')}>Convert</button>
                         </div>
                       </div>
                     )
@@ -475,7 +489,7 @@ export default function Outreach() {
       {tab === 'emails' && (
         <div className="card" style={{ overflow: 'hidden' }}>
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
-            <div className="tbl-wrap">
+            <div className="tbl-wrap desktop-only">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -515,6 +529,30 @@ export default function Outreach() {
               </table>
             </div>
           )}
+          {!loading ? (
+            <div className="mobile-only" style={{ display:'none', padding:14 }}>
+              <div className="outreach-mobile-stack">
+                {filteredEmails.map((e) => (
+                  <button
+                    key={`mobile-email-${e.id}`}
+                    onClick={() => setViewEmail(e)}
+                    className="card outreach-mobile-card"
+                    style={{ textAlign:'left', border:'1px solid var(--border)', background:'var(--card)', width:'100%' }}
+                  >
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:6, lineHeight:1.4 }}>{e.subject}</div>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, marginBottom:10 }}>
+                      {Array.isArray(e.sent_to) ? e.sent_to[0] : e.sent_to}
+                    </div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <span className="badge badge-blue">{e.sent_by || 'Portal'}</span>
+                      <span className="badge badge-grey">{e.sent_at ? new Date(e.sent_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : 'No date'}</span>
+                    </div>
+                  </button>
+                ))}
+                {!filteredEmails.length ? <div style={{ textAlign:'center', padding:24, color:'var(--faint)' }}>No emails logged yet</div> : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -560,3 +560,60 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .mobile-only {
   display: none;
 }
+
+.desktop-only {
+  display: block;
+}
+
+.outreach-mobile-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.outreach-mobile-card {
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.outreach-mobile-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.outreach-mobile-actions .btn {
+  flex: 1 1 120px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .outreach-mobile-hero {
+    margin-bottom: 18px !important;
+  }
+
+  .outreach-mobile-hero .card,
+  .outreach-mobile-hero .card-pad {
+    padding: 16px !important;
+  }
+
+  .outreach-mobile-stack {
+    gap: 10px;
+  }
+
+  .outreach-mobile-card {
+    padding: 14px;
+  }
+
+  .outreach-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .outreach-mobile-actions .btn {
+    width: 100%;
+  }
+}
