@@ -284,8 +284,9 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Card ── */
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%), var(--card));
+  border: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent-border) 18%);
   border-radius: var(--radius);
 }
 .card-pad { padding: 20px 24px; }
@@ -317,10 +318,14 @@ button { cursor: pointer; font-family: inherit; }
 .tbl th {
   font-family: var(--font-mono);
   font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--faint); padding: 10px 16px;
-  text-align: left; border-bottom: 1px solid var(--border); font-weight: 500;
+  color: color-mix(in srgb, var(--faint) 70%, var(--accent) 30%);
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 75%, var(--accent-border) 25%);
+  background: color-mix(in srgb, var(--bg2) 82%, var(--page-tint-strong) 18%);
+  font-weight: 500;
 }
-.tbl td { padding: 11px 16px; font-size: 13.5px; border-bottom: 1px solid var(--border); color: var(--sub); vertical-align: middle; }
+.tbl td { padding: 11px 16px; font-size: 13.5px; border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent-border) 18%); color: var(--sub); vertical-align: middle; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover { background: var(--bg2); }
 .t-main { color: var(--text) !important; font-weight: 500; }
@@ -344,8 +349,8 @@ button { cursor: pointer; font-family: inherit; }
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-hover); transform: scale(1.01); }
-.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
-.btn-outline:hover { border-color: var(--text); background: var(--bg2); }
+.btn-outline { background: color-mix(in srgb, var(--card) 88%, var(--page-tint) 12%); color: var(--text); border: 1px solid color-mix(in srgb, var(--border2) 72%, var(--accent-border) 28%); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .btn-ghost { background: transparent; color: var(--sub); border: none; padding: 7px 12px; border-radius: 7px; }
 .btn-ghost:hover { color: var(--text); background: var(--bg2); }
 .btn-danger { background: var(--red-bg); color: var(--red); border: none; }
@@ -381,7 +386,16 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .modal-close:hover { background: var(--bg3); color: var(--text); }
 
 /* ── Page header ── */
-.page-hd    { margin-bottom: 24px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.page-hd    {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, var(--accent-border) 20%);
+}
 .page-title { font-family: var(--font-display); font-size: clamp(22px,3vw,32px); font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; }
 .page-sub   { font-size: 13px; color: var(--faint); margin-top: 4px; }
 
@@ -423,7 +437,16 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .stat-lbl  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-top: 6px; }
 
 /* ── Section divider ── */
-.section-label { font-family: var(--font-mono); font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; padding: 0 2px; }
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--faint) 72%, var(--accent) 28%);
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
 
 .header-crumbs {
   display: flex;
@@ -442,6 +465,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .header-bell-dropdown {
   width: min(320px, calc(100vw - 24px));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%), var(--card));
+  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent-border) 22%);
 }
 
 .tbl-wrap {
