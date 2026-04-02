@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
-import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
+import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
 
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},
@@ -60,16 +60,40 @@ export default function MyStaff() {
       setMsUsers(activeUsers)
 
       // Sync: remove hr_profiles rows for users no longer in Microsoft AD
+      // and collapse case-variant duplicates down to one canonical row.
       const activeEmails = new Set(activeUsers.map(u => u.email.toLowerCase()))
       const { data: allProfiles } = await supabase.from('hr_profiles').select('id,user_email')
-      const toDelete = (allProfiles||[]).filter(p => {
-        const em = (p.user_email||'').toLowerCase()
+      const duplicateGroups = {}
+      ;(allProfiles || []).forEach((profile) => {
+        const key = normalizeEmail(profile.user_email)
+        if (!key) return
+        duplicateGroups[key] = duplicateGroups[key] || []
+        duplicateGroups[key].push(profile)
+      })
+
+      const duplicateDeletes = Object.values(duplicateGroups).flatMap((rows) => {
+        if (rows.length <= 1) return []
+        const keep = pickBestProfileRow(rows)
+        return rows.filter((row) => row.id !== keep?.id)
+      })
+
+      const staleDeletes = (allProfiles||[]).filter(p => {
+        const em = normalizeEmail(p.user_email)
         const isSystem = ['hr@','clients@','log@','legal@','noreply@','admin@','test@'].some(s => em.startsWith(s))
         return !isSystem && !activeEmails.has(em)
       })
+
+      const deleteMap = new Map()
+      ;[...duplicateDeletes, ...staleDeletes].forEach((row) => {
+        if (row?.id) deleteMap.set(row.id, row)
+      })
+      const toDelete = [...deleteMap.values()]
+
       if (toDelete.length > 0) {
         await Promise.all(toDelete.map(p => supabase.from('hr_profiles').delete().eq('id', p.id)))
-        await Promise.all(toDelete.map(p => supabase.from('user_permissions').delete().ilike('user_email', p.user_email)))
+        await Promise.all(
+          staleDeletes.map((p) => supabase.from('user_permissions').delete().ilike('user_email', p.user_email))
+        )
       }
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
