@@ -39,6 +39,12 @@ function EmptyState({ text }) {
   return <div style={{ padding: '28px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{text}</div>
 }
 
+function getComplianceTone(status) {
+  if (status === 'missing' || status === 'expired') return 'red'
+  if (status === 'warning') return 'amber'
+  return 'green'
+}
+
 export default function HRDocuments() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -130,6 +136,47 @@ export default function HRDocuments() {
   const recentDocuments = useMemo(() => {
     return documents.slice(0, 10)
   }, [documents])
+
+  const complianceRows = useMemo(() => {
+    return staff
+      .filter((person) => person.user_email)
+      .map((person) => {
+        const email = (person.user_email || '').toLowerCase()
+        const personDocs = docMap[email] || []
+        const personOnboarding = onboardingMap[email]
+        const personPayslips = payslipMap[email] || []
+        const contractDoc = personDocs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
+        const rtwRemaining = daysUntil(personOnboarding?.rtw_expiry)
+
+        const contractStatus = contractDoc ? 'ok' : 'missing'
+        const rightToWorkStatus = !personOnboarding?.rtw_document_url
+          ? 'missing'
+          : (rtwRemaining !== null && rtwRemaining < 0)
+            ? 'expired'
+            : (rtwRemaining !== null && rtwRemaining <= 45)
+              ? 'warning'
+              : 'ok'
+
+        return {
+          ...person,
+          contractStatus,
+          rightToWorkStatus,
+          rtwRemaining,
+          docCount: personDocs.length,
+          payslipCount: personPayslips.length,
+          latestDocAt: personDocs[0]?.created_at || null,
+        }
+      })
+      .sort((a, b) => {
+        const score = (row) => {
+          if (row.contractStatus === 'missing') return 0
+          if (row.rightToWorkStatus === 'missing' || row.rightToWorkStatus === 'expired') return 1
+          if (row.rightToWorkStatus === 'warning') return 2
+          return 3
+        }
+        return score(a) - score(b)
+      })
+  }, [staff, docMap, onboardingMap, payslipMap])
 
   const filteredCoverage = filter === 'all'
     ? payslipCoverage
@@ -236,6 +283,63 @@ export default function HRDocuments() {
                     <td>{row.role || '—'}</td>
                     <td><span className={`badge badge-${row.payslipCount === 0 ? 'amber' : 'green'}`}>{row.payslipCount}</span></td>
                     <td>{(docMap[(row.user_email || '').toLowerCase()] || []).length}</td>
+                    <td>
+                      <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <div style={{ height: 18 }} />
+
+      <Panel title="Compliance overview" subtitle="Quickly assess contract coverage, right-to-work health, and recent document activity per staff member.">
+        {loading ? (
+          <EmptyState text="Loading compliance overview..." />
+        ) : !complianceRows.length ? (
+          <EmptyState text="No staff compliance rows available right now." />
+        ) : (
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Staff</th>
+                  <th>Contract</th>
+                  <th>Right to work</th>
+                  <th>Payslips</th>
+                  <th>Latest file</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {complianceRows.map((row) => (
+                  <tr key={row.user_email}>
+                    <td className="t-main">{row.full_name || row.user_email}</td>
+                    <td>
+                      <span className={`badge badge-${getComplianceTone(row.contractStatus)}`}>
+                        {row.contractStatus === 'ok' ? 'On file' : 'Missing'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge badge-${getComplianceTone(row.rightToWorkStatus)}`}>
+                        {row.rightToWorkStatus === 'ok'
+                          ? 'Valid'
+                          : row.rightToWorkStatus === 'warning'
+                            ? `${row.rtwRemaining}d left`
+                            : row.rightToWorkStatus === 'expired'
+                              ? 'Expired'
+                              : 'Missing'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge badge-${row.payslipCount === 0 ? 'amber' : 'green'}`}>{row.payslipCount}</span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                      {row.latestDocAt ? new Date(row.latestDocAt).toLocaleDateString('en-GB') : 'No upload'}
+                    </td>
                     <td>
                       <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</button>
                     </td>

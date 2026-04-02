@@ -387,6 +387,18 @@ export default function StaffProfile() {
   const lifecycle = getLifecycleMeta({ onboarding, startDate: profile.start_date, contractType: profile.contract_type })
   const enabledPermissionCount = countEnabledPermissions(editPerms)
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
+  const contractDoc = docs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
+  const rtwRemaining = profile.rtw_expiry ? Math.ceil((new Date(profile.rtw_expiry).getTime() - Date.now()) / 86400000) : null
+  const rtwStatus = !profile.rtw_document_url
+    ? { label: 'Missing', tone: 'red', hint: 'No right-to-work file linked.' }
+    : rtwRemaining !== null && rtwRemaining < 0
+      ? { label: 'Expired', tone: 'red', hint: 'Document expiry date has passed.' }
+      : rtwRemaining !== null && rtwRemaining <= 45
+        ? { label: `${rtwRemaining}d left`, tone: 'amber', hint: 'Review before expiry.' }
+        : { label: 'Valid', tone: 'green', hint: 'Document is on file.' }
+  const contractStatus = contractDoc
+    ? { label: 'On file', tone: 'green', hint: contractDoc.name }
+    : { label: 'Missing', tone: 'amber', hint: 'No contract document uploaded yet.' }
 
   const sendCustomNotification = async () => {
     if (!customNotification.title.trim() || !customNotification.message.trim()) {
@@ -989,6 +1001,29 @@ export default function StaffProfile() {
               </div>
               {docUploadError ? <div style={{ fontSize:12, color:'var(--red)' }}>{docUploadError}</div> : null}
               {docUploadSuccess ? <div style={{ fontSize:12, color:'var(--green)' }}>{docUploadSuccess}</div> : null}
+            </div>
+            <div style={{ padding:'12px 20px', borderBottom:'1px solid var(--border)', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
+              <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Contract</div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span className={`badge badge-${contractStatus.tone}`}>{contractStatus.label}</span>
+                  <span style={{ fontSize:12, color:'var(--sub)' }}>{contractStatus.hint}</span>
+                </div>
+              </div>
+              <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Right to work</div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span className={`badge badge-${rtwStatus.tone}`}>{rtwStatus.label}</span>
+                  <span style={{ fontSize:12, color:'var(--sub)' }}>{rtwStatus.hint}</span>
+                </div>
+              </div>
+              <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Document health</div>
+                <div style={{ fontSize:13, color:'var(--text)', fontWeight:600 }}>{docs.length} file{docs.length === 1 ? '' : 's'} on record</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                  {docs[0]?.created_at ? `Latest upload ${new Date(docs[0].created_at).toLocaleDateString('en-GB')}` : 'No uploaded staff files yet.'}
+                </div>
+              </div>
             </div>
             {docs.length === 0 ? (
               <div className="empty"><p>No documents uploaded yet.</p></div>
