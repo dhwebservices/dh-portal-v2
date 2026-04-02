@@ -370,11 +370,10 @@ const css = `
 `
 
 export default function Sidebar() {
-  const { user, can, isOnboarding } = useAuth()
+  const { user, can, isOnboarding, preferences, updatePreferences } = useAuth()
   const { instance } = useMsal()
   const location = useLocation()
   const navigate = useNavigate()
-  const [dark, setDark] = useState(() => localStorage.getItem('dh-theme') === 'dark')
   const [activeSection, setActiveSection] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -391,6 +390,8 @@ export default function Sidebar() {
   useEffect(() => {
     document.documentElement.style.setProperty('--sw', '56px')
   }, [])
+
+  const dark = preferences?.themeMode === 'dark'
 
   useEffect(() => {
     if (!user?.email) return
@@ -477,9 +478,9 @@ export default function Sidebar() {
 
   const toggleTheme = () => {
     const next = dark ? 'light' : 'dark'
-    document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('dh-theme', next)
-    setDark(!dark)
+    updatePreferences({ themeMode: next }).catch((error) => {
+      console.error('Sidebar theme update failed:', error)
+    })
   }
 
   const visibleSections = SECTIONS.filter(s => s.items.some(i => isAllowed(i.key)))

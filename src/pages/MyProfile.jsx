@@ -2,24 +2,35 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { ACCENT_SCHEMES, DASHBOARD_SECTIONS, mergePortalPreferences } from '../utils/portalPreferences'
 
 export default function MyProfile() {
-  const { user } = useAuth()
+  const { user, preferences, updatePreferences } = useAuth()
   const normalizedEmail = user?.email?.toLowerCase?.() || ''
   const [profile, setProfile]   = useState({})
   const [profileId, setProfileId] = useState(null)
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
+  const [prefsSaving, setPrefsSaving] = useState(false)
+  const [prefsSaved, setPrefsSaved] = useState(false)
   const [tab, setTab]           = useState('info')
   const [docs, setDocs]         = useState([])
   const [payslips, setPayslips] = useState([])
+  const [portalPrefs, setPortalPrefs] = useState(() => mergePortalPreferences(preferences))
 
   // All editable fields staff can update themselves
   const [form, setForm] = useState({
     phone: '', personal_email: '', location: '', bio: '', skills: '',
   })
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const sp = (k, v) => setPortalPrefs((current) => mergePortalPreferences(current, { [k]: v }))
+  const toggleSection = (key) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    dashboardSections: {
+      ...current.dashboardSections,
+      [key]: !current.dashboardSections?.[key],
+    },
+  }))
 
   useEffect(() => {
     if (!normalizedEmail) return
@@ -53,6 +64,10 @@ export default function MyProfile() {
       setLoading(false)
     })
   }, [normalizedEmail])
+
+  useEffect(() => {
+    setPortalPrefs(mergePortalPreferences(preferences))
+  }, [preferences])
 
   const save = async () => {
     setSaving(true)
@@ -98,6 +113,20 @@ export default function MyProfile() {
     }
   }
 
+  const savePortalPrefs = async () => {
+    setPrefsSaving(true)
+    try {
+      await updatePreferences(portalPrefs)
+      setPrefsSaved(true)
+      setTimeout(() => setPrefsSaved(false), 3000)
+    } catch (error) {
+      console.error('Portal preferences save error:', error)
+      alert('Could not save your portal preferences right now. Please try again.')
+    } finally {
+      setPrefsSaving(false)
+    }
+  }
+
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
   return (
@@ -122,7 +151,7 @@ export default function MyProfile() {
       </div>
 
       <div className="tabs">
-        {[['info','My Details'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['payslips','Payslips']].map(([k,l]) => (
+        {[['info','My Details'],['portal','Portal'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['payslips','Payslips']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -139,6 +168,133 @@ export default function MyProfile() {
               <div className="fc"><label className="lbl">Skills</label><input className="inp" value={form.skills} onChange={e=>sf('skills',e.target.value)} placeholder="e.g. WordPress, SEO, Client Relations"/></div>
             </div>
             <div><label className="lbl">Bio / About Me</label><textarea className="inp" rows={3} value={form.bio} onChange={e=>sf('bio',e.target.value)} style={{ resize:'vertical' }}/></div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'portal' && (
+        <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.1fr) minmax(280px,0.9fr)', gap:18 }} className="staff-profile-main-grid">
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Portal preferences</div>
+                <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Personalise your workspace</div>
+                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
+                  Choose your portal theme, accent scheme, and which dashboard sections you want to keep visible.
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                {prefsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                <button className="btn btn-primary" onClick={savePortalPrefs} disabled={prefsSaving}>
+                  {prefsSaving ? 'Saving...' : 'Save portal preferences'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom:18 }}>
+              <div className="lbl" style={{ marginBottom:8 }}>Theme mode</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {[
+                  ['light', 'Light', 'Clean white workspace'],
+                  ['dark', 'Dark', 'Low-glare evening mode'],
+                ].map(([key, label, desc]) => (
+                  <button
+                    key={key}
+                    onClick={() => sp('themeMode', key)}
+                    style={{
+                      padding:'14px 16px',
+                      borderRadius:12,
+                      border:`2px solid ${portalPrefs.themeMode === key ? 'var(--accent)' : 'var(--border)'}`,
+                      background: portalPrefs.themeMode === key ? 'var(--accent-soft)' : 'var(--card)',
+                      textAlign:'left',
+                    }}
+                  >
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{label}</div>
+                    <div style={{ fontSize:12, color:'var(--sub)' }}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:18 }}>
+              <div className="lbl" style={{ marginBottom:8 }}>Accent scheme</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                {Object.entries(ACCENT_SCHEMES).map(([key, scheme]) => (
+                  <button
+                    key={key}
+                    onClick={() => sp('accentScheme', key)}
+                    style={{
+                      padding:'14px 14px',
+                      borderRadius:12,
+                      border:`2px solid ${portalPrefs.accentScheme === key ? scheme.accent : 'var(--border)'}`,
+                      background: portalPrefs.accentScheme === key ? scheme.soft : 'var(--card)',
+                      textAlign:'left',
+                    }}
+                  >
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                      <span style={{ width:12, height:12, borderRadius:'50%', background:scheme.accent, boxShadow:`0 0 10px ${scheme.accent}` }} />
+                      <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{scheme.label}</span>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--sub)' }}>{key}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="lbl" style={{ marginBottom:8 }}>Dashboard sections</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
+                {DASHBOARD_SECTIONS.map(([key, label]) => {
+                  const enabled = portalPrefs.dashboardSections?.[key] !== false
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleSection(key)}
+                      style={{
+                        padding:'13px 14px',
+                        borderRadius:12,
+                        border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`,
+                        background: enabled ? 'var(--accent-soft)' : 'var(--card)',
+                        display:'flex',
+                        alignItems:'center',
+                        justifyContent:'space-between',
+                        gap:12,
+                        textAlign:'left',
+                      }}
+                    >
+                      <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                      <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'On' : 'Off'}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
+            <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Your dashboard setup</div>
+            <div style={{ display:'grid', gap:10 }}>
+              <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Theme</div>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{portalPrefs.themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</div>
+              </div>
+              <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Accent</div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ width:12, height:12, borderRadius:'50%', background:(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).accent }} />
+                  <span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).label}</span>
+                </div>
+              </div>
+              <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Visible sections</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {DASHBOARD_SECTIONS.filter(([key]) => portalPrefs.dashboardSections?.[key] !== false).map(([, label]) => (
+                    <span key={label} className="badge badge-blue">{label}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

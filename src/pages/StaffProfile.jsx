@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 import { sendEmail } from '../utils/email'
+import { ACCENT_SCHEMES, buildPreferenceSettingKey, DASHBOARD_SECTIONS, DEFAULT_PORTAL_PREFERENCES, mergePortalPreferences } from '../utils/portalPreferences'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
@@ -114,6 +115,9 @@ export default function StaffProfile() {
   const [notificationHistory, setNotificationHistory] = useState([])
   const [msUsers, setMsUsers]     = useState([])
   const [prevMgr, setPrevMgr]     = useState('')
+  const [portalPrefs, setPortalPrefs] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES))
+  const [portalPrefsSaving, setPortalPrefsSaving] = useState(false)
+  const [portalPrefsSaved, setPortalPrefsSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
     title: '',
     message: '',
@@ -134,6 +138,13 @@ export default function StaffProfile() {
 
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
   const nf = (k, v) => setCustomNotification((current) => ({ ...current, [k]: v }))
+  const gp = (k, v) => setPortalPrefs((current) => mergePortalPreferences(current, { [k]: v }))
+  const togglePortalSection = (key) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    dashboardSections: {
+      ...current.dashboardSections,
+      [key]: !current.dashboardSections?.[key],
+    },
+  }))
 
   // ── Load ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,9 +181,16 @@ export default function StaffProfile() {
         sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
         sbGet('onboarding_submissions', `user_email=ilike.${enc}`),
       ])
+      const { data: preferenceSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildPreferenceSettingKey(email))
+        .maybeSingle()
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
+      const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
+      setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
 
       if (p || onboardingSubmission) {
         setProfile(mergedProfile)
@@ -349,6 +367,27 @@ export default function StaffProfile() {
       alert('Save failed: ' + err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const savePortalPrefs = async () => {
+    setPortalPrefsSaving(true)
+    try {
+      const nextPreferences = mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, portalPrefs)
+      const { error } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildPreferenceSettingKey(email),
+          value: { value: nextPreferences },
+        }, { onConflict: 'key' })
+      if (error) throw error
+      setPortalPrefsSaved(true)
+      setTimeout(() => setPortalPrefsSaved(false), 3000)
+    } catch (error) {
+      console.error('Portal preference save failed:', error)
+      alert('Could not save staff portal preferences right now.')
+    } finally {
+      setPortalPrefsSaving(false)
     }
   }
 
@@ -575,7 +614,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['portal','Portal'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -696,6 +735,135 @@ export default function StaffProfile() {
                           </div>
                         )
                       })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'portal' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.1fr) minmax(300px,0.9fr)', gap:18 }} className="staff-profile-main-grid">
+            <div className="card card-pad staff-profile-form-card">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Staff experience</div>
+                  <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Theme and dashboard layout</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
+                    Control this staff member’s portal colour scheme and which dashboard sections appear for them.
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  {portalPrefsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                  <button className="btn btn-primary" onClick={savePortalPrefs} disabled={portalPrefsSaving}>
+                    {portalPrefsSaving ? 'Saving...' : 'Save portal setup'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Theme mode</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  {[
+                    ['light', 'Light', 'Bright default workspace'],
+                    ['dark', 'Dark', 'Lower-glare evening mode'],
+                  ].map(([key, label, desc]) => (
+                    <button
+                      key={key}
+                      onClick={() => gp('themeMode', key)}
+                      style={{
+                        padding:'14px 16px',
+                        borderRadius:12,
+                        border:`2px solid ${portalPrefs.themeMode === key ? 'var(--accent)' : 'var(--border)'}`,
+                        background: portalPrefs.themeMode === key ? 'var(--accent-soft)' : 'var(--card)',
+                        textAlign:'left',
+                      }}
+                    >
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{label}</div>
+                      <div style={{ fontSize:12, color:'var(--sub)' }}>{desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Accent scheme</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                  {Object.entries(ACCENT_SCHEMES).map(([key, scheme]) => (
+                    <button
+                      key={key}
+                      onClick={() => gp('accentScheme', key)}
+                      style={{
+                        padding:'14px',
+                        borderRadius:12,
+                        border:`2px solid ${portalPrefs.accentScheme === key ? scheme.accent : 'var(--border)'}`,
+                        background: portalPrefs.accentScheme === key ? scheme.soft : 'var(--card)',
+                        textAlign:'left',
+                      }}
+                    >
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                        <span style={{ width:12, height:12, borderRadius:'50%', background:scheme.accent, boxShadow:`0 0 10px ${scheme.accent}` }} />
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{scheme.label}</span>
+                      </div>
+                      <div style={{ fontSize:11, color:'var(--sub)' }}>{key}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="lbl" style={{ marginBottom:8 }}>Dashboard sections</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
+                  {DASHBOARD_SECTIONS.map(([key, label]) => {
+                    const enabled = portalPrefs.dashboardSections?.[key] !== false
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => togglePortalSection(key)}
+                        style={{
+                          padding:'13px 14px',
+                          borderRadius:12,
+                          border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`,
+                          background: enabled ? 'var(--accent-soft)' : 'var(--card)',
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent:'space-between',
+                          gap:12,
+                          textAlign:'left',
+                        }}
+                      >
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'On' : 'Off'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Current setup</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:10 }}>Live staff view</div>
+                <div style={{ display:'grid', gap:10 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Theme</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{portalPrefs.themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Accent</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ width:12, height:12, borderRadius:'50%', background:(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).accent }} />
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{(ACCENT_SCHEMES[portalPrefs.accentScheme] || ACCENT_SCHEMES.blue).label}</div>
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Dashboard shown</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {DASHBOARD_SECTIONS.filter(([key]) => portalPrefs.dashboardSections?.[key] !== false).map(([, label]) => (
+                        <span key={label} className="badge badge-blue">{label}</span>
+                      ))}
                     </div>
                   </div>
                 </div>

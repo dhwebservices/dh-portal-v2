@@ -16,6 +16,7 @@ import {
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
+import { Modal } from '../components/Modal'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -157,7 +158,7 @@ function ActiveBanners() {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, preferences } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState({
     outreach: 0,
@@ -180,6 +181,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [insight, setInsight] = useState('')
   const [insightLoading, setInsightLoading] = useState(false)
+  const [whatsNew, setWhatsNew] = useState(null)
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -195,6 +198,7 @@ export default function Dashboard() {
   const weekStart = getWeekStart()
   const todayIso = new Date().toISOString().split('T')[0]
   const sevenDaysOut = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+  const dashboardSections = preferences?.dashboardSections || {}
 
   useEffect(() => {
     async function load() {
@@ -309,6 +313,24 @@ export default function Dashboard() {
     if (user?.email) load()
   }, [isAdmin, sevenDaysOut, todayIso, todayName, user?.email, weekStart])
 
+  useEffect(() => {
+    if (!user?.email) return
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', 'whats_new_payload')
+      .maybeSingle()
+      .then(({ data }) => {
+        const payload = data?.value?.value ?? data?.value ?? null
+        if (!payload?.active || !payload?.version) return
+        const seenKey = `dh-whats-new-seen:${user.email.toLowerCase()}`
+        if (localStorage.getItem(seenKey) === payload.version) return
+        setWhatsNew(payload)
+        setShowWhatsNew(true)
+      })
+      .catch(() => {})
+  }, [user?.email])
+
   const generatedInsight = useMemo(() => {
     if (stats.pendingLeave > 0) {
       return 'There are leave requests waiting on a decision. Approving or rejecting those first will clear a people bottleneck quickly.'
@@ -334,8 +356,42 @@ export default function Dashboard() {
     setInsightLoading(false)
   }
 
+  const dismissWhatsNew = () => {
+    if (user?.email && whatsNew?.version) {
+      localStorage.setItem(`dh-whats-new-seen:${user.email.toLowerCase()}`, whatsNew.version)
+    }
+    setShowWhatsNew(false)
+  }
+
   return (
     <div className="fade-in">
+      {showWhatsNew && whatsNew ? (
+        <Modal
+          title={whatsNew.title || 'What’s New'}
+          onClose={dismissWhatsNew}
+          width={860}
+          footer={<><button className="btn btn-outline" onClick={dismissWhatsNew}>Close</button><button className="btn btn-primary" onClick={dismissWhatsNew}>Got it</button></>}
+        >
+          <div style={{ display:'grid', gap:18 }}>
+            <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--accent-soft)', border:'1px solid var(--accent-border)' }}>
+              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Version {whatsNew.version}</div>
+              <div style={{ fontSize:14, color:'var(--text)', lineHeight:1.7 }}>
+                {whatsNew.intro || 'Recent updates and improvements across the portal.'}
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
+              {(whatsNew.cards || []).map((card, index) => (
+                <div key={`${card.title || 'card'}-${index}`} className="card card-pad">
+                  {card.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{card.tag}</span> : null}
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{card.title || 'Update'}</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65 }}>{card.body || 'No details added yet.'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       <ActiveBanners />
 
       <div style={{ marginBottom: 28 }}>
@@ -345,6 +401,7 @@ export default function Dashboard() {
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)', marginTop: 8 }}>{dateStr}</p>
       </div>
 
+      {dashboardSections.stats !== false ? (
       <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 28 }}>
         <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
         <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
@@ -353,8 +410,11 @@ export default function Dashboard() {
         <StatCard icon={TrendingUp} label="Commission Paid" value={`£${stats.revenue.toLocaleString()}`} accent="var(--accent)" loading={loading} hint="Paid commission recorded in the portal" />
         <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
       </div>
+      ) : null}
 
+      {(dashboardSections.today !== false || dashboardSections.insight !== false) ? (
       <div className="dashboard-top-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 20, marginBottom: 20 }}>
+        {dashboardSections.today !== false ? (
         <Panel title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
           <div className="dashboard-fourup" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0 }}>
             {[
@@ -377,7 +437,9 @@ export default function Dashboard() {
             })}
           </div>
         </Panel>
+        ) : <div />}
 
+        {dashboardSections.insight !== false ? (
         <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)' }}>Operations Insight</div>
           <div style={{ flex: 1, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
@@ -387,9 +449,13 @@ export default function Dashboard() {
             {insightLoading ? <><div className="spin" style={{ width: 12, height: 12, borderWidth: 1.5 }} />Generating…</> : 'Generate insight'}
           </button>
         </div>
+        ) : <div />}
       </div>
+      ) : null}
 
+      {(dashboardSections.priority !== false || dashboardSections.notifications !== false) ? (
       <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        {dashboardSections.priority !== false ? (
         <Panel title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
           {priorityItems.length ? (
             priorityItems.map((item, index) => (
@@ -406,7 +472,9 @@ export default function Dashboard() {
             <EmptyState text="Nothing urgent is stacked up right now." />
           )}
         </Panel>
+        ) : <div />}
 
+        {dashboardSections.notifications !== false ? (
         <Panel title="Unread Notifications" actionLabel="View Header Bell" onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           {notifications.length ? (
             notifications.map((notification) => (
@@ -431,9 +499,13 @@ export default function Dashboard() {
             <EmptyState text="No unread notifications at the moment." />
           )}
         </Panel>
+        ) : <div />}
       </div>
+      ) : null}
 
+      {(dashboardSections.schedule !== false || dashboardSections.appointments !== false) ? (
       <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {dashboardSections.schedule !== false ? (
         <Panel title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
           {todaySchedule.length ? (
             todaySchedule.map((shift) => (
@@ -450,7 +522,9 @@ export default function Dashboard() {
             <EmptyState text="No submitted schedule hours were found for today." />
           )}
         </Panel>
+        ) : <div />}
 
+        {dashboardSections.appointments !== false ? (
         <Panel title="Upcoming Appointments" actionLabel="Open Calendar" onAction={() => navigate('/appointments')}>
           {upcomingAppointments.length ? (
             upcomingAppointments.map((appointment) => (
@@ -467,8 +541,11 @@ export default function Dashboard() {
             <EmptyState text="No upcoming appointments in the next 7 days." />
           )}
         </Panel>
+        ) : <div />}
       </div>
+      ) : null}
 
+      {dashboardSections.activity !== false ? (
       <div style={{ marginTop: 20 }}>
         <Panel title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
           {recentActivity.length ? (
@@ -489,6 +566,7 @@ export default function Dashboard() {
           )}
         </Panel>
       </div>
+      ) : null}
     </div>
   )
 }

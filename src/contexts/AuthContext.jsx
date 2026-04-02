@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
+import {
+  applyPortalAppearance,
+  buildPreferenceSettingKey,
+  DEFAULT_PORTAL_PREFERENCES,
+  mergePortalPreferences,
+  readStoredPortalPreferences,
+} from '../utils/portalPreferences'
 
 const Ctx = createContext(null)
 
@@ -31,10 +38,15 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin]       = useState(false)
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
+  const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
-    if (!normalizedEmail) { setLoading(false); return }
+    if (!normalizedEmail) {
+      applyPortalAppearance(preferences)
+      setLoading(false)
+      return
+    }
     const timeout = setTimeout(() => setLoading(false), 4000)
     const isOwner = OWNER_EMAILS.has(normalizedEmail)
     Promise.all([
@@ -48,8 +60,13 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', 'portal_maintenance')
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildPreferenceSettingKey(normalizedEmail))
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, maintenanceResult]) => {
+      .then(([permissionsResult, maintenanceResult, preferenceResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         if (!maintenanceResult?.error && maintenanceResult?.data) {
@@ -62,6 +79,11 @@ export function AuthProvider({ children }) {
         } else {
           setMaintenance({ enabled: false, message: '', eta: '' })
         }
+
+        const preferenceRaw = preferenceResult?.data?.value?.value ?? preferenceResult?.data?.value ?? {}
+        const nextPreferences = mergePortalPreferences(readStoredPortalPreferences(), preferenceRaw)
+        setPreferences(nextPreferences)
+        applyPortalAppearance(nextPreferences)
 
         if (!error && data) {
           const safePerms = sanitizePermissions(data.permissions)
@@ -81,6 +103,9 @@ export function AuthProvider({ children }) {
         setIsAdmin(isOwner)
         setIsOnboarding(false)
         setMaintenance({ enabled: false, message: '', eta: '' })
+        const nextPreferences = mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences())
+        setPreferences(nextPreferences)
+        applyPortalAppearance(nextPreferences)
         setLoading(false)
       })
 
@@ -121,8 +146,27 @@ export function AuthProvider({ children }) {
     return false
   }
 
+  const updatePreferences = async (patch, options = {}) => {
+    const targetEmail = String(options.email || normalizedEmail || '').toLowerCase().trim()
+    const nextPreferences = mergePortalPreferences(preferences, patch)
+    setPreferences(nextPreferences)
+    applyPortalAppearance(nextPreferences)
+
+    if (options.persist === false || !targetEmail) return nextPreferences
+
+    const { error } = await supabase
+      .from('portal_settings')
+      .upsert({
+        key: buildPreferenceSettingKey(targetEmail),
+        value: { value: nextPreferences },
+      }, { onConflict: 'key' })
+
+    if (error) throw error
+    return nextPreferences
+  }
+
   return (
-    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, maintenance, loading }}>
+    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, maintenance, preferences, updatePreferences, loading }}>
       {children}
     </Ctx.Provider>
   )

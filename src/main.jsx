@@ -2,10 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/global.css'
+import { applyPortalAppearance, readStoredPortalPreferences } from './utils/portalPreferences'
 
 // Set theme before render to prevent flash
-const saved = localStorage.getItem('dh-theme') || 'light'
-document.documentElement.setAttribute('data-theme', saved)
+applyPortalAppearance(readStoredPortalPreferences())
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>

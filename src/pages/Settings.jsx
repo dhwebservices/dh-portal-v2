@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-const SECTIONS = ['general','email','payments','notifications','danger']
+const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
 
 export default function Settings() {
   const { user, isAdmin } = useAuth()
@@ -11,6 +11,13 @@ export default function Settings() {
   const [error, setError]   = useState('')
   const [success, setSuccess] = useState('')
   const [saved, setSaved]   = useState('')
+  const [whatsNew, setWhatsNew] = useState({
+    active: false,
+    version: '',
+    title: 'What’s New',
+    intro: '',
+    cards: [{ ...EMPTY_WHATS_NEW_CARD }],
+  })
   const [settings, setSettings] = useState({
     portal_name: 'DH Staff Portal',
     portal_tagline: 'DH Website Services',
@@ -31,6 +38,15 @@ export default function Settings() {
       const map = {}
       data.forEach(r => { map[r.key] = r.value?.value ?? r.value })
       setSettings(p => ({ ...p, ...map }))
+      if (map.whats_new_payload) {
+        setWhatsNew({
+          active: map.whats_new_payload.active === true,
+          version: map.whats_new_payload.version || '',
+          title: map.whats_new_payload.title || 'What’s New',
+          intro: map.whats_new_payload.intro || '',
+          cards: Array.isArray(map.whats_new_payload.cards) && map.whats_new_payload.cards.length ? map.whats_new_payload.cards : [{ ...EMPTY_WHATS_NEW_CARD }],
+        })
+      }
     })
   }, [])
 
@@ -49,6 +65,40 @@ export default function Settings() {
       supabase.from('portal_settings').upsert({ key, value: { value: settings[key] } }, { onConflict:'key' })
     ))
     setSaving(false); setSaved(section); setTimeout(() => setSaved(''), 3000)
+  }
+
+  const updateWhatsNewCard = (index, key, value) => {
+    setWhatsNew((current) => ({
+      ...current,
+      cards: current.cards.map((card, cardIndex) => cardIndex === index ? { ...card, [key]: value } : card),
+    }))
+  }
+
+  const addWhatsNewCard = () => {
+    setWhatsNew((current) => ({ ...current, cards: [...current.cards, { ...EMPTY_WHATS_NEW_CARD }] }))
+  }
+
+  const removeWhatsNewCard = (index) => {
+    setWhatsNew((current) => ({
+      ...current,
+      cards: current.cards.length > 1 ? current.cards.filter((_, cardIndex) => cardIndex !== index) : [{ ...EMPTY_WHATS_NEW_CARD }],
+    }))
+  }
+
+  const saveWhatsNew = async () => {
+    setSaving(true)
+    await supabase.from('portal_settings').upsert({
+      key: 'whats_new_payload',
+      value: {
+        value: {
+          ...whatsNew,
+          cards: whatsNew.cards.filter((card) => card.title || card.body || card.tag),
+        },
+      },
+    }, { onConflict:'key' })
+    setSaving(false)
+    setSaved('experience')
+    setTimeout(() => setSaved(''), 3000)
   }
 
   const SaveBtn = ({ section }) => (
@@ -82,7 +132,7 @@ export default function Settings() {
       <div className="page-hd"><div><h1 className="page-title">Settings</h1></div></div>
 
       <div className="tabs">
-        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['danger','Danger Zone']].map(([k,l]) => (
+        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['danger','Danger Zone']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -151,6 +201,93 @@ export default function Settings() {
             <Toggle label="Invoice paid" desc="Notify when a client pays an invoice" k="notify_invoice_paid"/>
           </div>
           <SaveBtn section="notifications"/>
+        </div>
+      )}
+
+      {tab === 'experience' && (
+        <div style={{ display:'grid', gap:18, maxWidth:860 }}>
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>What’s New popup</div>
+                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                  Publish a multi-card update modal for staff. It appears once per user for each version until they dismiss it.
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <button onClick={() => setWhatsNew((current) => ({ ...current, active: !current.active }))} style={{ width:40, height:22, borderRadius:11, background: whatsNew.active ? 'var(--green)' : 'var(--border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+                  <div style={{ position:'absolute', top:2, left: whatsNew.active ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+                </button>
+                <span style={{ fontSize:12, color: whatsNew.active ? 'var(--green)' : 'var(--faint)', fontWeight:600 }}>
+                  {whatsNew.active ? 'Live' : 'Off'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display:'grid', gap:14 }}>
+              <div className="fg">
+                <div><label className="lbl">Version</label><input className="inp" value={whatsNew.version} onChange={e => setWhatsNew((current) => ({ ...current, version: e.target.value }))} placeholder="e.g. 2.4.0" /></div>
+                <div><label className="lbl">Title</label><input className="inp" value={whatsNew.title} onChange={e => setWhatsNew((current) => ({ ...current, title: e.target.value }))} placeholder="What’s New in DH Portal" /></div>
+              </div>
+              <div>
+                <label className="lbl">Intro</label>
+                <textarea className="inp" rows={3} value={whatsNew.intro} onChange={e => setWhatsNew((current) => ({ ...current, intro: e.target.value }))} style={{ resize:'vertical' }} placeholder="Short introduction shown above the cards" />
+              </div>
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Update cards</div>
+                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>Add as many cards as you need for new features, changes, or improvements.</div>
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={addWhatsNewCard}>Add card</button>
+            </div>
+
+            <div style={{ display:'grid', gap:14 }}>
+              {whatsNew.cards.map((card, index) => (
+                <div key={`whats-new-card-${index}`} style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Card {index + 1}</div>
+                    <button className="btn btn-danger btn-sm" onClick={() => removeWhatsNewCard(index)}>Remove</button>
+                  </div>
+                  <div style={{ display:'grid', gap:12 }}>
+                    <div className="fg">
+                      <div><label className="lbl">Tag</label><input className="inp" value={card.tag || ''} onChange={e => updateWhatsNewCard(index, 'tag', e.target.value)} placeholder="e.g. New, Improved" /></div>
+                      <div><label className="lbl">Title</label><input className="inp" value={card.title || ''} onChange={e => updateWhatsNewCard(index, 'title', e.target.value)} placeholder="What changed?" /></div>
+                    </div>
+                    <div>
+                      <label className="lbl">Body</label>
+                      <textarea className="inp" rows={4} value={card.body || ''} onChange={e => updateWhatsNewCard(index, 'body', e.target.value)} style={{ resize:'vertical' }} placeholder="Short explanation of the update" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Preview</div>
+            <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', marginBottom:14 }}>
+              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Version {whatsNew.version || '—'}</div>
+              <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
+              <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>{whatsNew.intro || 'Your intro text will appear here.'}</div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
+              {whatsNew.cards.map((card, index) => (
+                <div key={`preview-${index}`} style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--card)' }}>
+                  {card.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{card.tag}</span> : null}
+                  <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{card.title || 'Update title'}</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>{card.body || 'Card details appear here.'}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
+              <button className="btn btn-primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</button>
+              {saved === 'experience' && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span>}
+            </div>
+          </div>
         </div>
       )}
 
