@@ -116,6 +116,11 @@ export default function StaffProfile() {
   })
   const fileRef = useRef()
 
+  const fileTypeLabel = (name = '') => {
+    const ext = name.split('.').pop()?.toUpperCase()
+    return ext ? ext : 'FILE'
+  }
+
   const pf = (k, v) => setProfile(p => ({ ...p, [k]: v }))
   const nf = (k, v) => setCustomNotification((current) => ({ ...current, [k]: v }))
 
@@ -988,49 +993,46 @@ export default function StaffProfile() {
             {docs.length === 0 ? (
               <div className="empty"><p>No documents uploaded yet.</p></div>
             ) : (
-              <>
-                <div className="tbl-wrap hide-mob">
-                  <table className="tbl">
-                    <thead><tr><th>Document</th><th>Type</th><th>Uploaded By</th><th>Date</th><th></th></tr></thead>
-                    <tbody>
-                      {docs.map(d => (
-                        <tr key={d.id}>
-                          <td className="t-main">{d.name}</td>
-                          <td><span className="badge badge-blue">{d.type}</span></td>
-                          <td>{d.uploaded_by || '—'}</td>
-                          <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</td>
-                          <td>
-                            <div style={{ display:'flex', gap:4 }}>
-                              <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View</a>
-                              <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Del</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mobile-only" style={{ display:'none' }}>
-                  <div style={{ display:'grid', gap:10, padding:12 }}>
-                    {docs.map((d) => (
-                      <div key={d.id} className="card" style={{ padding:14, display:'grid', gap:10 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
-                          <div style={{ minWidth:0 }}>
-                            <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{d.name}</div>
-                            <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</div>
-                          </div>
-                          <span className="badge badge-blue">{d.type}</span>
-                        </div>
-                        <div style={{ fontSize:12, color:'var(--sub)' }}>Uploaded by {d.uploaded_by || '—'}</div>
-                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                          <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View</a>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Delete</button>
+              <div style={{ display:'grid', gap:12, padding:12 }}>
+                {docs.map((d) => (
+                  <div key={d.id} className="card" style={{ padding:16, display:'grid', gap:12 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+                      <div style={{ minWidth:0, flex:1 }}>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{d.name}</div>
+                        <div style={{ fontSize:13, color:'var(--sub)' }}>
+                          {d.type || 'Document'} for {profile.full_name || email}
                         </div>
                       </div>
-                    ))}
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                        <span className="badge badge-blue">{fileTypeLabel(d.name)}</span>
+                        <span className="badge badge-grey">{d.type || 'Document'}</span>
+                        <span className="badge badge-green">Stored</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
+                      <div style={{ padding:'10px 12px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                        <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Uploaded by</div>
+                        <div style={{ fontSize:13, color:'var(--text)', fontWeight:600 }}>{d.uploaded_by || 'Unknown'}</div>
+                      </div>
+                      <div style={{ padding:'10px 12px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                        <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Date</div>
+                        <div style={{ fontSize:13, color:'var(--text)', fontWeight:600 }}>{new Date(d.created_at).toLocaleDateString('en-GB')}</div>
+                      </div>
+                      <div style={{ padding:'10px 12px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                        <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>File path</div>
+                        <div style={{ fontSize:11, color:'var(--sub)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis' }}>{d.file_path || 'Stored in HR documents'}</div>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:12, color:'var(--sub)' }}>Open to preview or download, or remove if this file should no longer sit on the staff record.</div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <a href={d.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Open document</a>
+                        <button className="btn btn-danger btn-sm" onClick={() => deleteDoc(d)}>Delete</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </>
+                ))}
+              </div>
             )}
           </div>
         )}

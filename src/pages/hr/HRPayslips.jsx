@@ -17,6 +17,11 @@ export default function HRPayslips() {
   const [staffFilter, setStaffFilter] = useState('all')
   const fileRef = useRef()
 
+  const fileTypeLabel = (name = '') => {
+    const ext = name.split('.').pop()?.toUpperCase()
+    return ext ? `${ext} File` : 'Payslip'
+  }
+
   useEffect(() => { load() }, [user?.email])
   const load = async () => {
     setLoading(true)
@@ -173,19 +178,34 @@ export default function HRPayslips() {
 
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : filteredPayslips.length===0 ? <div className="empty"><p>No payslips match this view yet.</p></div> : (
-          <table className="tbl">
-            <thead><tr>{isManager&&<th>Staff</th>}<th>Period</th><th>Uploaded</th><th></th></tr></thead>
-            <tbody>
-              {filteredPayslips.map(p => (
-                <tr key={p.id}>
-                  {isManager&&<td className="t-main">{p.user_name}</td>}
-                  <td>{p.period}</td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(p.uploaded_at).toLocaleDateString('en-GB')}</td>
-                  <td><a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Download</a></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ display:'grid', gap:12, padding:12 }}>
+            {filteredPayslips.map((p) => (
+              <div key={p.id} className="card" style={{ padding:16, display:'grid', gap:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+                  <div style={{ minWidth:0, flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
+                      {isManager ? (p.user_name || p.user_email) : p.period}
+                    </div>
+                    <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>
+                      {isManager ? `${p.period} payslip` : 'Payroll document ready to open'}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                    <span className="badge badge-blue">{fileTypeLabel(p.file_path || p.file_url)}</span>
+                    <span className="badge badge-green">Stored</span>
+                    <span className="badge badge-grey">Uploaded {new Date(p.uploaded_at).toLocaleDateString('en-GB')}</span>
+                  </div>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                  <div style={{ display:'grid', gap:4 }}>
+                    {isManager ? <div style={{ fontSize:12, color:'var(--sub)' }}>{p.user_email}</div> : null}
+                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{p.file_path || 'Stored in HR documents'}</div>
+                  </div>
+                  <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Open payslip</a>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -12,8 +12,14 @@ export default function HRPolicies() {
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploadError, setUploadError] = useState('')
+  const [uploadSuccess, setUploadSuccess] = useState('')
   const [form, setForm]           = useState({ title:'', description:'' })
   const fileRef = useRef()
+
+  const fileTypeLabel = (name = '') => {
+    const ext = name.split('.').pop()?.toUpperCase()
+    return ext ? `${ext} File` : 'Policy File'
+  }
 
   useEffect(() => { load() }, [user?.email])
   const load = async () => {
@@ -47,6 +53,7 @@ export default function HRPolicies() {
     }
     setUploading(true)
     setUploadError('')
+    setUploadSuccess('')
     const path = `policies/${Date.now()}-${selectedFile.name}`
     const { error } = await supabase.storage.from('hr-documents').upload(path, selectedFile, { upsert: false })
     if (!error) {
@@ -62,6 +69,7 @@ export default function HRPolicies() {
       if (insertError) {
         setUploadError(insertError.message || 'Could not save the policy record.')
       } else {
+        setUploadSuccess(`Uploaded ${selectedFile.name}`)
         setForm({ title:'', description:'' })
         setSelectedFile(null)
         if (fileRef.current) fileRef.current.value = ''
@@ -147,6 +155,7 @@ export default function HRPolicies() {
                 const file = e.target.files?.[0] || null
                 setSelectedFile(file)
                 setUploadError('')
+                setUploadSuccess('')
               }}
             />
             <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
@@ -161,6 +170,7 @@ export default function HRPolicies() {
               {selectedFile ? `Selected: ${selectedFile.name}` : 'No PDF selected yet.'}
             </div>
             {uploadError ? <div style={{ fontSize:12, color:'var(--red)' }}>{uploadError}</div> : null}
+            {uploadSuccess ? <div style={{ fontSize:12, color:'var(--green)' }}>{uploadSuccess}</div> : null}
           </div>
         </div>
       )}
@@ -172,17 +182,34 @@ export default function HRPolicies() {
             const acknowledged = acks.includes(p.id)
             const ackCount = summary.ackByPolicy[p.id] || 0
             return (
-              <div key={p.id} className="card card-pad" style={{ display:'flex', alignItems:'center', gap:16 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:14, fontWeight:600, marginBottom:3 }}>{p.title}</div>
-                  {p.description && <div style={{ fontSize:13, color:'var(--sub)', marginBottom:4 }}>{p.description}</div>}
-                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+              <div key={p.id} className="card card-pad" style={{ display:'grid', gap:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+                  <div style={{ minWidth:0, flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:600, marginBottom:4, color:'var(--text)' }}>{p.title}</div>
+                    {p.description && <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.55 }}>{p.description}</div>}
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                    <span className="badge badge-blue">{fileTypeLabel(p.file_path || p.file_url || p.title)}</span>
                     <span className="badge badge-grey">Uploaded {new Date(p.created_at).toLocaleDateString('en-GB')}</span>
                     {isManager ? <span className={`badge badge-${ackCount === 0 ? 'red' : ackCount < 2 ? 'amber' : 'green'}`}>{ackCount} acknowledgements</span> : null}
+                    {!isManager ? (
+                      acknowledged
+                        ? <span className="badge badge-green">Acknowledged</span>
+                        : <span className="badge badge-amber">Needs acknowledgement</span>
+                    ) : null}
                   </div>
                 </div>
-                <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-                  <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View PDF</a>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                  <div style={{ display:'grid', gap:4 }}>
+                    <div style={{ fontSize:12, color:'var(--sub)' }}>
+                      Uploaded by <strong style={{ color:'var(--text)', fontWeight:600 }}>{p.uploaded_by || 'Unknown uploader'}</strong>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                      {p.file_path || 'Stored in HR documents'}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap' }}>
+                    <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Open PDF</a>
                   {isManager && (
                     <button className="btn btn-danger btn-sm" onClick={() => del(p)}>Delete</button>
                   )}
@@ -191,6 +218,7 @@ export default function HRPolicies() {
                     : <button className="btn btn-primary btn-sm" onClick={()=>acknowledge(p.id)}>Acknowledge</button>
                   )}
                 </div>
+              </div>
               </div>
             )
           })}
