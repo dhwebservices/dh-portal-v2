@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Bell, CheckCheck, CircleAlert, Clock3, Filter, Info, CheckCircle2, TriangleAlert } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import SystemBannerCard from '../components/SystemBannerCard'
 
 const FILTERS = [
   ['all', 'All'],
@@ -238,24 +239,18 @@ export default function Notifications() {
               </div>
               <div style={{ display:'grid', gap:10 }}>
                 {pinnedAlerts.map((banner) => (
-                  <div key={banner.id} style={{ padding:14, border:'1px solid var(--border)', borderRadius:12, background:'var(--card)' }}>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</div>
-                      <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>{banner.type || 'info'}</span>
-                      <span className="badge badge-grey">Pinned</span>
-                    </div>
-                    <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65 }}>{banner.message}</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', marginTop:10 }}>
-                      <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
-                        {banner.ends_at ? `Expires ${formatWhen(banner.ends_at)}` : 'No expiry'}
-                      </span>
-                      {banner.target_page ? (
-                        <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
-                          {String(banner.target_page).toLowerCase()}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+                  <SystemBannerCard
+                    key={banner.id}
+                    title={banner.title || 'Pinned alert'}
+                    tone={banner.type === 'urgent' ? 'urgent' : banner.type === 'warning' ? 'warning' : banner.type === 'success' ? 'success' : 'info'}
+                    subtitle={banner.message}
+                    meta={[
+                      'pinned',
+                      banner.ends_at ? `expires ${formatWhen(banner.ends_at)}` : 'no expiry',
+                      banner.target_page ? String(banner.target_page).toLowerCase() : 'all pages',
+                    ]}
+                    compact
+                  />
                 ))}
               </div>
             </div>

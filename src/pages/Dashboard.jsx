@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import SystemBannerCard from '../components/SystemBannerCard'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -134,30 +135,21 @@ function ActiveBanners() {
   })
   if (!visible.length) return null
 
-  const typeStyle = {
-    info: { bg: 'var(--blue-bg)', border: 'var(--blue)', color: 'var(--blue)', icon: 'ℹ️' },
-    success: { bg: 'var(--green-bg)', border: 'var(--green)', color: 'var(--green)', icon: '✅' },
-    warning: { bg: 'var(--amber-bg)', border: 'var(--amber)', color: 'var(--amber)', icon: '⚠️' },
-    urgent: { bg: 'var(--red-bg)', border: 'var(--red)', color: 'var(--red)', icon: '🚨' },
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
       {visible.map((banner) => {
-        const style = typeStyle[banner.type] || typeStyle.info
+        const tone = banner.type === 'urgent' ? 'urgent' : banner.type === 'warning' ? 'warning' : banner.type === 'success' ? 'success' : 'info'
         return (
-          <div key={banner.id} style={{ padding: '12px 16px', background: style.bg, border: `1px solid ${style.border}`, borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <span style={{ flexShrink: 0 }}>{style.icon}</span>
-            <div style={{ flex: 1 }}>
-              {banner.title ? <div style={{ fontWeight: 600, fontSize: 13, color: style.color, marginBottom: 2 }}>{banner.title}</div> : null}
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{banner.message}</div>
-            </div>
-            {banner.dismissible ? (
-              <button onClick={() => setDismissed((prev) => [...prev, banner.id])} style={{ background: 'none', border: 'none', color: 'var(--faint)', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
-                ×
-              </button>
-            ) : null}
-          </div>
+          <SystemBannerCard
+            key={banner.id}
+            title={banner.title || 'Staff announcement'}
+            tone={tone}
+            subtitle={banner.message}
+            dismissible={banner.dismissible}
+            onDismiss={() => setDismissed((prev) => [...prev, banner.id])}
+            meta={banner.target_page && String(banner.target_page).toLowerCase() !== 'all' ? [String(banner.target_page).toLowerCase()] : []}
+            compact
+          />
         )
       })}
     </div>

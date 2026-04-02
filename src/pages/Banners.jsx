@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
+import SystemBannerCard from '../components/SystemBannerCard'
 
 const TYPES = [
   { key:'info',    label:'Info',    color:'var(--accent)', bg:'var(--accent-soft)', border:'var(--accent-border)' },
@@ -11,10 +12,17 @@ const TYPES = [
 ]
 const ICONS = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
 const EMPTY = { title:'', message:'', type:'info', display_type:'banner', target:'staff', active:true, dismissible:true, ends_at:'', target_email:'', target_page:'all' }
+const STATUS_TO_TONE = {
+  operational: 'success',
+  degraded: 'warning',
+  outage: 'urgent',
+  maintenance: 'info',
+}
 
 export default function Banners() {
   const { user } = useAuth()
   const [banners, setBanners] = useState([])
+  const [systems, setSystems] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(false)
   const [editing, setEditing] = useState(null)
@@ -26,8 +34,12 @@ export default function Banners() {
   useEffect(() => { load() }, [])
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase.from('banners').select('*').order('created_at', { ascending:false })
+    const [{ data }, { data: systemData }] = await Promise.all([
+      supabase.from('banners').select('*').order('created_at', { ascending:false }),
+      supabase.from('maintenance_systems').select('*').order('name'),
+    ])
     setBanners(data || [])
+    setSystems(systemData || [])
     setLoading(false)
   }
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setPreview(false); setModal(true) }
@@ -56,6 +68,16 @@ export default function Banners() {
   const activeCount = banners.filter(b => b.active && (!b.ends_at || new Date(b.ends_at) > new Date())).length
   const urgentCount = banners.filter(b => b.active && b.type === 'urgent' && (!b.ends_at || new Date(b.ends_at) > new Date())).length
   const typeInfo = (key) => TYPES.find(t => t.key === key) || TYPES[0]
+  const overallStatus = systems.length === 0
+    ? 'operational'
+    : systems.every((system) => system.status === 'operational')
+      ? 'operational'
+      : systems.some((system) => system.status === 'outage')
+        ? 'outage'
+        : systems.some((system) => system.status === 'maintenance')
+          ? 'maintenance'
+          : 'degraded'
+  const livePreviewBanners = banners.filter((b) => b.active && (!b.ends_at || new Date(b.ends_at) > new Date()))
 
   return (
     <div className="fade-in">
@@ -83,26 +105,40 @@ export default function Banners() {
       </div>
 
       {/* Active banners preview */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>System status banner</div>
+        <SystemBannerCard
+          title="All Systems"
+          statusText={overallStatus === 'operational' ? 'Operational' : overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}
+          tone={STATUS_TO_TONE[overallStatus] || 'info'}
+          subtitle={`${systems.length} systems monitored · Last updated ${new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}`}
+          meta={[
+            overallStatus === 'operational' ? 'ready for broadcast style' : 'active status state',
+            'matches maintenance board design',
+          ]}
+        />
+      </div>
+
       {activeCount > 0 && (
         <div style={{ marginBottom:20 }}>
           <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Live Preview</div>
           <div style={{ display:'grid', gap:10 }}>
-          {banners.filter(b => b.active && (!b.ends_at || new Date(b.ends_at) > new Date())).map(b => {
-            const t = typeInfo(b.type)
+          {livePreviewBanners.map(b => {
+            const tone = b.type === 'urgent' ? 'urgent' : b.type === 'warning' ? 'warning' : b.type === 'success' ? 'success' : 'info'
             return (
-              <div key={b.id} style={{ padding:'14px 16px', background:t.bg, border:`1px solid ${t.border}`, borderRadius:12, display:'flex', alignItems:'flex-start', gap:12 }}>
-                <span>{ICONS[b.type]}</span>
-                <div style={{ flex:1 }}>
-                  {b.title && <div style={{ fontWeight:600, fontSize:13, color:t.color, marginBottom:2 }}>{b.title}</div>}
-                  <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>{b.message}</div>
-                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
-                    <span className="badge badge-grey">{b.target_email ? b.target_email : 'all staff'}</span>
-                    <span className="badge badge-grey">{b.target_page || 'all'}</span>
-                    {b.ends_at ? <span className="badge badge-grey">expires {new Date(b.ends_at).toLocaleDateString('en-GB')}</span> : <span className="badge badge-grey">no expiry</span>}
-                  </div>
-                </div>
-                {b.dismissible && <span style={{ color:'var(--faint)', fontSize:18, cursor:'default' }}>×</span>}
-              </div>
+              <SystemBannerCard
+                key={b.id}
+                title={b.title || 'Staff announcement'}
+                statusText={null}
+                tone={tone}
+                subtitle={b.message}
+                dismissible={b.dismissible}
+                meta={[
+                  b.target_email ? b.target_email : 'all staff',
+                  b.target_page || 'all pages',
+                  b.ends_at ? `expires ${new Date(b.ends_at).toLocaleDateString('en-GB')}` : 'no expiry',
+                ]}
+              />
             )
           })}
           </div>
@@ -217,16 +253,18 @@ export default function Banners() {
             {(form.title || form.message) && (
               <div>
                 <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
-                {(() => { const t = typeInfo(form.type); return (
-                  <div style={{ padding:'11px 14px', background:t.bg, border:`1px solid ${t.border}`, borderRadius:8, display:'flex', alignItems:'flex-start', gap:8 }}>
-                    <span>{ICONS[form.type]}</span>
-                    <div style={{ flex:1 }}>
-                      {form.title && <div style={{ fontWeight:600, fontSize:13, color:t.color, marginBottom:2 }}>{form.title}</div>}
-                      <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.5 }}>{form.message}</div>
-                    </div>
-                    {form.dismissible && <span style={{ color:'var(--faint)', fontSize:16 }}>×</span>}
-                  </div>
-                )})()}
+                <SystemBannerCard
+                  title={form.title || 'Banner preview'}
+                  tone={form.type === 'urgent' ? 'urgent' : form.type === 'warning' ? 'warning' : form.type === 'success' ? 'success' : 'info'}
+                  subtitle={form.message}
+                  dismissible={form.dismissible}
+                  compact
+                  meta={[
+                    form.target_email || 'all staff',
+                    form.target_page || 'all pages',
+                    form.ends_at ? `expires ${new Date(form.ends_at).toLocaleDateString('en-GB')}` : 'no expiry',
+                  ]}
+                />
               </div>
             )}
           </div>
