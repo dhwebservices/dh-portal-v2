@@ -91,6 +91,9 @@ export default function StaffProfile() {
   const [commissions, setComms]   = useState([])
   const [docs, setDocs]           = useState([])
   const [uploading, setUploading] = useState(false)
+  const [selectedDoc, setSelectedDoc] = useState(null)
+  const [docUploadError, setDocUploadError] = useState('')
+  const [docUploadSuccess, setDocUploadSuccess] = useState('')
   const [permId, setPermId]       = useState(null)
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
@@ -334,20 +337,34 @@ export default function StaffProfile() {
   }
 
   // ── Docs ────────────────────────────────────────────────────────────────
-  const uploadDoc = async (file) => {
-    if (!file) return
+  const uploadDoc = async () => {
+    if (!selectedDoc) {
+      setDocUploadError('Choose a document first.')
+      return
+    }
     setUploading(true)
-    const path = `staff-docs/${email}/${Date.now()}-${file.name}`
-    const { error } = await supabase.storage.from('hr-documents').upload(path, file)
+    setDocUploadError('')
+    setDocUploadSuccess('')
+    const path = `staff-docs/${email}/${Date.now()}-${selectedDoc.name}`
+    const { error } = await supabase.storage.from('hr-documents').upload(path, selectedDoc)
     if (!error) {
       const { data: urlData } = supabase.storage.from('hr-documents').getPublicUrl(path)
-      await supabase.from('staff_documents').insert([{
+      const { error: insertError } = await supabase.from('staff_documents').insert([{
         staff_email: email, staff_name: profile.full_name || email,
-        name: file.name, type: file.name.toLowerCase().includes('contract') ? 'Contract' : 'Document',
+        name: selectedDoc.name, type: selectedDoc.name.toLowerCase().includes('contract') ? 'Contract' : 'Document',
         file_url: urlData.publicUrl, file_path: path, uploaded_by: user?.name, created_at: new Date().toISOString(),
       }])
-      const { data: docData } = await supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false })
-      setDocs(docData || [])
+      if (insertError) {
+        setDocUploadError(insertError.message || 'Could not save the document record.')
+      } else {
+        const { data: docData } = await supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false })
+        setDocs(docData || [])
+        setDocUploadSuccess(`Uploaded ${selectedDoc.name}`)
+        setSelectedDoc(null)
+        if (fileRef.current) fileRef.current.value = ''
+      }
+    } else {
+      setDocUploadError(error.message || 'Could not upload the document.')
     }
     setUploading(false)
   }
@@ -940,10 +957,33 @@ export default function StaffProfile() {
           <div className="card" style={{ overflow:'hidden' }}>
             <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ fontWeight:500, fontSize:13 }}>{docs.length} document{docs.length !== 1 ? 's' : ''}</span>
-              <div>
-                <input type="file" ref={fileRef} style={{ display:'none' }} accept=".pdf,.doc,.docx,.png,.jpg" onChange={e => uploadDoc(e.target.files[0])}/>
-                <button className="btn btn-primary btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading...' : '+ Upload Document'}</button>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', justifyContent:'flex-end' }}>
+                <input
+                  type="file"
+                  ref={fileRef}
+                  style={{ display:'none' }}
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  onChange={e => {
+                    const file = e.target.files?.[0] || null
+                    setSelectedDoc(file)
+                    setDocUploadError('')
+                    setDocUploadSuccess('')
+                  }}
+                />
+                <button className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  {selectedDoc ? 'Change File' : 'Choose File'}
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={uploadDoc} disabled={uploading || !selectedDoc}>
+                  {uploading ? 'Uploading...' : '+ Upload Document'}
+                </button>
               </div>
+            </div>
+            <div style={{ padding:'10px 20px', borderBottom:'1px solid var(--border)', display:'grid', gap:6 }}>
+              <div style={{ fontSize:12, color:selectedDoc ? 'var(--text)' : 'var(--sub)' }}>
+                {selectedDoc ? `Selected: ${selectedDoc.name}` : 'No file selected yet.'}
+              </div>
+              {docUploadError ? <div style={{ fontSize:12, color:'var(--red)' }}>{docUploadError}</div> : null}
+              {docUploadSuccess ? <div style={{ fontSize:12, color:'var(--green)' }}>{docUploadSuccess}</div> : null}
             </div>
             {docs.length === 0 ? (
               <div className="empty"><p>No documents uploaded yet.</p></div>

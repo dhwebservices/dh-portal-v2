@@ -8,6 +8,9 @@ export default function HRPayslips() {
   const [payslips, setPayslips] = useState([])
   const [loading, setLoading]   = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadSuccess, setUploadSuccess] = useState('')
   const [staff, setStaff]       = useState([])
   const [form, setForm]         = useState({ user_email:'', user_name:'', period:'' })
   const [periodFilter, setPeriodFilter] = useState('all')
@@ -32,15 +35,46 @@ export default function HRPayslips() {
     setLoading(false)
   }
 
-  const upload = async (file) => {
-    if (!file || !form.user_email || !form.period) return
+  const upload = async () => {
+    if (!selectedFile) {
+      setUploadError('Choose a PDF file first.')
+      return
+    }
+    if (!form.user_email) {
+      setUploadError('Select a staff member first.')
+      return
+    }
+    if (!form.period.trim()) {
+      setUploadError('Enter the payslip period before uploading.')
+      return
+    }
     setUploading(true)
-    const path = `payslips/${form.user_email}/${form.period}-${Date.now()}.pdf`
-    const { error } = await supabase.storage.from('hr-documents').upload(path, file)
+    setUploadError('')
+    setUploadSuccess('')
+    const path = `payslips/${form.user_email}/${form.period.trim()}-${Date.now()}.pdf`
+    const { error } = await supabase.storage.from('hr-documents').upload(path, selectedFile, { upsert: false })
     if (!error) {
       const { data: urlData } = supabase.storage.from('hr-documents').getPublicUrl(path)
-      await supabase.from('payslips').insert([{ user_email: form.user_email, user_name: form.user_name, period: form.period, file_url: urlData.publicUrl, file_path: path, uploaded_by: user?.name, uploaded_at: new Date().toISOString() }])
-      load()
+      const { error: insertError } = await supabase.from('payslips').insert([{
+        user_email: form.user_email,
+        user_name: form.user_name,
+        period: form.period.trim(),
+        file_url: urlData.publicUrl,
+        file_path: path,
+        uploaded_by: user?.name,
+        uploaded_at: new Date().toISOString(),
+      }])
+      if (insertError) {
+        setUploadError(insertError.message || 'Could not save the payslip record.')
+      } else {
+        setUploadSuccess(`Uploaded ${selectedFile.name}`)
+        setSelectedFile(null)
+        setForm((current) => ({ ...current, period: '' }))
+        if (fileRef.current) fileRef.current.value = ''
+        await load()
+      }
+    } else {
+      setUploadError(error.message || 'Could not upload the payslip PDF.')
     }
     setUploading(false)
   }
@@ -75,15 +109,38 @@ export default function HRPayslips() {
           <div className="lbl" style={{ marginBottom:12 }}>Upload Payslip</div>
           <div className="fg" style={{ marginBottom:12 }}>
             <div><label className="lbl">Staff Member</label>
-              <select className="inp" value={form.user_email} onChange={e=>{ const s=staff.find(s=>s.email===e.target.value); setForm(p=>({...p,user_email:e.target.value,user_name:s?.name||''})) }}>
+              <select className="inp" value={form.user_email} onChange={e=>{ const s=staff.find(s=>s.email===e.target.value); setForm(p=>({...p,user_email:e.target.value,user_name:s?.name||''})); setUploadError(''); setUploadSuccess('') }}>
                 <option value="">Select staff...</option>
                 {staff.map(s=><option key={s.email} value={s.email}>{s.name}</option>)}
               </select>
             </div>
-            <div><label className="lbl">Period</label><input className="inp" value={form.period} onChange={e=>setForm(p=>({...p,period:e.target.value}))} placeholder="e.g. March 2026"/></div>
+            <div><label className="lbl">Period</label><input className="inp" value={form.period} onChange={e=>{ setForm(p=>({...p,period:e.target.value})); setUploadError(''); setUploadSuccess('') }} placeholder="e.g. March 2026"/></div>
           </div>
-          <input type="file" accept=".pdf" ref={fileRef} style={{ display:'none' }} onChange={e=>upload(e.target.files[0])}/>
-          <button className="btn btn-primary" onClick={()=>fileRef.current?.click()} disabled={uploading}>{uploading?'Uploading...':'Upload PDF'}</button>
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            ref={fileRef}
+            style={{ display:'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0] || null
+              setSelectedFile(file)
+              setUploadError('')
+              setUploadSuccess('')
+            }}
+          />
+          <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+            <button className="btn btn-outline" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
+              {selectedFile ? 'Change PDF' : 'Choose PDF'}
+            </button>
+            <button className="btn btn-primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
+              {uploading?'Uploading...':'Upload PDF'}
+            </button>
+          </div>
+          <div style={{ fontSize:12, color:selectedFile ? 'var(--text)' : 'var(--sub)', marginTop:10 }}>
+            {selectedFile ? `Selected: ${selectedFile.name}` : 'No PDF selected yet.'}
+          </div>
+          {uploadError ? <div style={{ fontSize:12, color:'var(--red)', marginTop:8 }}>{uploadError}</div> : null}
+          {uploadSuccess ? <div style={{ fontSize:12, color:'var(--green)', marginTop:8 }}>{uploadSuccess}</div> : null}
         </div>
       )}
 

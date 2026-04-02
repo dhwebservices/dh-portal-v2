@@ -35,6 +35,9 @@ export default function HROnboarding() {
   const [mySubmission, setMy]         = useState(null)
   const [step, setStep]               = useState(0)
   const [saving, setSaving]           = useState(false)
+  const [rtwUploading, setRtwUploading] = useState(false)
+  const [rtwUploadError, setRtwUploadError] = useState('')
+  const [rtwUploadName, setRtwUploadName] = useState('')
   const [viewSub, setViewSub]         = useState(null)
   const [adminBusyEmail, setAdminBusyEmail] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
@@ -80,12 +83,20 @@ export default function HROnboarding() {
   }
 
   const uploadRTW = async (file) => {
+    if (!file) return
+    setRtwUploading(true)
+    setRtwUploadError('')
+    setRtwUploadName(file.name)
     const path = `rtw/${normalizeEmail(user.email)}/${Date.now()}-${file.name}`
     const { error } = await supabase.storage.from('hr-documents').upload(path, file)
     if (!error) {
       const { data } = supabase.storage.from('hr-documents').getPublicUrl(path)
       sf('rtw_document_url', data.publicUrl)
+    } else {
+      setRtwUploadError(error.message || 'Could not upload the right-to-work document.')
+      setRtwUploadName('')
     }
+    setRtwUploading(false)
   }
 
   const submit = async () => {
@@ -436,16 +447,32 @@ export default function HROnboarding() {
                     <label className="lbl">Upload Document *</label>
                     <input type="file" ref={rtwRef} style={{ display:'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>{ if(e.target.files[0]) uploadRTW(e.target.files[0]) }}/>
                     {form.rtw_document_url ? (
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                         <span className="badge badge-green">✓ Uploaded</span>
+                        {rtwUploadName ? <span style={{ fontSize:12, color:'var(--sub)' }}>{rtwUploadName}</span> : null}
                         <a href={form.rtw_document_url} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--accent)' }}>View document</a>
-                        <button onClick={() => rtwRef.current?.click()} className="btn btn-outline btn-sm">Replace</button>
+                        <button onClick={() => rtwRef.current?.click()} className="btn btn-outline btn-sm" disabled={rtwUploading}>{rtwUploading ? 'Uploading...' : 'Replace'}</button>
                       </div>
                     ) : (
-                      <button onClick={() => rtwRef.current?.click()} className="btn btn-outline" style={{ marginTop:4 }}>
-                        📎 Upload Document (PDF, JPG, PNG)
-                      </button>
+                      <div style={{ display:'grid', gap:8 }}>
+                        <button onClick={() => rtwRef.current?.click()} className="btn btn-outline" style={{ marginTop:4 }} disabled={rtwUploading}>
+                          {rtwUploading ? 'Uploading...' : '📎 Upload Document (PDF, JPG, PNG)'}
+                        </button>
+                        <div style={{ fontSize:12, color:rtwUploadName ? 'var(--text)' : 'var(--sub)' }}>
+                          {rtwUploadName ? `Selected: ${rtwUploadName}` : 'No document uploaded yet.'}
+                        </div>
+                      </div>
                     )}
+                    {rtwUploadError ? (
+                      <div style={{ fontSize:12, color:'var(--red)', marginTop:8 }}>
+                        {rtwUploadError}
+                      </div>
+                    ) : null}
+                    {!form.rtw_document_url && !rtwUploadError && rtwUploadName && !rtwUploading ? (
+                      <div style={{ fontSize:12, color:'var(--green)', marginTop:8 }}>
+                        Document ready and uploaded successfully.
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div style={{ padding:'12px 14px', background:'var(--bg2)', borderRadius:8, fontSize:12, color:'var(--sub)', lineHeight:1.7 }}>
