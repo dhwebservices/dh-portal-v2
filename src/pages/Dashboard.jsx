@@ -18,6 +18,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
   ACCENT_SCHEMES,
   CONTRAST_OPTIONS,
@@ -92,10 +93,12 @@ function parseOutreachNotes(raw = '') {
     return {
       outcome: parsed.outcome || 'none',
       follow_up_date: parsed.follow_up_date || '',
+      assigned_to_email: parsed.assigned_to_email || '',
+      assigned_to_name: parsed.assigned_to_name || '',
       plainNotes,
     }
   } catch {
-    return { outcome: 'none', follow_up_date: '', plainNotes: plainNotes || text }
+    return { outcome: 'none', follow_up_date: '', assigned_to_email: '', assigned_to_name: '', plainNotes: plainNotes || text }
   }
 }
 
@@ -261,6 +264,9 @@ export default function Dashboard() {
   const [whatsNew, setWhatsNew] = useState(null)
   const [showWhatsNew, setShowWhatsNew] = useState(false)
   const [showPersonalise, setShowPersonalise] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackForm, setFeedbackForm] = useState({ type: 'feature', title: '', message: '' })
+  const [feedbackSending, setFeedbackSending] = useState(false)
   const [personalisePrefs, setPersonalisePrefs] = useState(() => mergePortalPreferences(preferences))
   const [savingPersonalise, setSavingPersonalise] = useState(false)
 
@@ -408,11 +414,14 @@ export default function Dashboard() {
             ...row,
             outcome: parsed.outcome,
             follow_up_date: parsed.follow_up_date,
+            assigned_to_email: parsed.assigned_to_email,
+            assigned_to_name: parsed.assigned_to_name,
             plainNotes: parsed.plainNotes,
             overdue: false,
           }
         })
         .filter((row) => isOutreachFollowUp(row))
+        .filter((row) => isAdmin ? true : String(row.assigned_to_email || '').toLowerCase() === String(user?.email || '').toLowerCase())
         .map((row) => ({
           ...row,
           overdue: isOutreachOverdue(row),
@@ -540,6 +549,59 @@ export default function Dashboard() {
     }
   }
 
+  const sendFeedback = async () => {
+    if (!feedbackForm.title.trim() || !feedbackForm.message.trim()) {
+      alert('Add a title and message first.')
+      return
+    }
+    setFeedbackSending(true)
+    try {
+      const ownerEmails = new Set(['david@dhwebsiteservices.co.uk'])
+      const [{ data: permissionsRows }, { data: profiles }] = await Promise.all([
+        supabase.from('user_permissions').select('user_email,permissions'),
+        supabase.from('hr_profiles').select('user_email,full_name'),
+      ])
+      const profileMap = new Map((profiles || []).map((row) => [String(row.user_email || '').toLowerCase(), row.full_name || row.user_email]))
+      const adminRecipients = Array.from(new Set(
+        (permissionsRows || [])
+          .filter((row) => row?.permissions?.admin === true)
+          .map((row) => String(row.user_email || '').toLowerCase().trim())
+          .concat(Array.from(ownerEmails))
+      )).filter(Boolean)
+
+      await Promise.allSettled(adminRecipients.map((email) => sendManagedNotification({
+        userEmail: email,
+        userName: profileMap.get(email) || email,
+        category: 'urgent',
+        type: 'info',
+        title: feedbackForm.type === 'feature' ? 'New feature request submitted' : 'New staff feedback submitted',
+        message: `${feedbackForm.title}\n\n${feedbackForm.message}\n\nSubmitted by: ${user?.name || user?.email}`,
+        link: '/notifications',
+        emailSubject: `${feedbackForm.type === 'feature' ? 'Feature request' : 'Staff feedback'} — ${feedbackForm.title}`,
+        emailHtml: `
+          <p>Hi ${profileMap.get(email) || 'team'},</p>
+          <p>A new ${feedbackForm.type === 'feature' ? 'feature request' : 'feedback item'} was submitted from the dashboard.</p>
+          <div style="padding:14px 16px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa;">
+            <div style="font-size:16px;font-weight:700;color:#1d1d1f;margin-bottom:8px;">${feedbackForm.title}</div>
+            <div style="font-size:13px;line-height:1.7;color:#555;white-space:pre-wrap;">${feedbackForm.message}</div>
+            <div style="font-size:12px;color:#777;margin-top:10px;">Submitted by ${user?.name || user?.email}</div>
+          </div>
+          <p><a href="https://staff.dhwebsiteservices.co.uk/notifications" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open DH Portal</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Portal user',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })))
+
+      setShowFeedback(false)
+      setFeedbackForm({ type: 'feature', title: '', message: '' })
+    } catch (error) {
+      console.error('Feedback send failed:', error)
+      alert('Could not send feedback right now.')
+    } finally {
+      setFeedbackSending(false)
+    }
+  }
+
   const visibleOrderedSections = dashboardOrder.filter((key) => dashboardSections[key] !== false)
   const nonStatsSections = visibleOrderedSections.filter((key) => key !== 'stats')
   const sectionPairs = []
@@ -578,19 +640,24 @@ export default function Dashboard() {
         )
       case 'followups':
         return (
-          <Panel key={key} title="My Follow-Ups Today" actionLabel="Open Clients Contacted" onAction={() => navigate('/outreach')}>
+          <Panel
+            key={key}
+            title={isAdmin ? 'Assigned Outreach Queue' : 'My Assigned Leads'}
+            actionLabel="Open Clients Contacted"
+            onAction={() => navigate(`/outreach?filter=${isAdmin ? 'follow_up_queue' : 'assigned_to_me'}`)}
+          >
             {outreachFollowUps.length ? (
               outreachFollowUps.map((lead) => (
                 <QueueRow
                   key={lead.id}
                   title={lead.business_name || lead.contact_name || 'Untitled lead'}
-                  meta={`${lead.contact_name || 'No contact'}${lead.follow_up_date ? ` · follow up ${formatDayLabel(lead.follow_up_date)}` : ''}${lead.email ? ` · ${lead.email}` : ''}`}
+                  meta={`${lead.contact_name || 'No contact'}${lead.follow_up_date ? ` · follow up ${formatDayLabel(lead.follow_up_date)}` : ''}${lead.assigned_to_name ? ` · ${lead.assigned_to_name}` : ''}${lead.email ? ` · ${lead.email}` : ''}`}
                   status={lead.overdue ? 'overdue' : getOutreachActionLabel(lead)}
                   tone={lead.overdue ? 'red' : normalizeOutreachStatus(lead.status) === 'interested' ? 'green' : 'amber'}
-                  onClick={() => navigate('/outreach')}
+                  onClick={() => navigate(`/outreach?filter=${isAdmin ? 'follow_up_queue' : 'assigned_to_me'}`)}
                 />
               ))
-            ) : <EmptyState text="No outreach follow-ups are due right now." />}
+            ) : <EmptyState text={isAdmin ? 'No assigned outreach follow-ups are due right now.' : 'No assigned leads need chasing right now.'} />}
           </Panel>
         )
       case 'insight':
@@ -927,6 +994,32 @@ export default function Dashboard() {
         </Modal>
       ) : null}
 
+      {showFeedback ? (
+        <Modal
+          title="Feedback & feature requests"
+          onClose={() => setShowFeedback(false)}
+          footer={<><button className="btn btn-outline" onClick={() => setShowFeedback(false)}>Cancel</button><button className="btn btn-primary" onClick={sendFeedback} disabled={feedbackSending}>{feedbackSending ? 'Sending...' : 'Send'}</button></>}
+        >
+          <div style={{ display:'grid', gap:14 }}>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {[['feature', 'Request a feature'], ['feedback', 'General feedback']].map(([key, label]) => (
+                <button key={key} className={'pill' + (feedbackForm.type === key ? ' on' : '')} onClick={() => setFeedbackForm((current) => ({ ...current, type: key }))}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="lbl">Title</label>
+              <input className="inp" value={feedbackForm.title} onChange={(e) => setFeedbackForm((current) => ({ ...current, title: e.target.value }))} placeholder="Short summary of the request" />
+            </div>
+            <div>
+              <label className="lbl">Details</label>
+              <textarea className="inp" rows={6} value={feedbackForm.message} onChange={(e) => setFeedbackForm((current) => ({ ...current, message: e.target.value }))} style={{ resize:'vertical' }} placeholder="What would help? What feels slow, confusing, or missing?" />
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       {showWhatsNew && whatsNew ? (
         <Modal
           title={whatsNew.title || 'What’s New'}
@@ -968,6 +1061,10 @@ export default function Dashboard() {
           )}
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <button className="btn btn-outline" onClick={() => setShowFeedback(true)}>
+            <Bell size={14} />
+            Feedback / request a feature
+          </button>
           <button className="btn btn-outline" onClick={() => setShowPersonalise(true)}>
             <SlidersHorizontal size={14} />
             Personalise dashboard

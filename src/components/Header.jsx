@@ -179,7 +179,7 @@ export default function Header() {
           style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--accent)'; e.currentTarget.style.color='#fff' }}
           onMouseOut={e => { e.currentTarget.style.background='var(--accent-soft)'; e.currentTarget.style.color='var(--accent)' }}>
-          {user?.initials || '?'}
+          <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
         </button>
       </div>
     </header>

@@ -466,8 +466,8 @@ export default function WebManager() {
           {canEditPublicSite && <NavTab label="Our Public Site" active={section==='publicsite'} onClick={()=>setSection('publicsite')}/>}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0' }}>
-          <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, fontFamily:'var(--font-display)', color:'var(--accent)' }}>
-            {user?.initials}
+          <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+            <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
           </div>
           <span style={{ fontSize:12, color:'var(--sub)' }}>{user?.name}</span>
         </div>

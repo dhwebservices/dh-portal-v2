@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { sendEmail } from '../utils/email'
 
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
+const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'clientservices@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@', 'support@']
 
 export default function Settings() {
   const { user, isAdmin } = useAuth()
@@ -11,6 +13,7 @@ export default function Settings() {
   const [error, setError]   = useState('')
   const [success, setSuccess] = useState('')
   const [saved, setSaved]   = useState('')
+  const [previousWhatsNew, setPreviousWhatsNew] = useState(null)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
     version: '',
@@ -39,13 +42,15 @@ export default function Settings() {
       data.forEach(r => { map[r.key] = r.value?.value ?? r.value })
       setSettings(p => ({ ...p, ...map }))
       if (map.whats_new_payload) {
-        setWhatsNew({
+        const nextPayload = {
           active: map.whats_new_payload.active === true,
           version: map.whats_new_payload.version || '',
           title: map.whats_new_payload.title || 'What’s New',
           intro: map.whats_new_payload.intro || '',
           cards: Array.isArray(map.whats_new_payload.cards) && map.whats_new_payload.cards.length ? map.whats_new_payload.cards : [{ ...EMPTY_WHATS_NEW_CARD }],
-        })
+        }
+        setWhatsNew(nextPayload)
+        setPreviousWhatsNew(nextPayload)
       }
     })
   }, [])
@@ -87,15 +92,74 @@ export default function Settings() {
 
   const saveWhatsNew = async () => {
     setSaving(true)
+    const nextPayload = {
+      ...whatsNew,
+      cards: whatsNew.cards.filter((card) => card.title || card.body || card.tag),
+    }
     await supabase.from('portal_settings').upsert({
       key: 'whats_new_payload',
       value: {
-        value: {
-          ...whatsNew,
-          cards: whatsNew.cards.filter((card) => card.title || card.body || card.tag),
-        },
+        value: nextPayload,
       },
     }, { onConflict:'key' })
+
+    const shouldEmailRelease = nextPayload.active && (
+      !previousWhatsNew?.active
+      || String(previousWhatsNew?.version || '').trim() !== String(nextPayload.version || '').trim()
+      || JSON.stringify(previousWhatsNew?.cards || []) !== JSON.stringify(nextPayload.cards || [])
+      || String(previousWhatsNew?.intro || '').trim() !== String(nextPayload.intro || '').trim()
+    )
+
+    if (shouldEmailRelease) {
+      try {
+        const { data: profiles } = await supabase
+          .from('hr_profiles')
+          .select('user_email,full_name')
+          .order('full_name')
+
+        const seen = new Set()
+        const recipients = (profiles || [])
+          .map((row) => ({
+            email: String(row.user_email || '').toLowerCase().trim(),
+            name: row.full_name || row.user_email || 'there',
+          }))
+          .filter((row) => row.email)
+          .filter((row) => !SYSTEM_EMAIL_PREFIXES.some((prefix) => row.email.startsWith(prefix)))
+          .filter((row) => {
+            if (seen.has(row.email)) return false
+            seen.add(row.email)
+            return true
+          })
+
+        const subject = `${nextPayload.title || 'What’s New'}${nextPayload.version ? ` — v${nextPayload.version}` : ''}`
+        const cardsHtml = nextPayload.cards.map((card) => `
+          <div style="padding:14px 16px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa;margin-bottom:12px;">
+            ${card.tag ? `<div style="display:inline-block;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#1d4ed8;font-size:11px;font-weight:600;margin-bottom:8px;">${card.tag}</div>` : ''}
+            <div style="font-size:16px;font-weight:700;color:#1d1d1f;margin-bottom:6px;">${card.title || 'Update'}</div>
+            <div style="font-size:13px;line-height:1.7;color:#555;">${card.body || ''}</div>
+          </div>
+        `).join('')
+
+        await Promise.allSettled(recipients.map((recipient) => sendEmail('send_email', {
+          to: recipient.email,
+          to_name: recipient.name,
+          subject,
+          html: `
+            <p>Hi ${recipient.name || 'there'},</p>
+            <p>${nextPayload.intro || 'There are new updates available in the DH Workplace staff portal.'}</p>
+            ${cardsHtml}
+            <p><a href="https://staff.dhwebsiteservices.co.uk" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open DH Workplace</a></p>
+          `,
+          sent_by: user?.name || 'System',
+          from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          log_outreach: false,
+        })))
+      } catch (error) {
+        console.error('Whats new email send failed:', error)
+      }
+    }
+
+    setPreviousWhatsNew(nextPayload)
     setSaving(false)
     setSaved('experience')
     setTimeout(() => setSaved(''), 3000)

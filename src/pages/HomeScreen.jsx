@@ -37,8 +37,8 @@ export default function HomeScreen() {
             {dark ? '☀ Light' : '◐ Dark'}
           </button>
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 12px', borderRadius:100, border:'1px solid var(--border)', background:'var(--bg2)' }}>
-            <div style={{ width:22, height:22, borderRadius:'50%', background:'var(--accent-soft)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:600, color:'var(--accent)' }}>
-              {user?.initials}
+            <div style={{ width:22, height:22, borderRadius:'50%', background:'var(--accent-soft)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+              <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:14, height:14, objectFit:'contain' }} />
             </div>
             <span style={{ fontSize:13, color:'var(--text)', fontWeight:400 }}>{user?.name}</span>
           </div>

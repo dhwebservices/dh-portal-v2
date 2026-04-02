@@ -624,7 +624,9 @@ export default function Sidebar() {
         <span>{dark ? 'Light mode' : 'Dark mode'}</span>
       </button>
       <div className="dh-user-row">
-        <div className="dh-user-init">{user?.initials || '?'}</div>
+        <div className="dh-user-init" style={{ overflow:'hidden', padding:0 }}>
+          <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:'100%', height:'100%', objectFit:'contain', padding:6 }} />
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="dh-user-name">{user?.name || '...'}</div>
           <div className="dh-user-email">{user?.email}</div>
@@ -666,7 +668,7 @@ export default function Sidebar() {
             <span className="dh-tip">Search ⌘K</span>
           </div>
           <div className="dh-avatar" onClick={() => navigate('/my-profile')}>
-            {user?.initials || '?'}
+            <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
           </div>
         </div>
       </nav>
@@ -764,7 +766,9 @@ export default function Sidebar() {
                 <span>{dark ? 'Light mode' : 'Dark mode'}</span>
               </button>
               <div className="dh-user-row">
-                <div className="dh-user-init">{user?.initials || '?'}</div>
+                <div className="dh-user-init" style={{ overflow:'hidden', padding:0 }}>
+                  <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:'100%', height:'100%', objectFit:'contain', padding:6 }} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="dh-user-name">{user?.name}</div>
                   <div className="dh-user-email">{user?.email}</div>

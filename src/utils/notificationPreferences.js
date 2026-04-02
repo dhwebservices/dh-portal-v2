@@ -55,6 +55,7 @@ export async function sendManagedNotification({
   emailHtml,
   emailText,
   sentBy,
+  fromEmail,
   portalUrl = DEFAULT_PORTAL_URL,
   forceImportant = false,
 }) {
@@ -103,6 +104,7 @@ export async function sendManagedNotification({
       html,
       text: emailText,
       sent_by: sentBy,
+      from_email: fromEmail,
       log_outreach: false,
     })
 

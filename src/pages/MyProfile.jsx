@@ -164,8 +164,8 @@ export default function MyProfile() {
     <div className="fade-in">
       {/* Hero */}
       <div style={{ display:'flex', alignItems:'center', gap:20, marginBottom:28, padding:'24px', background:'var(--card)', borderRadius:14, border:'1px solid var(--border)' }}>
-        <div style={{ width:64, height:64, borderRadius:'50%', background:'var(--accent-soft)', border:'2px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--accent)', flexShrink:0 }}>
-          {user?.initials}
+        <div style={{ width:64, height:64, borderRadius:'50%', background:'var(--accent-soft)', border:'2px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+          <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:38, height:38, objectFit:'contain' }} />
         </div>
         <div style={{ flex:1 }}>
           <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1 }}>{user?.name}</h1>
