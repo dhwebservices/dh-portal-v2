@@ -36,6 +36,7 @@ import {
 } from '../utils/portalPreferences'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
@@ -71,6 +72,54 @@ function formatPresenceTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function normalizeOutreachStatus(value = '') {
+  const safe = String(value || '').toLowerCase().replace(/\s+/g, '_')
+  return ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted'].includes(safe) ? safe : 'new'
+}
+
+function parseOutreachNotes(raw = '') {
+  const text = String(raw || '')
+  if (!text.startsWith(OUTREACH_META_PREFIX)) {
+    return { outcome: 'none', follow_up_date: '', plainNotes: text }
+  }
+  const newlineIndex = text.indexOf('\n')
+  const metaLine = newlineIndex >= 0 ? text.slice(OUTREACH_META_PREFIX.length, newlineIndex).trim() : text.slice(OUTREACH_META_PREFIX.length).trim()
+  const plainNotes = newlineIndex >= 0 ? text.slice(newlineIndex + 1).trim() : ''
+  try {
+    const parsed = JSON.parse(metaLine || '{}')
+    return {
+      outcome: parsed.outcome || 'none',
+      follow_up_date: parsed.follow_up_date || '',
+      plainNotes,
+    }
+  } catch {
+    return { outcome: 'none', follow_up_date: '', plainNotes: plainNotes || text }
+  }
+}
+
+function isOutreachFollowUp(row) {
+  return ['contacted', 'interested', 'follow_up'].includes(normalizeOutreachStatus(row.status))
+}
+
+function isOutreachOverdue(row) {
+  if (!isOutreachFollowUp(row)) return false
+  if (row.follow_up_date) {
+    return new Date(`${row.follow_up_date}T23:59:59`).getTime() < Date.now()
+  }
+  const touchedAt = row.updated_at || row.created_at
+  if (!touchedAt) return false
+  const age = Math.floor((Date.now() - new Date(touchedAt).getTime()) / 86400000)
+  return normalizeOutreachStatus(row.status) === 'interested' ? age >= 2 : age >= 3
+}
+
+function getOutreachActionLabel(row) {
+  const status = normalizeOutreachStatus(row.status)
+  if (status === 'interested') return 'Book a call'
+  if (status === 'follow_up') return 'Chase today'
+  if (status === 'contacted') return 'Send follow-up'
+  return 'First outreach'
 }
 
 function StatCard({ icon: Icon, label, value, accent, link, loading, hint }) {
@@ -203,6 +252,7 @@ export default function Dashboard() {
   const [priorityItems, setPriorityItems] = useState([])
   const [todaySchedule, setTodaySchedule] = useState([])
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
+  const [outreachFollowUps, setOutreachFollowUps] = useState([])
   const [activeUsers, setActiveUsers] = useState([])
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -263,6 +313,7 @@ export default function Dashboard() {
           ? supabase.from('onboarding_submissions').select('user_email,user_name,status,submitted_at').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(6)
           : Promise.resolve({ data: [] }),
         supabase.from('appointments').select('id,client_name,staff_name,date,start_time,status').gte('date', todayIso).lte('date', sevenDaysOut).neq('status', 'cancelled').order('date', { ascending: true }).limit(8),
+        supabase.from('outreach').select('id,business_name,contact_name,email,status,notes,created_at,updated_at').order('updated_at', { ascending: false }).limit(80),
       ])
 
       const get = (index, fallback) => (results[index].status === 'fulfilled' ? results[index].value : fallback)
@@ -279,6 +330,7 @@ export default function Dashboard() {
       const leaveRows = get(9, { data: [] }).data || []
       const onboardingRows = get(10, { data: [] }).data || []
       const appointmentRows = get(11, { data: [] }).data || []
+      const outreachRows = get(12, { data: [] }).data || []
 
       const todaysScheduleRows = scheduleRows
         .map((row) => {
@@ -349,6 +401,31 @@ export default function Dashboard() {
       setRecentActivity(activity)
       setTodaySchedule(todaysScheduleRows)
       setUpcomingAppointments(appointmentRows)
+      const nextFollowUps = outreachRows
+        .map((row) => {
+          const parsed = parseOutreachNotes(row.notes)
+          return {
+            ...row,
+            outcome: parsed.outcome,
+            follow_up_date: parsed.follow_up_date,
+            plainNotes: parsed.plainNotes,
+            overdue: false,
+          }
+        })
+        .filter((row) => isOutreachFollowUp(row))
+        .map((row) => ({
+          ...row,
+          overdue: isOutreachOverdue(row),
+        }))
+        .sort((a, b) => {
+          if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
+          if (a.follow_up_date && b.follow_up_date) return a.follow_up_date.localeCompare(b.follow_up_date)
+          if (a.follow_up_date) return -1
+          if (b.follow_up_date) return 1
+          return new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()
+        })
+        .slice(0, 6)
+      setOutreachFollowUps(nextFollowUps)
       setNotifications(unreadRows)
       setActiveUsers(activeRows)
       setLoading(false)
@@ -497,6 +574,23 @@ export default function Dashboard() {
                 )
               })}
             </div>
+          </Panel>
+        )
+      case 'followups':
+        return (
+          <Panel key={key} title="My Follow-Ups Today" actionLabel="Open Clients Contacted" onAction={() => navigate('/outreach')}>
+            {outreachFollowUps.length ? (
+              outreachFollowUps.map((lead) => (
+                <QueueRow
+                  key={lead.id}
+                  title={lead.business_name || lead.contact_name || 'Untitled lead'}
+                  meta={`${lead.contact_name || 'No contact'}${lead.follow_up_date ? ` · follow up ${formatDayLabel(lead.follow_up_date)}` : ''}${lead.email ? ` · ${lead.email}` : ''}`}
+                  status={lead.overdue ? 'overdue' : getOutreachActionLabel(lead)}
+                  tone={lead.overdue ? 'red' : normalizeOutreachStatus(lead.status) === 'interested' ? 'green' : 'amber'}
+                  onClick={() => navigate('/outreach')}
+                />
+              ))
+            ) : <EmptyState text="No outreach follow-ups are due right now." />}
           </Panel>
         )
       case 'insight':

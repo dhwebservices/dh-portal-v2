@@ -1,5 +1,6 @@
 export const DASHBOARD_SECTIONS = [
   ['stats', 'Overview stats'],
+  ['followups', 'My follow-ups today'],
   ['today', 'Today at a glance'],
   ['insight', 'Operations insight'],
   ['priority', 'Priority queue'],
@@ -155,6 +156,7 @@ function hexToRgb(hex = '#0071E3') {
 const PRESET_SECTION_STATE = {
   outreach: {
     stats: true,
+    followups: true,
     today: true,
     insight: true,
     priority: true,
@@ -165,6 +167,7 @@ const PRESET_SECTION_STATE = {
   },
   manager: {
     stats: true,
+    followups: true,
     today: true,
     insight: true,
     priority: true,
@@ -175,6 +178,7 @@ const PRESET_SECTION_STATE = {
   },
   hr_admin: {
     stats: true,
+    followups: false,
     today: true,
     insight: true,
     priority: true,
@@ -194,7 +198,7 @@ const PRESET_PAYLOADS = {
     showSystemBanners: true,
     navDensity: 'compact',
     quickActions: ['mytasks', 'notifications', 'clients', 'support', 'schedule', 'appointments'],
-    dashboardOrder: ['stats', 'priority', 'notifications', 'appointments', 'today', 'insight', 'schedule', 'activity'],
+    dashboardOrder: ['stats', 'followups', 'priority', 'notifications', 'appointments', 'today', 'insight', 'schedule', 'activity'],
     dashboardSections: PRESET_SECTION_STATE.outreach,
   },
   manager: {
@@ -205,7 +209,7 @@ const PRESET_PAYLOADS = {
     showSystemBanners: true,
     navDensity: 'comfortable',
     quickActions: ['dashboard', 'mytasks', 'notifications', 'schedule', 'appointments', 'clients'],
-    dashboardOrder: ['stats', 'today', 'priority', 'schedule', 'appointments', 'notifications', 'insight', 'activity'],
+    dashboardOrder: ['stats', 'followups', 'today', 'priority', 'schedule', 'appointments', 'notifications', 'insight', 'activity'],
     dashboardSections: PRESET_SECTION_STATE.manager,
   },
   hr_admin: {
