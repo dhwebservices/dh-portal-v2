@@ -202,17 +202,21 @@ const css = `
 .dh-tile {
   display: flex; flex-direction: column; align-items: flex-start;
   padding: 12px 12px 10px; border-radius: 10px; cursor: pointer;
-  background: var(--card); border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 78%, var(--page-tint-strong) 22%);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
   text-decoration: none; color: var(--text);
   transition: background 0.12s, border-color 0.12s, transform 0.1s;
   position: relative; overflow: hidden;
 }
-.dh-tile:hover { background: var(--bg3); border-color: var(--border2); transform: translateY(-1px); }
-.dh-tile.dh-tile-active { border-color: var(--accent); background: var(--accent-soft); }
+.dh-tile:hover { background: color-mix(in srgb, var(--card) 60%, var(--page-tint-strong) 40%); border-color: var(--accent-border); transform: translateY(-1px); }
 .dh-tile.dh-tile-active {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
+}
+.dh-tile-icon {
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--card) 28%);
+  color: var(--accent);
 }
 .dh-tile.dh-tile-active .dh-tile-name,
 .dh-tile.dh-tile-active .dh-tile-desc { color: var(--accent-contrast); }
@@ -351,7 +355,9 @@ const css = `
 }
 .dh-mobile-sections::-webkit-scrollbar { display: none; }
 .dh-mobile-section-btn {
-  border: 1px solid var(--border); background: var(--card); color: var(--sub);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  background: color-mix(in srgb, var(--card) 78%, var(--page-tint-strong) 22%);
+  color: var(--accent);
   border-radius: 999px; padding: 8px 12px; display: inline-flex; align-items: center; gap: 7px;
   font-size: 12px; white-space: nowrap; cursor: pointer; flex-shrink: 0;
 }
@@ -364,7 +370,13 @@ const css = `
 .dh-mobile-tile {
   display: flex; flex-direction: column; align-items: flex-start;
   padding: 12px; border-radius: 10px; text-decoration: none; color: var(--text);
-  background: var(--card); border: 1px solid var(--border); min-height: 94px; position: relative;
+  background: color-mix(in srgb, var(--card) 78%, var(--page-tint-strong) 22%);
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  min-height: 94px; position: relative;
+}
+.dh-mobile-tile-icon {
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--card) 28%);
+  color: var(--accent);
 }
 .dh-mobile-tile.active {
   border-color: var(--accent);
