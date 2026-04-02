@@ -9,6 +9,41 @@ export const DASHBOARD_SECTIONS = [
   ['activity', 'Recent activity'],
 ]
 
+export const DEFAULT_LANDING_OPTIONS = [
+  ['dashboard', 'Dashboard'],
+  ['mytasks', 'My Tasks'],
+  ['notifications', 'Notifications'],
+  ['schedule', 'Schedule'],
+  ['appointments', 'Appointments'],
+  ['clients', 'Clients'],
+]
+
+export const QUICK_ACTION_OPTIONS = [
+  ['dashboard', 'Dashboard', '/dashboard'],
+  ['mytasks', 'My Tasks', '/my-tasks'],
+  ['notifications', 'Notifications', '/notifications'],
+  ['schedule', 'Schedule', '/schedule'],
+  ['appointments', 'Appointments', '/appointments'],
+  ['clients', 'Clients', '/clients'],
+  ['support', 'Support', '/support'],
+  ['reports', 'Reports', '/reports'],
+]
+
+export const NOTIFICATION_CATEGORY_OPTIONS = [
+  ['general', 'General updates'],
+  ['urgent', 'Urgent / admin'],
+  ['hr', 'HR updates'],
+  ['tasks', 'Tasks'],
+  ['schedule', 'Schedule'],
+  ['appointments', 'Appointments'],
+]
+
+export const NOTIFICATION_DELIVERY_OPTIONS = [
+  ['portal', 'Portal only'],
+  ['email', 'Email only'],
+  ['both', 'Portal + email'],
+]
+
 export const DASHBOARD_DENSITY_OPTIONS = [
   ['comfortable', 'Comfortable'],
   ['compact', 'Compact'],
@@ -63,7 +98,13 @@ export const DEFAULT_PORTAL_PREFERENCES = {
   dashboardDensity: 'comfortable',
   dashboardHeader: 'full',
   showSystemBanners: true,
+  defaultLanding: 'dashboard',
+  quickActions: ['mytasks', 'notifications', 'schedule', 'clients'],
+  dashboardOrder: DASHBOARD_SECTIONS.map(([key]) => key),
   dashboardSections: Object.fromEntries(DASHBOARD_SECTIONS.map(([key]) => [key, true])),
+  notificationPreferences: Object.fromEntries(
+    NOTIFICATION_CATEGORY_OPTIONS.map(([key]) => [key, 'both'])
+  ),
 }
 
 function hexToRgb(hex = '#0071E3') {
@@ -93,9 +134,29 @@ export function sanitizePortalPreferences(raw = {}) {
     ? raw.dashboardHeader
     : DEFAULT_PORTAL_PREFERENCES.dashboardHeader
   const showSystemBanners = raw?.showSystemBanners !== false
+  const defaultLanding = DEFAULT_LANDING_OPTIONS.some(([key]) => key === raw?.defaultLanding)
+    ? raw.defaultLanding
+    : DEFAULT_PORTAL_PREFERENCES.defaultLanding
+  const allowedActions = new Set(QUICK_ACTION_OPTIONS.map(([key]) => key))
+  const quickActions = Array.isArray(raw?.quickActions)
+    ? raw.quickActions.filter((key, index, arr) => allowedActions.has(key) && arr.indexOf(key) === index).slice(0, 6)
+    : DEFAULT_PORTAL_PREFERENCES.quickActions
+  const requestedOrder = Array.isArray(raw?.dashboardOrder) ? raw.dashboardOrder : []
+  const orderSet = new Set(requestedOrder)
+  const dashboardOrder = [
+    ...requestedOrder.filter((key) => DASHBOARD_SECTIONS.some(([sectionKey]) => sectionKey === key)),
+    ...DASHBOARD_SECTIONS.map(([key]) => key).filter((key) => !orderSet.has(key)),
+  ]
   const inputSections = raw?.dashboardSections && typeof raw.dashboardSections === 'object' ? raw.dashboardSections : {}
   const dashboardSections = Object.fromEntries(
     DASHBOARD_SECTIONS.map(([key]) => [key, inputSections[key] !== false])
+  )
+  const notificationPreferences = Object.fromEntries(
+    NOTIFICATION_CATEGORY_OPTIONS.map(([key]) => {
+      const requested = raw?.notificationPreferences?.[key]
+      const safe = NOTIFICATION_DELIVERY_OPTIONS.some(([delivery]) => delivery === requested) ? requested : DEFAULT_PORTAL_PREFERENCES.notificationPreferences[key]
+      return [key, safe]
+    })
   )
 
   return {
@@ -104,7 +165,11 @@ export function sanitizePortalPreferences(raw = {}) {
     dashboardDensity,
     dashboardHeader,
     showSystemBanners,
+    defaultLanding,
+    quickActions: quickActions.length ? quickActions : DEFAULT_PORTAL_PREFERENCES.quickActions,
+    dashboardOrder,
     dashboardSections,
+    notificationPreferences,
   }
 }
 
@@ -115,6 +180,10 @@ export function mergePortalPreferences(base = DEFAULT_PORTAL_PREFERENCES, patch 
     dashboardSections: {
       ...(base.dashboardSections || {}),
       ...(patch.dashboardSections || {}),
+    },
+    notificationPreferences: {
+      ...(base.notificationPreferences || {}),
+      ...(patch.notificationPreferences || {}),
     },
   })
 }

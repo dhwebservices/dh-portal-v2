@@ -4,9 +4,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 import {
   ACCENT_SCHEMES,
+  DEFAULT_LANDING_OPTIONS,
   DASHBOARD_DENSITY_OPTIONS,
   DASHBOARD_HEADER_OPTIONS,
   DASHBOARD_SECTIONS,
+  NOTIFICATION_CATEGORY_OPTIONS,
+  NOTIFICATION_DELIVERY_OPTIONS,
+  QUICK_ACTION_OPTIONS,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
@@ -35,6 +39,17 @@ export default function MyProfile() {
     dashboardSections: {
       ...current.dashboardSections,
       [key]: !current.dashboardSections?.[key],
+    },
+  }))
+  const toggleQuickAction = (key) => setPortalPrefs((current) => {
+    const active = current.quickActions || []
+    const next = active.includes(key) ? active.filter((item) => item !== key) : [...active, key].slice(0, 6)
+    return mergePortalPreferences(current, { quickActions: next })
+  })
+  const setNotificationDelivery = (category, delivery) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    notificationPreferences: {
+      ...current.notificationPreferences,
+      [category]: delivery,
     },
   }))
 
@@ -157,7 +172,7 @@ export default function MyProfile() {
       </div>
 
       <div className="tabs">
-        {[['info','My Details'],['portal','Portal'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['payslips','Payslips']].map(([k,l]) => (
+        {[['info','My Details'],['portal','Portal'],['alerts','Alerts'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['payslips','Payslips']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -302,6 +317,27 @@ export default function MyProfile() {
             </div>
 
             <div style={{ marginBottom:18 }}>
+              <div className="lbl" style={{ marginBottom:8 }}>Default landing page</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                {DEFAULT_LANDING_OPTIONS.map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => sp('defaultLanding', key)}
+                    style={{
+                      padding:'13px 14px',
+                      borderRadius:12,
+                      border:`1px solid ${portalPrefs.defaultLanding === key ? 'var(--accent-border)' : 'var(--border)'}`,
+                      background: portalPrefs.defaultLanding === key ? 'var(--accent-soft)' : 'var(--card)',
+                      textAlign:'left',
+                    }}
+                  >
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:18 }}>
               <div className="lbl" style={{ marginBottom:8 }}>Dashboard behaviour</div>
               <div style={{ display:'grid', gap:10 }}>
                 <button
@@ -324,6 +360,35 @@ export default function MyProfile() {
                   </span>
                   <span className={`badge badge-${portalPrefs.showSystemBanners ? 'blue' : 'grey'}`}>{portalPrefs.showSystemBanners ? 'Visible' : 'Hidden'}</span>
                 </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom:18 }}>
+              <div className="lbl" style={{ marginBottom:8 }}>Pinned quick actions</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:10 }}>
+                {QUICK_ACTION_OPTIONS.map(([key, label]) => {
+                  const enabled = portalPrefs.quickActions?.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleQuickAction(key)}
+                      style={{
+                        padding:'13px 14px',
+                        borderRadius:12,
+                        border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`,
+                        background: enabled ? 'var(--accent-soft)' : 'var(--card)',
+                        display:'flex',
+                        alignItems:'center',
+                        justifyContent:'space-between',
+                        gap:12,
+                        textAlign:'left',
+                      }}
+                    >
+                      <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                      <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'Pinned' : 'Off'}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -373,9 +438,23 @@ export default function MyProfile() {
                 </div>
               </div>
               <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Landing page</div>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                  {(DEFAULT_LANDING_OPTIONS.find(([key]) => key === portalPrefs.defaultLanding)?.[1]) || 'Dashboard'}
+                </div>
+              </div>
+              <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
                 <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Layout</div>
                 <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
                   {(DASHBOARD_DENSITY_OPTIONS.find(([key]) => key === portalPrefs.dashboardDensity)?.[1]) || 'Comfortable'} · {(DASHBOARD_HEADER_OPTIONS.find(([key]) => key === portalPrefs.dashboardHeader)?.[1]) || 'Full header'}
+                </div>
+              </div>
+              <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Pinned actions</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {(portalPrefs.quickActions || []).map((key) => (
+                    <span key={key} className="badge badge-blue">{QUICK_ACTION_OPTIONS.find(([actionKey]) => actionKey === key)?.[1] || key}</span>
+                  ))}
                 </div>
               </div>
               <div style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
@@ -390,6 +469,95 @@ export default function MyProfile() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'alerts' && (
+        <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(280px,0.95fr)', gap:18 }} className="staff-profile-main-grid">
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Notification preferences</div>
+                <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Choose how you hear from the portal</div>
+                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                  Pick whether each type of alert reaches you in the portal, by email, or both. Urgent and maintenance-style alerts still break through to both channels.
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                {prefsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                <button className="btn btn-primary" onClick={savePortalPrefs} disabled={prefsSaving}>
+                  {prefsSaving ? 'Saving...' : 'Save alert preferences'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display:'grid', gap:12 }}>
+              {NOTIFICATION_CATEGORY_OPTIONS.map(([category, label]) => (
+                <div key={category} style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--card)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                        {category === 'urgent' ? 'Critical admin and maintenance alerts always stay visible and emailed.' : 'Choose the default delivery for this type of update.'}
+                      </div>
+                    </div>
+                    <span className={`badge badge-${category === 'urgent' ? 'red' : 'blue'}`}>
+                      {portalPrefs.notificationPreferences?.[category] || 'both'}
+                    </span>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10 }}>
+                    {NOTIFICATION_DELIVERY_OPTIONS.map(([delivery, deliveryLabel]) => {
+                      const active = (portalPrefs.notificationPreferences?.[category] || 'both') === delivery
+                      return (
+                        <button
+                          key={delivery}
+                          onClick={() => setNotificationDelivery(category, delivery)}
+                          disabled={category === 'urgent'}
+                          style={{
+                            padding:'12px 13px',
+                            borderRadius:12,
+                            border:`1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`,
+                            background: active ? 'var(--accent-soft)' : 'var(--card)',
+                            textAlign:'left',
+                            opacity: category === 'urgent' && !active ? 0.55 : 1,
+                            cursor: category === 'urgent' ? 'default' : 'pointer',
+                          }}
+                        >
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{deliveryLabel}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
+            <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Your delivery setup</div>
+            <div style={{ display:'grid', gap:10 }}>
+              {NOTIFICATION_CATEGORY_OPTIONS.map(([category, label]) => (
+                <div key={category} style={{ padding:'14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:6 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                    <span className={`badge badge-${category === 'urgent' ? 'red' : 'blue'}`}>
+                      {portalPrefs.notificationPreferences?.[category] || 'both'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.55 }}>
+                    {category === 'urgent'
+                      ? 'Always delivered to both your portal inbox and your work email.'
+                      : (portalPrefs.notificationPreferences?.[category] || 'both') === 'portal'
+                        ? 'Stays inside the bell and notifications page only.'
+                        : (portalPrefs.notificationPreferences?.[category] || 'both') === 'email'
+                          ? 'Sent to your email without adding portal noise.'
+                          : 'Delivered through both the portal and email.'}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

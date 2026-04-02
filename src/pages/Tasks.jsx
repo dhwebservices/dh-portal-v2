@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
-import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { StaffPicker } from '../components/StaffPicker'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const EMPTY  = { title:'', description:'', assigned_to_email:'', assigned_to_name:'', due_date:'', priority:'medium', status:'todo' }
@@ -11,15 +11,6 @@ const PRIORITIES = ['low','medium','high','urgent']
 const STATUSES   = ['todo','in_progress','done']
 const prioColor  = { low:'var(--sub)', medium:'var(--accent)', high:'var(--amber,#f59e0b)', urgent:'var(--red)' }
 const prioBg     = { low:'var(--bg2)', medium:'var(--accent-soft)', high:'#fef3c7', urgent:'#fee2e2' }
-
-// ── helper: push a portal notification ───────────────────────────────
-async function notify(user_email, title, message, link, type = 'info') {
-  try {
-    await supabase.from('notifications').insert([{
-      user_email, title, message, type, link, read: false, created_at: new Date().toISOString()
-    }])
-  } catch (e) { /* ignore */ }
-}
 
 export default function Tasks() {
   const { user } = useAuth()
@@ -78,18 +69,16 @@ export default function Tasks() {
 
       // Notify + email assigned person
       if (form.assigned_to_email) {
-        await notify(
-          form.assigned_to_email,
-          '📋 New task assigned: ' + form.title,
-          'Assigned by ' + (user?.name || user?.email) + (form.due_date ? ' · Due ' + form.due_date : ''),
-          '/my-tasks',
-          'info'
-        )
-        sendEmail('send_email', {
-          to: form.assigned_to_email,
-          to_name: form.assigned_to_name,
-          subject: '📋 New Task Assigned: ' + form.title,
-          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
+        await sendManagedNotification({
+          userEmail: form.assigned_to_email,
+          userName: form.assigned_to_name,
+          title: '📋 New task assigned: ' + form.title,
+          message: 'Assigned by ' + (user?.name || user?.email) + (form.due_date ? ' · Due ' + form.due_date : ''),
+          link: '/my-tasks',
+          type: 'info',
+          category: 'tasks',
+          emailSubject: '📋 New Task Assigned: ' + form.title,
+          emailHtml: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
           '<h2 style="color:#1A1612;margin-bottom:4px">New Task Assigned</h2>' +
           '<p style="color:#6b7280;margin-bottom:24px">Hi ' + (form.assigned_to_name || form.assigned_to_email) + ',</p>' +
           '<p>You have been assigned a new task by <strong>' + (user?.name || user?.email) + '</strong>.</p>' +
@@ -99,8 +88,8 @@ export default function Tasks() {
           '</table>' +
           '<a href="' + PORTAL_URL + '/my-tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px;margin-top:8px">View My Tasks →</a>' +
           '</div>',
-          sent_by: user?.name || user?.email,
-          portal_url: PORTAL_URL,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
         }).catch(() => {})
       }
     }
@@ -254,13 +243,15 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
     await onStatusChange(task.id, s)
     // Notify task creator
     if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
-      await notify(
-        task.assigned_by_email,
-        'Task status updated: ' + task.title,
-        (user?.name || user?.email) + ' changed status to ' + s.replace('_',' '),
-        '/tasks',
-        s === 'done' ? 'success' : 'info'
-      )
+      await sendManagedNotification({
+        userEmail: task.assigned_by_email,
+        title: 'Task status updated: ' + task.title,
+        message: (user?.name || user?.email) + ' changed status to ' + s.replace('_',' '),
+        link: '/tasks',
+        type: s === 'done' ? 'success' : 'info',
+        category: 'tasks',
+        sentBy: user?.name || user?.email,
+      }).catch(() => {})
     }
   }
 
@@ -277,35 +268,36 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
     if (!error) {
       // Notify + email task creator if commenter is not the creator
       if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
-        await notify(
-          task.assigned_by_email,
-          '💬 New comment on: ' + task.title,
-          (user?.name || user?.email) + ': ' + comment.trim().slice(0, 80),
-          '/tasks',
-          'info'
-        )
-        sendEmail('send_email', {
-          to: task.assigned_by_email,
-          subject: '💬 New comment on task: ' + task.title,
-          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
+        await sendManagedNotification({
+          userEmail: task.assigned_by_email,
+          title: '💬 New comment on: ' + task.title,
+          message: (user?.name || user?.email) + ': ' + comment.trim().slice(0, 80),
+          link: '/tasks',
+          type: 'info',
+          category: 'tasks',
+          emailSubject: '💬 New comment on task: ' + task.title,
+          emailHtml: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px">' +
           '<h2 style="color:#1A1612">New Comment on Task</h2>' +
           '<p><strong>' + (user?.name || user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p>' +
           '<div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:14px">' + comment.trim() + '</div>' +
           '<a href="' + PORTAL_URL + '/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a>' +
           '</div>',
-          sent_by: user?.name || user?.email,
-          portal_url: PORTAL_URL,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
         }).catch(() => {})
       }
       // Also notify assigned person if they're not the commenter or creator
       if (task.assigned_to_email && task.assigned_to_email !== user?.email && task.assigned_to_email !== task.assigned_by_email) {
-        await notify(
-          task.assigned_to_email,
-          '💬 New comment on: ' + task.title,
-          (user?.name || user?.email) + ': ' + comment.trim().slice(0, 80),
-          '/my-tasks',
-          'info'
-        )
+        await sendManagedNotification({
+          userEmail: task.assigned_to_email,
+          userName: task.assigned_to_name,
+          title: '💬 New comment on: ' + task.title,
+          message: (user?.name || user?.email) + ': ' + comment.trim().slice(0, 80),
+          link: '/my-tasks',
+          type: 'info',
+          category: 'tasks',
+          sentBy: user?.name || user?.email,
+        }).catch(() => {})
       }
       setComment('')
       loadComments()

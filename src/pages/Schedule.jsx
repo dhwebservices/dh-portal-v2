@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { StaffPicker } from '../components/StaffPicker'
-import { sendEmail } from '../utils/email'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const WEEKDAYS = DAYS.slice(0, 5)
@@ -43,22 +43,6 @@ function fmtWeek(ws) {
 }
 
 const EMPTY_SCHEDULE = Object.fromEntries(DAYS.map(d => [d, { start:'', end:'', note:'' }]))
-
-async function notify(user_email, title, message, link, type = 'info') {
-  try {
-    await supabase.from('notifications').insert([{
-      user_email,
-      title,
-      message,
-      type,
-      link,
-      read: false,
-      created_at: new Date().toISOString(),
-    }])
-  } catch (_) {
-    // Non-blocking helper for staff notifications
-  }
-}
 
 function scheduleSummary(schedule) {
   return DAYS.map(day => {
@@ -172,20 +156,24 @@ export default function Schedule() {
       if (onBehalfOf) {
         const title = submit ? '📅 Your schedule has been submitted' : '📅 Your schedule has been updated'
         const message = (user?.name || user?.email) + ' ' + (submit ? 'submitted' : 'saved a draft of') + ' your schedule for the week starting ' + fmtWeek(weekStart)
-        await notify(targetEmail, title, message, '/schedule', submit ? 'success' : 'info')
-        sendEmail('send_email', {
-          to: targetEmail,
-          to_name: targetName,
-          subject: title + ' — Week of ' + fmtWeek(weekStart),
-          html: scheduleEmailHtml({
+        await sendManagedNotification({
+          userEmail: targetEmail,
+          userName: targetName,
+          title,
+          message,
+          link: '/schedule',
+          type: submit ? 'success' : 'info',
+          category: 'schedule',
+          emailSubject: title + ' — Week of ' + fmtWeek(weekStart),
+          emailHtml: scheduleEmailHtml({
             targetName,
             managerName: user?.name || user?.email,
             weekStart,
             schedule,
             submitted: submit,
           }),
-          sent_by: user?.name || user?.email,
-          portal_url: PORTAL_URL,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
         }).catch(() => {})
       }
     }

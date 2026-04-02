@@ -1,20 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
-import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const STATUSES  = ['todo','in_progress','done']
 const prioColor = { low:'var(--sub)', medium:'var(--accent)', high:'var(--amber,#f59e0b)', urgent:'var(--red)' }
 const prioBg    = { low:'var(--bg2)', medium:'var(--accent-soft)', high:'#fef3c7', urgent:'#fee2e2' }
-
-async function notify(user_email, title, message, link, type = 'info') {
-  try {
-    await supabase.from('notifications').insert([{
-      user_email, title, message, type, link, read: false, created_at: new Date().toISOString()
-    }])
-  } catch (e) { /* ignore */ }
-}
 
 export default function MyTasks() {
   const { user } = useAuth()
@@ -37,7 +29,15 @@ export default function MyTasks() {
     // Notify task creator
     const task = tasks.find(t => t.id === id)
     if (task?.created_by && task.assigned_by_email !== user?.email) {
-      await notify(task.assigned_by_email, 'Task updated: ' + task.title, (user?.name||user?.email) + ' changed status to ' + status.replace('_',' '), '/tasks', status==='done'?'success':'info')
+      await sendManagedNotification({
+        userEmail: task.assigned_by_email,
+        title: 'Task updated: ' + task.title,
+        message: (user?.name || user?.email) + ' changed status to ' + status.replace('_', ' '),
+        link: '/tasks',
+        type: status === 'done' ? 'success' : 'info',
+        category: 'tasks',
+        sentBy: user?.name || user?.email,
+      }).catch(() => {})
     }
   }
 
@@ -125,7 +125,15 @@ function TaskDetail({ task, user, onClose, onStatusChange }) {
     setStatus(s)
     await onStatusChange(task.id, s)
     if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
-      await notify(task.assigned_by_email, 'Task status updated: ' + task.title, (user?.name||user?.email) + ' changed status to ' + s.replace('_',' '), '/tasks', s==='done'?'success':'info')
+      await sendManagedNotification({
+        userEmail: task.assigned_by_email,
+        title: 'Task status updated: ' + task.title,
+        message: (user?.name || user?.email) + ' changed status to ' + s.replace('_', ' '),
+        link: '/tasks',
+        type: s === 'done' ? 'success' : 'info',
+        category: 'tasks',
+        sentBy: user?.name || user?.email,
+      }).catch(() => {})
     }
   }
 
@@ -138,13 +146,17 @@ function TaskDetail({ task, user, onClose, onStatusChange }) {
     }])
     if (!error) {
       if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
-        await notify(task.assigned_by_email, '💬 Comment on: ' + task.title, (user?.name||user?.email) + ': ' + comment.trim().slice(0,80), '/tasks', 'info')
-        sendEmail('send_email', {
-          to: task.assigned_by_email,
-          subject: '💬 New comment on: ' + task.title,
-          html: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px"><h2>New Comment</h2><p><strong>' + (user?.name||user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p><div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0">' + comment.trim() + '</div><a href="' + PORTAL_URL + '/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a></div>',
-          sent_by: user?.name || user?.email,
-          portal_url: PORTAL_URL,
+        await sendManagedNotification({
+          userEmail: task.assigned_by_email,
+          title: '💬 Comment on: ' + task.title,
+          message: (user?.name || user?.email) + ': ' + comment.trim().slice(0, 80),
+          link: '/tasks',
+          type: 'info',
+          category: 'tasks',
+          emailSubject: '💬 New comment on: ' + task.title,
+          emailHtml: '<div style="font-family:Arial,sans-serif;max-width:600px;padding:32px"><h2>New Comment</h2><p><strong>' + (user?.name||user?.email) + '</strong> commented on <strong>' + task.title + '</strong>:</p><div style="background:#F9FAFB;border-left:3px solid #1A1612;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0">' + comment.trim() + '</div><a href="' + PORTAL_URL + '/tasks" style="display:inline-block;background:#1A1612;color:#fff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px">View Task →</a></div>',
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
         }).catch(() => {})
       }
       setComment('')

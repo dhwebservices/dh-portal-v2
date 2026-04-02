@@ -4,14 +4,18 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
-import { sendEmail } from '../utils/email'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
   ACCENT_SCHEMES,
   buildPreferenceSettingKey,
+  DEFAULT_LANDING_OPTIONS,
   DASHBOARD_DENSITY_OPTIONS,
   DASHBOARD_HEADER_OPTIONS,
   DASHBOARD_SECTIONS,
   DEFAULT_PORTAL_PREFERENCES,
+  NOTIFICATION_CATEGORY_OPTIONS,
+  NOTIFICATION_DELIVERY_OPTIONS,
+  QUICK_ACTION_OPTIONS,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
@@ -130,6 +134,7 @@ export default function StaffProfile() {
     title: '',
     message: '',
     type: 'info',
+    category: 'general',
     link: '/notifications',
     emailSubject: '',
     important: false,
@@ -151,6 +156,17 @@ export default function StaffProfile() {
     dashboardSections: {
       ...current.dashboardSections,
       [key]: !current.dashboardSections?.[key],
+    },
+  }))
+  const togglePortalQuickAction = (key) => setPortalPrefs((current) => {
+    const active = current.quickActions || []
+    const next = active.includes(key) ? active.filter((item) => item !== key) : [...active, key].slice(0, 6)
+    return mergePortalPreferences(current, { quickActions: next })
+  })
+  const setPortalNotificationDelivery = (category, delivery) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    notificationPreferences: {
+      ...current.notificationPreferences,
+      [category]: delivery,
     },
   }))
 
@@ -490,19 +506,43 @@ export default function StaffProfile() {
     try {
       const effectiveType = customNotification.important ? 'urgent' : (customNotification.type || 'info')
       const notificationPayload = {
-        user_email: email,
         title: customNotification.title.trim(),
         message: customNotification.message.trim(),
         type: effectiveType,
+        category: customNotification.important ? 'urgent' : (customNotification.category || 'general'),
         link: customNotification.link?.trim() || '/notifications',
-        read: false,
-        created_at: new Date().toISOString(),
       }
+      const createdAt = new Date().toISOString()
 
-      const { error } = await supabase.from('notifications').insert([notificationPayload])
-      if (error) throw error
+      const deliveryResult = await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        title: notificationPayload.title,
+        message: notificationPayload.message,
+        type: notificationPayload.type,
+        category: notificationPayload.category,
+        link: notificationPayload.link,
+        emailSubject: `${(customNotification.emailSubject || customNotification.title).trim()} — DH Portal`,
+        emailHtml: `
+          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+          <p>${customNotification.message.trim().replace(/\n/g, '<br/>')}</p>
+          <p><a href="${customNotification.link?.trim()
+            ? `https://staff.dhwebsiteservices.co.uk${customNotification.link.trim().startsWith('/') ? customNotification.link.trim() : `/${customNotification.link.trim()}`}`
+            : 'https://staff.dhwebsiteservices.co.uk/notifications'}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open in DH Portal</a></p>
+        `,
+        sentBy: user?.name || 'Admin',
+        forceImportant: customNotification.important,
+      })
 
-      setNotificationHistory((current) => [notificationPayload, ...current].slice(0, 12))
+      if (deliveryResult.portalSent) {
+        setNotificationHistory((current) => [{
+          title: notificationPayload.title,
+          message: notificationPayload.message,
+          type: notificationPayload.type,
+          link: notificationPayload.link,
+          created_at: createdAt,
+        }, ...current].slice(0, 12))
+      }
 
       if (customNotification.pinAsBanner) {
         const { error: bannerError } = await supabase.from('banners').insert([{
@@ -523,36 +563,13 @@ export default function StaffProfile() {
         if (bannerError) throw bannerError
       }
 
-      const subject = (customNotification.emailSubject || customNotification.title).trim()
-      const portalLink = customNotification.link?.trim()
-        ? `https://staff.dhwebsiteservices.co.uk${customNotification.link.trim().startsWith('/') ? customNotification.link.trim() : `/${customNotification.link.trim()}`}`
-        : 'https://staff.dhwebsiteservices.co.uk/notifications'
-      const recipientName = (profile.full_name || email).split(' ')[0]
-      const emailBody = `
-        <p>Hi ${recipientName || 'there'},</p>
-        <p>${customNotification.message.trim().replace(/\n/g, '<br/>')}</p>
-        <p><a href="${portalLink}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open in DH Portal</a></p>
-      `
-
-      const emailResult = await sendEmail('send_email', {
-        to: email,
-        to_name: profile.full_name || email,
-        subject: `${subject} — DH Portal`,
-        html: emailBody,
-        sent_by: user?.name || 'Admin',
-        log_outreach: false,
-      })
-
-      if (!emailResult.ok) {
-        throw new Error(emailResult.error || 'Email send failed')
-      }
-
       setNotificationSaved(true)
       setTimeout(() => setNotificationSaved(false), 3000)
       setCustomNotification({
         title: '',
         message: '',
         type: 'info',
+        category: 'general',
         link: '/notifications',
         emailSubject: '',
         important: false,
@@ -622,7 +639,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['portal','Portal'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -875,6 +892,27 @@ export default function StaffProfile() {
               </div>
 
               <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Default landing page</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                  {DEFAULT_LANDING_OPTIONS.map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => gp('defaultLanding', key)}
+                      style={{
+                        padding:'13px 14px',
+                        borderRadius:12,
+                        border:`1px solid ${portalPrefs.defaultLanding === key ? 'var(--accent-border)' : 'var(--border)'}`,
+                        background: portalPrefs.defaultLanding === key ? 'var(--accent-soft)' : 'var(--card)',
+                        textAlign:'left',
+                      }}
+                    >
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
                 <div className="lbl" style={{ marginBottom:8 }}>Dashboard behaviour</div>
                 <button
                   onClick={() => gp('showSystemBanners', !portalPrefs.showSystemBanners)}
@@ -897,6 +935,35 @@ export default function StaffProfile() {
                   </span>
                   <span className={`badge badge-${portalPrefs.showSystemBanners ? 'blue' : 'grey'}`}>{portalPrefs.showSystemBanners ? 'Visible' : 'Hidden'}</span>
                 </button>
+              </div>
+
+              <div style={{ marginBottom:18 }}>
+                <div className="lbl" style={{ marginBottom:8 }}>Pinned quick actions</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:10 }}>
+                  {QUICK_ACTION_OPTIONS.map(([key, label]) => {
+                    const enabled = portalPrefs.quickActions?.includes(key)
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => togglePortalQuickAction(key)}
+                        style={{
+                          padding:'13px 14px',
+                          borderRadius:12,
+                          border:`1px solid ${enabled ? 'var(--accent-border)' : 'var(--border)'}`,
+                          background: enabled ? 'var(--accent-soft)' : 'var(--card)',
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent:'space-between',
+                          gap:12,
+                          textAlign:'left',
+                        }}
+                      >
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</span>
+                        <span className={`badge badge-${enabled ? 'blue' : 'grey'}`}>{enabled ? 'Pinned' : 'Off'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               <div>
@@ -946,9 +1013,23 @@ export default function StaffProfile() {
                     </div>
                   </div>
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Landing page</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                      {(DEFAULT_LANDING_OPTIONS.find(([key]) => key === portalPrefs.defaultLanding)?.[1]) || 'Dashboard'}
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Layout</div>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
                       {(DASHBOARD_DENSITY_OPTIONS.find(([key]) => key === portalPrefs.dashboardDensity)?.[1]) || 'Comfortable'} · {(DASHBOARD_HEADER_OPTIONS.find(([key]) => key === portalPrefs.dashboardHeader)?.[1]) || 'Full header'}
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Pinned actions</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {(portalPrefs.quickActions || []).map((key) => (
+                        <span key={key} className="badge badge-blue">{QUICK_ACTION_OPTIONS.find(([actionKey]) => actionKey === key)?.[1] || key}</span>
+                      ))}
                     </div>
                   </div>
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
@@ -1106,6 +1187,95 @@ export default function StaffProfile() {
           </div>
         )}
 
+        {tab === 'alerts' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(280px,0.95fr)', gap:18 }} className="staff-profile-main-grid">
+            <div className="card card-pad">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Alert defaults</div>
+                  <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Staff notification preferences</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                    Choose how this staff member receives each type of portal update. Urgent alerts still go to both the portal and email regardless of these defaults.
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  {portalPrefsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                  <button className="btn btn-primary" onClick={savePortalPrefs} disabled={portalPrefsSaving}>
+                    {portalPrefsSaving ? 'Saving...' : 'Save alert defaults'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gap:12 }}>
+                {NOTIFICATION_CATEGORY_OPTIONS.map(([category, label]) => (
+                  <div key={category} style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--card)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                          {category === 'urgent' ? 'Critical alerts always stay forced through.' : 'Set the default delivery route for this person.'}
+                        </div>
+                      </div>
+                      <span className={`badge badge-${category === 'urgent' ? 'red' : 'blue'}`}>
+                        {portalPrefs.notificationPreferences?.[category] || 'both'}
+                      </span>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10 }}>
+                      {NOTIFICATION_DELIVERY_OPTIONS.map(([delivery, deliveryLabel]) => {
+                        const active = (portalPrefs.notificationPreferences?.[category] || 'both') === delivery
+                        return (
+                          <button
+                            key={delivery}
+                            onClick={() => setPortalNotificationDelivery(category, delivery)}
+                            disabled={category === 'urgent'}
+                            style={{
+                              padding:'12px 13px',
+                              borderRadius:12,
+                              border:`1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`,
+                              background: active ? 'var(--accent-soft)' : 'var(--card)',
+                              textAlign:'left',
+                              opacity: category === 'urgent' && !active ? 0.55 : 1,
+                              cursor: category === 'urgent' ? 'default' : 'pointer',
+                            }}
+                          >
+                            <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{deliveryLabel}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Current routing</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:10 }}>How this person hears from the portal</div>
+                <div style={{ display:'grid', gap:10 }}>
+                  {NOTIFICATION_CATEGORY_OPTIONS.map(([category, label]) => (
+                    <div key={category} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        <span className={`badge badge-${category === 'urgent' ? 'red' : 'blue'}`}>{portalPrefs.notificationPreferences?.[category] || 'both'}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>
+                        {category === 'urgent'
+                          ? 'Critical alerts always send to both the portal inbox and work email.'
+                          : (portalPrefs.notificationPreferences?.[category] || 'both') === 'portal'
+                            ? 'Portal only'
+                            : (portalPrefs.notificationPreferences?.[category] || 'both') === 'email'
+                              ? 'Email only'
+                              : 'Portal + email'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab === 'notify' && (
           <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,0.8fr)', gap:18 }} className="staff-profile-main-grid">
             <div className="card card-pad staff-profile-form-card">
@@ -1114,7 +1284,7 @@ export default function StaffProfile() {
                   <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Custom notification</div>
                   <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Send staff alert</div>
                   <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
-                    This sends one message to the user’s notification bell, notifications page, and work email in the same action.
+                    This sends through the user’s saved notification preferences. Urgent alerts still go to both the portal and work email.
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -1156,6 +1326,14 @@ export default function StaffProfile() {
                     <option value="warning">Warning</option>
                   </select>
                 </div>
+                <div>
+                  <label className="lbl">Delivery category</label>
+                  <select className="inp" value={customNotification.category} onChange={(e) => nf('category', e.target.value)}>
+                    {NOTIFICATION_CATEGORY_OPTIONS.filter(([category]) => category !== 'urgent').map(([category, label]) => (
+                      <option key={category} value={category}>{label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div><label className="lbl">Portal link</label><input className="inp" value={customNotification.link} onChange={(e) => nf('link', e.target.value)} placeholder="/notifications" /></div>
                 <div><label className="lbl">Email subject</label><input className="inp" value={customNotification.emailSubject} onChange={(e) => nf('emailSubject', e.target.value)} placeholder="Defaults to the notification title" /></div>
                 <div>
@@ -1195,9 +1373,9 @@ export default function StaffProfile() {
                 <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:10 }}>Where this goes</div>
                 <div style={{ display:'grid', gap:10 }}>
                   {[
-                    ['Notification bell', 'Appears in the unread bell dropdown immediately.'],
-                    ['Notifications page', 'Stored in the full notifications centre.'],
-                    ['Staff email', `Sent to ${email} using the existing portal worker email flow.`],
+                    ['Notification bell', 'Shown when this category includes portal delivery.'],
+                    ['Notifications page', 'Stored in the inbox when portal delivery is enabled.'],
+                    ['Staff email', `Sent to ${email} when this category allows email delivery.`],
                   ].map(([title, text]) => (
                     <div key={title} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                       <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{title}</div>
@@ -1221,6 +1399,9 @@ export default function StaffProfile() {
                   </div>
                   <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:10 }}>
                     Link: {customNotification.link || '/notifications'}
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:6 }}>
+                    Category: {NOTIFICATION_CATEGORY_OPTIONS.find(([category]) => category === customNotification.category)?.[1] || 'General updates'}
                   </div>
                   {customNotification.pinAsBanner ? (
                     <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:6 }}>
