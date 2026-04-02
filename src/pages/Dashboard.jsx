@@ -56,6 +56,14 @@ function formatDayLabel(dateString) {
   })
 }
 
+function formatPresenceTime(value) {
+  if (!value) return 'Unknown'
+  return new Date(value).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function StatCard({ icon: Icon, label, value, accent, link, loading, hint }) {
   const nav = useNavigate()
   return (
@@ -174,6 +182,7 @@ export default function Dashboard() {
     tickets: 0,
     tasks: 0,
     revenue: 0,
+    activeUsers: 0,
     unreadNotifications: 0,
     todaysShifts: 0,
     todayHours: 0,
@@ -185,6 +194,7 @@ export default function Dashboard() {
   const [priorityItems, setPriorityItems] = useState([])
   const [todaySchedule, setTodaySchedule] = useState([])
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
+  const [activeUsers, setActiveUsers] = useState([])
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [insight, setInsight] = useState('')
@@ -221,6 +231,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       setLoading(true)
+      const activeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
 
       const results = await Promise.allSettled([
         supabase.from('outreach').select('*', { count: 'exact', head: true }),
@@ -232,6 +243,7 @@ export default function Dashboard() {
         supabase.from('commissions').select('commission_amount,status'),
         supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('notifications').select('*').ilike('user_email', user?.email || '').eq('read', false).order('created_at', { ascending: false }).limit(6),
+        supabase.from('hr_profiles').select('user_email,full_name,role,last_seen').gte('last_seen', activeCutoff).order('last_seen', { ascending: false }).limit(8),
         supabase.from('schedules').select('user_email,user_name,week_data,submitted').eq('week_start', weekStart).eq('submitted', true),
         isAdmin
           ? supabase.from('hr_leave').select('id,user_name,leave_type,start_date,end_date,status').eq('status', 'pending').order('created_at', { ascending: false }).limit(6)
@@ -251,10 +263,11 @@ export default function Dashboard() {
       const commissions = get(4, { data: [] }).data || []
       const activity = get(5, { data: [] }).data || []
       const unreadRows = get(6, { data: [] }).data || []
-      const scheduleRows = get(7, { data: [] }).data || []
-      const leaveRows = get(8, { data: [] }).data || []
-      const onboardingRows = get(9, { data: [] }).data || []
-      const appointmentRows = get(10, { data: [] }).data || []
+      const activeRows = get(7, { data: [] }).data || []
+      const scheduleRows = get(8, { data: [] }).data || []
+      const leaveRows = get(9, { data: [] }).data || []
+      const onboardingRows = get(10, { data: [] }).data || []
+      const appointmentRows = get(11, { data: [] }).data || []
 
       const todaysScheduleRows = scheduleRows
         .map((row) => {
@@ -285,6 +298,7 @@ export default function Dashboard() {
         tickets: ticketCount,
         tasks: tasksCount,
         revenue,
+        activeUsers: activeRows.length,
         unreadNotifications: unreadRows.length,
         todaysShifts: todaysScheduleRows.length,
         todayHours: Math.round(todaysHours * 10) / 10,
@@ -325,10 +339,15 @@ export default function Dashboard() {
       setTodaySchedule(todaysScheduleRows)
       setUpcomingAppointments(appointmentRows)
       setNotifications(unreadRows)
+      setActiveUsers(activeRows)
       setLoading(false)
     }
 
     if (user?.email) load()
+    const interval = setInterval(() => {
+      if (user?.email) load()
+    }, 60 * 1000)
+    return () => clearInterval(interval)
   }, [isAdmin, sevenDaysOut, todayIso, todayName, user?.email, weekStart])
 
   useEffect(() => {
@@ -598,6 +617,7 @@ export default function Dashboard() {
         <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
         <StatCard icon={TrendingUp} label="Commission Paid" value={`£${stats.revenue.toLocaleString()}`} accent="var(--accent)" loading={loading} hint="Paid commission recorded in the portal" />
         <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
+        <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
       </div>
       ) : null}
 
@@ -692,7 +712,7 @@ export default function Dashboard() {
       </div>
       ) : null}
 
-      {(dashboardSections.schedule !== false || dashboardSections.appointments !== false) ? (
+      {(dashboardSections.schedule !== false || dashboardSections.appointments !== false || dashboardSections.activity !== false) ? (
       <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20 }}>
         {dashboardSections.schedule !== false ? (
         <Panel title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
@@ -735,7 +755,24 @@ export default function Dashboard() {
       ) : null}
 
       {dashboardSections.activity !== false ? (
-      <div style={{ marginTop: dashboardDensity === 'compact' ? 14 : 20 }}>
+      <div style={{ marginTop: dashboardDensity === 'compact' ? 14 : 20, display:'grid', gridTemplateColumns:'1fr 1fr', gap: dashboardDensity === 'compact' ? 14 : 20 }} className="dashboard-panel-grid">
+        <Panel title="Active Staff Now" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
+          {activeUsers.length ? (
+            activeUsers.map((person) => (
+              <QueueRow
+                key={person.user_email}
+                title={person.full_name || person.user_email}
+                meta={`${person.role || 'Staff'} · seen ${formatPresenceTime(person.last_seen)}`}
+                status="live"
+                tone="green"
+                onClick={() => navigate('/audit')}
+              />
+            ))
+          ) : (
+            <EmptyState text="No staff activity detected in the last 5 minutes." />
+          )}
+        </Panel>
+
         <Panel title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
           {recentActivity.length ? (
             recentActivity.map((activity, index) => (

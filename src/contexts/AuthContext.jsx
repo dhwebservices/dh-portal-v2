@@ -10,6 +10,7 @@ import {
 } from '../utils/portalPreferences'
 
 const Ctx = createContext(null)
+const ACTIVE_HEARTBEAT_MS = 60 * 1000
 
 const OWNER_EMAILS = new Set([
   'david@dhwebsiteservices.co.uk',
@@ -40,6 +41,36 @@ export function AuthProvider({ children }) {
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
   const [loading, setLoading]       = useState(true)
+
+  useEffect(() => {
+    if (!normalizedEmail) return
+
+    const touchPresence = () => {
+      const now = new Date().toISOString()
+      supabase.from('hr_profiles').upsert({
+        user_email: normalizedEmail,
+        full_name: account?.name || normalizedEmail,
+        last_seen: now,
+        updated_at: now,
+      }, { onConflict: 'user_email' }).then(() => {}).catch(() => {})
+    }
+
+    touchPresence()
+    const interval = setInterval(touchPresence, ACTIVE_HEARTBEAT_MS)
+    const handleFocus = () => touchPresence()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') touchPresence()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [normalizedEmail, account?.name])
 
   useEffect(() => {
     if (!normalizedEmail) {
@@ -121,13 +152,6 @@ export function AuthProvider({ children }) {
       details:    {},
       created_at: now,
     }]).then(() => {}).catch(() => {})
-    // hr_profiles last_seen update - ignore errors (column may not exist yet)
-    supabase.from('hr_profiles').upsert({
-      user_email: normalizedEmail,
-      full_name:  account.name || normalizedEmail,
-      last_seen:  now,
-      updated_at: now,
-    }, { onConflict: 'user_email' }).then(() => {}).catch(() => {})
     return () => clearTimeout(timeout)
   }, [normalizedEmail, account?.name])
 
