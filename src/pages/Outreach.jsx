@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { logAction } from '../utils/audit'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
 const FILTERS = ['all', 'follow_up_queue', 'overdue', 'hot', 'recent', 'converted', 'not_interested']
@@ -29,6 +30,7 @@ const EMPTY = {
   notes: '',
   outcome: 'none',
   follow_up_date: '',
+  assigned_to_email: '',
 }
 
 const statusColor = {
@@ -54,7 +56,7 @@ function parseOutreachNotes(raw = '') {
   if (!text.startsWith(NOTES_META_PREFIX)) {
     return {
       plainNotes: text,
-      meta: { outcome: 'none', follow_up_date: '', history: [] },
+      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', reminder_notice_key: '' },
     }
   }
 
@@ -70,12 +72,16 @@ function parseOutreachNotes(raw = '') {
         outcome: parsed.outcome || 'none',
         follow_up_date: parsed.follow_up_date || '',
         history: Array.isArray(parsed.history) ? parsed.history : [],
+        assigned_to_email: parsed.assigned_to_email || '',
+        assigned_to_name: parsed.assigned_to_name || '',
+        creator_email: parsed.creator_email || '',
+        reminder_notice_key: parsed.reminder_notice_key || '',
       },
     }
   } catch {
     return {
       plainNotes: remaining || text,
-      meta: { outcome: 'none', follow_up_date: '', history: [] },
+      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', reminder_notice_key: '' },
     }
   }
 }
@@ -85,6 +91,10 @@ function buildOutreachNotes(plainNotes, meta = {}) {
     outcome: meta.outcome || 'none',
     follow_up_date: meta.follow_up_date || '',
     history: Array.isArray(meta.history) ? meta.history.slice(0, 12) : [],
+    assigned_to_email: meta.assigned_to_email || '',
+    assigned_to_name: meta.assigned_to_name || '',
+    creator_email: meta.creator_email || '',
+    reminder_notice_key: meta.reminder_notice_key || '',
   }
   const metaBlock = `${NOTES_META_PREFIX} ${JSON.stringify(safeMeta)}`
   const body = String(plainNotes || '').trim()
@@ -293,14 +303,16 @@ function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
 }
 
 export default function Outreach() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const reminderLock = useRef(new Set())
   const [tab, setTab] = useState('contacts')
   const [rows, setRows] = useState([])
   const [emails, setEmails] = useState([])
   const [appointments, setAppointments] = useState([])
   const [clients, setClients] = useState([])
   const [bookableStaff, setBookableStaff] = useState([])
+  const [staffDirectory, setStaffDirectory] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -344,6 +356,14 @@ export default function Outreach() {
         role: profile?.role || 'Bookable staff',
       }
     }).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')))
+    setStaffDirectory((profileData || [])
+      .filter((item) => item?.user_email)
+      .map((item) => ({
+        user_email: String(item.user_email || '').toLowerCase(),
+        full_name: item.full_name || item.user_email,
+        role: item.role || 'Staff',
+      }))
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')))
     setLoading(false)
   }
 
@@ -356,6 +376,7 @@ export default function Outreach() {
       notes: r.plainNotes || '',
       outcome: r.outcome || 'none',
       follow_up_date: r.follow_up_date || '',
+      assigned_to_email: r.assigned_to_email || '',
     })
     setModal(true)
   }
@@ -366,9 +387,16 @@ export default function Outreach() {
   const save = async () => {
     setSaving(true)
     const nextStatus = normalizeStatus(form.status)
+    const nextAssignee = String(form.assigned_to_email || editing?.assigned_to_email || '').toLowerCase().trim()
+    const previousAssignee = String(editing?.assigned_to_email || '').toLowerCase().trim()
+    const nextAssigneeProfile = staffDirectory.find((staffMember) => staffMember.user_email === nextAssignee)
     const noteMeta = {
       outcome: form.outcome || 'none',
       follow_up_date: form.follow_up_date || '',
+      assigned_to_email: nextAssignee,
+      assigned_to_name: nextAssigneeProfile?.full_name || editing?.assigned_to_name || '',
+      creator_email: editing?.creator_email || user?.email || '',
+      reminder_notice_key: editing?.reminder_notice_key || '',
       history: [
         buildHistoryEntry({
           action: editing ? 'updated' : 'created',
@@ -396,6 +424,19 @@ export default function Outreach() {
       const { error } = await supabase.from('outreach').insert([{ ...payload, added_by: user?.name, created_at: new Date().toISOString() }])
       if (error) console.error('Outreach insert error:', error)
       else await logAction(user?.email, user?.name, 'outreach_added', form.business_name, null, {})
+    }
+    if (nextAssignee && nextAssignee !== previousAssignee) {
+      await sendManagedNotification({
+        userEmail: nextAssignee,
+        userName: nextAssigneeProfile?.full_name || nextAssignee,
+        category: 'general',
+        type: 'info',
+        title: 'New outreach follow-up assigned',
+        message: `${form.business_name || form.contact_name || 'A lead'} has been assigned to you for follow-up.${form.email ? ` Contact email: ${form.email}.` : ''}`,
+        link: '/outreach',
+        emailSubject: `New outreach follow-up assigned — ${form.business_name || form.contact_name || 'Lead'}`,
+        sentBy: user?.name || user?.email || 'Admin',
+      }).catch(() => {})
     }
     setSaving(false)
     close()
@@ -485,6 +526,54 @@ export default function Outreach() {
     await supabase.from('outreach').delete().eq('id', id)
     await logAction(user?.email, user?.name, 'outreach_deleted', name, id, {})
     load()
+  }
+
+  const assignLead = async (row, nextAssigneeEmail) => {
+    const safeAssignee = String(nextAssigneeEmail || '').toLowerCase().trim()
+    const staffMember = staffDirectory.find((entry) => entry.user_email === safeAssignee)
+    const meta = {
+      outcome: row.outcome || 'none',
+      follow_up_date: row.follow_up_date || '',
+      assigned_to_email: safeAssignee,
+      assigned_to_name: staffMember?.full_name || '',
+      creator_email: row.creator_email || user?.email || '',
+      reminder_notice_key: '',
+      history: [
+        buildHistoryEntry({
+          action: 'assigned',
+          value: safeAssignee ? `Assigned to ${staffMember?.full_name || safeAssignee}` : 'Assignment cleared',
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(row.history || []),
+      ].slice(0, 12),
+    }
+
+    const { error } = await supabase.from('outreach').update({
+      notes: buildOutreachNotes(row.plainNotes || '', meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
+
+    if (error) {
+      alert('Assignment failed: ' + error.message)
+      return
+    }
+
+    if (safeAssignee) {
+      await sendManagedNotification({
+        userEmail: safeAssignee,
+        userName: staffMember?.full_name || safeAssignee,
+        category: 'general',
+        type: 'info',
+        title: 'New outreach follow-up assigned',
+        message: `${row.business_name || row.contact_name || 'A lead'} has been assigned to you for follow-up.${row.email ? ` Contact email: ${row.email}.` : ''}`,
+        link: '/outreach',
+        emailSubject: `New outreach follow-up assigned — ${row.business_name || row.contact_name || 'Lead'}`,
+        sentBy: user?.name || user?.email || 'Admin',
+      }).catch(() => {})
+    }
+
+    await logAction(user?.email, user?.name, 'outreach_assigned', row.business_name, row.id, { assigned_to_email: safeAssignee }).catch(() => {})
+    await load()
   }
 
   const getClientMatch = (row) => clients.find((client) => {
@@ -646,8 +735,76 @@ export default function Outreach() {
       outcome: parsed.meta.outcome,
       follow_up_date: parsed.meta.follow_up_date,
       history: parsed.meta.history,
+      assigned_to_email: parsed.meta.assigned_to_email,
+      assigned_to_name: parsed.meta.assigned_to_name,
+      creator_email: parsed.meta.creator_email,
+      reminder_notice_key: parsed.meta.reminder_notice_key,
     }
   }), [rows])
+
+  useEffect(() => {
+    if (loading || !enrichedRows.length) return
+
+    const run = async () => {
+      const today = new Date().toISOString().split('T')[0]
+
+      for (const row of enrichedRows) {
+        if (!needsFollowUp(row)) continue
+        const due = row.follow_up_date ? row.follow_up_date <= today : isOverdue(row)
+        if (!due) continue
+
+        const noticeKey = row.follow_up_date || today
+        const lockKey = `${row.id}:${noticeKey}`
+        if (row.reminder_notice_key === noticeKey || reminderLock.current.has(lockKey)) continue
+
+        const recipients = Array.from(new Set(
+          [row.assigned_to_email, row.creator_email]
+            .map((value) => String(value || '').toLowerCase().trim())
+            .filter(Boolean)
+        ))
+        if (!recipients.length) continue
+
+        reminderLock.current.add(lockKey)
+
+        const staffNameMap = new Map(staffDirectory.map((member) => [member.user_email, member.full_name]))
+        await Promise.all(recipients.map((recipient) => sendManagedNotification({
+          userEmail: recipient,
+          userName: staffNameMap.get(recipient) || recipient,
+          category: 'general',
+          type: row.follow_up_date && row.follow_up_date < today ? 'warning' : 'info',
+          title: 'Outreach follow-up due',
+          message: `${row.business_name || row.contact_name || 'A lead'} now needs a follow-up.${row.email ? ` Contact email: ${row.email}.` : ''}${row.follow_up_date ? ` Follow-up date: ${formatShortDate(row.follow_up_date)}.` : ''}`,
+          link: '/outreach',
+          emailSubject: `Follow-up due — ${row.business_name || row.contact_name || 'Lead'}`,
+          sentBy: 'DH Portal',
+        }).catch(() => {})))
+
+        const meta = {
+          outcome: row.outcome || 'none',
+          follow_up_date: row.follow_up_date || '',
+          assigned_to_email: row.assigned_to_email || '',
+          assigned_to_name: row.assigned_to_name || '',
+          creator_email: row.creator_email || '',
+          reminder_notice_key: noticeKey,
+          history: [
+            buildHistoryEntry({
+              action: 'reminder',
+              value: `Follow-up reminder sent${row.follow_up_date ? ` for ${row.follow_up_date}` : ''}`,
+              actor: 'DH Portal',
+            }),
+            ...(row.history || []),
+          ].slice(0, 12),
+        }
+
+        await supabase.from('outreach').update({
+          notes: buildOutreachNotes(row.plainNotes || '', meta),
+          updated_at: new Date().toISOString(),
+        }).eq('id', row.id)
+      }
+    }
+
+    run().then(() => load()).catch(() => {})
+  }, [loading, enrichedRows, staffDirectory])
 
   const followUpQueue = useMemo(() => buildQueue(enrichedRows, emails), [enrichedRows, emails])
 
@@ -740,6 +897,7 @@ export default function Outreach() {
                       <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.business_name || 'Unnamed lead'}</span>
                       <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
                       {row.overdue ? <span className="badge badge-red">Overdue</span> : null}
+                      {row.assigned_to_name ? <span className="badge badge-grey">{row.assigned_to_name}</span> : null}
                     </div>
                     <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>
                       {row.contact_name || 'No contact name'} · {getLastContactMethod(row, emails)} · {age === null ? 'No activity date' : `${age} day${age === 1 ? '' : 's'} since touch`}
@@ -858,6 +1016,7 @@ export default function Outreach() {
                             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                               <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
                               {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
+                              {r.assigned_to_name ? <span className="badge badge-grey">{r.assigned_to_name}</span> : null}
                             </div>
                           </td>
                           <td style={{ minWidth: 160 }}>
@@ -918,6 +1077,7 @@ export default function Outreach() {
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
                           <span className={`badge badge-${statusColor[r.status || 'new'] || 'grey'}`}>{labelize(r.status || 'new')}</span>
                           {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
+                          {r.assigned_to_name ? <span className="badge badge-grey">{r.assigned_to_name}</span> : null}
                           {overdue ? <span className="badge badge-red">Overdue</span> : null}
                         </div>
                         <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 12 }}>
@@ -1081,7 +1241,15 @@ export default function Outreach() {
                 </select>
               </div>
               <div><label className="lbl">Next follow-up date</label><input className="inp" type="date" value={form.follow_up_date} onChange={(e) => sf('follow_up_date', e.target.value)} /></div>
-              </div>
+              {isAdmin ? (
+                <div><label className="lbl">Assign follow-up to</label>
+                  <select className="inp" value={form.assigned_to_email || ''} onChange={(e) => sf('assigned_to_email', e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {staffDirectory.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
+                  </select>
+                </div>
+              ) : null}
+            </div>
               {!editing && (
                 <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderRadius: 7, fontSize: 13, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ color: 'var(--faint)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Added by</span>
@@ -1113,6 +1281,15 @@ export default function Outreach() {
                     <button type="button" className="btn btn-outline btn-sm" onClick={() => openBookingModal(editing)}>Book appointment</button>
                     <button type="button" className="btn btn-outline btn-sm" onClick={() => convertToClient(editing)}>Convert to client</button>
                   </div>
+                  {isAdmin ? (
+                    <div style={{ marginTop:12 }}>
+                      <div className="lbl" style={{ marginBottom:8 }}>Assignment</div>
+                      <select className="inp" value={editing.assigned_to_email || ''} onChange={(e) => assignLead(editing, e.target.value)} style={{ maxWidth:280 }}>
+                        <option value="">Unassigned</option>
+                        {staffDirectory.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
+                      </select>
+                    </div>
+                  ) : null}
                   {getClientMatch(editing) ? (
                     <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:10 }}>
                       Already linked to client record <strong style={{ color:'var(--text)' }}>{getClientMatch(editing)?.name}</strong>.
