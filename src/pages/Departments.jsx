@@ -52,6 +52,48 @@ function buildHrProfilePayload(staffRow = {}, departmentMeta = {}, departmentNam
   }
 }
 
+async function notifyDepartmentPlacement({ staffRow, departmentName, departmentMeta, roleScope = 'staff', sentBy }) {
+  if (!staffRow?.user_email || !departmentName) return
+  const managerName = String(departmentMeta?.manager_name || 'No department manager assigned').trim()
+  const managerEmail = normalizePortalEmail(departmentMeta?.manager_email)
+  const roleLabel = roleScope === 'department_manager' ? 'Department Manager' : roleScope === 'read_only' ? 'Read Only' : 'Staff'
+
+  await sendManagedNotification({
+    userEmail: staffRow.user_email,
+    userName: staffRow.full_name || staffRow.user_email,
+    category: 'urgent',
+    type: 'success',
+    title: 'Department assignment confirmed',
+    message: managerEmail
+      ? `You have been assigned to ${departmentName} as ${roleLabel}. Your department manager is ${managerName} (${managerEmail}).`
+      : `You have been assigned to ${departmentName} as ${roleLabel}. A department manager has not been set yet.`,
+    link: '/my-profile',
+    emailSubject: `Department assignment — ${departmentName}`,
+    sentBy,
+    fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    forceImportant: true,
+  }).catch(() => {})
+}
+
+async function notifyDepartmentRemoval({ staffRow, previousDepartment, sentBy }) {
+  if (!staffRow?.user_email) return
+  await sendManagedNotification({
+    userEmail: staffRow.user_email,
+    userName: staffRow.full_name || staffRow.user_email,
+    category: 'urgent',
+    type: 'warning',
+    title: 'Department assignment removed',
+    message: previousDepartment
+      ? `You have been removed from ${previousDepartment}. Your department assignment is now unassigned pending the next update.`
+      : 'Your department assignment has been removed. Your profile is now unassigned pending the next update.',
+    link: '/my-profile',
+    emailSubject: previousDepartment ? `Department removed — ${previousDepartment}` : 'Department assignment removed',
+    sentBy,
+    fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    forceImportant: true,
+  }).catch(() => {})
+}
+
 function Metric({ icon: Icon, label, value, hint, accent = 'var(--accent)' }) {
   return (
     <div className="stat-card">
@@ -63,6 +105,32 @@ function Metric({ icon: Icon, label, value, hint, accent = 'var(--accent)' }) {
       <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
     </div>
   )
+}
+
+async function readOrgRecord(email = '', department = '') {
+  const safeEmail = normalizePortalEmail(email)
+  if (!safeEmail) return mergeOrgRecord({}, { email: safeEmail, department })
+  const { data } = await supabase
+    .from('portal_settings')
+    .select('value')
+    .eq('key', buildStaffOrgKey(safeEmail))
+    .maybeSingle()
+
+  return mergeOrgRecord(data?.value?.value ?? data?.value ?? {}, {
+    email: safeEmail,
+    department,
+  })
+}
+
+async function writeOrgRecord(email = '', value = {}, department = '') {
+  const safeEmail = normalizePortalEmail(email)
+  if (!safeEmail) return
+  await supabase.from('portal_settings').upsert({
+    key: buildStaffOrgKey(safeEmail),
+    value: {
+      value: mergeOrgRecord(value, { email: safeEmail, department }),
+    },
+  }, { onConflict: 'key' })
 }
 
 export default function Departments() {
@@ -185,6 +253,22 @@ export default function Departments() {
         { onConflict: 'user_email' },
       ),
     ])
+
+    if (safeDepartment) {
+      await notifyDepartmentPlacement({
+        staffRow: row,
+        departmentName: safeDepartment,
+        departmentMeta,
+        roleScope: requestedRole,
+        sentBy: user?.name || user?.email || 'Director',
+      })
+    } else {
+      await notifyDepartmentRemoval({
+        staffRow: row,
+        previousDepartment: row.department || row.org?.department || '',
+        sentBy: user?.name || user?.email || 'Director',
+      })
+    }
   }
 
   async function saveCatalog(nextCatalog) {
@@ -209,39 +293,41 @@ export default function Departments() {
   }
 
   async function updateDepartment(id, patch) {
+    const currentDepartment = catalog.find((item) => item.id === id)
+    const previousManagerEmail = normalizePortalEmail(currentDepartment?.manager_email)
     const nextCatalog = catalog.map((item) => item.id === id ? { ...item, ...patch, updated_at: new Date().toISOString() } : item)
     setSavingKey(id)
     try {
       await saveCatalog(nextCatalog)
       const updatedDepartment = nextCatalog.find((item) => item.id === id)
-      if (updatedDepartment?.manager_email) {
-        const managerRow = profiles.find((row) => row.user_email === updatedDepartment.manager_email)
-        const { data: orgSetting } = await supabase
-          .from('portal_settings')
-          .select('value')
-          .eq('key', buildStaffOrgKey(updatedDepartment.manager_email))
-          .maybeSingle()
-        const existingOrg = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
-          email: updatedDepartment.manager_email,
-          department: managerRow?.department || updatedDepartment.name,
-        })
+      const nextManagerEmail = normalizePortalEmail(updatedDepartment?.manager_email)
+
+      if (previousManagerEmail && previousManagerEmail !== nextManagerEmail) {
+        const previousManagerRow = profiles.find((row) => row.user_email === previousManagerEmail)
+        const previousOrg = await readOrgRecord(previousManagerEmail, previousManagerRow?.department || '')
+        const nextManagedDepartments = (previousOrg.managed_departments || []).filter((item) => item !== updatedDepartment.name)
+        await writeOrgRecord(previousManagerEmail, {
+          ...previousOrg,
+          managed_departments: nextManagedDepartments,
+          role_scope: nextManagedDepartments.length > 0 || previousOrg.department ? previousOrg.role_scope : 'staff',
+        }, previousManagerRow?.department || '')
+      }
+
+      if (nextManagerEmail) {
+        const managerRow = profiles.find((row) => row.user_email === nextManagerEmail)
+        const existingOrg = await readOrgRecord(nextManagerEmail, managerRow?.department || updatedDepartment.name)
         const nextManaged = new Set(existingOrg.managed_departments || [])
         nextManaged.add(updatedDepartment.name)
-        await supabase.from('portal_settings').upsert({
-          key: buildStaffOrgKey(updatedDepartment.manager_email),
-          value: {
-            value: mergeOrgRecord({
-              ...existingOrg,
-              email: updatedDepartment.manager_email,
-              role_scope: 'department_manager',
-              managed_departments: [...nextManaged],
-              department: existingOrg.department || updatedDepartment.name,
-            }, { email: updatedDepartment.manager_email, department: updatedDepartment.name }),
-          },
-        }, { onConflict: 'key' })
+        await writeOrgRecord(nextManagerEmail, {
+          ...existingOrg,
+          email: nextManagerEmail,
+          role_scope: 'department_manager',
+          managed_departments: [...nextManaged],
+          department: existingOrg.department || updatedDepartment.name,
+        }, updatedDepartment.name)
         await sendManagedNotification({
-          userEmail: updatedDepartment.manager_email,
-          userName: updatedDepartment.manager_name || managerRow?.full_name || updatedDepartment.manager_email,
+          userEmail: nextManagerEmail,
+          userName: updatedDepartment.manager_name || managerRow?.full_name || nextManagerEmail,
           category: 'urgent',
           type: 'success',
           title: 'Department manager assignment',
@@ -252,6 +338,21 @@ export default function Departments() {
           fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
           forceImportant: true,
         }).catch(() => {})
+
+        const teamMembersInDepartment = profiles.filter((row) => row.department === updatedDepartment.name && row.user_email !== nextManagerEmail)
+        await Promise.allSettled(teamMembersInDepartment.map((staffRow) => sendManagedNotification({
+          userEmail: staffRow.user_email,
+          userName: staffRow.full_name || staffRow.user_email,
+          category: 'urgent',
+          type: 'info',
+          title: 'Department manager updated',
+          message: `Your department manager for ${updatedDepartment.name} is now ${updatedDepartment.manager_name || managerRow?.full_name || nextManagerEmail}${nextManagerEmail ? ` (${nextManagerEmail})` : ''}.`,
+          link: '/my-profile',
+          emailSubject: `Department manager updated — ${updatedDepartment.name}`,
+          sentBy: user?.name || user?.email || 'Director',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        })))
       }
       await load()
     } finally {
@@ -276,6 +377,16 @@ export default function Departments() {
 
       const impactedProfiles = profiles.filter((row) => row.department === department.name)
       await Promise.all(impactedProfiles.map((row) => persistDepartmentChange(row, nextName, row.org?.role_scope || 'staff')))
+
+      const impactedManagers = profiles.filter((row) => (row.org?.managed_departments || []).includes(department.name))
+      await Promise.all(impactedManagers.map(async (row) => {
+        const existingOrg = await readOrgRecord(row.user_email, row.department || '')
+        const nextManagedDepartments = (existingOrg.managed_departments || []).map((item) => item === department.name ? nextName : item)
+        await writeOrgRecord(row.user_email, {
+          ...existingOrg,
+          managed_departments: nextManagedDepartments,
+        }, row.department || '')
+      }))
 
       const impactedRequests = requests.filter((row) => row.current_department === department.name || row.requested_department === department.name)
       await Promise.all(impactedRequests.map((request) => supabase.from('portal_settings').upsert({

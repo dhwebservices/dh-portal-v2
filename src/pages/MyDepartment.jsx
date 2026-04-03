@@ -231,6 +231,17 @@ export default function MyDepartment() {
     return catalog.filter((item) => item.active !== false && allowed.has(item.name))
   }, [catalog, isDirector, org])
 
+  useEffect(() => {
+    if (!visibleDepartments.length) {
+      setSelectedDepartment('')
+      return
+    }
+    setSelectedDepartment((current) => {
+      if (current && visibleDepartments.some((item) => item.name === current)) return current
+      return visibleDepartments[0]?.name || ''
+    })
+  }, [visibleDepartments])
+
   const currentDepartment = selectedDepartment || visibleDepartments[0]?.name || ''
   const teamMembers = profiles.filter((row) => row.department === currentDepartment)
   const unassigned = profiles.filter((row) => !String(row.department || '').trim())
