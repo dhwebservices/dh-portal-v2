@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+npm run docs:generate
+git add README.md docs/DH_PORTAL_LIVE_HANDOVER.md docs/portal-status.json
