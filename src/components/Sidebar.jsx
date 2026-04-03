@@ -56,6 +56,7 @@ const SECTIONS = [
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
       { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
+      { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'reports' },
       { to: '/admin-safeguards', icon: 'shield', label: 'Safeguards', desc: 'Data integrity checks', key: 'safeguards' },
       { to: '/banners',   icon: 'bell',   label: 'Banners',       desc: 'Site banners',      key: 'banners'       },
       { to: '/audit',     icon: 'shield', label: 'Audit Log',     desc: 'Activity history',  key: 'audit'         },

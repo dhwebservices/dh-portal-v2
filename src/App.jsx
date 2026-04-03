@@ -1,49 +1,69 @@
 import { lazy, Suspense } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 
-const LoginPage = lazy(() => import('./pages/LoginPage'))
-const HomeScreen = lazy(() => import('./pages/HomeScreen'))
-const WebManager = lazy(() => import('./pages/WebManager'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Outreach = lazy(() => import('./pages/Outreach'))
-const Clients = lazy(() => import('./pages/Clients'))
-const ClientMgmt = lazy(() => import('./pages/ClientMgmt'))
-const Support = lazy(() => import('./pages/Support'))
-const Tasks = lazy(() => import('./pages/Tasks'))
-const MyTasks = lazy(() => import('./pages/MyTasks'))
-const MyProfile = lazy(() => import('./pages/MyProfile'))
-const ClientProfile = lazy(() => import('./pages/ClientProfile'))
-const MyStaff = lazy(() => import('./pages/MyStaff'))
-const StaffProfile = lazy(() => import('./pages/StaffProfile'))
-const Search = lazy(() => import('./pages/Search'))
-const Schedule = lazy(() => import('./pages/Schedule'))
-const Reports = lazy(() => import('./pages/Reports'))
-const OrgChart = lazy(() => import('./pages/OrgChart'))
-const AdminSafeguards = lazy(() => import('./pages/AdminSafeguards'))
-const Proposals = lazy(() => import('./pages/Proposals'))
-const SendEmail = lazy(() => import('./pages/SendEmail'))
-const EmailTemplates = lazy(() => import('./pages/EmailTemplates'))
-const Banners = lazy(() => import('./pages/Banners'))
-const Domains = lazy(() => import('./pages/Domains'))
-const Competitor = lazy(() => import('./pages/Competitor'))
-const Maintenance = lazy(() => import('./pages/Maintenance'))
-const HRLeave = lazy(() => import('./pages/hr/HRLeave'))
-const HRTimesheets = lazy(() => import('./pages/hr/HRTimesheets'))
-const HRPayslips = lazy(() => import('./pages/hr/HRPayslips'))
-const HRPolicies = lazy(() => import('./pages/hr/HRPolicies'))
-const HRDocuments = lazy(() => import('./pages/hr/HRDocuments'))
-const HROnboarding = lazy(() => import('./pages/hr/HROnboarding'))
-const Appointments = lazy(() => import('./pages/Appointments'))
-const MailingList = lazy(() => import('./pages/MailingList'))
-const AuditLog = lazy(() => import('./pages/AuditLog'))
-const Settings = lazy(() => import('./pages/Settings'))
-const Notifications = lazy(() => import('./pages/Notifications'))
+function lazyRetry(importer, key) {
+  return lazy(async () => {
+    const retryKey = `portal-lazy-retry:${key}`
+    try {
+      const module = await importer()
+      window.sessionStorage.removeItem(retryKey)
+      return module
+    } catch (error) {
+      const hasRetried = window.sessionStorage.getItem(retryKey) === '1'
+      if (!hasRetried) {
+        window.sessionStorage.setItem(retryKey, '1')
+        window.location.reload()
+        return new Promise(() => {})
+      }
+      throw error
+    }
+  })
+}
+
+const LoginPage = lazyRetry(() => import('./pages/LoginPage'), 'login')
+const HomeScreen = lazyRetry(() => import('./pages/HomeScreen'), 'home')
+const WebManager = lazyRetry(() => import('./pages/WebManager'), 'web-manager')
+const Dashboard = lazyRetry(() => import('./pages/Dashboard'), 'dashboard')
+const Outreach = lazyRetry(() => import('./pages/Outreach'), 'outreach')
+const Clients = lazyRetry(() => import('./pages/Clients'), 'clients')
+const ClientMgmt = lazyRetry(() => import('./pages/ClientMgmt'), 'client-mgmt')
+const Support = lazyRetry(() => import('./pages/Support'), 'support')
+const Tasks = lazyRetry(() => import('./pages/Tasks'), 'tasks')
+const MyTasks = lazyRetry(() => import('./pages/MyTasks'), 'my-tasks')
+const MyProfile = lazyRetry(() => import('./pages/MyProfile'), 'my-profile')
+const ClientProfile = lazyRetry(() => import('./pages/ClientProfile'), 'client-profile')
+const MyStaff = lazyRetry(() => import('./pages/MyStaff'), 'my-staff')
+const StaffProfile = lazyRetry(() => import('./pages/StaffProfile'), 'staff-profile')
+const Search = lazyRetry(() => import('./pages/Search'), 'search')
+const Schedule = lazyRetry(() => import('./pages/Schedule'), 'schedule')
+const Reports = lazyRetry(() => import('./pages/Reports'), 'reports')
+const ManagerBoard = lazyRetry(() => import('./pages/ManagerBoard'), 'manager-board')
+const OrgChart = lazyRetry(() => import('./pages/OrgChart'), 'org-chart')
+const AdminSafeguards = lazyRetry(() => import('./pages/AdminSafeguards'), 'admin-safeguards')
+const Proposals = lazyRetry(() => import('./pages/Proposals'), 'proposals')
+const SendEmail = lazyRetry(() => import('./pages/SendEmail'), 'send-email')
+const EmailTemplates = lazyRetry(() => import('./pages/EmailTemplates'), 'email-templates')
+const Banners = lazyRetry(() => import('./pages/Banners'), 'banners')
+const Domains = lazyRetry(() => import('./pages/Domains'), 'domains')
+const Competitor = lazyRetry(() => import('./pages/Competitor'), 'competitor')
+const Maintenance = lazyRetry(() => import('./pages/Maintenance'), 'maintenance')
+const HRLeave = lazyRetry(() => import('./pages/hr/HRLeave'), 'hr-leave')
+const HRTimesheets = lazyRetry(() => import('./pages/hr/HRTimesheets'), 'hr-timesheets')
+const HRPayslips = lazyRetry(() => import('./pages/hr/HRPayslips'), 'hr-payslips')
+const HRPolicies = lazyRetry(() => import('./pages/hr/HRPolicies'), 'hr-policies')
+const HRDocuments = lazyRetry(() => import('./pages/hr/HRDocuments'), 'hr-documents')
+const HROnboarding = lazyRetry(() => import('./pages/hr/HROnboarding'), 'hr-onboarding')
+const Appointments = lazyRetry(() => import('./pages/Appointments'), 'appointments')
+const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list')
+const AuditLog = lazyRetry(() => import('./pages/AuditLog'), 'audit-log')
+const Settings = lazyRetry(() => import('./pages/Settings'), 'settings')
+const Notifications = lazyRetry(() => import('./pages/Notifications'), 'notifications')
 
 const msal = new PublicClientApplication(msalConfig)
 
@@ -137,6 +157,7 @@ function PortalLayout() {
               <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
               <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
               <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
+              <Route path="/manager-board"   element={<PermissionGate permKey="reports"><ManagerBoard /></PermissionGate>} />
               <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
               <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
               <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
@@ -168,12 +189,31 @@ function PortalLayout() {
   )
 }
 
+function LandingResolver() {
+  const { preferences, loading, isOnboarding } = useAuth()
+
+  if (loading) return <RouteLoader />
+  if (isOnboarding) return <HROnboarding />
+
+  const routeMap = {
+    dashboard: '/dashboard',
+    mytasks: '/my-tasks',
+    notifications: '/notifications',
+    schedule: '/schedule',
+    appointments: '/appointments',
+    clients: '/clients',
+  }
+
+  return <Navigate to={routeMap[preferences?.defaultLanding] || '/dashboard'} replace />
+}
+
 function AuthenticatedApp() {
   return (
     <AuthProvider>
       <Suspense fallback={<RouteLoader />}>
         <Routes>
-          <Route path="/"              element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
+          <Route path="/"              element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
+          <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
           <Route path="/web-manager/*" element={<MaintenanceWall><OnboardingWall><PermissionGate permKey="website_editor"><WebManager /></PermissionGate></OnboardingWall></MaintenanceWall>} />
           <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />
         </Routes>

@@ -10,6 +10,7 @@ const TITLES = {
   '/client-mgmt':'Client Portal', '/support':'Support Tickets',
   '/tasks':'Manage Tasks', '/my-tasks':'My Tasks',
   '/schedule':'Schedule', '/reports':'Reports',
+  '/manager-board':'Manager Board',
   '/org-chart':'Organisation Chart',
   '/my-staff':'My Staff', '/proposals':'Proposal Builder',
   '/send-email':'Send Email', '/email-templates':'Email Templates',
