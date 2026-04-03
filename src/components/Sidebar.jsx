@@ -13,6 +13,7 @@ const SECTIONS = [
       { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'notifications' },
       { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'my_profile' },
       { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'search' },
+      { to: '/my-department', icon: 'briefcase', label: 'My Department', desc: 'Team workspace', key: 'my_department' },
     ]
   },
   {
@@ -56,7 +57,8 @@ const SECTIONS = [
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
       { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
-      { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'reports' },
+      { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'manager_board' },
+      { to: '/departments', icon: 'people', label: 'Departments', desc: 'Org structure & approvals', key: 'departments' },
       { to: '/admin-safeguards', icon: 'shield', label: 'Safeguards', desc: 'Data integrity checks', key: 'safeguards' },
       { to: '/banners',   icon: 'bell',   label: 'Banners',       desc: 'Site banners',      key: 'banners'       },
       { to: '/audit',     icon: 'shield', label: 'Audit Log',     desc: 'Activity history',  key: 'audit'         },

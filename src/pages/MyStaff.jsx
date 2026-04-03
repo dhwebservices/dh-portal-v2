@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
 import { buildLifecycleSettingKey, getLifecycleLabel, mergeLifecycleRecord } from '../utils/staffLifecycle'
+import { mergeOrgRecord } from '../utils/orgStructure'
 
 function isRecentlyActive(value) {
   if (!value) return false
@@ -29,7 +30,10 @@ const ALL_PAGES = [
   {key:'sendemail',label:'Send Email'},{key:'appointments',label:'Appointments'},
   {key:'tasks',label:'Manage Tasks'},
   {key:'mytasks',label:'My Tasks'},{key:'schedule',label:'Schedule'},
+  {key:'my_department',label:'My Department'},
   {key:'reports',label:'Reports'},{key:'staff',label:'My Staff'},
+  {key:'manager_board',label:'Manager Board'},
+  {key:'departments',label:'Departments'},
   {key:'org_chart',label:'Org Chart'},{key:'mailinglist',label:'Mailing List'},
   {key:'banners',label:'Banners'},{key:'emailtemplates',label:'Email Templates'},
   {key:'safeguards',label:'Admin Safeguards'},
@@ -43,7 +47,8 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
@@ -53,10 +58,12 @@ const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', 
 export default function MyStaff() {
   const navigate = useNavigate()
   const { instance, accounts } = useMsal()
+  const { isDirector, canViewScopedStaff, managedDepartments } = useAuth()
   const [msUsers, setMsUsers]   = useState([])
   const [profiles, setProfiles] = useState({})
   const [permsMap, setPermsMap] = useState({})
   const [lifecycleMap, setLifecycleMap] = useState({})
+  const [orgMap, setOrgMap] = useState({})
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
@@ -112,11 +119,12 @@ export default function MyStaff() {
       }
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
-    const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }] = await Promise.all([
+    const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }, { data: orgSettings }] = await Promise.all([
       supabase.from('user_permissions').select('*'),
       supabase.from('hr_profiles').select('*'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_org:%'),
     ])
     const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding } })
     setPermsMap(pm)
@@ -138,12 +146,36 @@ export default function MyStaff() {
       })
     })
     setLifecycleMap(lm)
+    const om = {}
+    ;(orgSettings || []).forEach((row) => {
+      const key = String(row.key || '').replace('staff_org:', '').toLowerCase().trim()
+      if (!key) return
+      om[key] = mergeOrgRecord(row.value?.value ?? row.value ?? {}, {
+        email: key,
+        department: hm[key]?.department,
+      })
+    })
+    setOrgMap(om)
     setLoading(false)
   }
 
-  const filtered = msUsers.filter(u => {
+  const visibleUsers = msUsers.filter((u) => {
+    const safeEmail = u.email?.toLowerCase()
+    const targetProfile = profiles[safeEmail] || {}
+    const targetOrg = orgMap[safeEmail] || mergeOrgRecord({}, { email: safeEmail, department: targetProfile.department })
+    return isDirector || canViewScopedStaff(targetProfile, targetOrg)
+  })
+
+  const filtered = visibleUsers.filter(u => {
     const q = search.toLowerCase()
     return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+  })
+
+  const unassignedUsers = filtered.filter((u) => {
+    const safeEmail = u.email?.toLowerCase()
+    const targetProfile = profiles[safeEmail] || {}
+    const targetOrg = orgMap[safeEmail] || {}
+    return !String(targetOrg.department || targetProfile.department || '').trim()
   })
 
   const activeCount = filtered.filter((u) => isRecentlyActive(profiles[u.email?.toLowerCase()]?.last_seen)).length
@@ -165,8 +197,8 @@ export default function MyStaff() {
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
         <div className="stat-card">
-          <div className="stat-val">{msUsers.length}</div>
-          <div className="stat-lbl">Total staff</div>
+          <div className="stat-val">{filtered.length}</div>
+          <div className="stat-lbl">{isDirector ? 'Total staff' : 'Visible staff'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-val" style={{ color:'var(--green)' }}>{activeCount}</div>
@@ -176,7 +208,20 @@ export default function MyStaff() {
           <div className="stat-val" style={{ color:'var(--amber)' }}>{filtered.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length}</div>
           <div className="stat-lbl">Onboarding</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-val" style={{ color:'var(--accent)' }}>{unassignedUsers.length}</div>
+          <div className="stat-lbl">Unassigned</div>
+        </div>
       </div>
+
+      {!isDirector && managedDepartments.length > 0 && (
+        <div className="card" style={{ padding:'14px 16px', marginBottom:18 }}>
+          <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Scoped view</div>
+          <div style={{ marginTop:6, fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
+            You are viewing staff inside your department scope only: <strong style={{ color:'var(--text)' }}>{managedDepartments.filter((item) => item !== '*').join(', ') || 'Your department'}</strong>.
+          </div>
+        </div>
+      )}
 
       {error && <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)', marginBottom:16 }}>{error}</div>}
 

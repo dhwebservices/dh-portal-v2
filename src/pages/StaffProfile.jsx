@@ -33,6 +33,15 @@ import {
   LIFECYCLE_STATES,
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
+import {
+  buildDepartmentRequestKey,
+  buildStaffOrgKey,
+  createDepartmentRequest,
+  getManagedDepartments,
+  getRoleScopeLabel,
+  mergeOrgRecord,
+  ORG_ROLE_SCOPES,
+} from '../utils/orgStructure'
 import { sendEmail } from '../utils/email'
 
 const ALL_PAGES = [
@@ -40,6 +49,7 @@ const ALL_PAGES = [
   {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
   {key:'my_profile',    label:'My Profile',         group:'Home', category:'Core', desc:'Personal account page'},
   {key:'search',        label:'Search',             group:'Home', category:'Core', desc:'Portal-wide search'},
+  {key:'my_department', label:'My Department',      group:'Home', category:'Core', desc:'Department workspace'},
   {key:'outreach',      label:'Clients Contacted',  group:'Business'},
   {key:'clients',       label:'Onboarded Clients',  group:'Business'},
   {key:'clientmgmt',    label:'Client Portal',      group:'Business'},
@@ -61,6 +71,8 @@ const ALL_PAGES = [
   {key:'org_chart',     label:'Org Chart',          group:'HR', category:'Structure', desc:'Live reporting lines'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
+  {key:'manager_board', label:'Manager Board',      group:'Admin', category:'Control', desc:'Department and workload queue'},
+  {key:'departments',   label:'Departments',        group:'Admin', category:'Structure', desc:'Department setup and approvals'},
   {key:'safeguards',    label:'Admin Safeguards',   group:'Admin', category:'Control', desc:'Data integrity and risk checks'},
   {key:'mailinglist',   label:'Mailing List',       group:'Admin'},
   {key:'banners',       label:'Banners',            group:'Admin'},
@@ -73,8 +85,9 @@ const ALL_PAGES = [
 ]
 
 const ROLE_DEFAULTS = {
-  Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
+  Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
@@ -105,7 +118,7 @@ export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
   const email = decodeURIComponent(encodedEmail || '').toLowerCase().trim()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isDirector, isDepartmentManager, managedDepartments, canViewScopedStaff } = useAuth()
   const { instance } = useMsal()
 
   const [tab, setTab]             = useState('profile')
@@ -133,6 +146,9 @@ export default function StaffProfile() {
   const [portalPrefsSaving, setPortalPrefsSaving] = useState(false)
   const [portalPrefsSaved, setPortalPrefsSaved] = useState(false)
   const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
+  const [orgRecord, setOrgRecord] = useState(() => mergeOrgRecord())
+  const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
+  const [departmentRequests, setDepartmentRequests] = useState([])
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
@@ -223,17 +239,41 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildLifecycleSettingKey(email))
         .maybeSingle()
+      const { data: orgSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildStaffOrgKey(email))
+        .maybeSingle()
+      const { data: requestRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'department_request:%')
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
+      const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
         onboarding: !!perm?.onboarding,
         startDate: mergedProfile.start_date,
         contractType: mergedProfile.contract_type,
       }))
+      const nextOrg = mergeOrgRecord(orgRaw, {
+        email,
+        department: mergedProfile.department,
+        isDirector: DIRECTOR_EMAILS.has(email),
+      })
+      setOrgRecord(nextOrg)
+      setOriginalOrgRecord(nextOrg)
+      setDepartmentRequests((requestRows || [])
+        .map((row) => createDepartmentRequest({
+          id: String(row.key || '').replace('department_request:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((request) => request.target_email === email)
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
 
       if (p || onboardingSubmission) {
         setProfile(mergedProfile)
@@ -296,18 +336,42 @@ export default function StaffProfile() {
   const save = async () => {
     setSaving(true)
     try {
+      const preparedOrgRecord = mergeOrgRecord({
+        ...orgRecord,
+        email,
+        department: profile.department,
+        reports_to_email: profile.manager_email || '',
+        reports_to_name: profile.manager_name || '',
+        managed_departments: orgRecord.role_scope === 'department_manager' && profile.department
+          ? [profile.department]
+          : (orgRecord.role_scope === 'director' ? [] : (orgRecord.managed_departments || [])),
+      }, {
+        email,
+        department: profile.department,
+        isDirector: DIRECTOR_EMAILS.has(email),
+      })
+      const orgManagedChange = (
+        profile.department !== (originalOrgRecord.department || '') ||
+        (profile.manager_email || '') !== (originalOrgRecord.reports_to_email || '') ||
+        preparedOrgRecord.role_scope !== (originalOrgRecord.role_scope || 'staff')
+      )
+      const requiresDirectorApproval = !isDirector && isDepartmentManager && orgManagedChange
+      const hrDepartment = requiresDirectorApproval ? (originalOrgRecord.department || '') : (profile.department || null)
+      const hrManagerEmail = requiresDirectorApproval ? (originalOrgRecord.reports_to_email || '') : (profile.manager_email || null)
+      const hrManagerName = requiresDirectorApproval ? (originalOrgRecord.reports_to_name || '') : (profile.manager_name || null)
+
       const hrPayload = {
         user_email:     email,
         full_name:      profile.full_name      || null,
         role:           profile.role           || null,
-        department:     profile.department     || null,
+        department:     hrDepartment,
         contract_type:  profile.contract_type  || null,
         start_date:     profile.start_date     || null,
         phone:          profile.phone          || null,
         personal_email: profile.personal_email || null,
         address:        profile.address        || null,
-        manager_name:   profile.manager_name   || null,
-        manager_email:  profile.manager_email  || null,
+        manager_name:   hrManagerName,
+        manager_email:  hrManagerEmail,
         hr_notes:       profile.hr_notes       || null,
         bank_name:      profile.bank_name      || null,
         account_name:   profile.account_name   || null,
@@ -341,7 +405,7 @@ export default function StaffProfile() {
       const savedProfiles = await hrRes.json().catch(() => [])
       const savedProfile = Array.isArray(savedProfiles) ? savedProfiles[0] : savedProfiles
       if (savedProfile?.id) setProfileId(savedProfile.id)
-      setPrevMgr(profile.manager_email || '')
+      if (!requiresDirectorApproval) setPrevMgr(profile.manager_email || '')
 
       // Save user_permissions via raw REST
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
@@ -361,8 +425,61 @@ export default function StaffProfile() {
         if (newPerm?.id) setPermId(newPerm.id)
       }
 
+      if (requiresDirectorApproval) {
+        const request = createDepartmentRequest({
+          type: !originalOrgRecord.department
+            ? 'assign_staff'
+            : (profile.department ? 'move_staff' : 'remove_staff'),
+          target_email: email,
+          target_name: profile.full_name || email,
+          current_department: originalOrgRecord.department || '',
+          requested_department: profile.department || '',
+          requested_role_scope: preparedOrgRecord.role_scope,
+          requested_manager_email: profile.manager_email || '',
+          requested_manager_name: profile.manager_name || '',
+          requested_by_email: user?.email || '',
+          requested_by_name: user?.name || '',
+          notes: `Requested from staff profile by ${user?.name || user?.email || 'Department manager'}.`,
+        })
+
+        const { error: requestError } = await supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildDepartmentRequestKey(request.id),
+            value: { value: request },
+          }, { onConflict: 'key' })
+        if (requestError) throw requestError
+
+        const directorEmails = Array.from(DIRECTOR_EMAILS)
+        await Promise.allSettled(directorEmails.map((directorEmail) => sendManagedNotification({
+          userEmail: directorEmail,
+          userName: directorEmail,
+          category: 'urgent',
+          type: 'warning',
+          title: 'Department approval required',
+          message: `${profile.full_name || email} has a department change request waiting for approval.`,
+          link: '/departments',
+          emailSubject: `Department request approval — ${profile.full_name || email}`,
+          sentBy: user?.name || user?.email || 'Department manager',
+          forceImportant: true,
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        })))
+
+        setDepartmentRequests((current) => [request, ...current].slice(0, 12))
+      } else {
+        const { error: orgError } = await supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildStaffOrgKey(email),
+            value: { value: preparedOrgRecord },
+          }, { onConflict: 'key' })
+        if (orgError) throw orgError
+        setOrgRecord(preparedOrgRecord)
+        setOriginalOrgRecord(preparedOrgRecord)
+      }
+
       // Manager change notification — fires when manager genuinely changes
-      const newMgr = profile.manager_email || ''
+      const newMgr = requiresDirectorApproval ? (originalOrgRecord.reports_to_email || '') : (profile.manager_email || '')
       if (newMgr && newMgr !== prevMgr) {
         const staffName = profile.full_name || email
         try {
@@ -640,9 +757,9 @@ export default function StaffProfile() {
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
   const lifecycle = getLifecycleMeta(lifecycleRecord, { onboarding, startDate: profile.start_date, contractType: profile.contract_type })
-  const isDirector = DIRECTOR_EMAILS.has(String(user?.email || '').toLowerCase())
   const enabledPermissionCount = countEnabledPermissions(editPerms)
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
+  const roleScopeLabel = getRoleScopeLabel(orgRecord.role_scope)
   const contractDoc = docs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
   const rtwRemaining = profile.rtw_expiry ? Math.ceil((new Date(profile.rtw_expiry).getTime() - Date.now()) / 86400000) : null
   const rtwStatus = !profile.rtw_document_url
@@ -677,6 +794,8 @@ export default function StaffProfile() {
   ]
     .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
     .slice(0, 10)
+
+  const scopedAccessAllowed = isDirector || canViewScopedStaff(profile, orgRecord)
 
   const sendCustomNotification = async () => {
     if (!customNotification.title.trim() || !customNotification.message.trim()) {
@@ -768,6 +887,18 @@ export default function StaffProfile() {
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (!scopedAccessAllowed) {
+    return (
+      <div className="fade-in">
+        <div className="card card-pad" style={{ maxWidth: 620 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:24, color:'var(--text)' }}>Department-scoped access</div>
+          <div style={{ marginTop:8, color:'var(--sub)', fontSize:14, lineHeight:1.7 }}>
+            This staff profile sits outside your department scope. Directors can still access all company-wide staff records.
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fade-in">
@@ -787,6 +918,7 @@ export default function StaffProfile() {
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
             {profile.role && <span style={{ fontSize:13, color:'var(--sub)' }}>{profile.role}</span>}
             {profile.department && <><span style={{ color:'var(--border2)' }}>·</span><span style={{ fontSize:13, color:'var(--sub)' }}>{profile.department}</span></>}
+            {roleScopeLabel && <><span style={{ color:'var(--border2)' }}>·</span><span style={{ fontSize:13, color:'var(--sub)' }}>{roleScopeLabel}</span></>}
             <span style={{ color:'var(--border2)' }}>·</span>
             <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)' }}>{email}</span>
           </div>
@@ -835,6 +967,23 @@ export default function StaffProfile() {
                 <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
                 <div><label className="lbl">Department</label><input className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}/></div>
                 <div>
+                  <label className="lbl">Access Role</label>
+                  <select
+                    className="inp"
+                    value={orgRecord.role_scope}
+                    onChange={e => setOrgRecord((current) => mergeOrgRecord({
+                      ...current,
+                      role_scope: e.target.value,
+                      department: profile.department,
+                      managed_departments: e.target.value === 'department_manager' && profile.department ? [profile.department] : [],
+                    }, { email, department: profile.department }))}
+                    disabled={!isDirector && isDepartmentManager}
+                  >
+                    {ORG_ROLE_SCOPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  </select>
+                  {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
+                </div>
+                <div>
                   <label className="lbl">Manager</label>
                   <select className="inp" value={profile.manager_email || ''} onChange={e => {
                     const u = msUsers.find(u => u.email === e.target.value)
@@ -882,6 +1031,19 @@ export default function StaffProfile() {
                   </div>
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Org scope</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{roleScopeLabel}</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                      {orgRecord.department ? `${orgRecord.department} department` : 'Not assigned to a department yet'}
+                    </div>
+                    {orgRecord.role_scope === 'department_manager' ? (
+                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>
+                        Manages: {(getManagedDepartments(orgRecord).filter((item) => item !== '*').join(', ')) || orgRecord.department || 'No department set'}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Manager</div>
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{profile.manager_name || managerOption?.name || 'Unassigned'}</div>
                     <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>
@@ -921,6 +1083,7 @@ export default function StaffProfile() {
                         ['Permissions', 'permissions'],
                         ['Documents', 'docs'],
                         ['Commissions', 'commissions'],
+                        ['Portal', 'portal'],
                         ['HR Details', 'hr'],
                       ].map(([label, nextTab]) => (
                         <button key={nextTab} className="btn btn-outline btn-sm" onClick={() => setTab(nextTab)}>
@@ -945,6 +1108,23 @@ export default function StaffProfile() {
                       })}
                     </div>
                   </div>
+
+                  {departmentRequests.length > 0 && (
+                    <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                      <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Department requests</div>
+                      <div style={{ display:'grid', gap:8 }}>
+                        {departmentRequests.slice(0, 3).map((request) => (
+                          <div key={request.id} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{request.requested_department || 'Unassigned'}</div>
+                              <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>{request.status} · {new Date(request.created_at).toLocaleDateString('en-GB')}</div>
+                            </div>
+                            <span className={`badge badge-${request.status === 'approved' ? 'green' : request.status === 'rejected' ? 'red' : 'amber'}`}>{request.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

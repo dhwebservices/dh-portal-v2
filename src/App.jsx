@@ -42,9 +42,11 @@ const ClientProfile = lazyRetry(() => import('./pages/ClientProfile'), 'client-p
 const MyStaff = lazyRetry(() => import('./pages/MyStaff'), 'my-staff')
 const StaffProfile = lazyRetry(() => import('./pages/StaffProfile'), 'staff-profile')
 const Search = lazyRetry(() => import('./pages/Search'), 'search')
+const MyDepartment = lazyRetry(() => import('./pages/MyDepartment'), 'my-department')
 const Schedule = lazyRetry(() => import('./pages/Schedule'), 'schedule')
 const Reports = lazyRetry(() => import('./pages/Reports'), 'reports')
 const ManagerBoard = lazyRetry(() => import('./pages/ManagerBoard'), 'manager-board')
+const Departments = lazyRetry(() => import('./pages/Departments'), 'departments')
 const OrgChart = lazyRetry(() => import('./pages/OrgChart'), 'org-chart')
 const AdminSafeguards = lazyRetry(() => import('./pages/AdminSafeguards'), 'admin-safeguards')
 const Proposals = lazyRetry(() => import('./pages/Proposals'), 'proposals')
@@ -167,6 +169,7 @@ function PortalLayout() {
               <Route path="/dashboard"       element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
               <Route path="/my-profile"      element={<PermissionGate permKey="my_profile"><MyProfile /></PermissionGate>} />
               <Route path="/search"          element={<PermissionGate permKey="search"><Search /></PermissionGate>} />
+              <Route path="/my-department"   element={<PermissionGate permKey="my_department"><MyDepartment /></PermissionGate>} />
               <Route path="/outreach"        element={<PermissionGate permKey="outreach"><Outreach /></PermissionGate>} />
               <Route path="/clients"         element={<PermissionGate permKey="clients"><Clients /></PermissionGate>} />
               <Route path="/clients/:id"     element={<PermissionGate permKey="clients"><ClientProfile /></PermissionGate>} />
@@ -176,7 +179,8 @@ function PortalLayout() {
               <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
               <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
               <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
-              <Route path="/manager-board"   element={<PermissionGate permKey="reports"><ManagerBoard /></PermissionGate>} />
+              <Route path="/manager-board"   element={<PermissionGate permKey="manager_board"><ManagerBoard /></PermissionGate>} />
+              <Route path="/departments"     element={<PermissionGate permKey="departments"><Departments /></PermissionGate>} />
               <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
               <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
               <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
@@ -218,6 +222,7 @@ function LandingResolver() {
     dashboard: '/dashboard',
     mytasks: '/my-tasks',
     notifications: '/notifications',
+    my_department: '/my-department',
     schedule: '/schedule',
     appointments: '/appointments',
     clients: '/clients',
