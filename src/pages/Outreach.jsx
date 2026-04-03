@@ -31,6 +31,7 @@ const EMPTY = {
   outcome: 'none',
   follow_up_date: '',
   assigned_to_email: '',
+  creator_department: '',
 }
 
 const statusColor = {
@@ -56,7 +57,7 @@ function parseOutreachNotes(raw = '') {
   if (!text.startsWith(NOTES_META_PREFIX)) {
     return {
       plainNotes: text,
-      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', reminder_notice_key: '' },
+      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', creator_department: '', reminder_notice_key: '' },
     }
   }
 
@@ -75,13 +76,14 @@ function parseOutreachNotes(raw = '') {
         assigned_to_email: parsed.assigned_to_email || '',
         assigned_to_name: parsed.assigned_to_name || '',
         creator_email: parsed.creator_email || '',
+        creator_department: parsed.creator_department || '',
         reminder_notice_key: parsed.reminder_notice_key || '',
       },
     }
   } catch {
     return {
       plainNotes: remaining || text,
-      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', reminder_notice_key: '' },
+      meta: { outcome: 'none', follow_up_date: '', history: [], assigned_to_email: '', assigned_to_name: '', creator_email: '', creator_department: '', reminder_notice_key: '' },
     }
   }
 }
@@ -94,6 +96,7 @@ function buildOutreachNotes(plainNotes, meta = {}) {
     assigned_to_email: meta.assigned_to_email || '',
     assigned_to_name: meta.assigned_to_name || '',
     creator_email: meta.creator_email || '',
+    creator_department: meta.creator_department || '',
     reminder_notice_key: meta.reminder_notice_key || '',
   }
   const metaBlock = `${NOTES_META_PREFIX} ${JSON.stringify(safeMeta)}`
@@ -303,7 +306,7 @@ function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
 }
 
 export default function Outreach() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, org } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const reminderLock = useRef(new Set())
@@ -378,7 +381,11 @@ export default function Outreach() {
     setLoading(false)
   }
 
-  const openAdd = () => { setEditing(null); setForm(EMPTY); setModal(true) }
+  const openAdd = () => {
+    setEditing(null)
+    setForm({ ...EMPTY, creator_department: org?.department || '' })
+    setModal(true)
+  }
   const openEdit = (r) => {
     setEditing(r)
     setForm({
@@ -388,6 +395,7 @@ export default function Outreach() {
       outcome: r.outcome || 'none',
       follow_up_date: r.follow_up_date || '',
       assigned_to_email: r.assigned_to_email || '',
+      creator_department: r.creator_department || org?.department || '',
     })
     setModal(true)
   }
@@ -407,6 +415,7 @@ export default function Outreach() {
       assigned_to_email: nextAssignee,
       assigned_to_name: nextAssigneeProfile?.full_name || editing?.assigned_to_name || '',
       creator_email: editing?.creator_email || user?.email || '',
+      creator_department: editing?.creator_department || form.creator_department || org?.department || '',
       reminder_notice_key: editing?.reminder_notice_key || '',
       history: [
         buildHistoryEntry({
@@ -561,6 +570,7 @@ export default function Outreach() {
         }),
         ...(quickNoteLead.history || []),
       ].slice(0, 12),
+      creator_department: quickNoteLead.creator_department || '',
     }
     const { error } = await supabase.from('outreach').update({
       notes: buildOutreachNotes(nextPlainNotes, meta),
@@ -591,6 +601,7 @@ export default function Outreach() {
       assigned_to_email: safeAssignee,
       assigned_to_name: staffMember?.full_name || '',
       creator_email: row.creator_email || user?.email || '',
+      creator_department: row.creator_department || '',
       reminder_notice_key: '',
       history: [
         buildHistoryEntry({
@@ -792,6 +803,7 @@ export default function Outreach() {
       assigned_to_email: parsed.meta.assigned_to_email,
       assigned_to_name: parsed.meta.assigned_to_name,
       creator_email: parsed.meta.creator_email,
+      creator_department: parsed.meta.creator_department,
       reminder_notice_key: parsed.meta.reminder_notice_key,
     }
   }), [rows])
@@ -841,6 +853,7 @@ export default function Outreach() {
           assigned_to_email: row.assigned_to_email || '',
           assigned_to_name: row.assigned_to_name || '',
           creator_email: row.creator_email || '',
+          creator_department: row.creator_department || '',
           reminder_notice_key: noticeKey,
           history: [
             buildHistoryEntry({
@@ -1352,6 +1365,10 @@ export default function Outreach() {
               <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email} onChange={(e) => sf('email', e.target.value)} /></div>
               <div><label className="lbl">Phone</label><input className="inp" value={form.phone} onChange={(e) => sf('phone', e.target.value)} /></div>
               <div><label className="lbl">Website</label><input className="inp" value={form.website} onChange={(e) => sf('website', e.target.value)} placeholder="https://" /></div>
+              <div>
+                <label className="lbl">Department</label>
+                <input className="inp" value={form.creator_department || org?.department || 'No department assigned'} readOnly />
+              </div>
               <div><label className="lbl">Status</label>
                 <select className="inp" value={form.status} onChange={(e) => sf('status', e.target.value)}>
                   {STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}

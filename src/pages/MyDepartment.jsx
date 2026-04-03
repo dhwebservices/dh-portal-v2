@@ -55,6 +55,62 @@ function buildHrProfilePayload(staffRow = {}, departmentMeta = {}, departmentNam
   }
 }
 
+function parseOutreachDepartment(raw = '') {
+  const text = String(raw || '')
+  const prefix = '[dh-outreach-meta]'
+  if (!text.startsWith(prefix)) return ''
+  const newlineIndex = text.indexOf('\n')
+  const metaLine = newlineIndex >= 0 ? text.slice(prefix.length, newlineIndex).trim() : text.slice(prefix.length).trim()
+  try {
+    const parsed = JSON.parse(metaLine || '{}')
+    return String(parsed.creator_department || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+async function notifyDepartmentPlacement({ staffRow, departmentName, departmentMeta, roleScope = 'staff', sentBy }) {
+  if (!staffRow?.user_email || !departmentName) return
+  const managerName = String(departmentMeta?.manager_name || 'No department manager assigned').trim()
+  const managerEmail = normalizePortalEmail(departmentMeta?.manager_email)
+  const roleLabel = roleScope === 'department_manager' ? 'Department Manager' : roleScope === 'read_only' ? 'Read Only' : 'Staff'
+
+  await sendManagedNotification({
+    userEmail: staffRow.user_email,
+    userName: staffRow.full_name || staffRow.user_email,
+    category: 'urgent',
+    type: 'success',
+    title: 'Department assignment confirmed',
+    message: managerEmail
+      ? `You have been assigned to ${departmentName} as ${roleLabel}. Your department manager is ${managerName} (${managerEmail}).`
+      : `You have been assigned to ${departmentName} as ${roleLabel}. A department manager has not been set yet.`,
+    link: '/my-profile',
+    emailSubject: `Department assignment — ${departmentName}`,
+    sentBy,
+    fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    forceImportant: true,
+  }).catch(() => {})
+}
+
+async function notifyDepartmentRemoval({ staffRow, previousDepartment, sentBy }) {
+  if (!staffRow?.user_email) return
+  await sendManagedNotification({
+    userEmail: staffRow.user_email,
+    userName: staffRow.full_name || staffRow.user_email,
+    category: 'urgent',
+    type: 'warning',
+    title: 'Department assignment removed',
+    message: previousDepartment
+      ? `You have been removed from ${previousDepartment}. Your department assignment is now unassigned pending the next update.`
+      : 'Your department assignment has been removed. Your profile is now unassigned pending the next update.',
+    link: '/my-profile',
+    emailSubject: previousDepartment ? `Department removed — ${previousDepartment}` : 'Department assignment removed',
+    sentBy,
+    fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    forceImportant: true,
+  }).catch(() => {})
+}
+
 function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   return (
     <div className="stat-card">
@@ -77,6 +133,8 @@ export default function MyDepartment() {
   const [catalog, setCatalog] = useState([])
   const [profiles, setProfiles] = useState([])
   const [requestRows, setRequestRows] = useState([])
+  const [outreachRows, setOutreachRows] = useState([])
+  const [emailLogRows, setEmailLogRows] = useState([])
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
   const [memberActions, setMemberActions] = useState({})
@@ -107,13 +165,15 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_org:%'),
       supabase.from('portal_settings').select('value').eq('key', buildDepartmentCatalogKey()).maybeSingle(),
       supabase.from('portal_settings').select('key,value').like('key', 'department_request:%'),
+      supabase.from('outreach').select('id,created_at,notes,added_by'),
+      supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [String(row.user_email || '').toLowerCase(), row]))
@@ -152,6 +212,8 @@ export default function MyDepartment() {
     const preferred = (isDirector ? availableDepartments[0] : managedDepartments.find((item) => item !== '*')) || filteredProfiles.find((row) => row.department)?.department || ''
     setCatalog(nextCatalog)
     setProfiles([...filteredProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
+    setOutreachRows(outreachData || [])
+    setEmailLogRows(emailData || [])
     setSelectedDepartment((current) => current || preferred)
     setRequestRows((requestSettings || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -173,6 +235,21 @@ export default function MyDepartment() {
   const onboardingCount = teamMembers.filter((row) => row.lifecycle?.state === 'onboarding').length
   const activeCount = teamMembers.filter((row) => row.lifecycle?.state === 'active').length
   const needsReviewCount = visibleRequests.filter((row) => row.status === 'pending').length
+  const teamEmailSet = new Set(teamMembers.map((row) => normalizePortalEmail(row.user_email)).filter(Boolean))
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const outreachAddedToday = outreachRows.filter((row) => {
+    const createdAt = row.created_at ? new Date(row.created_at) : null
+    if (!createdAt || createdAt < todayStart) return false
+    const parsedDepartment = String(parseOutreachDepartment(row.notes) || '').trim()
+    return parsedDepartment === currentDepartment
+  }).length
+  const outreachEmailsToday = emailLogRows.filter((row) => {
+    const sentAt = row.sent_at ? new Date(row.sent_at) : null
+    if (!sentAt || sentAt < todayStart) return false
+    const senderEmail = normalizePortalEmail(row.sent_by_email)
+    return senderEmail && teamEmailSet.has(senderEmail)
+  }).length
 
   async function persistDepartmentChange(staffRow, nextDepartment = '', roleScope = '', nextManager = null) {
     const safeDepartment = String(nextDepartment || '').trim()
@@ -206,6 +283,22 @@ export default function MyDepartment() {
         { onConflict: 'user_email' },
       ),
     ])
+
+    if (safeDepartment) {
+      await notifyDepartmentPlacement({
+        staffRow,
+        departmentName: safeDepartment,
+        departmentMeta: nextManager || {},
+        roleScope: nextRole,
+        sentBy: user?.name || user?.email || (isDirector ? 'Director' : 'Department manager'),
+      })
+    } else {
+      await notifyDepartmentRemoval({
+        staffRow,
+        previousDepartment: staffRow.department || staffRow.org?.department || '',
+        sentBy: user?.name || user?.email || (isDirector ? 'Director' : 'Department manager'),
+      })
+    }
   }
 
   async function assignDirectly(staffRow) {
@@ -428,8 +521,10 @@ export default function MyDepartment() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
         <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
-        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
+        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
+        <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
         <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
+        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,0.8fr)', gap: 18 }} className="staff-profile-main-grid">
