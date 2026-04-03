@@ -214,17 +214,26 @@ export function AuthProvider({ children }) {
 
   const can = (key) => {
     if (TERMINATED_STATES.has(lifecycle?.state)) return false
-    if (key === 'departments') return isDirector && (perms?.[key] !== false)
+    const isExplicitlyAllowed = perms?.[key] === true
+    const isExplicitlyDenied = perms?.[key] === false
+
+    if (key === 'departments') {
+      if (!isDirector) return false
+      return !isExplicitlyDenied
+    }
     if (key === 'my_department') {
-      if (isDirector || isDepartmentManager) return perms?.[key] !== false
-      return perms?.[key] === true
+      if (isDirector) return !isExplicitlyDenied
+      if (isDepartmentManager) return isExplicitlyAllowed
+      return isExplicitlyAllowed
     }
     if (key === 'my_team') {
-      if (isDirector || isDepartmentManager || org?.department) return perms?.[key] !== false
-      return perms?.[key] === true
+      if (isDirector) return !isExplicitlyDenied
+      if (isDepartmentManager || org?.department) return isExplicitlyAllowed
+      return isExplicitlyAllowed
     }
     if (key === 'staff' || key === 'manager_board') {
-      if (isDirector || isDepartmentManager) return perms?.[key] !== false
+      if (isDirector) return !isExplicitlyDenied
+      if (isDepartmentManager) return isExplicitlyAllowed
     }
     if (isAdmin) return true
     if (perms === null) return false
