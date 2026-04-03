@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
@@ -305,7 +305,9 @@ function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
 export default function Outreach() {
   const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const reminderLock = useRef(new Set())
+  const reminderRunRef = useRef(false)
   const [tab, setTab] = useState('contacts')
   const [rows, setRows] = useState([])
   const [emails, setEmails] = useState([])
@@ -315,7 +317,8 @@ export default function Outreach() {
   const [staffDirectory, setStaffDirectory] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
+  const initialFilter = FILTERS.includes(searchParams.get('filter')) ? searchParams.get('filter') : 'all'
+  const [filter, setFilter] = useState(initialFilter)
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [viewEmail, setViewEmail] = useState(null)
@@ -327,6 +330,12 @@ export default function Outreach() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    const nextFilter = searchParams.get('filter')
+    if (FILTERS.includes(nextFilter) && nextFilter !== filter) {
+      setFilter(nextFilter)
+    }
+  }, [searchParams, filter])
 
   const load = async () => {
     setLoading(true)
@@ -788,10 +797,12 @@ export default function Outreach() {
   }), [rows])
 
   useEffect(() => {
-    if (loading || !enrichedRows.length) return
+    if (loading || !enrichedRows.length || reminderRunRef.current) return
 
     const run = async () => {
+      reminderRunRef.current = true
       const today = new Date().toISOString().split('T')[0]
+      const updates = []
 
       for (const row of enrichedRows) {
         if (!needsFollowUp(row)) continue
@@ -841,14 +852,34 @@ export default function Outreach() {
           ].slice(0, 12),
         }
 
-        await supabase.from('outreach').update({
-          notes: buildOutreachNotes(row.plainNotes || '', meta),
-          updated_at: new Date().toISOString(),
+        const updatedAt = new Date().toISOString()
+        const nextNotes = buildOutreachNotes(row.plainNotes || '', meta)
+        const { error } = await supabase.from('outreach').update({
+          notes: nextNotes,
+          updated_at: updatedAt,
         }).eq('id', row.id)
+
+        if (!error) {
+          updates.push({
+            id: row.id,
+            notes: nextNotes,
+            updated_at: updatedAt,
+          })
+        }
+      }
+
+      if (updates.length) {
+        const updateMap = new Map(updates.map((item) => [item.id, item]))
+        setRows((current) => current.map((row) => {
+          const next = updateMap.get(row.id)
+          return next ? { ...row, notes: next.notes, updated_at: next.updated_at } : row
+        }))
       }
     }
 
-    run().then(() => load()).catch(() => {})
+    run().catch(() => {}).finally(() => {
+      reminderRunRef.current = false
+    })
   }, [loading, enrichedRows, staffDirectory])
 
   const followUpQueue = useMemo(() => buildQueue(enrichedRows, emails), [enrichedRows, emails])
@@ -1006,12 +1037,34 @@ export default function Outreach() {
         {tab === 'contacts' && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} className="legacy-toolbar-actions">
             {FILTERS.map((value) => (
-              <button key={value} onClick={() => setFilter(value)} className={'pill' + (filter === value ? ' on' : '')}>
+              <button
+                key={value}
+                onClick={() => {
+                  setFilter(value)
+                  setSearchParams((current) => {
+                    const next = new URLSearchParams(current)
+                    next.set('filter', value)
+                    return next
+                  }, { replace: true })
+                }}
+                className={'pill' + (filter === value ? ' on' : '')}
+              >
                 {labelize(value)}
               </button>
             ))}
             {STATUSES.map((value) => (
-              <button key={value} onClick={() => setFilter(value)} className={'pill' + (filter === value ? ' on' : '')}>
+              <button
+                key={value}
+                onClick={() => {
+                  setFilter(value)
+                  setSearchParams((current) => {
+                    const next = new URLSearchParams(current)
+                    next.set('filter', value)
+                    return next
+                  }, { replace: true })
+                }}
+                className={'pill' + (filter === value ? ' on' : '')}
+              >
                 {labelize(value)}
               </button>
             ))}
