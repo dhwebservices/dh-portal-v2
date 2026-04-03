@@ -14,6 +14,7 @@ const SECTIONS = [
       { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'my_profile' },
       { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'search' },
       { to: '/my-department', icon: 'briefcase', label: 'My Department', desc: 'Team workspace', key: 'my_department' },
+      { to: '/my-team', icon: 'people', label: 'View My Team', desc: 'Team view', key: 'my_team' },
     ]
   },
   {

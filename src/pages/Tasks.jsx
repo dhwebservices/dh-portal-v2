@@ -4,17 +4,19 @@ import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { StaffPicker } from '../components/StaffPicker'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { buildTaskDescription, enrichTask } from '../utils/taskMetadata'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
-const EMPTY  = { title:'', description:'', assigned_to_email:'', assigned_to_name:'', due_date:'', priority:'medium', status:'todo' }
+const EMPTY  = { title:'', description:'', assigned_to_email:'', assigned_to_name:'', assigned_department:'', due_date:'', priority:'medium', status:'todo' }
 const PRIORITIES = ['low','medium','high','urgent']
 const STATUSES   = ['todo','in_progress','done']
 const prioColor  = { low:'var(--sub)', medium:'var(--accent)', high:'var(--amber,#f59e0b)', urgent:'var(--red)' }
 const prioBg     = { low:'var(--bg2)', medium:'var(--accent-soft)', high:'#fef3c7', urgent:'#fee2e2' }
 
 export default function Tasks() {
-  const { user } = useAuth()
+  const { user, org } = useAuth()
   const [tasks,   setTasks]   = useState([])
+  const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [loading, setLoading] = useState(true)
   const [search,  setSearch]  = useState('')
   const [filter,  setFilter]  = useState('all')
@@ -28,32 +30,40 @@ export default function Tasks() {
 
   const load = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false })
+    const [{ data, error }, { data: catalogRow }] = await Promise.all([
+      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+      supabase.from('portal_settings').select('value').eq('key', 'department_catalog').maybeSingle(),
+    ])
     if (error) console.error('Tasks load error:', error)
-    setTasks(data || [])
+    setTasks((data || []).map(enrichTask))
+    setDepartmentCatalog((catalogRow?.value?.value ?? catalogRow?.value ?? []).filter((item) => item?.active !== false))
     setLoading(false)
   }
 
-  const openAdd  = () => { setEditing(null); setForm(EMPTY); setModal(true) }
-  const openEdit = t  => { setEditing(t); setForm({ ...t }); setModal(true) }
+  const openAdd  = () => { setEditing(null); setForm({ ...EMPTY, assigned_department: org?.department || '' }); setModal(true) }
+  const openEdit = t  => { setEditing(t); setForm({ ...t, description: t.description_plain || t.description || '', assigned_department: t.assigned_department || '' }); setModal(true) }
   const close    = () => { setModal(false); setEditing(null) }
   const sf       = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const save = async () => {
     if (!form.title) return
     setSaving(true)
+    const payload = {
+      title: form.title,
+      description: buildTaskDescription(form.description || '', { assigned_department: form.assigned_department || '' }),
+      assigned_to_email: form.assigned_to_email || null,
+      assigned_to_name: form.assigned_to_name || null,
+      due_date: form.due_date || null,
+      priority: form.priority || 'medium',
+      status: form.status || 'todo',
+      updated_at: new Date().toISOString(),
+    }
     if (editing) {
-      const { error } = await supabase.from('tasks').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id)
+      const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id)
       if (error) console.error('Task update error:', error)
     } else {
       const { data: inserted, error } = await supabase.from('tasks').insert([{
-        title: form.title,
-        description: form.description || '',
-        assigned_to_email: form.assigned_to_email || null,
-        assigned_to_name: form.assigned_to_name || null,
-        due_date: form.due_date || null,
-        priority: form.priority || 'medium',
-        status: form.status || 'todo',
+        ...payload,
         assigned_by_email: user?.email,
         assigned_by_name: user?.name,
         created_at: new Date().toISOString(),
@@ -112,7 +122,7 @@ export default function Tasks() {
 
   const filtered = tasks.filter(t => {
     const q = search.toLowerCase()
-    const matchQ = !q || t.title?.toLowerCase().includes(q) || t.assigned_to_name?.toLowerCase().includes(q)
+    const matchQ = !q || t.title?.toLowerCase().includes(q) || t.assigned_to_name?.toLowerCase().includes(q) || t.assigned_department?.toLowerCase().includes(q) || t.description_plain?.toLowerCase().includes(q)
     const matchF = filter === 'all' || t.status === filter || (filter === 'mine' && t.assigned_to_email === user?.email)
     return matchQ && matchF
   })
@@ -144,13 +154,13 @@ export default function Tasks() {
       <div className="card" style={{ overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
           <table className="tbl">
-            <thead><tr><th>Task</th><th>Assigned To</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Task</th><th>Assigned To</th><th>Department</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {filtered.map(t => (
                 <tr key={t.id} style={{ cursor:'pointer' }} onClick={() => setDetail(t)}>
                   <td className="t-main" style={{ maxWidth:280 }}>
                     <div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
-                    {t.description && <div style={{ fontSize:11, color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:260 }}>{t.description}</div>}
+                    {t.description_plain && <div style={{ fontSize:11, color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:260 }}>{t.description_plain}</div>}
                   </td>
                   <td>
                     {t.assigned_to_name ? (
@@ -162,6 +172,7 @@ export default function Tasks() {
                       </span>
                     ) : <span style={{ color:'var(--faint)' }}>Unassigned</span>}
                   </td>
+                  <td>{t.assigned_department ? <span className="badge badge-blue">{t.assigned_department}</span> : <span style={{ color:'var(--faint)' }}>—</span>}</td>
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB') : '—'}</td>
                   <td><span style={{ padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background: prioBg[t.priority], color: prioColor[t.priority] }}>{t.priority}</span></td>
                   <td>
@@ -179,7 +190,7 @@ export default function Tasks() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tasks found</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tasks found</td></tr>}
             </tbody>
           </table>
         )}
@@ -206,6 +217,13 @@ export default function Tasks() {
             <StaffPicker label="Assign To" value={form.assigned_to_email}
               onChange={({ email, name }) => { sf('assigned_to_email', email); sf('assigned_to_name', name) }}
               placeholder="Select a staff member..."/>
+            <div>
+              <label className="lbl">Assign to department</label>
+              <select className="inp" value={form.assigned_department || ''} onChange={e => sf('assigned_department', e.target.value)}>
+                <option value="">No department task</option>
+                {departmentCatalog.map((item) => <option key={item.id || item.name} value={item.name}>{item.name}</option>)}
+              </select>
+            </div>
             <div className="fg">
               <div><label className="lbl">Due Date</label><input className="inp" type="date" value={form.due_date} onChange={e=>sf('due_date',e.target.value)}/></div>
               <div><label className="lbl">Priority</label>
@@ -338,10 +356,10 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
         </div>
 
         {/* Description */}
-        {task.description && (
+        {task.description_plain && (
           <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)' }}>
             <div style={{ fontSize:11, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Description</div>
-            <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{task.description}</div>
+            <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{task.description_plain}</div>
           </div>
         )}
 

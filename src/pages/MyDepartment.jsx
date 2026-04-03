@@ -17,6 +17,7 @@ import {
   mergeOrgRecord,
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { enrichTask } from '../utils/taskMetadata'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -135,6 +136,7 @@ export default function MyDepartment() {
   const [requestRows, setRequestRows] = useState([])
   const [outreachRows, setOutreachRows] = useState([])
   const [emailLogRows, setEmailLogRows] = useState([])
+  const [departmentTasks, setDepartmentTasks] = useState([])
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
   const [memberActions, setMemberActions] = useState({})
@@ -165,7 +167,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -174,6 +176,7 @@ export default function MyDepartment() {
       supabase.from('portal_settings').select('key,value').like('key', 'department_request:%'),
       supabase.from('outreach').select('id,created_at,notes,added_by'),
       supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
+      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [String(row.user_email || '').toLowerCase(), row]))
@@ -214,6 +217,7 @@ export default function MyDepartment() {
     setProfiles([...filteredProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
     setOutreachRows(outreachData || [])
     setEmailLogRows(emailData || [])
+    setDepartmentTasks((taskData || []).map(enrichTask))
     setSelectedDepartment((current) => current || preferred)
     setRequestRows((requestSettings || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -250,6 +254,9 @@ export default function MyDepartment() {
     const senderEmail = normalizePortalEmail(row.sent_by_email)
     return senderEmail && teamEmailSet.has(senderEmail)
   }).length
+  const currentDepartmentTasks = departmentTasks.filter((task) => String(task.assigned_department || '').trim() === currentDepartment)
+  const openDepartmentTasks = currentDepartmentTasks.filter((task) => task.status !== 'done')
+  const overdueDepartmentTasks = openDepartmentTasks.filter((task) => task.due_date && new Date(task.due_date) < new Date())
 
   async function persistDepartmentChange(staffRow, nextDepartment = '', roleScope = '', nextManager = null) {
     const safeDepartment = String(nextDepartment || '').trim()
@@ -523,6 +530,7 @@ export default function MyDepartment() {
         <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
+        <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" />
         <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
         <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
       </div>
@@ -587,6 +595,30 @@ export default function MyDepartment() {
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
+          <div className="card card-pad">
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Tasks assigned to {currentDepartment}</div>
+            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+              {currentDepartmentTasks.slice(0, 6).map((task) => (
+                <div key={task.id} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{task.title}</div>
+                    <span className={`badge badge-${task.status === 'done' ? 'green' : task.status === 'in_progress' ? 'blue' : 'amber'}`}>
+                      {task.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 5 }}>
+                    {task.description_plain || 'No task description'}{task.assigned_to_name ? ` · Owner ${task.assigned_to_name}` : ' · Department queue'}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--faint)', marginTop: 5 }}>
+                    {task.due_date ? `Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : 'No due date set'}
+                  </div>
+                </div>
+              ))}
+              {currentDepartmentTasks.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No department tasks have been assigned to this team yet.</div>}
+            </div>
+          </div>
+
           <div className="card card-pad">
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Unassigned Microsoft users</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Ready to place into a team</div>

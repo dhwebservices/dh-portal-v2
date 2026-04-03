@@ -219,6 +219,10 @@ export function AuthProvider({ children }) {
       if (isDirector || isDepartmentManager) return perms?.[key] !== false
       return perms?.[key] === true
     }
+    if (key === 'my_team') {
+      if (isDirector || isDepartmentManager || org?.department) return perms?.[key] !== false
+      return perms?.[key] === true
+    }
     if (key === 'staff' || key === 'manager_board') {
       if (isDirector || isDepartmentManager) return perms?.[key] !== false
     }

@@ -51,6 +51,7 @@ const ALL_PAGES = [
   {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
   {key:'my_profile',    label:'My Profile',         group:'Home', category:'Core', desc:'Personal account page'},
   {key:'search',        label:'Search',             group:'Home', category:'Core', desc:'Portal-wide search'},
+  {key:'my_team',       label:'View My Team',       group:'Home', category:'Core', desc:'Read-only team view'},
   {key:'my_department', label:'My Department',      group:'Home', category:'Core', desc:'Department workspace'},
   {key:'outreach',      label:'Clients Contacted',  group:'Business'},
   {key:'clients',       label:'Onboarded Clients',  group:'Business'},
@@ -90,7 +91,7 @@ const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
   DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
   Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
 const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Admin']

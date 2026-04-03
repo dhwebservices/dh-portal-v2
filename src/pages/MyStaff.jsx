@@ -23,6 +23,7 @@ function formatPresenceLabel(value) {
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},
   {key:'my_profile',label:'My Profile'},{key:'search',label:'Search'},
+  {key:'my_team',label:'View My Team'},
   {key:'outreach',label:'Clients Contacted'},
   {key:'clients',label:'Onboarded Clients'},{key:'clientmgmt',label:'Client Portal'},
   {key:'support',label:'Support'},{key:'competitor',label:'Competitor Lookup'},
@@ -49,7 +50,7 @@ const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
   DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
   Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
 const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }

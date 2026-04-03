@@ -7,6 +7,7 @@ const TITLES = {
   '/dashboard':'Dashboard', '/my-profile':'My Profile',
   '/search':'Search',
   '/my-department':'My Department',
+  '/my-team':'View My Team',
   '/outreach':'Clients Contacted', '/clients':'Onboarded Clients',
   '/client-mgmt':'Client Portal', '/support':'Support Tickets',
   '/tasks':'Manage Tasks', '/my-tasks':'My Tasks',
