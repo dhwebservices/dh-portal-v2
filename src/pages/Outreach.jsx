@@ -134,6 +134,14 @@ function formatShortDate(value) {
   })
 }
 
+function isSameLocalDay(value, target = new Date()) {
+  if (!value) return false
+  const date = new Date(value)
+  return date.getFullYear() === target.getFullYear()
+    && date.getMonth() === target.getMonth()
+    && date.getDate() === target.getDate()
+}
+
 function getTouchedAt(row) {
   return row.updated_at || row.created_at || null
 }
@@ -975,6 +983,7 @@ export default function Outreach() {
     hot: enrichedRows.filter((row) => row.status === 'interested').length,
     converted: enrichedRows.filter((row) => row.status === 'converted').length,
     recent: enrichedRows.filter((row) => isRecent(row)).length,
+    completedToday: enrichedRows.filter((row) => (row.history || []).some((entry) => entry.action === 'follow_up_done' && isSameLocalDay(entry.at))).length,
   }), [enrichedRows, followUpQueue])
 
   const filtered = useMemo(() => {
@@ -1024,6 +1033,7 @@ export default function Outreach() {
         <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--accent)" />
         <StatCard label="Follow-up queue" value={stats.queue} hint="Leads that still need another touch" tone="var(--amber)" />
         <StatCard label="Overdue" value={stats.overdue} hint="Follow-ups that are now late" tone="var(--red)" />
+        <StatCard label="Done today" value={stats.completedToday} hint="Follow-ups cleared by the team today" tone="var(--green)" />
         <StatCard label="Hot leads" value={stats.hot} hint="Interested contacts worth prioritising" tone="var(--green)" />
         <StatCard label="Converted" value={stats.converted} hint="Handed over into live client work" tone="var(--blue)" />
       </div>
@@ -1093,6 +1103,7 @@ export default function Outreach() {
             {[
               ['Interested leads', `${stats.hot} ready for a stronger push`, 'green'],
               ['Overdue follow-ups', `${stats.overdue} contacts need chasing today`, 'red'],
+              ['Completed today', `${stats.completedToday} follow-ups have already been cleared`, 'blue'],
               ['Recent activity', `${stats.recent} leads touched in the last 48 hours`, 'blue'],
             ].map(([title, text, tone]) => (
               <div key={title} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
