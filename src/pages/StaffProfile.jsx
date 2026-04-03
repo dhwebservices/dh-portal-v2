@@ -1090,9 +1090,14 @@ export default function StaffProfile() {
                       {orgRecord.department ? `${orgRecord.department} department` : 'Not assigned to a department yet'}
                     </div>
                     {orgRecord.role_scope === 'department_manager' ? (
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>
-                        Manages: {(getManagedDepartments(orgRecord).filter((item) => item !== '*').join(', ')) || orgRecord.department || 'No department set'}
-                      </div>
+                      <>
+                        <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>
+                          Manages: {(getManagedDepartments(orgRecord).filter((item) => item !== '*').join(', ')) || orgRecord.department || 'No department set'}
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>
+                          Department Managers can only view and manage the departments listed here. They do not get company-wide department access.
+                        </div>
+                      </>
                     ) : null}
                   </div>
 
@@ -1685,6 +1690,11 @@ export default function StaffProfile() {
                   <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4, maxWidth:420 }}>
                     These switches now control both navigation visibility and actual page access. Disabled pages will show an access-disabled screen if someone tries to open them directly.
                   </div>
+                  {isDirector ? (
+                    <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:8, maxWidth:460, lineHeight:1.55 }}>
+                      Director note: your own live session keeps Director override access to company-wide controls, so what you personally can see may be broader than the saved toggles on this staff record.
+                    </div>
+                  ) : null}
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:8, minWidth:280, flex:1, maxWidth:420 }}>
                   {Object.keys(ROLE_DEFAULTS).map(role => {
