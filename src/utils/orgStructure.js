@@ -86,6 +86,28 @@ export function getManagedDepartments(orgRecord = {}) {
   return [...departments].filter(Boolean)
 }
 
+export function hydrateManagedDepartments(orgRecord = {}, departmentCatalog = [], email = '') {
+  const safeEmail = String(email || orgRecord?.email || '').toLowerCase().trim()
+  const merged = mergeOrgRecord(orgRecord, { email: safeEmail })
+  const departments = new Set(Array.isArray(merged.managed_departments) ? merged.managed_departments : [])
+
+  ;(Array.isArray(departmentCatalog) ? departmentCatalog : []).forEach((department) => {
+    if (!department?.name) return
+    if (String(department.manager_email || '').toLowerCase().trim() === safeEmail) {
+      departments.add(normalizeDepartmentName(department.name))
+    }
+  })
+
+  if (merged.role_scope === 'department_manager' && merged.department) {
+    departments.add(merged.department)
+  }
+
+  return mergeOrgRecord({
+    ...merged,
+    managed_departments: [...departments].filter(Boolean),
+  }, { email: safeEmail, department: merged.department })
+}
+
 export function isDirectorEmail(email = '') {
   return DIRECTOR_EMAILS.has(String(email || '').toLowerCase().trim())
 }
