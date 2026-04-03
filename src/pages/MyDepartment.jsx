@@ -255,6 +255,10 @@ export default function MyDepartment() {
   const visibleRequests = requestRows.filter((row) => row.requested_department === currentDepartment || row.current_department === currentDepartment)
   const onboardingCount = teamMembers.filter((row) => row.lifecycle?.state === 'onboarding').length
   const activeCount = teamMembers.filter((row) => row.lifecycle?.state === 'active').length
+  const activeStaffToday = teamMembers.filter((row) => {
+    const lastSeen = row.last_seen ? new Date(row.last_seen) : null
+    return !!lastSeen && !Number.isNaN(lastSeen.getTime()) && lastSeen >= todayStart
+  }).length
   const needsReviewCount = visibleRequests.filter((row) => row.status === 'pending').length
   const teamEmailSet = new Set(teamMembers.map((row) => normalizePortalEmail(row.user_email)).filter(Boolean))
   const todayStart = new Date()
@@ -554,6 +558,7 @@ export default function MyDepartment() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
         <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
+        <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--accent)" />
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
         <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" />
