@@ -8,7 +8,7 @@ import { getLifecycleLabel, mergeLifecycleRecord } from '../utils/staffLifecycle
 import { mergeOrgRecord } from '../utils/orgStructure'
 import { enrichTask } from '../utils/taskMetadata'
 import { mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
-import { createDepartmentAnnouncement } from '../utils/peopleOps'
+import { createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -68,6 +68,7 @@ export default function MyTeam() {
   const [docRows, setDocRows] = useState([])
   const [complianceMap, setComplianceMap] = useState({})
   const [contracts, setContracts] = useState([])
+  const [trainingRecords, setTrainingRecords] = useState([])
 
   const currentDepartment = String(org?.department || '').trim()
 
@@ -85,7 +86,7 @@ export default function MyTeam() {
       return
     }
     setLoading(true)
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -99,6 +100,7 @@ export default function MyTeam() {
       supabase.from('staff_documents').select('staff_email,name,type,file_url,file_path,created_at'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'training_record:%'),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [normalizePortalEmail(row.user_email), row]))
@@ -143,6 +145,10 @@ export default function MyTeam() {
       mergeComplianceRecord(row.value?.value ?? row.value ?? {}),
     ])))
     setContracts((contractSettings || []).map((row) => row.value?.value ?? row.value ?? {}))
+    setTrainingRecords((trainingSettings || []).map((row) => createTrainingRecord({
+      id: String(row.key || '').replace('training_record:', ''),
+      ...(row.value?.value ?? row.value ?? {}),
+    })))
     setLoading(false)
   }
 
@@ -186,6 +192,7 @@ export default function MyTeam() {
     return !rtw.hasDocument && !rtw.rtw_override
   }).length
   const pendingContractCount = profiles.filter((row) => contracts.some((contract) => normalizePortalEmail(contract.staff_email) === normalizePortalEmail(row.user_email) && contract.status === 'awaiting_staff_signature')).length
+  const trainingDueCount = trainingRecords.filter((record) => teamEmailSet.has(normalizePortalEmail(record.staff_email)) && record.status !== 'completed' && record.due_date && new Date(`${record.due_date}T23:59:59`).getTime() <= Date.now()).length
   const teamActivity = activityRows.filter((row) => {
     const actor = String(row.user_name || '').toLowerCase()
     return profiles.some((member) => String(member.full_name || '').toLowerCase() === actor)
@@ -224,7 +231,7 @@ export default function MyTeam() {
         <StatCard icon={Users} label="Team members" value={profiles.length} hint="People currently assigned to this department" tone="var(--green)" />
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Open team tasks" value={openTasks.length} hint={`${overdueTasks.length} overdue`} tone="var(--amber)" />
-        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts`} tone="var(--red)" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + trainingDueCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${trainingDueCount} training due`} tone="var(--red)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(320px,0.85fr)', gap: 18 }} className="staff-profile-main-grid">
@@ -303,6 +310,7 @@ export default function MyTeam() {
                 <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
                   Missing RTW: <strong style={{ color: 'var(--text)' }}>{missingRtwCount}</strong><br />
                   Unsigned contracts: <strong style={{ color: 'var(--text)' }}>{pendingContractCount}</strong><br />
+                  Training due: <strong style={{ color: 'var(--text)' }}>{trainingDueCount}</strong><br />
                   Off today: <strong style={{ color: 'var(--text)' }}>{todayLeave.length}</strong>
                 </div>
               </div>

@@ -19,7 +19,7 @@ import {
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { enrichTask } from '../utils/taskMetadata'
 import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
-import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement } from '../utils/peopleOps'
+import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -158,6 +158,7 @@ export default function MyDepartment() {
   const [docRows, setDocRows] = useState([])
   const [complianceMap, setComplianceMap] = useState({})
   const [contractRows, setContractRows] = useState([])
+  const [trainingRecords, setTrainingRecords] = useState([])
   const [announcementForm, setAnnouncementForm] = useState({ title: '', message: '', important: false, email_team: true })
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
@@ -189,7 +190,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -205,6 +206,7 @@ export default function MyDepartment() {
       supabase.from('staff_documents').select('staff_email,name,type,file_url,file_path,created_at'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'training_record:%'),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [String(row.user_email || '').toLowerCase(), row]))
@@ -260,6 +262,10 @@ export default function MyDepartment() {
       mergeComplianceRecord(row.value?.value ?? row.value ?? {}),
     ])))
     setContractRows((contractSettings || []).map((row) => row.value?.value ?? row.value ?? {}))
+    setTrainingRecords((trainingSettings || []).map((row) => createTrainingRecord({
+      id: String(row.key || '').replace('training_record:', ''),
+      ...(row.value?.value ?? row.value ?? {}),
+    })))
     setSelectedDepartment((current) => current || preferred)
     setRequestRows((requestSettings || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -356,6 +362,7 @@ export default function MyDepartment() {
   })
   const missingRtwCount = complianceSignals.filter((row) => row.missingRtw).length
   const pendingContractCount = complianceSignals.filter((row) => row.pendingContract).length
+  const departmentTrainingDue = trainingRecords.filter((record) => teamEmailSet.has(normalizePortalEmail(record.staff_email)) && record.status !== 'completed' && record.due_date && new Date(`${record.due_date}T23:59:59`).getTime() <= Date.now()).length
   const teamActivity = activityRows.filter((row) => {
     const actor = String(row.user_name || '').toLowerCase()
     return teamMembers.some((member) => String(member.full_name || '').toLowerCase() === actor)
@@ -398,6 +405,7 @@ export default function MyDepartment() {
           sentBy: user?.name || user?.email || 'Department manager',
           fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
           forceImportant: announcement.important,
+          forceDelivery: 'both',
         })))
       }
       setAnnouncementForm({ title: '', message: '', important: false, email_team: true })
@@ -735,7 +743,7 @@ export default function MyDepartment() {
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
         <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" />
-        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts`} tone="var(--red)" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--red)" />
         <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
         <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
       </div>
@@ -772,6 +780,7 @@ export default function MyDepartment() {
                 <div style={{ marginTop:8, fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
                   Missing RTW: <strong style={{ color:'var(--text)' }}>{missingRtwCount}</strong><br/>
                   Unsigned contracts: <strong style={{ color:'var(--text)' }}>{pendingContractCount}</strong><br/>
+                  Training due: <strong style={{ color:'var(--text)' }}>{departmentTrainingDue}</strong><br/>
                   Onboarding staff: <strong style={{ color:'var(--text)' }}>{onboardingCount}</strong>
                 </div>
               </div>

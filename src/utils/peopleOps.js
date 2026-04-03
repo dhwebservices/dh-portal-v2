@@ -29,6 +29,22 @@ export const CHECK_IN_STATUS_OPTIONS = [
   ['follow_up_needed', 'Follow-up needed'],
 ]
 
+export const TRAINING_CATEGORY_OPTIONS = [
+  ['induction', 'Induction'],
+  ['compliance', 'Compliance'],
+  ['sales', 'Sales / outreach'],
+  ['operations', 'Operations'],
+  ['systems', 'Systems'],
+  ['certification', 'Certification'],
+]
+
+export const TRAINING_STATUS_OPTIONS = [
+  ['assigned', 'Assigned'],
+  ['in_progress', 'In progress'],
+  ['completed', 'Completed'],
+  ['expired', 'Expired'],
+]
+
 export function buildProbationReviewKey(id = '') {
   return `probation_review:${id}`
 }
@@ -43,6 +59,10 @@ export function buildStaffGoalKey(id = '') {
 
 export function buildDepartmentAnnouncementKey(id = '') {
   return `department_announcement:${id}`
+}
+
+export function buildTrainingRecordKey(id = '') {
+  return `training_record:${id}`
 }
 
 function fallbackId(prefix = 'record') {
@@ -132,6 +152,29 @@ export function createDepartmentAnnouncement(record = {}) {
   }
 }
 
+export function createTrainingRecord(record = {}) {
+  return {
+    id: record.id || fallbackId('training'),
+    staff_email: normalizeEmail(record.staff_email || ''),
+    staff_name: String(record.staff_name || '').trim(),
+    department: String(record.department || '').trim(),
+    manager_email: normalizeEmail(record.manager_email || ''),
+    manager_name: String(record.manager_name || '').trim(),
+    title: String(record.title || '').trim(),
+    category: record.category || 'induction',
+    mandatory: record.mandatory === true,
+    status: record.status || 'assigned',
+    due_date: record.due_date || '',
+    expires_at: record.expires_at || '',
+    certificate_name: String(record.certificate_name || '').trim(),
+    certificate_url: String(record.certificate_url || '').trim(),
+    notes: String(record.notes || '').trim(),
+    completed_at: record.completed_at || '',
+    reminder_notice_key: String(record.reminder_notice_key || '').trim(),
+    ...buildBaseTimestamps(record),
+  }
+}
+
 export function getReviewTypeLabel(value = '') {
   return REVIEW_TYPE_OPTIONS.find(([key]) => key === value)?.[1] || 'Review'
 }
@@ -142,6 +185,14 @@ export function getGoalStatusLabel(value = '') {
 
 export function getCheckInStatusLabel(value = '') {
   return CHECK_IN_STATUS_OPTIONS.find(([key]) => key === value)?.[1] || 'Check-in'
+}
+
+export function getTrainingCategoryLabel(value = '') {
+  return TRAINING_CATEGORY_OPTIONS.find(([key]) => key === value)?.[1] || 'Training'
+}
+
+export function getTrainingStatusLabel(value = '') {
+  return TRAINING_STATUS_OPTIONS.find(([key]) => key === value)?.[1] || 'Training'
 }
 
 export function isDueTodayOrOverdue(value = '') {

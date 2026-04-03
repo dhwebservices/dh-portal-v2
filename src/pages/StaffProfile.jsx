@@ -53,16 +53,22 @@ import {
   buildManagerCheckInKey,
   buildProbationReviewKey,
   buildStaffGoalKey,
+  buildTrainingRecordKey,
   CHECK_IN_STATUS_OPTIONS,
   createManagerCheckIn,
   createProbationReview,
   createStaffGoal,
+  createTrainingRecord,
   getCheckInStatusLabel,
   getGoalStatusLabel,
   getReviewTypeLabel,
+  getTrainingCategoryLabel,
+  getTrainingStatusLabel,
   GOAL_STATUS_OPTIONS,
   REVIEW_STATUS_OPTIONS,
   REVIEW_TYPE_OPTIONS,
+  TRAINING_CATEGORY_OPTIONS,
+  TRAINING_STATUS_OPTIONS,
 } from '../utils/peopleOps'
 import {
   buildContractMergeFields,
@@ -207,6 +213,7 @@ export default function StaffProfile() {
   const [reviews, setReviews] = useState([])
   const [checkIns, setCheckIns] = useState([])
   const [goals, setGoals] = useState([])
+  const [trainingRecords, setTrainingRecords] = useState([])
   const [complianceRecord, setComplianceRecord] = useState(() => mergeComplianceRecord())
   const [complianceSaving, setComplianceSaving] = useState(false)
   const [contractTemplates, setContractTemplates] = useState([])
@@ -244,6 +251,17 @@ export default function StaffProfile() {
     progress: 0,
     due_date: '',
     status: 'active',
+  })
+  const [trainingForm, setTrainingForm] = useState({
+    title: '',
+    category: 'induction',
+    mandatory: true,
+    status: 'assigned',
+    due_date: '',
+    expires_at: '',
+    certificate_name: '',
+    certificate_url: '',
+    notes: '',
   })
   const [peopleOpsSaving, setPeopleOpsSaving] = useState(false)
   const [peopleOpsSaved, setPeopleOpsSaved] = useState(false)
@@ -381,6 +399,10 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('key,value')
         .like('key', 'staff_goal:%')
+      const { data: trainingRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'training_record:%')
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
@@ -454,9 +476,21 @@ export default function StaffProfile() {
           if (a.status !== 'completed' && b.status === 'completed') return -1
           return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
         })
+      const nextTraining = (trainingRows || [])
+        .map((row) => createTrainingRecord({
+          id: String(row.key || '').replace('training_record:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
+        })
       setReviews(nextReviews)
       setCheckIns(nextCheckIns)
       setGoals(nextGoals)
+      setTrainingRecords(nextTraining)
       setContractForm((current) => ({
         ...current,
         templateId: current.templateId || nextTemplates[0]?.id || '',
@@ -487,6 +521,17 @@ export default function StaffProfile() {
         progress: Number.isFinite(Number(current.progress)) ? Number(current.progress) : 0,
         due_date: current.due_date || '',
         status: current.status || 'active',
+      }))
+      setTrainingForm((current) => ({
+        title: current.title || '',
+        category: current.category || 'induction',
+        mandatory: current.mandatory !== false,
+        status: current.status || 'assigned',
+        due_date: current.due_date || '',
+        expires_at: current.expires_at || '',
+        certificate_name: current.certificate_name || '',
+        certificate_url: current.certificate_url || '',
+        notes: current.notes || '',
       }))
       setDepartmentRequests((requestRows || [])
         .map((row) => createDepartmentRequest({
@@ -998,6 +1043,18 @@ export default function StaffProfile() {
     status: 'active',
   })
 
+  const resetTrainingForm = () => setTrainingForm({
+    title: '',
+    category: 'induction',
+    mandatory: true,
+    status: 'assigned',
+    due_date: '',
+    expires_at: '',
+    certificate_name: '',
+    certificate_url: '',
+    notes: '',
+  })
+
   const savePeopleOpsRecord = async ({ key, value, onSuccess }) => {
     const { error } = await supabase
       .from('portal_settings')
@@ -1228,6 +1285,60 @@ export default function StaffProfile() {
     } catch (error) {
       console.error('Goal save failed:', error)
       alert(error.message || 'Could not save the goal.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const saveTrainingRecord = async () => {
+    if (!trainingForm.title.trim()) {
+      alert('Add a training or certification title first.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const trainingRecord = createTrainingRecord({
+        ...trainingForm,
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || profile.manager_email || orgRecord.reports_to_email || '',
+        manager_name: user?.name || profile.manager_name || orgRecord.reports_to_name || '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildTrainingRecordKey(trainingRecord.id),
+        value: trainingRecord,
+        onSuccess: (savedTraining) => setTrainingRecords((current) => [savedTraining, ...current.filter((item) => item.id !== savedTraining.id)]
+          .sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1
+            if (a.status !== 'completed' && b.status === 'completed') return -1
+            return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
+          })),
+      })
+      await sendManagedNotification({
+        userEmail: email,
+        userName: displayName,
+        category: 'hr',
+        type: 'info',
+        title: trainingRecord.mandatory ? 'Mandatory training assigned' : 'Training assigned',
+        message: `${trainingRecord.title} has been assigned to you${trainingRecord.due_date ? ` with a due date of ${trainingRecord.due_date}` : ''}.`,
+        link: '/my-profile',
+        emailSubject: `${trainingRecord.title} — training assigned`,
+        emailHtml: `
+          <p>Hi ${(displayName || email).split(' ')[0] || 'there'},</p>
+          <p>${trainingRecord.title} has been assigned to you in DH Portal.</p>
+          <p><strong>Category:</strong> ${getTrainingCategoryLabel(trainingRecord.category)}<br/><strong>Mandatory:</strong> ${trainingRecord.mandatory ? 'Yes' : 'No'}${trainingRecord.due_date ? `<br/><strong>Due date:</strong> ${trainingRecord.due_date}` : ''}</p>
+          ${trainingRecord.notes ? `<p><strong>Notes:</strong><br/>${trainingRecord.notes.replace(/\n/g, '<br/>')}</p>` : ''}
+        `,
+        sentBy: user?.name || user?.email || 'Manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceDelivery: 'both',
+      }).catch(() => {})
+      resetTrainingForm()
+    } catch (error) {
+      console.error('Training save failed:', error)
+      alert(error.message || 'Could not save the training record.')
     } finally {
       setPeopleOpsSaving(false)
     }
@@ -1543,6 +1654,8 @@ export default function StaffProfile() {
   const overdueReviews = openReviews.filter((review) => review.due_date && new Date(`${review.due_date}T23:59:59`).getTime() < Date.now())
   const openGoals = goals.filter((goal) => goal.status !== 'completed')
   const dueGoals = openGoals.filter((goal) => goal.due_date && new Date(`${goal.due_date}T23:59:59`).getTime() <= Date.now())
+  const openTraining = trainingRecords.filter((record) => record.status !== 'completed')
+  const dueTraining = openTraining.filter((record) => record.due_date && new Date(`${record.due_date}T23:59:59`).getTime() <= Date.now())
   const reviewHistory = [
     ...reviews.map((review) => ({
       id: `review-${review.id}`,
@@ -1566,6 +1679,13 @@ export default function StaffProfile() {
       title: goal.title,
       subtitle: `${Math.round(goal.progress || 0)}% · ${getGoalStatusLabel(goal.status)}`,
       tone: goal.status === 'completed' ? 'green' : goal.status === 'at_risk' ? 'red' : 'amber',
+    })),
+    ...trainingRecords.map((record) => ({
+      id: `training-${record.id}`,
+      date: record.completed_at || record.due_date || record.updated_at || record.created_at,
+      title: record.title,
+      subtitle: `${getTrainingCategoryLabel(record.category)} · ${getTrainingStatusLabel(record.status)}${record.expires_at ? ` · expires ${record.expires_at}` : ''}`,
+      tone: record.status === 'completed' ? 'green' : record.mandatory ? 'red' : 'blue',
     })),
   ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
   const rtwRecord = resolveRightToWorkRecord(profile, docs, complianceRecord)
@@ -1763,7 +1883,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['lifecycle','Lifecycle'],['performance','Performance'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['lifecycle','Lifecycle'],['performance','Performance'],['training','Training'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -1949,6 +2069,7 @@ export default function StaffProfile() {
                       {[
                         ['Lifecycle', 'lifecycle'],
                         ['Performance', 'performance'],
+                        ['Training', 'training'],
                         ['Permissions', 'permissions'],
                         ['Documents', 'docs'],
                         ['Commissions', 'commissions'],
@@ -2333,6 +2454,121 @@ export default function StaffProfile() {
                     ))}
                     {reviewHistory.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No people-ops history has been recorded yet.</div> : null}
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'training' && (
+          <div style={{ display:'grid', gap:18 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14 }}>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Training open</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{openTraining.length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>{dueTraining.length} due now</div>
+              </div>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Mandatory items</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{trainingRecords.filter((record) => record.mandatory).length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>Training and certifications requiring completion</div>
+              </div>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Completed</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{trainingRecords.filter((record) => record.status === 'completed').length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>Logged as completed in the portal</div>
+              </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(320px,0.95fr)', gap:18 }} className="staff-profile-main-grid">
+              <div className="card card-pad">
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Training and certifications</div>
+                    <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:4 }}>Assign training to this staff member</div>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
+                      Assign induction, compliance, systems, sales, or certification items. Staff get the assignment by portal notification and email.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="fg" style={{ marginTop:18 }}>
+                  <div className="fc">
+                    <label className="lbl">Training title</label>
+                    <input className="inp" value={trainingForm.title || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Microsoft Company Portal setup" />
+                  </div>
+                  <div>
+                    <label className="lbl">Category</label>
+                    <select className="inp" value={trainingForm.category || 'induction'} onChange={(e) => setTrainingForm((current) => ({ ...current, category: e.target.value }))}>
+                      {TRAINING_CATEGORY_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="lbl">Status</label>
+                    <select className="inp" value={trainingForm.status || 'assigned'} onChange={(e) => setTrainingForm((current) => ({ ...current, status: e.target.value }))}>
+                      {TRAINING_STATUS_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="lbl">Due date</label>
+                    <input className="inp" type="date" value={trainingForm.due_date || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, due_date: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="lbl">Expiry date</label>
+                    <input className="inp" type="date" value={trainingForm.expires_at || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, expires_at: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="lbl">Certificate name</label>
+                    <input className="inp" value={trainingForm.certificate_name || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, certificate_name: e.target.value }))} placeholder="Optional certificate or proof name" />
+                  </div>
+                  <div className="fc">
+                    <label className="lbl">Certificate URL</label>
+                    <input className="inp" value={trainingForm.certificate_url || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, certificate_url: e.target.value }))} placeholder="Optional certificate link" />
+                  </div>
+                  <div className="fc">
+                    <label className="lbl">Notes</label>
+                    <textarea className="inp" rows={3} value={trainingForm.notes || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} placeholder="Instructions, expected completion steps, or evidence notes..." />
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginTop:14 }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--sub)' }}>
+                    <input type="checkbox" checked={trainingForm.mandatory} onChange={(e) => setTrainingForm((current) => ({ ...current, mandatory: e.target.checked }))} />
+                    Mandatory training
+                  </label>
+                </div>
+
+                <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:18 }}>
+                  <button className="btn btn-primary" onClick={saveTrainingRecord} disabled={peopleOpsSaving}>{peopleOpsSaving ? 'Saving...' : 'Save training assignment'}</button>
+                  <button className="btn btn-outline" onClick={resetTrainingForm}>Clear</button>
+                </div>
+              </div>
+
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Training log</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Assigned training and certifications</div>
+                <div style={{ display:'grid', gap:10, marginTop:16 }}>
+                  {trainingRecords.map((record) => (
+                    <div key={record.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{record.title}</div>
+                        <span className={`badge badge-${record.status === 'completed' ? 'green' : record.mandatory ? 'red' : 'blue'}`}>{getTrainingStatusLabel(record.status)}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>
+                        {getTrainingCategoryLabel(record.category)} · {record.mandatory ? 'Mandatory' : 'Optional'}
+                        {record.due_date ? ` · Due ${record.due_date}` : ''}
+                        {record.expires_at ? ` · Expires ${record.expires_at}` : ''}
+                      </div>
+                      {record.notes ? <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{record.notes}</div> : null}
+                      {record.certificate_name || record.certificate_url ? (
+                        <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>
+                          {record.certificate_name || 'Certificate'}
+                          {record.certificate_url ? ` · ${record.certificate_url}` : ''}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                  {trainingRecords.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No training or certification records saved yet.</div> : null}
                 </div>
               </div>
             </div>

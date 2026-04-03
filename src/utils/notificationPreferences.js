@@ -58,6 +58,7 @@ export async function sendManagedNotification({
   fromEmail,
   portalUrl = DEFAULT_PORTAL_URL,
   forceImportant = false,
+  forceDelivery = '',
 }) {
   const safeEmail = String(userEmail || '').toLowerCase().trim()
   if (!safeEmail || !title || !message) {
@@ -65,7 +66,14 @@ export async function sendManagedNotification({
   }
 
   const preferences = await getUserPortalPreferences(safeEmail)
-  const delivery = resolveNotificationDelivery(preferences, category, { forceImportant, type })
+  const resolved = resolveNotificationDelivery(preferences, category, { forceImportant, type })
+  const delivery = forceDelivery === 'both'
+    ? { portal: true, email: true, delivery: 'both' }
+    : forceDelivery === 'portal'
+      ? { portal: true, email: false, delivery: 'portal' }
+      : forceDelivery === 'email'
+        ? { portal: false, email: true, delivery: 'email' }
+        : resolved
   const createdAt = new Date().toISOString()
   let portalSent = false
   let emailSent = false
