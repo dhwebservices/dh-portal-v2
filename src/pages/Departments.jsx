@@ -165,6 +165,19 @@ export default function Departments() {
             }, { email: updatedDepartment.manager_email, department: updatedDepartment.name }),
           },
         }, { onConflict: 'key' })
+        await sendManagedNotification({
+          userEmail: updatedDepartment.manager_email,
+          userName: updatedDepartment.manager_name || managerRow?.full_name || updatedDepartment.manager_email,
+          category: 'urgent',
+          type: 'success',
+          title: 'Department manager assignment',
+          message: `You have been assigned as Department Manager for ${updatedDepartment.name}.`,
+          link: '/my-department',
+          emailSubject: `Department manager assignment — ${updatedDepartment.name}`,
+          sentBy: user?.name || user?.email || 'Director',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        }).catch(() => {})
       }
       await load()
     } finally {
@@ -205,18 +218,34 @@ export default function Departments() {
         }, { onConflict: 'user_email' }),
       ])
 
-      await sendManagedNotification({
-        userEmail: row.user_email,
-        userName: row.full_name || row.user_email,
-        category: 'general',
-        type: 'success',
-        title: 'Department assignment updated',
-        message: `You have been placed into ${requestedDepartment} as ${requestedRole === 'department_manager' ? 'Department Manager' : 'Staff'}.`,
-        link: '/my-profile',
-        emailSubject: `Department updated — ${requestedDepartment}`,
-        sentBy: user?.name || user?.email || 'Director',
-        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-      }).catch(() => {})
+      if (requestedRole === 'department_manager') {
+        await sendManagedNotification({
+          userEmail: row.user_email,
+          userName: row.full_name || row.user_email,
+          category: 'urgent',
+          type: 'success',
+          title: 'Department manager assignment',
+          message: `You have been assigned as Department Manager for ${requestedDepartment}.`,
+          link: '/my-department',
+          emailSubject: `Department manager assignment — ${requestedDepartment}`,
+          sentBy: user?.name || user?.email || 'Director',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        }).catch(() => {})
+      } else {
+        await sendManagedNotification({
+          userEmail: row.user_email,
+          userName: row.full_name || row.user_email,
+          category: 'general',
+          type: 'success',
+          title: 'Department assignment updated',
+          message: `You have been placed into ${requestedDepartment} as ${requestedRole === 'read_only' ? 'Read Only' : 'Staff'}.`,
+          link: '/my-profile',
+          emailSubject: `Department updated — ${requestedDepartment}`,
+          sentBy: user?.name || user?.email || 'Director',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        }).catch(() => {})
+      }
 
       setAssignments((currentMap) => {
         const next = { ...currentMap }

@@ -465,6 +465,21 @@ export default function StaffProfile() {
           fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
         })))
 
+        if (user?.email) {
+          await sendManagedNotification({
+            userEmail: user.email,
+            userName: user.name || user.email,
+            category: 'general',
+            type: 'info',
+            title: 'Department request sent',
+            message: `${profile.full_name || email} now has a department change request waiting for Director approval.`,
+            link: `/my-staff/${encodeURIComponent(email)}`,
+            emailSubject: `Department request sent — ${profile.full_name || email}`,
+            sentBy: 'DH Portal',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          }).catch(() => {})
+        }
+
         setDepartmentRequests((current) => [request, ...current].slice(0, 12))
       } else {
         const { error: orgError } = await supabase
@@ -476,6 +491,22 @@ export default function StaffProfile() {
         if (orgError) throw orgError
         setOrgRecord(preparedOrgRecord)
         setOriginalOrgRecord(preparedOrgRecord)
+
+        if (preparedOrgRecord.role_scope === 'department_manager' && originalOrgRecord.role_scope !== 'department_manager') {
+          await sendManagedNotification({
+            userEmail: email,
+            userName: profile.full_name || email,
+            category: 'urgent',
+            type: 'success',
+            title: 'Department manager assignment',
+            message: `You have been assigned as Department Manager for ${preparedOrgRecord.department || 'your department'}.`,
+            link: '/my-department',
+            emailSubject: `Department manager assignment — ${preparedOrgRecord.department || 'DH Portal'}`,
+            sentBy: user?.name || user?.email || 'Director',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            forceImportant: true,
+          }).catch(() => {})
+        }
       }
 
       // Manager change notification — fires when manager genuinely changes

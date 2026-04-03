@@ -200,6 +200,21 @@ export default function MyDepartment() {
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
       })))
 
+      if (user?.email) {
+        await sendManagedNotification({
+          userEmail: user.email,
+          userName: user.name || user.email,
+          category: 'general',
+          type: 'info',
+          title: 'Department request sent',
+          message: `${request.target_name} has been submitted for placement into ${currentDepartment}. The Director has been asked to approve it.`,
+          link: '/my-department',
+          emailSubject: `Department request sent — ${request.target_name}`,
+          sentBy: 'DH Portal',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        }).catch(() => {})
+      }
+
       await load()
     } finally {
       setSaving('')
