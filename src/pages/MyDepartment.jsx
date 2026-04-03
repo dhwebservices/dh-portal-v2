@@ -18,6 +18,43 @@ import {
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
+function normalizePortalEmail(value = '') {
+  return String(value || '').toLowerCase().trim()
+}
+
+function isNonStaffAccount(row = {}) {
+  const email = normalizePortalEmail(row.user_email)
+  const name = String(row.full_name || '').toLowerCase().trim()
+  const blockedPrefixes = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
+  if (!email) return true
+  if (blockedPrefixes.some((prefix) => email.startsWith(prefix))) return true
+  return name === 'admin' || name === 'legal' || name.includes('no reply') || name.includes('outreach log')
+}
+
+function buildHrProfilePayload(staffRow = {}, departmentMeta = {}, departmentName = '') {
+  const userEmail = normalizePortalEmail(staffRow.user_email)
+  const fullName = String(staffRow.full_name || staffRow.name || userEmail).trim()
+  return {
+    user_email: userEmail,
+    full_name: fullName,
+    role: String(staffRow.role || '').trim(),
+    department: departmentName,
+    manager_email: normalizePortalEmail(departmentMeta?.manager_email),
+    manager_name: String(departmentMeta?.manager_name || '').trim(),
+    phone: String(staffRow.phone || '').trim(),
+    personal_email: String(staffRow.personal_email || '').trim(),
+    address: String(staffRow.address || '').trim(),
+    contract_type: String(staffRow.contract_type || '').trim(),
+    start_date: staffRow.start_date || null,
+    hr_notes: String(staffRow.hr_notes || '').trim(),
+    bank_name: String(staffRow.bank_name || '').trim(),
+    account_name: String(staffRow.account_name || '').trim(),
+    sort_code: String(staffRow.sort_code || '').trim(),
+    account_number: String(staffRow.account_number || '').trim(),
+    updated_at: new Date().toISOString(),
+  }
+}
+
 function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   return (
     <div className="stat-card">
@@ -41,6 +78,7 @@ export default function MyDepartment() {
   const [profiles, setProfiles] = useState([])
   const [requestRows, setRequestRows] = useState([])
   const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     load()
@@ -48,6 +86,7 @@ export default function MyDepartment() {
 
   async function load() {
     setLoading(true)
+    setError('')
     let microsoftUsers = []
     try {
       const account = accounts[0]
@@ -96,9 +135,11 @@ export default function MyDepartment() {
       }
     })
 
-    const knownEmails = new Set(mergedProfiles.map((row) => row.user_email))
+    const filteredProfiles = mergedProfiles.filter((row) => !isNonStaffAccount(row))
+    const knownEmails = new Set(filteredProfiles.map((row) => row.user_email))
     const microsoftOnlyRows = microsoftUsers
       .filter((row) => row.user_email && !knownEmails.has(row.user_email))
+      .filter((row) => !isNonStaffAccount(row))
       .map((row) => ({
         ...row,
         lifecycle: mergeLifecycleRecord(),
@@ -107,9 +148,9 @@ export default function MyDepartment() {
 
     const nextCatalog = mergeDepartmentCatalog(catalogRow?.value?.value ?? catalogRow?.value ?? [])
     const availableDepartments = nextCatalog.map((item) => item.name)
-    const preferred = (isDirector ? availableDepartments[0] : managedDepartments.find((item) => item !== '*')) || mergedProfiles.find((row) => row.department)?.department || ''
+    const preferred = (isDirector ? availableDepartments[0] : managedDepartments.find((item) => item !== '*')) || filteredProfiles.find((row) => row.department)?.department || ''
     setCatalog(nextCatalog)
-    setProfiles([...mergedProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
+    setProfiles([...filteredProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
     setSelectedDepartment((current) => current || preferred)
     setRequestRows((requestSettings || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -147,16 +188,14 @@ export default function MyDepartment() {
           key: buildStaffOrgKey(staffRow.user_email),
           value: { value: nextOrg },
         }, { onConflict: 'key' }),
-        supabase.from('hr_profiles').upsert({
-          ...staffRow,
-          user_email: staffRow.user_email,
-          department: currentDepartment,
-          manager_email: departmentManager?.manager_email || '',
-          manager_name: departmentManager?.manager_name || '',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_email' }),
+        supabase.from('hr_profiles').upsert(
+          buildHrProfilePayload(staffRow, departmentManager, currentDepartment),
+          { onConflict: 'user_email' },
+        ),
       ])
       await load()
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not save the department assignment.')
     } finally {
       setSaving('')
     }
@@ -250,6 +289,12 @@ export default function MyDepartment() {
         </div>
       </div>
 
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'var(--amber-bg)', border: '1px solid var(--amber)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
         <StatCard icon={Users} label="Team members" value={teamMembers.length} hint="Staff currently assigned to this department" tone="var(--green)" />
@@ -285,7 +330,7 @@ export default function MyDepartment() {
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Unassigned Microsoft users</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Ready to place into a team</div>
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              {unassigned.slice(0, 6).map((row) => (
+              {unassigned.map((row) => (
                 <div key={row.user_email} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>{row.user_email}</div>

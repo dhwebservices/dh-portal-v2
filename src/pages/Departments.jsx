@@ -15,6 +15,43 @@ import {
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
+function normalizePortalEmail(value = '') {
+  return String(value || '').toLowerCase().trim()
+}
+
+function isNonStaffAccount(row = {}) {
+  const email = normalizePortalEmail(row.user_email)
+  const name = String(row.full_name || '').toLowerCase().trim()
+  const blockedPrefixes = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
+  if (!email) return true
+  if (blockedPrefixes.some((prefix) => email.startsWith(prefix))) return true
+  return name === 'admin' || name === 'legal' || name.includes('no reply') || name.includes('outreach log')
+}
+
+function buildHrProfilePayload(staffRow = {}, departmentMeta = {}, departmentName = '') {
+  const userEmail = normalizePortalEmail(staffRow.user_email)
+  const fullName = String(staffRow.full_name || staffRow.name || userEmail).trim()
+  return {
+    user_email: userEmail,
+    full_name: fullName,
+    role: String(staffRow.role || '').trim(),
+    department: departmentName,
+    manager_email: normalizePortalEmail(departmentMeta?.manager_email),
+    manager_name: String(departmentMeta?.manager_name || '').trim(),
+    phone: String(staffRow.phone || '').trim(),
+    personal_email: String(staffRow.personal_email || '').trim(),
+    address: String(staffRow.address || '').trim(),
+    contract_type: String(staffRow.contract_type || '').trim(),
+    start_date: staffRow.start_date || null,
+    hr_notes: String(staffRow.hr_notes || '').trim(),
+    bank_name: String(staffRow.bank_name || '').trim(),
+    account_name: String(staffRow.account_name || '').trim(),
+    sort_code: String(staffRow.sort_code || '').trim(),
+    account_number: String(staffRow.account_number || '').trim(),
+    updated_at: new Date().toISOString(),
+  }
+}
+
 function Metric({ icon: Icon, label, value, hint, accent = 'var(--accent)' }) {
   return (
     <div className="stat-card">
@@ -38,6 +75,7 @@ export default function Departments() {
   const [requests, setRequests] = useState([])
   const [newDepartment, setNewDepartment] = useState('')
   const [assignments, setAssignments] = useState({})
+  const [error, setError] = useState('')
 
   useEffect(() => {
     load()
@@ -45,6 +83,7 @@ export default function Departments() {
 
   async function load() {
     setLoading(true)
+    setError('')
     let microsoftUsers = []
     try {
       const account = accounts[0]
@@ -87,15 +126,17 @@ export default function Departments() {
       }
     })
 
-    const knownEmails = new Set(mergedProfiles.map((row) => row.user_email))
+    const filteredProfiles = mergedProfiles.filter((row) => !isNonStaffAccount(row))
+    const knownEmails = new Set(filteredProfiles.map((row) => row.user_email))
     const microsoftOnlyRows = microsoftUsers
       .filter((row) => row.user_email && !knownEmails.has(row.user_email))
+      .filter((row) => !isNonStaffAccount(row))
       .map((row) => ({
         ...row,
         org: orgMap[row.user_email] || mergeOrgRecord({}, { email: row.user_email }),
       }))
 
-    setProfiles([...mergedProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
+    setProfiles([...filteredProfiles, ...microsoftOnlyRows].sort((a, b) => String(a.full_name || a.user_email).localeCompare(String(b.full_name || b.user_email))))
     setCatalog(mergeDepartmentCatalog(catalogRow?.value?.value ?? catalogRow?.value ?? []))
     setRequests((requestRows || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -208,14 +249,10 @@ export default function Departments() {
           key: buildStaffOrgKey(row.user_email),
           value: { value: nextOrg },
         }, { onConflict: 'key' }),
-        supabase.from('hr_profiles').upsert({
-          ...row,
-          user_email: row.user_email,
-          department: requestedDepartment,
-          manager_email: departmentMeta?.manager_email || '',
-          manager_name: departmentMeta?.manager_name || '',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_email' }),
+        supabase.from('hr_profiles').upsert(
+          buildHrProfilePayload(row, departmentMeta, requestedDepartment),
+          { onConflict: 'user_email' },
+        ),
       ])
 
       if (requestedRole === 'department_manager') {
@@ -253,6 +290,8 @@ export default function Departments() {
         return next
       })
       await load()
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not save the department assignment.')
     } finally {
       setSavingKey('')
     }
@@ -313,6 +352,12 @@ export default function Departments() {
           <p className="page-sub">Director control centre for departments, manager assignments, and approval requests.</p>
         </div>
       </div>
+
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'var(--amber-bg)', border: '1px solid var(--amber)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <Metric icon={Building2} label="Departments" value={catalog.filter((row) => row.active !== false).length} hint="Active company departments" />
