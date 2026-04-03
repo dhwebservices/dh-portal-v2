@@ -1,5 +1,6 @@
 export const DASHBOARD_SECTIONS = [
   ['stats', 'Overview stats'],
+  ['manager_board', 'Manager operations board'],
   ['followups', 'My follow-ups today'],
   ['today', 'Today at a glance'],
   ['insight', 'Operations insight'],
@@ -156,6 +157,7 @@ function hexToRgb(hex = '#0071E3') {
 const PRESET_SECTION_STATE = {
   outreach: {
     stats: true,
+    manager_board: false,
     followups: true,
     today: true,
     insight: true,
@@ -167,6 +169,7 @@ const PRESET_SECTION_STATE = {
   },
   manager: {
     stats: true,
+    manager_board: true,
     followups: true,
     today: true,
     insight: true,
@@ -178,6 +181,7 @@ const PRESET_SECTION_STATE = {
   },
   hr_admin: {
     stats: true,
+    manager_board: true,
     followups: false,
     today: true,
     insight: true,
@@ -198,7 +202,7 @@ const PRESET_PAYLOADS = {
     showSystemBanners: true,
     navDensity: 'compact',
     quickActions: ['mytasks', 'notifications', 'clients', 'support', 'schedule', 'appointments'],
-    dashboardOrder: ['stats', 'followups', 'priority', 'notifications', 'appointments', 'today', 'insight', 'schedule', 'activity'],
+    dashboardOrder: ['stats', 'followups', 'priority', 'notifications', 'appointments', 'today', 'insight', 'schedule', 'activity', 'manager_board'],
     dashboardSections: PRESET_SECTION_STATE.outreach,
   },
   manager: {
@@ -209,7 +213,7 @@ const PRESET_PAYLOADS = {
     showSystemBanners: true,
     navDensity: 'comfortable',
     quickActions: ['dashboard', 'mytasks', 'notifications', 'schedule', 'appointments', 'clients'],
-    dashboardOrder: ['stats', 'followups', 'today', 'priority', 'schedule', 'appointments', 'notifications', 'insight', 'activity'],
+    dashboardOrder: ['stats', 'manager_board', 'followups', 'today', 'priority', 'schedule', 'appointments', 'notifications', 'insight', 'activity'],
     dashboardSections: PRESET_SECTION_STATE.manager,
   },
   hr_admin: {
@@ -220,7 +224,7 @@ const PRESET_PAYLOADS = {
     showSystemBanners: true,
     navDensity: 'comfortable',
     quickActions: ['dashboard', 'notifications', 'mytasks', 'schedule', 'reports', 'clients'],
-    dashboardOrder: ['stats', 'today', 'priority', 'activity', 'notifications', 'insight', 'schedule', 'appointments'],
+    dashboardOrder: ['stats', 'manager_board', 'today', 'priority', 'activity', 'notifications', 'insight', 'schedule', 'appointments'],
     dashboardSections: PRESET_SECTION_STATE.hr_admin,
   },
 }

@@ -256,6 +256,7 @@ export default function Dashboard() {
   const [todaySchedule, setTodaySchedule] = useState([])
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
   const [outreachFollowUps, setOutreachFollowUps] = useState([])
+  const [managerBoard, setManagerBoard] = useState([])
   const [activeUsers, setActiveUsers] = useState([])
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -299,6 +300,7 @@ export default function Dashboard() {
     async function load() {
       setLoading(true)
       const activeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const todayStartIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
 
       const results = await Promise.allSettled([
         supabase.from('outreach').select('*', { count: 'exact', head: true }),
@@ -313,13 +315,16 @@ export default function Dashboard() {
         supabase.from('hr_profiles').select('user_email,full_name,role,last_seen').gte('last_seen', activeCutoff).order('last_seen', { ascending: false }).limit(8),
         supabase.from('schedules').select('user_email,user_name,week_data,submitted').eq('week_start', weekStart).eq('submitted', true),
         isAdmin
-          ? supabase.from('hr_leave').select('id,user_name,leave_type,start_date,end_date,status').eq('status', 'pending').order('created_at', { ascending: false }).limit(6)
+          ? supabase.from('hr_leave').select('id,user_name,leave_type,start_date,end_date,status,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(6)
           : Promise.resolve({ data: [] }),
         isAdmin
-          ? supabase.from('onboarding_submissions').select('user_email,user_name,status,submitted_at').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(6)
+          ? supabase.from('onboarding_submissions').select('user_email,user_name,status,submitted_at,created_at,rtw_expiry').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(6)
           : Promise.resolve({ data: [] }),
         supabase.from('appointments').select('id,client_name,staff_name,date,start_time,status').gte('date', todayIso).lte('date', sevenDaysOut).neq('status', 'cancelled').order('date', { ascending: true }).limit(8),
         supabase.from('outreach').select('id,business_name,contact_name,email,status,notes,created_at,updated_at').order('updated_at', { ascending: false }).limit(80),
+        isAdmin
+          ? supabase.from('notifications').select('user_email,title,link,created_at').gte('created_at', todayStartIso)
+          : Promise.resolve({ data: [] }),
       ])
 
       const get = (index, fallback) => (results[index].status === 'fulfilled' ? results[index].value : fallback)
@@ -337,6 +342,7 @@ export default function Dashboard() {
       const onboardingRows = get(10, { data: [] }).data || []
       const appointmentRows = get(11, { data: [] }).data || []
       const outreachRows = get(12, { data: [] }).data || []
+      const todayNotifications = get(13, { data: [] }).data || []
 
       const todaysScheduleRows = scheduleRows
         .map((row) => {
@@ -435,6 +441,159 @@ export default function Dashboard() {
         })
         .slice(0, 6)
       setOutreachFollowUps(nextFollowUps)
+
+      const staleOnboarding = onboardingRows
+        .map((row) => ({
+          ...row,
+          ageDays: row.submitted_at ? Math.floor((Date.now() - new Date(row.submitted_at).getTime()) / 86400000) : 0,
+        }))
+        .filter((row) => row.ageDays >= 2)
+
+      const agingLeave = leaveRows
+        .map((row) => ({
+          ...row,
+          ageDays: row.created_at ? Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000) : 0,
+        }))
+        .filter((row) => row.ageDays >= 2)
+
+      const expiringDocs = onboardingRows
+        .map((row) => {
+          const expiry = row.rtw_expiry
+          if (!expiry) return null
+          const daysLeft = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000)
+          return { ...row, daysLeft }
+        })
+        .filter((row) => row && row.daysLeft >= 0 && row.daysLeft <= 30)
+
+      const managerItems = [
+        ...nextFollowUps.slice(0, 3).map((lead) => ({
+          id: `mgr-outreach-${lead.id}`,
+          title: lead.business_name || lead.contact_name || 'Untitled lead',
+          meta: `${lead.assigned_to_name || 'Unassigned'} · ${lead.follow_up_date ? `follow up ${formatDayLabel(lead.follow_up_date)}` : 'overdue lead'}${lead.email ? ` · ${lead.email}` : ''}`,
+          status: lead.overdue ? 'overdue follow-up' : 'due follow-up',
+          tone: lead.overdue ? 'red' : 'amber',
+          route: '/outreach?filter=follow_up_queue',
+        })),
+        ...agingLeave.slice(0, 2).map((row) => ({
+          id: `mgr-leave-${row.id}`,
+          title: `${row.user_name} leave approval`,
+          meta: `${row.start_date} to ${row.end_date} · waiting ${row.ageDays} day${row.ageDays === 1 ? '' : 's'}`,
+          status: 'pending approval',
+          tone: 'amber',
+          route: '/hr/leave',
+        })),
+        ...staleOnboarding.slice(0, 2).map((row) => ({
+          id: `mgr-onboarding-${row.user_email}`,
+          title: row.user_name || row.user_email,
+          meta: `Onboarding waiting ${row.ageDays} day${row.ageDays === 1 ? '' : 's'}${row.submitted_at ? ` · submitted ${formatDayLabel(row.submitted_at.split('T')[0])}` : ''}`,
+          status: 'review overdue',
+          tone: 'blue',
+          route: '/hr/onboarding',
+        })),
+        ...expiringDocs.slice(0, 2).map((row) => ({
+          id: `mgr-rtw-${row.user_email}`,
+          title: row.user_name || row.user_email,
+          meta: `Right-to-work expires in ${row.daysLeft} day${row.daysLeft === 1 ? '' : 's'}`,
+          status: 'document risk',
+          tone: 'red',
+          route: '/hr/documents',
+        })),
+      ].slice(0, 8)
+      setManagerBoard(managerItems)
+
+      if (isAdmin) {
+        const alreadySent = new Set(
+          todayNotifications.map((row) => `${String(row.user_email || '').toLowerCase()}|${row.title}|${row.link || ''}`)
+        )
+        const adminEmail = String(user?.email || '').toLowerCase()
+        const escalationJobs = []
+
+        const queueAlert = nextFollowUps.filter((lead) => lead.overdue).slice(0, 3)
+        for (const lead of queueAlert) {
+          const title = 'Outreach follow-up escalation'
+          const key = `${adminEmail}|${title}|/outreach?filter=follow_up_queue`
+          if (!alreadySent.has(key)) {
+            escalationJobs.push(sendManagedNotification({
+              userEmail: adminEmail,
+              userName: user?.name || adminEmail,
+              category: 'urgent',
+              type: 'warning',
+              title,
+              message: `${lead.business_name || lead.contact_name || 'A lead'} is overdue for follow-up.${lead.assigned_to_name ? ` Assigned to ${lead.assigned_to_name}.` : ''}${lead.email ? ` Contact email: ${lead.email}.` : ''}`,
+              link: '/outreach?filter=follow_up_queue',
+              emailSubject: `Overdue outreach follow-up — ${lead.business_name || lead.contact_name || 'Lead'}`,
+              sentBy: 'DH Portal',
+              fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            }))
+            alreadySent.add(key)
+          }
+        }
+
+        if (agingLeave.length) {
+          const title = 'Leave approvals are aging'
+          const key = `${adminEmail}|${title}|/hr/leave`
+          if (!alreadySent.has(key)) {
+            escalationJobs.push(sendManagedNotification({
+              userEmail: adminEmail,
+              userName: user?.name || adminEmail,
+              category: 'urgent',
+              type: 'warning',
+              title,
+              message: `${agingLeave.length} leave request${agingLeave.length === 1 ? ' has' : 's have'} been pending for 2+ days and should be reviewed.`,
+              link: '/hr/leave',
+              emailSubject: 'Leave approvals need attention',
+              sentBy: 'DH Portal',
+              fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            }))
+            alreadySent.add(key)
+          }
+        }
+
+        if (staleOnboarding.length) {
+          const title = 'Onboarding reviews need attention'
+          const key = `${adminEmail}|${title}|/hr/onboarding`
+          if (!alreadySent.has(key)) {
+            escalationJobs.push(sendManagedNotification({
+              userEmail: adminEmail,
+              userName: user?.name || adminEmail,
+              category: 'urgent',
+              type: 'info',
+              title,
+              message: `${staleOnboarding.length} onboarding submission${staleOnboarding.length === 1 ? ' is' : 's are'} waiting 2+ days for review.`,
+              link: '/hr/onboarding',
+              emailSubject: 'Onboarding reviews need attention',
+              sentBy: 'DH Portal',
+              fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            }))
+            alreadySent.add(key)
+          }
+        }
+
+        if (expiringDocs.length) {
+          const title = 'Right-to-work documents expiring soon'
+          const key = `${adminEmail}|${title}|/hr/documents`
+          if (!alreadySent.has(key)) {
+            escalationJobs.push(sendManagedNotification({
+              userEmail: adminEmail,
+              userName: user?.name || adminEmail,
+              category: 'urgent',
+              type: 'warning',
+              title,
+              message: `${expiringDocs.length} staff record${expiringDocs.length === 1 ? '' : 's'} ha${expiringDocs.length === 1 ? 's' : 've'} right-to-work documents expiring in the next 30 days.`,
+              link: '/hr/documents',
+              emailSubject: 'Right-to-work documents expiring soon',
+              sentBy: 'DH Portal',
+              fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            }))
+            alreadySent.add(key)
+          }
+        }
+
+        if (escalationJobs.length) {
+          Promise.allSettled(escalationJobs).catch(() => {})
+        }
+      }
+
       setNotifications(unreadRows)
       setActiveUsers(activeRows)
       setLoading(false)
@@ -660,6 +819,29 @@ export default function Dashboard() {
             ) : <EmptyState text={isAdmin ? 'No assigned outreach follow-ups are due right now.' : 'No assigned leads need chasing right now.'} />}
           </Panel>
         )
+      case 'manager_board':
+        return isAdmin ? (
+          <Panel
+            key={key}
+            title="Manager Operations Board"
+            actionLabel="Open Reports"
+            onAction={() => navigate('/reports')}
+            tone="var(--accent-border)"
+          >
+            {managerBoard.length ? (
+              managerBoard.map((item) => (
+                <QueueRow
+                  key={item.id}
+                  title={item.title}
+                  meta={item.meta}
+                  status={item.status}
+                  tone={item.tone}
+                  onClick={() => navigate(item.route)}
+                />
+              ))
+            ) : <EmptyState text="No urgent manager escalations are showing right now." />}
+          </Panel>
+        ) : null
       case 'insight':
         return (
           <div key={key} className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
