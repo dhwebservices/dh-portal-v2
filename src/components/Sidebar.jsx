@@ -136,15 +136,15 @@ const css = `
   width: var(--sw); height: 100vh; position: fixed; left: 0; top: 0; z-index: 100;
   background: var(--bg); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center;
-  padding: 12px 0; gap: 2px;
+  padding: 14px 0; gap: 4px;
 }
 .dh-dock-logo {
-  width: 32px; height: 32px; margin-bottom: 8px; flex-shrink: 0;
+  width: 36px; height: 36px; margin-bottom: 10px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .dh-dock-sep { width: 24px; height: 1px; background: var(--border); margin: 4px 0; flex-shrink: 0; }
 .dh-dock-btn {
-  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer; position: relative; gap: 3px;
   color: var(--faint); transition: background 0.15s, color 0.15s;
@@ -155,7 +155,7 @@ const css = `
   content: ''; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 18px; background: var(--accent); border-radius: 0 2px 2px 0;
 }
-.dh-dock-label { font-family: var(--font-mono); font-size: 7px; letter-spacing: 0.04em; line-height: 1; }
+.dh-dock-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.04em; line-height: 1; }
 .dh-tip {
   position: absolute; left: 50px; top: 50%; transform: translateY(-50%);
   background: var(--card); border: 1px solid var(--border2);
@@ -168,10 +168,10 @@ const css = `
 .dh-dock-btn:hover .dh-tip { opacity: 1; }
 .dh-dock-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .dh-avatar {
-  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   background: var(--accent-soft); border: 1px solid var(--accent-border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 600; color: var(--accent); cursor: pointer;
+  font-size: 11.5px; font-weight: 600; color: var(--accent); cursor: pointer;
   transition: border-color 0.15s;
 }
 .dh-avatar:hover { border-color: var(--accent); }

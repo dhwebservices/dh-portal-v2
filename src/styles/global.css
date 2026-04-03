@@ -7,7 +7,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --sidebar-w: 56px;
+  --sidebar-w: 64px;
   --font-size-base: 14px;
   --line-height-base: 1.5;
   /* Surfaces */
@@ -52,7 +52,7 @@
   --font-mono:    'JetBrains Mono', monospace;
 
   /* Layout */
-  --sw: 56px;
+  --sw: 64px;
   --sidebar-panel-w: 300px;
   --radius: 10px;
   --radius-sm: 7px;
