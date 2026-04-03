@@ -226,6 +226,70 @@ export default function Departments() {
     }
   }
 
+  async function deleteDepartment(department) {
+    if (!department?.id) return
+    const assignedCount = profiles.filter((row) => row.department === department.name).length
+    if (assignedCount > 0) {
+      setError(`Move ${assignedCount} staff member${assignedCount === 1 ? '' : 's'} out of ${department.name} before deleting it.`)
+      return
+    }
+
+    const hasPendingRequests = requests.some((row) =>
+      row.status === 'pending' && (row.requested_department === department.name || row.current_department === department.name),
+    )
+    if (hasPendingRequests) {
+      setError(`Resolve pending department requests for ${department.name} before deleting it.`)
+      return
+    }
+
+    const confirmed = window.confirm(`Delete the department "${department.name}"? This removes it from the department list.`)
+    if (!confirmed) return
+
+    setSavingKey(`delete:${department.id}`)
+    setError('')
+    try {
+      const nextCatalog = catalog.filter((item) => item.id !== department.id)
+      await saveCatalog(nextCatalog)
+
+      const managerEmail = normalizePortalEmail(department.manager_email)
+      if (managerEmail) {
+        const { data: orgSetting } = await supabase
+          .from('portal_settings')
+          .select('value')
+          .eq('key', buildStaffOrgKey(managerEmail))
+          .maybeSingle()
+
+        const existingOrg = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
+          email: managerEmail,
+        })
+        const nextManagedDepartments = (existingOrg.managed_departments || []).filter((item) => item !== department.name)
+        const nextRoleScope = nextManagedDepartments.length > 0 || existingOrg.department
+          ? existingOrg.role_scope
+          : 'staff'
+
+        await supabase.from('portal_settings').upsert({
+          key: buildStaffOrgKey(managerEmail),
+          value: {
+            value: mergeOrgRecord({
+              ...existingOrg,
+              managed_departments: nextManagedDepartments,
+              role_scope: nextRoleScope,
+            }, {
+              email: managerEmail,
+              department: existingOrg.department,
+            }),
+          },
+        }, { onConflict: 'key' })
+      }
+
+      await load()
+    } catch (deleteError) {
+      setError(deleteError?.message || 'Could not delete the department.')
+    } finally {
+      setSavingKey('')
+    }
+  }
+
   async function applyAssignment(row, override = {}) {
     const current = assignments[row.user_email] || {}
     const requestedDepartment = override.department || current.department
@@ -410,6 +474,14 @@ export default function Departments() {
                     </div>
                     <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { active: !department.active })} disabled={savingKey === department.id}>
                       {department.active !== false ? 'Archive' : 'Restore'}
+                    </button>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => deleteDepartment(department)}
+                      disabled={savingKey === `delete:${department.id}`}
+                      style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}
+                    >
+                      {savingKey === `delete:${department.id}` ? 'Deleting...' : 'Delete'}
                     </button>
                     <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { name: `${department.name} (Updated)` })} disabled style={{ opacity: 0.45 }}>
                       Rename later
