@@ -935,6 +935,69 @@ export default function StaffProfile() {
     return payload
   }
 
+  const issueContractRecord = async ({ template, signerName, signerTitle, notes = '', replacedContract = null }) => {
+    const mergeFields = buildContractMergeFields({
+      profile,
+      orgRecord,
+      template,
+      managerTitle: signerTitle,
+      staffEmail: email,
+    })
+    const managerSignature = createPortalSignature({
+      name: signerName,
+      title: signerTitle,
+      email: user?.email || '',
+    })
+    const now = new Date().toISOString()
+    const replacementNote = replacedContract ? `Replacement for ${replacedContract.template_name || 'previous contract'} issued ${replacedContract.issued_at ? new Date(replacedContract.issued_at).toLocaleDateString('en-GB') : 'previously'}.` : ''
+    const nextContract = await persistContractRecord({
+      template_id: template.id,
+      template_name: template.name,
+      contract_type: template.contract_type,
+      subject: template.subject,
+      staff_email: email,
+      staff_name: profile.full_name || email,
+      staff_role: profile.role || '',
+      staff_department: profile.department || orgRecord.department || '',
+      manager_email: profile.manager_email || orgRecord.reports_to_email || normalizeEmail(user?.email || ''),
+      manager_name: profile.manager_name || orgRecord.reports_to_name || signerName,
+      manager_title: signerTitle,
+      status: 'awaiting_staff_signature',
+      notes: [notes, replacementNote].filter(Boolean).join(' '),
+      merge_fields: mergeFields,
+      template_html: template.content_html,
+      template_reference_file_url: template.reference_file_url,
+      template_reference_file_path: template.reference_file_path,
+      template_reference_file_name: template.reference_file_name,
+      manager_signature: managerSignature,
+      manager_signed_at: managerSignature.signed_at,
+      issued_at: now,
+      updated_at: now,
+    })
+
+    await sendManagedNotification({
+      userEmail: email,
+      userName: profile.full_name || email,
+      category: 'hr',
+      type: 'info',
+      title: replacedContract ? 'Replacement contract ready to sign' : 'Contract ready to sign',
+      message: `${signerName.trim()} has issued your ${template.contract_type || 'employment contract'}. Review and sign it in onboarding to complete your HR setup.`,
+      link: '/hr/onboarding',
+      emailSubject: `${template.subject || template.name} — ready to sign`,
+      emailHtml: `
+        <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+        <p>Your ${template.contract_type || 'employment contract'} is ready for signature in DH Portal.</p>
+        ${replacedContract ? '<p>This is a replacement contract and supersedes the previous unsigned version.</p>' : ''}
+        <p>Please review and sign it inside onboarding to complete your staff setup.</p>
+        <p><a href="https://staff.dhwebsiteservices.co.uk/hr/onboarding" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open onboarding</a></p>
+      `,
+      sentBy: user?.name || user?.email || 'Department manager',
+      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      forceImportant: true,
+    })
+    return nextContract
+  }
+
   const issueContractToStaff = async () => {
     if (!contractForm.templateId) {
       setContractError('Choose a contract template first.')
@@ -956,64 +1019,12 @@ export default function StaffProfile() {
     setContractSuccess('')
 
     try {
-      const mergeFields = buildContractMergeFields({
-        profile,
-        orgRecord,
+      const nextContract = await issueContractRecord({
         template,
-        managerTitle: contractForm.managerSignatureTitle,
-        staffEmail: email,
+        signerName: contractForm.managerSignatureName,
+        signerTitle: contractForm.managerSignatureTitle,
+        notes: contractForm.notes,
       })
-      const managerSignature = createPortalSignature({
-        name: contractForm.managerSignatureName,
-        title: contractForm.managerSignatureTitle,
-        email: user?.email || '',
-      })
-      const now = new Date().toISOString()
-      const nextContract = await persistContractRecord({
-        template_id: template.id,
-        template_name: template.name,
-        contract_type: template.contract_type,
-        subject: template.subject,
-        staff_email: email,
-        staff_name: profile.full_name || email,
-        staff_role: profile.role || '',
-        staff_department: profile.department || orgRecord.department || '',
-        manager_email: profile.manager_email || orgRecord.reports_to_email || normalizeEmail(user?.email || ''),
-        manager_name: profile.manager_name || orgRecord.reports_to_name || contractForm.managerSignatureName,
-        manager_title: contractForm.managerSignatureTitle,
-        status: 'awaiting_staff_signature',
-        notes: contractForm.notes || '',
-        merge_fields: mergeFields,
-        template_html: template.content_html,
-        template_reference_file_url: template.reference_file_url,
-        template_reference_file_path: template.reference_file_path,
-        template_reference_file_name: template.reference_file_name,
-        manager_signature: managerSignature,
-        manager_signed_at: managerSignature.signed_at,
-        issued_at: now,
-        updated_at: now,
-      })
-
-      await sendManagedNotification({
-        userEmail: email,
-        userName: profile.full_name || email,
-        category: 'hr',
-        type: 'info',
-        title: 'Contract ready to sign',
-        message: `${contractForm.managerSignatureName.trim()} has issued your ${template.contract_type || 'employment contract'}. Review and sign it in onboarding to complete your HR setup.`,
-        link: '/hr/onboarding',
-        emailSubject: `${template.subject || template.name} — ready to sign`,
-        emailHtml: `
-          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
-          <p>Your ${template.contract_type || 'employment contract'} is ready for signature in DH Portal.</p>
-          <p>Please review and sign it inside onboarding to complete your staff setup.</p>
-          <p><a href="https://staff.dhwebsiteservices.co.uk/hr/onboarding" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open onboarding</a></p>
-        `,
-        sentBy: user?.name || user?.email || 'Department manager',
-        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-        forceImportant: true,
-      })
-
       setContractForm((current) => ({
         ...current,
         notes: '',
@@ -1055,6 +1066,80 @@ export default function StaffProfile() {
     } catch (error) {
       console.error('Contract void failed:', error)
       setContractError(error.message || 'Could not void the contract.')
+    } finally {
+      setContractSaving(false)
+    }
+  }
+
+  const resendContractReminder = async (contract) => {
+    setContractSaving(true)
+    setContractError('')
+    setContractSuccess('')
+    try {
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'warning',
+        title: 'Contract signature reminder',
+        message: `${contract.template_name || 'Your contract'} is still waiting for your digital signature in onboarding.`,
+        link: '/hr/onboarding',
+        emailSubject: `${contract.subject || contract.template_name || 'DH Portal contract'} — signature reminder`,
+        emailHtml: `
+          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+          <p>This is a reminder that your ${contract.template_name || contract.contract_type || 'contract'} is still waiting for your digital signature in DH Portal.</p>
+          <p><a href="https://staff.dhwebsiteservices.co.uk/hr/onboarding" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open onboarding</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      })
+      setContractSuccess(`Reminder sent for ${contract.template_name || 'the contract'}.`)
+    } catch (error) {
+      console.error('Contract reminder failed:', error)
+      setContractError(error.message || 'Could not resend the contract reminder.')
+    } finally {
+      setContractSaving(false)
+    }
+  }
+
+  const replaceContract = async (contract) => {
+    const template = contractTemplates.find((item) => item.id === contract.template_id)
+    if (!template) {
+      setContractError('The original contract template could not be found, so this contract cannot be replaced automatically.')
+      return
+    }
+    const confirmed = confirm(`Replace ${contract.template_name || 'this contract'} with a newly issued version? The current version will be voided and the staff member will receive a fresh signing request.`)
+    if (!confirmed) return
+
+    setContractSaving(true)
+    setContractError('')
+    setContractSuccess('')
+    try {
+      const voidedContract = await persistContractRecord({
+        ...contract,
+        status: 'voided',
+        voided_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        notes: [contract.notes, 'Replaced with a newly issued contract.'].filter(Boolean).join(' '),
+      })
+      const nextContract = await issueContractRecord({
+        template,
+        signerName: contractForm.managerSignatureName || contract.manager_signature?.name || contract.manager_name || user?.name || user?.email || '',
+        signerTitle: contractForm.managerSignatureTitle || contract.manager_signature?.title || contract.manager_title || activeContractTemplate?.manager_title_default || roleScopeLabel || 'Department Manager',
+        notes: contractForm.notes || contract.notes,
+        replacedContract: voidedContract,
+      })
+      setContractForm((current) => ({
+        ...current,
+        templateId: template.id,
+        managerSignatureName: current.managerSignatureName || contract.manager_signature?.name || contract.manager_name || '',
+        managerSignatureTitle: current.managerSignatureTitle || contract.manager_signature?.title || contract.manager_title || activeContractTemplate?.manager_title_default || roleScopeLabel || 'Department Manager',
+      }))
+      setContractSuccess(`Replaced ${contract.template_name || 'the contract'} and issued ${nextContract.template_name} for a fresh signature.`)
+    } catch (error) {
+      console.error('Contract replacement failed:', error)
+      setContractError(error.message || 'Could not replace the contract.')
     } finally {
       setContractSaving(false)
     }
@@ -2489,6 +2574,12 @@ export default function StaffProfile() {
                           <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                             {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
                             {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Open template attachment</a> : null}
+                            {contract.status === 'awaiting_staff_signature' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => resendContractReminder(contract)} disabled={contractSaving}>Resend reminder</button>
+                            ) : null}
+                            {contract.status !== 'voided' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => replaceContract(contract)} disabled={contractSaving}>Replace</button>
+                            ) : null}
                             {contract.status !== 'completed' && contract.status !== 'voided' ? (
                               <button className="btn btn-outline btn-sm" onClick={() => voidContract(contract)} disabled={contractSaving}>Void</button>
                             ) : null}

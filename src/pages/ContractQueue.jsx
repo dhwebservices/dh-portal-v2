@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { createStaffContract, getContractStatusLabel } from '../utils/contracts'
 import { normalizeEmail } from '../utils/hrProfileSync'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const STATUS_FILTERS = [
   ['all', 'All contracts'],
@@ -32,6 +33,8 @@ export default function ContractQueue() {
   const [filter, setFilter] = useState('all')
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [error, setError] = useState('')
+  const [busyContractId, setBusyContractId] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     load()
@@ -40,6 +43,7 @@ export default function ContractQueue() {
   const load = async () => {
     setLoading(true)
     setError('')
+    setMessage('')
     try {
       const currentEmail = normalizeEmail(user?.email || '')
       const { data, error: fetchError } = await supabase
@@ -87,6 +91,42 @@ export default function ContractQueue() {
   const awaitingCount = contracts.filter((contract) => contract.status === 'awaiting_staff_signature').length
   const completedCount = contracts.filter((contract) => contract.status === 'completed').length
   const voidedCount = contracts.filter((contract) => contract.status === 'voided').length
+  const overdueCount = contracts.filter((contract) => {
+    if (contract.status !== 'awaiting_staff_signature' || !contract.issued_at) return false
+    return (Date.now() - new Date(contract.issued_at).getTime()) / 86400000 >= 3
+  }).length
+
+  const resendReminder = async (contract) => {
+    setBusyContractId(contract.id)
+    setError('')
+    setMessage('')
+    try {
+      await sendManagedNotification({
+        userEmail: contract.staff_email,
+        userName: contract.staff_name || contract.staff_email,
+        category: 'hr',
+        type: 'warning',
+        title: 'Contract signature reminder',
+        message: `${contract.template_name || 'Your contract'} is still waiting for your digital signature in onboarding.`,
+        link: '/hr/onboarding',
+        emailSubject: `${contract.subject || contract.template_name || 'DH Portal contract'} — signature reminder`,
+        emailHtml: `
+          <p>Hi ${(contract.staff_name || contract.staff_email || 'there').split(' ')[0] || 'there'},</p>
+          <p>This is a reminder that your ${contract.template_name || contract.contract_type || 'contract'} is still waiting for your digital signature in DH Portal.</p>
+          <p><a href="https://staff.dhwebsiteservices.co.uk/hr/onboarding" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open onboarding</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      })
+      setMessage(`Reminder sent to ${contract.staff_name || contract.staff_email}.`)
+    } catch (err) {
+      console.error('Contract queue reminder failed:', err)
+      setError(err.message || 'Could not resend the contract reminder.')
+    } finally {
+      setBusyContractId('')
+    }
+  }
 
   return (
     <div className="fade-in">
@@ -118,6 +158,10 @@ export default function ContractQueue() {
           <div className="stat-val" style={{ color:'var(--red)' }}>{voidedCount}</div>
           <div className="stat-lbl">Voided</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-val" style={{ color:'var(--amber)' }}>{overdueCount}</div>
+          <div className="stat-lbl">Overdue 3+ days</div>
+        </div>
       </div>
 
       <div className="card card-pad" style={{ marginBottom:18, display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
@@ -139,6 +183,9 @@ export default function ContractQueue() {
       {error ? (
         <div className="card card-pad" style={{ color:'var(--red)' }}>{error}</div>
       ) : null}
+      {message ? (
+        <div className="card card-pad" style={{ color:'var(--green)', marginBottom:18 }}>{message}</div>
+      ) : null}
 
       {loading ? (
         <div className="card card-pad">Loading contract queue...</div>
@@ -158,6 +205,8 @@ export default function ContractQueue() {
             <tbody>
               {filteredContracts.map((contract) => {
                 const [statusLabel, statusTone] = getContractStatusLabel(contract.status)
+                const waitingDays = contract.issued_at ? Math.floor((Date.now() - new Date(contract.issued_at).getTime()) / 86400000) : null
+                const overdue = contract.status === 'awaiting_staff_signature' && waitingDays !== null && waitingDays >= 3
                 return (
                   <tr key={contract.id}>
                     <td>
@@ -168,6 +217,7 @@ export default function ContractQueue() {
                     <td>
                       <div style={{ fontWeight:500, color:'var(--text)' }}>{contract.template_name || contract.contract_type || 'Contract'}</div>
                       <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>Manager: {contract.manager_signature?.name || contract.manager_name || 'Pending'}</div>
+                      {overdue ? <div style={{ fontSize:11.5, color:'var(--amber)', marginTop:6 }}>Overdue by {waitingDays} day{waitingDays === 1 ? '' : 's'}</div> : null}
                     </td>
                     <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{formatStamp(contract.issued_at || contract.created_at)}</td>
                     <td><span className={`badge badge-${statusTone}`}>{statusLabel}</span></td>
@@ -175,6 +225,11 @@ export default function ContractQueue() {
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
                         {contract.final_document_url ? (
                           <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open PDF</a>
+                        ) : null}
+                        {contract.status === 'awaiting_staff_signature' ? (
+                          <button className="btn btn-outline btn-sm" onClick={() => resendReminder(contract)} disabled={busyContractId === contract.id}>
+                            {busyContractId === contract.id ? 'Sending...' : 'Resend reminder'}
+                          </button>
                         ) : null}
                         <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(contract.staff_email)}?tab=contracts`)}>
                           Open staff contract
