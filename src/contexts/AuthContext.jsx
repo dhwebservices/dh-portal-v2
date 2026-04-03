@@ -42,6 +42,75 @@ function sanitizePermissions(raw) {
   return { ...BASE_PERMISSIONS, ...raw }
 }
 
+async function loadPortalIdentity(email = '', fallbackName = '') {
+  const safeEmail = String(email || '').toLowerCase().trim()
+  if (!safeEmail) throw new Error('No staff email supplied for preview.')
+
+  const [
+    permissionsResult,
+    hrResult,
+    preferenceResult,
+    lifecycleResult,
+    orgResult,
+  ] = await Promise.all([
+    supabase
+      .from('user_permissions')
+      .select('permissions, onboarding')
+      .ilike('user_email', safeEmail)
+      .maybeSingle(),
+    supabase
+      .from('hr_profiles')
+      .select('department, manager_email, manager_name, full_name')
+      .ilike('user_email', safeEmail)
+      .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildPreferenceSettingKey(safeEmail))
+      .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildLifecycleSettingKey(safeEmail))
+      .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildStaffOrgKey(safeEmail))
+      .maybeSingle(),
+  ])
+
+  const hrProfile = hrResult?.data || {}
+  const preferenceRaw = preferenceResult?.data?.value?.value ?? preferenceResult?.data?.value ?? {}
+  const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
+  const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
+  const nextOrg = mergeOrgRecord(orgRaw, {
+    email: safeEmail,
+    department: hrProfile?.department,
+    isDirector: isDirectorEmail(safeEmail),
+  })
+  const permissionsData = permissionsResult?.data
+  const safePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
+
+  return {
+    user: {
+      email: safeEmail,
+      name: hrProfile?.full_name || fallbackName || safeEmail,
+      initials: (hrProfile?.full_name || fallbackName || safeEmail).split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase(),
+    },
+    perms: OWNER_EMAILS.has(safeEmail) ? null : safePerms,
+    isAdmin: OWNER_EMAILS.has(safeEmail) || permissionsData?.permissions?.admin === true || nextOrg.role_scope === 'director',
+    isOnboarding: permissionsData?.onboarding === true,
+    lifecycle: mergeLifecycleRecord(lifecycleRaw),
+    org: {
+      ...nextOrg,
+      reports_to_email: nextOrg.reports_to_email || String(hrProfile?.manager_email || '').toLowerCase().trim(),
+      reports_to_name: nextOrg.reports_to_name || hrProfile?.manager_name || '',
+    },
+    preferences: mergePortalPreferences(readStoredPortalPreferences(), preferenceRaw),
+  }
+}
+
 export function AuthProvider({ children }) {
   const { accounts } = useMsal()
   const account = accounts[0]
@@ -53,6 +122,7 @@ export function AuthProvider({ children }) {
   const [lifecycle, setLifecycle] = useState(mergeLifecycleRecord())
   const [org, setOrg] = useState(mergeOrgRecord())
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
+  const [previewState, setPreviewState] = useState(null)
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
@@ -202,20 +272,32 @@ export function AuthProvider({ children }) {
     return () => clearTimeout(timeout)
   }, [normalizedEmail, account?.name])
 
-  const user = account ? {
+  const realUser = account ? {
     email:    normalizedEmail,
     name:     account.name || normalizedEmail,
     initials: (account.name || normalizedEmail).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   } : null
 
-  const managedDepartments = getManagedDepartments(org)
-  const isDirector = isDirectorEmail(normalizedEmail) || org?.role_scope === 'director'
+  const effectiveUser = previewState?.user || realUser
+  const effectivePerms = previewState?.perms ?? perms
+  const effectiveIsAdmin = previewState?.isAdmin ?? isAdmin
+  const effectiveIsOnboarding = previewState?.isOnboarding ?? isOnboarding
+  const effectiveLifecycle = previewState?.lifecycle || lifecycle
+  const effectiveOrg = previewState?.org || org
+  const effectivePreferences = previewState?.preferences || preferences
+
+  const managedDepartments = getManagedDepartments(effectiveOrg)
+  const isDirector = isDirectorEmail(effectiveUser?.email) || effectiveOrg?.role_scope === 'director'
   const isDepartmentManager = !isDirector && managedDepartments.length > 0
 
+  const realManagedDepartments = getManagedDepartments(org)
+  const realIsDirector = isDirectorEmail(normalizedEmail) || org?.role_scope === 'director'
+  const realIsDepartmentManager = !realIsDirector && realManagedDepartments.length > 0
+
   const can = (key) => {
-    if (TERMINATED_STATES.has(lifecycle?.state)) return false
-    const isExplicitlyAllowed = perms?.[key] === true
-    const isExplicitlyDenied = perms?.[key] === false
+    if (TERMINATED_STATES.has(effectiveLifecycle?.state)) return false
+    const isExplicitlyAllowed = effectivePerms?.[key] === true
+    const isExplicitlyDenied = effectivePerms?.[key] === false
 
     if (key === 'departments') {
       if (!isDirector) return false
@@ -235,25 +317,57 @@ export function AuthProvider({ children }) {
       if (isDirector) return !isExplicitlyDenied
       if (isDepartmentManager) return isExplicitlyAllowed
     }
-    if (isAdmin) return true
-    if (perms === null) return false
-    if (typeof perms !== 'object') return false
-    if (perms[key] === true) return true
-    if (perms[key] === false) return false
+    if (effectiveIsAdmin) return true
+    if (effectivePerms === null) return false
+    if (typeof effectivePerms !== 'object') return false
+    if (effectivePerms[key] === true) return true
+    if (effectivePerms[key] === false) return false
     return false
   }
 
   const canViewScopedStaff = (targetProfile = {}, targetOrg = {}) => canViewStaffMember({
+    viewerEmail: effectiveUser?.email,
+    viewerOrg: effectiveOrg,
+    targetProfile,
+    targetOrg,
+  })
+
+  const canPreviewStaffMember = (targetProfile = {}, targetOrg = {}) => canViewStaffMember({
     viewerEmail: normalizedEmail,
     viewerOrg: org,
     targetProfile,
     targetOrg,
   })
 
+  const startPreviewAs = async ({ email, name } = {}) => {
+    const safeEmail = String(email || '').toLowerCase().trim()
+    if (!safeEmail) throw new Error('No staff email supplied for preview.')
+    if (!realIsDirector && !realIsDepartmentManager) throw new Error('Only Directors and Department Managers can use preview mode.')
+
+    const nextPreview = await loadPortalIdentity(safeEmail, name)
+    if (!realIsDirector && !canPreviewStaffMember({ user_email: safeEmail, department: nextPreview.org?.department }, nextPreview.org)) {
+      throw new Error('That staff member sits outside your department scope.')
+    }
+
+    setPreviewState(nextPreview)
+    applyPortalAppearance(nextPreview.preferences)
+    return nextPreview
+  }
+
+  const stopPreviewAs = () => {
+    setPreviewState(null)
+    applyPortalAppearance(preferences)
+  }
+
   const updatePreferences = async (patch, options = {}) => {
     const targetEmail = String(options.email || normalizedEmail || '').toLowerCase().trim()
-    const nextPreferences = mergePortalPreferences(preferences, patch)
-    setPreferences(nextPreferences)
+    const basePreferences = previewState && targetEmail === previewState.user?.email ? previewState.preferences : preferences
+    const nextPreferences = mergePortalPreferences(basePreferences, patch)
+    if (previewState && targetEmail === previewState.user?.email) {
+      setPreviewState((current) => current ? { ...current, preferences: nextPreferences } : current)
+    } else {
+      setPreferences(nextPreferences)
+    }
     applyPortalAppearance(nextPreferences)
 
     if (options.persist === false || !targetEmail) return nextPreferences
@@ -271,20 +385,26 @@ export function AuthProvider({ children }) {
 
   return (
     <Ctx.Provider value={{
-      user,
-      perms,
+      user: effectiveUser,
+      realUser,
+      perms: effectivePerms,
       can,
       canViewScopedStaff,
-      isAdmin,
+      canPreviewStaffMember,
+      isAdmin: effectiveIsAdmin,
       isDirector,
       isDepartmentManager,
       managedDepartments,
-      isOnboarding,
+      isOnboarding: effectiveIsOnboarding,
       maintenance,
-      lifecycle,
-      org,
-      preferences,
+      lifecycle: effectiveLifecycle,
+      org: effectiveOrg,
+      preferences: effectivePreferences,
       updatePreferences,
+      isPreviewing: !!previewState,
+      previewTarget: previewState?.user || null,
+      startPreviewAs,
+      stopPreviewAs,
       loading,
     }}>
       {children}

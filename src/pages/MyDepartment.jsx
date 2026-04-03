@@ -127,7 +127,7 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
 
 export default function MyDepartment() {
   const navigate = useNavigate()
-  const { user, org, isDirector, isDepartmentManager, managedDepartments } = useAuth()
+  const { user, org, isDirector, isDepartmentManager, managedDepartments, startPreviewAs, canPreviewStaffMember, isPreviewing, previewTarget } = useAuth()
   const { instance, accounts } = useMsal()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
@@ -257,6 +257,15 @@ export default function MyDepartment() {
   const currentDepartmentTasks = departmentTasks.filter((task) => String(task.assigned_department || '').trim() === currentDepartment)
   const openDepartmentTasks = currentDepartmentTasks.filter((task) => task.status !== 'done')
   const overdueDepartmentTasks = openDepartmentTasks.filter((task) => task.due_date && new Date(task.due_date) < new Date())
+
+  async function impersonateStaffMember(staffRow) {
+    try {
+      await startPreviewAs({ email: staffRow.user_email, name: staffRow.full_name || staffRow.user_email })
+      navigate('/dashboard')
+    } catch (error) {
+      setError(error?.message || 'Could not start impersonation.')
+    }
+  }
 
   async function persistDepartmentChange(staffRow, nextDepartment = '', roleScope = '', nextManager = null) {
     const safeDepartment = String(nextDepartment || '').trim()
@@ -556,7 +565,7 @@ export default function MyDepartment() {
                   </span>
                 </div>
               </button>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
                 <select
                   className="inp"
                   value={memberActions[row.user_email]?.nextDepartment || ''}
@@ -570,6 +579,14 @@ export default function MyDepartment() {
                     <option key={item.id} value={item.name}>{item.name}</option>
                   ))}
                 </select>
+                {canPreviewStaffMember(row, row.org) ? (
+                  <button
+                    className={isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                    onClick={() => impersonateStaffMember(row)}
+                  >
+                    {isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'Impersonating' : 'Impersonate'}
+                  </button>
+                ) : null}
                 {isDirector ? (
                   <>
                     <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>

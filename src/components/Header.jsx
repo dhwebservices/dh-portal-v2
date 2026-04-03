@@ -45,7 +45,7 @@ function SearchIcon() {
 
 export default function Header() {
   const { pathname } = useLocation()
-  const { user } = useAuth()
+  const { user, realUser, isPreviewing, previewTarget, stopPreviewAs } = useAuth()
   const navigate = useNavigate()
   const [notifs, setNotifs]       = useState([])
   const [pinnedAlerts, setPinnedAlerts] = useState([])
@@ -102,12 +102,31 @@ export default function Header() {
 
   return (
     <header className="main-header">
-      <div className="header-crumbs">
-        <button onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
-        <span style={{ color:'var(--border2)', fontSize:14 }}>/</span>
-        <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
-          {TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')}
-        </span>
+      <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0, flex:1 }}>
+        <div className="header-crumbs">
+          <button onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
+          <span style={{ color:'var(--border2)', fontSize:14 }}>/</span>
+          <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
+            {TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')}
+          </span>
+        </div>
+        {isPreviewing && previewTarget ? (
+          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'6px 10px', borderRadius:999, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
+            <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>Impersonating</span>
+            <span style={{ fontSize:12.5, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220 }}>
+              {previewTarget.name || previewTarget.email}
+            </span>
+            <span style={{ fontSize:11, color:'var(--sub)', whiteSpace:'nowrap' }}>
+              as {realUser?.name || realUser?.email}
+            </span>
+            <button
+              onClick={() => { stopPreviewAs(); navigate('/my-staff') }}
+              style={{ border:'none', background:'var(--accent)', color:'#fff', borderRadius:999, padding:'6px 10px', fontSize:11.5, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}
+            >
+              Exit impersonation
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="header-actions">

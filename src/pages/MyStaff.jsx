@@ -59,7 +59,7 @@ const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', 
 export default function MyStaff() {
   const navigate = useNavigate()
   const { instance, accounts } = useMsal()
-  const { isDirector, canViewScopedStaff, managedDepartments } = useAuth()
+  const { isDirector, isDepartmentManager, canViewScopedStaff, canPreviewStaffMember, managedDepartments, startPreviewAs, isPreviewing, previewTarget } = useAuth()
   const [msUsers, setMsUsers]   = useState([])
   const [profiles, setProfiles] = useState({})
   const [permsMap, setPermsMap] = useState({})
@@ -186,6 +186,15 @@ export default function MyStaff() {
   const COLOURS = ['#0071E3','#30A46C','#E54D2E','#8E4EC6','#C2500D','#0197C8','#D6409F']
   const colourFor = (email) => COLOURS[(email||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0) % COLOURS.length]
 
+  const impersonate = async (u, profile = {}, targetOrg = {}) => {
+    try {
+      await startPreviewAs({ email: u.email?.toLowerCase(), name: profile.full_name || u.name })
+      navigate('/dashboard')
+    } catch (error) {
+      alert(error?.message || 'Could not start impersonation.')
+    }
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd">
@@ -253,16 +262,32 @@ export default function MyStaff() {
               startDate: profile.start_date,
               contractType: profile.contract_type,
             })
+            const targetOrg = orgMap[userEmail] || mergeOrgRecord({}, { email: userEmail, department: profile.department })
             const isActiveNow = isRecentlyActive(profile.last_seen)
             const colour = colourFor(userEmail)
+            const canImpersonate = (isDirector || isDepartmentManager) && canPreviewStaffMember(profile, targetOrg)
+            const isCurrentImpersonation = isPreviewing && previewTarget?.email?.toLowerCase?.() === userEmail
             return (
-              <button
+              <div
                 key={u.id}
-                onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
-                style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'24px 20px', textAlign:'center', cursor:'pointer', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}
+                style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'24px 20px', textAlign:'center', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative' }}
                 onMouseOver={e => { e.currentTarget.style.borderColor=colour; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${colour}22` }}
                 onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
               >
+                <div style={{ position:'absolute', top:10, right:10, display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  {canImpersonate ? (
+                    <button
+                      className={isCurrentImpersonation ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                      onClick={() => impersonate(u, profile, targetOrg)}
+                    >
+                      {isCurrentImpersonation ? 'Impersonating' : 'Impersonate'}
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
+                  style={{ width:'100%', border:'none', background:'transparent', padding:0, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}
+                >
                 {/* Avatar */}
                 <div style={{ width:56, height:56, borderRadius:'50%', background:colour+'18', border:`2px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:600, color:colour, fontFamily:'var(--font-display)', flexShrink:0 }}>
                   {getInitials(u.name)}
@@ -285,7 +310,8 @@ export default function MyStaff() {
                     {formatPresenceLabel(profile.last_seen)}
                   </span>
                 </div>
-              </button>
+                </button>
+              </div>
             )
           })}
           {filtered.length === 0 && !loading && (
