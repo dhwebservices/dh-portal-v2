@@ -30,6 +30,53 @@ function daysUntil(dateString) {
   return Math.ceil(diff / 86400000)
 }
 
+function buildSubmissionPayload({ user, form, employmentContext, status }) {
+  return {
+    user_email: normalizeEmail(user?.email || ''),
+    user_name: form.full_name || user?.name || user?.email || '',
+    preferred_name: form.preferred_name || '',
+    dob: form.dob || null,
+    gender: form.gender || '',
+    nationality: form.nationality || '',
+    ni_number: form.ni_number || '',
+    address_line1: form.address_line1 || '',
+    address_line2: form.address_line2 || '',
+    city: form.city || '',
+    postcode: form.postcode || '',
+    personal_email: form.personal_email || '',
+    personal_phone: form.personal_phone || '',
+    job_title: form.job_title || employmentContext.job_title || '',
+    department: form.department || employmentContext.department || '',
+    start_date: form.start_date || employmentContext.start_date || '',
+    contract_type: form.contract_type || employmentContext.contract_type || '',
+    hours_per_week: form.hours_per_week || '',
+    manager_name: form.manager_name || employmentContext.manager_name || '',
+    manager_email: form.manager_email || employmentContext.manager_email || '',
+    work_location: form.work_location || '',
+    company_portal_confirmed: !!form.company_portal_confirmed,
+    emergency_name: form.emergency_name || '',
+    emergency_relationship: form.emergency_relationship || '',
+    emergency_phone: form.emergency_phone || '',
+    emergency_email: form.emergency_email || '',
+    bank_name: form.bank_name || '',
+    account_name: form.account_name || '',
+    sort_code: form.sort_code || '',
+    account_number: form.account_number || '',
+    payment_frequency: form.payment_frequency || 'Monthly',
+    rtw_type: form.rtw_type || '',
+    rtw_document_url: form.rtw_document_url || '',
+    rtw_expiry: form.rtw_expiry || null,
+    rtw_notes: form.rtw_notes || '',
+    contract_signed: !!form.contract_signed,
+    handbook_read: !!form.handbook_read,
+    data_consent: !!form.data_consent,
+    photo_url: form.photo_url || '',
+    additional_notes: form.additional_notes || '',
+    status,
+    submitted_at: status === 'submitted' ? new Date().toISOString() : null,
+  }
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
@@ -148,54 +195,67 @@ export default function HROnboarding() {
 
   const submit = async () => {
     setSaving(true)
-    const normalizedEmail = normalizeEmail(user?.email || '')
-    const payload = {
-      user_email: normalizedEmail,
-      user_name: user.name,
-      ...form,
-      department: form.department || employmentContext.department || '',
-      manager_name: form.manager_name || employmentContext.manager_name || '',
-      manager_email: form.manager_email || employmentContext.manager_email || '',
-      status: 'submitted',
-      submitted_at: new Date().toISOString(),
+    try {
+      const normalizedEmail = normalizeEmail(user?.email || '')
+      const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'submitted' })
+      const { error } = await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
+      if (error) throw error
+
+      await syncOnboardingSubmissionToHrProfile({
+        ...payload,
+        user_email: normalizedEmail,
+        full_name: form.full_name || payload.user_name,
+      })
+
+      const reviewerTargets = payload.manager_email
+        ? [{ email: normalizeEmail(payload.manager_email), name: payload.manager_name || payload.manager_email }]
+        : [...DIRECTOR_EMAILS].map((directorEmail) => ({ email: directorEmail, name: directorEmail }))
+      await Promise.allSettled(reviewerTargets.map((target) => sendManagedNotification({
+        userEmail: target.email,
+        userName: target.name,
+        category: 'hr',
+        type: 'warning',
+        title: 'Onboarding approval required',
+        message: `${form.full_name || payload.user_name || payload.user_email} has submitted onboarding for ${payload.department || 'their department'}.`,
+        link: '/hr/onboarding',
+        emailSubject: `Onboarding approval required — ${form.full_name || payload.user_name || payload.user_email}`,
+        sentBy: user?.name || user?.email || 'DH Portal',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })))
+      await Promise.allSettled([...DIRECTOR_EMAILS].map((directorEmail) => sendManagedNotification({
+        userEmail: directorEmail,
+        userName: directorEmail,
+        category: 'urgent',
+        type: 'info',
+        title: 'Onboarding submitted',
+        message: `${form.full_name || payload.user_name || payload.user_email} has submitted onboarding and is waiting for department review.`,
+        link: '/hr/onboarding',
+        emailSubject: `Onboarding submitted — ${form.full_name || payload.user_name || payload.user_email}`,
+        sentBy: user?.name || user?.email || 'DH Portal',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })))
+      await load()
+    } catch (error) {
+      console.error('Onboarding submit failed:', error)
+      alert('Could not submit onboarding: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSaving(false)
     }
-    await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
-    await syncOnboardingSubmissionToHrProfile(payload)
-    const reviewerTargets = payload.manager_email
-      ? [{ email: normalizeEmail(payload.manager_email), name: payload.manager_name || payload.manager_email }]
-      : [...DIRECTOR_EMAILS].map((directorEmail) => ({ email: directorEmail, name: directorEmail }))
-    await Promise.allSettled(reviewerTargets.map((target) => sendManagedNotification({
-      userEmail: target.email,
-      userName: target.name,
-      category: 'hr',
-      type: 'warning',
-      title: 'Onboarding approval required',
-      message: `${payload.full_name || payload.user_name || payload.user_email} has submitted onboarding for ${payload.department || 'their department'}.`,
-      link: '/hr/onboarding',
-      emailSubject: `Onboarding approval required — ${payload.full_name || payload.user_name || payload.user_email}`,
-      sentBy: user?.name || user?.email || 'DH Portal',
-      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-    })))
-    await Promise.allSettled([...DIRECTOR_EMAILS].map((directorEmail) => sendManagedNotification({
-      userEmail: directorEmail,
-      userName: directorEmail,
-      category: 'urgent',
-      type: 'info',
-      title: 'Onboarding submitted',
-      message: `${payload.full_name || payload.user_name || payload.user_email} has submitted onboarding and is waiting for department review.`,
-      link: '/hr/onboarding',
-      emailSubject: `Onboarding submitted — ${payload.full_name || payload.user_name || payload.user_email}`,
-      sentBy: user?.name || user?.email || 'DH Portal',
-      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-    })))
-    setSaving(false)
-    load()
   }
 
   const saveDraft = async () => {
     setSaving(true)
-    await supabase.from('onboarding_submissions').upsert({ user_email: normalizeEmail(user?.email || ''), user_name: user.name, ...form, status:'draft' }, { onConflict:'user_email' })
-    setSaving(false)
+    try {
+      const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'draft' })
+      const { error } = await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
+      if (error) throw error
+      await load()
+    } catch (error) {
+      console.error('Onboarding draft save failed:', error)
+      alert('Could not save onboarding draft: ' + (error.message || 'Unknown error'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const decide = async (email, status, notes='') => {
@@ -404,7 +464,7 @@ export default function HROnboarding() {
       )}
 
       {/* Staff form */}
-      {(!mySubmission || mySubmission.status === 'draft' || mySubmission.status === 'rejected') ? (
+      {!isReviewer && (!mySubmission || mySubmission.status === 'draft' || mySubmission.status === 'rejected') ? (
         <div>
           {mySubmission?.status === 'rejected' && (
             <div style={{ padding:'12px 16px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:8, marginBottom:20, fontSize:13, color:'var(--red)' }}>
@@ -635,7 +695,7 @@ export default function HROnboarding() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : !isReviewer ? (
         <div className="card card-pad" style={{ maxWidth:480, textAlign:'center' }}>
           <div style={{ fontSize:52, marginBottom:16 }}>
             {mySubmission.status==='approved' ? '✅' : mySubmission.status==='submitted' ? '⏳' : '🔄'}
@@ -654,7 +714,14 @@ export default function HROnboarding() {
             </div>
           )}
         </div>
-      )}
+      ) : submissions.length === 0 ? (
+        <div className="card card-pad" style={{ maxWidth:560 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:24, color:'var(--text)' }}>No onboarding submissions yet</div>
+          <div style={{ marginTop:8, fontSize:14, color:'var(--sub)', lineHeight:1.7 }}>
+            Submitted onboarding forms will appear here for review once they have been saved successfully.
+          </div>
+        </div>
+      ) : null}
 
       {/* Admin review modal */}
       {viewSub && (
