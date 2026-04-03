@@ -106,8 +106,8 @@ export default function Header() {
     <header className="main-header">
       <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0, flex:1 }}>
         <div className="header-crumbs">
-          <button onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
-          <span style={{ color:'var(--border2)', fontSize:14 }}>/</span>
+          <button className="header-crumb-home" onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
+          <span className="header-crumb-sep" style={{ color:'var(--border2)', fontSize:14 }}>/</span>
           <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
             {TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')}
           </span>
@@ -133,7 +133,7 @@ export default function Header() {
 
       <div className="header-actions">
         {/* Search */}
-        <button onClick={() => navigate('/search')} title="Search" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
+        <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
           onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
           <SearchIcon/>
@@ -141,7 +141,7 @@ export default function Header() {
 
         {/* Notification bell */}
         <div ref={bellRef} style={{ position:'relative' }}>
-          <button onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
+          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
             onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
             onMouseOut={e => { if (!bellOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
             <BellIcon/>
@@ -197,10 +197,10 @@ export default function Header() {
         </div>
 
         {/* Username */}
-        <span className="hide-mob" style={{ fontSize:13, color:'var(--faint)', paddingLeft:4 }}>{user?.name}</span>
+        <span className="hide-mob header-user-name" style={{ fontSize:13, color:'var(--faint)', paddingLeft:4 }}>{user?.name}</span>
 
         {/* Avatar */}
-        <button onClick={() => navigate('/my-profile')} title="My Profile"
+        <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
           style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--accent)'; e.currentTarget.style.color='#fff' }}
           onMouseOut={e => { e.currentTarget.style.background='var(--accent-soft)'; e.currentTarget.style.color='var(--accent)' }}>
