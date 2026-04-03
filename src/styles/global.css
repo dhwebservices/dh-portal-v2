@@ -100,7 +100,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
-#root { min-height: 100vh; }
+#root { min-height: 100vh; min-height: 100dvh; }
+[data-native-app="true"] body {
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
 ::selection { background: var(--accent-soft); }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -135,7 +139,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Layout ── */
-.app-layout { display: flex; min-height: 100vh; }
+.app-layout { display: flex; min-height: 100vh; min-height: 100dvh; }
 
 .sidebar {
   position: fixed; top: 0; left: 0; bottom: 0;
@@ -176,6 +180,24 @@ button { cursor: pointer; font-family: inherit; }
   overflow-x: hidden;
   background:
     linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.015));
+}
+
+[data-native-app="true"] .sidebar {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+[data-native-app="true"] .main-area {
+  min-height: 100dvh;
+}
+
+[data-native-app="true"] .main-header {
+  height: calc(52px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+}
+
+[data-native-app="true"] .main-content {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
 }
 
 [data-text-scale="large"] .main-header {
@@ -314,6 +336,19 @@ button { cursor: pointer; font-family: inherit; }
   [style*="grid-template-columns: 1fr 320px"] { grid-template-columns: 1fr !important; }
   [style*="grid-template-columns: 1fr 360px"] { grid-template-columns: 1fr !important; }
   [style*="marginLeft:248"] { margin-left: 0 !important; }
+
+  [data-native-app="true"] .mob-btn {
+    top: calc(10px + env(safe-area-inset-top));
+  }
+
+  [data-native-app="true"] .main-header {
+    min-height: calc(56px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  [data-native-app="true"] .main-content {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 560px) {
@@ -324,6 +359,151 @@ button { cursor: pointer; font-family: inherit; }
   .stat-card { padding: 16px; min-height: auto !important; }
   .payments-hub-shell .card-pad { padding: 16px; }
   .client-profile-hero { padding: 18px !important; }
+}
+
+/* Login page */
+.login-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.login-page-grid {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.login-form-card {
+  min-height: 0;
+}
+
+@media (max-width: 980px) {
+  .login-nav {
+    height: auto !important;
+    min-height: 72px;
+    padding: 14px 18px !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .login-page-grid {
+    grid-template-columns: 1fr !important;
+    padding: 20px 18px 18px !important;
+    gap: 18px !important;
+  }
+
+  .login-brand-panel {
+    min-height: 0 !important;
+  }
+
+  .login-form-pane {
+    align-items: stretch !important;
+  }
+
+  .login-form-card {
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .login-nav {
+    position: static !important;
+    flex-wrap: wrap;
+    justify-content: space-between !important;
+  }
+
+  .login-nav-brand {
+    min-width: 0;
+    width: 100%;
+    align-items: flex-start !important;
+  }
+
+  .login-nav-logo {
+    height: 24px !important;
+  }
+
+  .login-nav-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .login-nav-title {
+    font-size: 18px !important;
+    line-height: 1.05;
+  }
+
+  .login-nav-subtitle {
+    font-size: 10px !important;
+    letter-spacing: 0.06em !important;
+    margin-top: 4px !important;
+    text-transform: none !important;
+  }
+
+  .login-theme-btn {
+    margin-left: auto;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .login-brand-panel {
+    display: none;
+  }
+
+  .login-page-grid {
+    padding: 16px 14px 14px !important;
+  }
+
+  .login-form-card {
+    padding: 22px 18px !important;
+    border-radius: 22px !important;
+    box-shadow: 0 8px 30px rgba(10,16,28,0.06) !important;
+  }
+
+  .login-form-mark {
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 20px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .login-form-title {
+    font-size: 24px !important;
+    line-height: 1.05;
+  }
+
+  .login-form-body {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .login-primary-btn {
+    min-height: 52px;
+    border-radius: 16px !important;
+    font-size: 15px !important;
+  }
+
+  .login-note-card {
+    padding: 13px 14px !important;
+    border-radius: 14px !important;
+  }
+
+  .login-note-label {
+    letter-spacing: 0.04em !important;
+    text-transform: none !important;
+  }
+
+  .login-form-meta {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .login-footer {
+    padding: 12px 14px 18px !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 4px !important;
+  }
 }
 
 @media (max-width: 1080px) {
