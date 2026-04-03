@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
+import { sendManagedNotification } from '../../utils/notificationPreferences'
+import { DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
+import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
 
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
@@ -16,7 +19,7 @@ const STEPS = [
 const RTW_DOCS = ['UK Passport','British National (Overseas) Passport','EU/EEA Passport','BRP Card (Biometric Residence Permit)','UK Birth Certificate + NI evidence','Certificate of Naturalisation','Visa (specify type)','Other']
 
 function completionForSubmission(submission = {}) {
-  const required = ['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type']
+  const required = ['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type','company_portal_confirmed']
   const filled = required.filter((key) => submission[key] && submission[key].toString().trim() !== '').length
   return Math.round((filled / required.length) * 100)
 }
@@ -28,11 +31,13 @@ function daysUntil(dateString) {
 }
 
 export default function HROnboarding() {
-  const { user, isAdmin, isOnboarding } = useAuth()
-  const isHRAdmin = isAdmin && !isOnboarding
+  const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
+  const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
+  const canSeeAllSubmissions = isDirector || isAdmin
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading]         = useState(true)
   const [mySubmission, setMy]         = useState(null)
+  const [employmentContext, setEmploymentContext] = useState({ department:'', manager_name:'', manager_email:'', role_scope:'', job_title:'', contract_type:'', start_date:'' })
   const [step, setStep]               = useState(0)
   const [saving, setSaving]           = useState(false)
   const [rtwUploading, setRtwUploading] = useState(false)
@@ -49,7 +54,7 @@ export default function HROnboarding() {
     // Address
     address_line1:'', address_line2:'', city:'', postcode:'', personal_email:'', personal_phone:'',
     // Employment
-    job_title:'', department:'', start_date:'', contract_type:'', hours_per_week:'', manager_name:'', work_location:'',
+    job_title:'', department:'', start_date:'', contract_type:'', hours_per_week:'', manager_name:'', manager_email:'', work_location:'', company_portal_confirmed:false,
     // Emergency
     emergency_name:'', emergency_relationship:'', emergency_phone:'', emergency_email:'',
     // Bank
@@ -67,17 +72,55 @@ export default function HROnboarding() {
   const load = async () => {
     setLoading(true)
     const currentEmail = normalizeEmail(user?.email || '')
-    const [{ data: all }, { data: mine }] = await Promise.all([
-      isHRAdmin ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
+    const [
+      { data: all },
+      { data: mine },
+      { data: profileRows },
+      { data: orgSetting },
+    ] = await Promise.all([
+      isReviewer ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', currentEmail).maybeSingle(),
+      supabase.from('hr_profiles').select('*').ilike('user_email', currentEmail),
+      supabase.from('portal_settings').select('value').eq('key', buildStaffOrgKey(currentEmail)).maybeSingle(),
     ])
-    setSubmissions(all||[])
+    const profile = Array.isArray(profileRows) ? profileRows[0] || {} : (profileRows || {})
+    const orgRecord = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
+      email: currentEmail,
+      department: profile?.department,
+    })
+    setEmploymentContext({
+      department: profile?.department || orgRecord.department || '',
+      manager_name: profile?.manager_name || orgRecord.reports_to_name || '',
+      manager_email: profile?.manager_email || orgRecord.reports_to_email || '',
+      role_scope: orgRecord.role_scope || 'staff',
+      job_title: profile?.role || '',
+      contract_type: profile?.contract_type || '',
+      start_date: profile?.start_date || '',
+    })
+
+    const visibleSubmissions = (all || []).filter((submission) => {
+      if (canSeeAllSubmissions) return true
+      const submissionDepartment = String(submission.department || '').trim()
+      return !!submissionDepartment && managedDepartments.includes(submissionDepartment)
+    })
+    setSubmissions(visibleSubmissions)
     if (mine) {
       setMy(mine)
       // Pre-fill form from existing submission
       const saved = { ...form }
       Object.keys(saved).forEach(k => { if (mine[k] !== undefined && mine[k] !== null) saved[k] = mine[k] })
       setForm(saved)
+    }
+    else {
+      setForm((current) => ({
+        ...current,
+        job_title: profile?.role || current.job_title,
+        department: profile?.department || orgRecord.department || current.department,
+        start_date: profile?.start_date || current.start_date,
+        contract_type: profile?.contract_type || current.contract_type,
+        manager_name: profile?.manager_name || orgRecord.reports_to_name || current.manager_name,
+        manager_email: profile?.manager_email || orgRecord.reports_to_email || current.manager_email,
+      }))
     }
     setLoading(false)
   }
@@ -106,11 +149,41 @@ export default function HROnboarding() {
       user_email: normalizedEmail,
       user_name: user.name,
       ...form,
+      department: form.department || employmentContext.department || '',
+      manager_name: form.manager_name || employmentContext.manager_name || '',
+      manager_email: form.manager_email || employmentContext.manager_email || '',
       status: 'submitted',
       submitted_at: new Date().toISOString(),
     }
     await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
     await syncOnboardingSubmissionToHrProfile(payload)
+    const reviewerTargets = payload.manager_email
+      ? [{ email: normalizeEmail(payload.manager_email), name: payload.manager_name || payload.manager_email }]
+      : [...DIRECTOR_EMAILS].map((directorEmail) => ({ email: directorEmail, name: directorEmail }))
+    await Promise.allSettled(reviewerTargets.map((target) => sendManagedNotification({
+      userEmail: target.email,
+      userName: target.name,
+      category: 'hr',
+      type: 'warning',
+      title: 'Onboarding approval required',
+      message: `${payload.full_name || payload.user_name || payload.user_email} has submitted onboarding for ${payload.department || 'their department'}.`,
+      link: '/hr/onboarding',
+      emailSubject: `Onboarding approval required — ${payload.full_name || payload.user_name || payload.user_email}`,
+      sentBy: user?.name || user?.email || 'DH Portal',
+      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    })))
+    await Promise.allSettled([...DIRECTOR_EMAILS].map((directorEmail) => sendManagedNotification({
+      userEmail: directorEmail,
+      userName: directorEmail,
+      category: 'urgent',
+      type: 'info',
+      title: 'Onboarding submitted',
+      message: `${payload.full_name || payload.user_name || payload.user_email} has submitted onboarding and is waiting for department review.`,
+      link: '/hr/onboarding',
+      emailSubject: `Onboarding submitted — ${payload.full_name || payload.user_name || payload.user_email}`,
+      sentBy: user?.name || user?.email || 'DH Portal',
+      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    })))
     setSaving(false)
     load()
   }
@@ -123,6 +196,11 @@ export default function HROnboarding() {
 
   const decide = async (email, status, notes='') => {
     const normalizedEmail = normalizeEmail(email)
+    const targetSubmission = submissions.find((item) => normalizeEmail(item.user_email) === normalizedEmail)
+    if (!targetSubmission) {
+      alert('You do not have access to review this onboarding submission.')
+      return
+    }
     setAdminBusyEmail(normalizedEmail)
     setAdminMessage('')
     try {
@@ -139,6 +217,21 @@ export default function HROnboarding() {
       if (status === 'approved') {
         await syncOnboardingSubmissionToHrProfile(submission, { overwrite: true })
       }
+
+      await sendManagedNotification({
+        userEmail: normalizedEmail,
+        userName: submission.full_name || submission.user_name || normalizedEmail,
+        category: 'hr',
+        type: status === 'approved' ? 'success' : 'warning',
+        title: status === 'approved' ? 'Onboarding approved' : 'Onboarding update',
+        message: status === 'approved'
+          ? 'Your onboarding has been approved. You can now continue into the portal.'
+          : `Your onboarding has been declined${notes ? `. Notes: ${notes}` : '.'}`,
+        link: '/hr/onboarding',
+        emailSubject: status === 'approved' ? 'Onboarding approved — DH Website Services' : 'Onboarding update — DH Website Services',
+        sentBy: user?.name || user?.email || 'DH Portal',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      }).catch(() => {})
 
       setSubmissions((current) =>
         current.map((item) =>
@@ -194,7 +287,7 @@ export default function HROnboarding() {
   }
 
   const pct = completionPct()
-  const adminSummary = isHRAdmin
+  const adminSummary = isReviewer
     ? (() => {
         const submitted = submissions.filter((item) => item.status === 'submitted').length
         const drafts = submissions.filter((item) => item.status === 'draft').length
@@ -228,15 +321,15 @@ export default function HROnboarding() {
           <div>
             <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginBottom:6 }}>Welcome to DH Website Services, {user?.name?.split(' ')[0]}!</div>
             <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.6 }}>
-              Please complete your onboarding form below. Fill in all sections and upload your right to work documents. 
-              Once submitted, HR will review and get back to you within 1 business day.
+              Please complete your onboarding form below. Your assigned manager and department are shown for reference, and your submission will go to your department manager for approval.
+              Install Microsoft Company Portal before submitting, then upload your right-to-work documents and final confirmations.
             </div>
           </div>
         </div>
       )}
 
       {/* Admin panel */}
-      {isHRAdmin && (
+      {isReviewer && (
         <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(6, minmax(0,1fr))', gap:14, marginBottom:20 }}>
           <div className="stat-card"><div className="stat-val">{submissions.length}</div><div className="stat-lbl">Total submissions</div></div>
           <div className="stat-card"><div className="stat-val">{adminSummary.submitted}</div><div className="stat-lbl">Awaiting review</div></div>
@@ -247,7 +340,7 @@ export default function HROnboarding() {
         </div>
       )}
 
-      {isHRAdmin && submissions.length > 0 && (
+      {isReviewer && submissions.length > 0 && (
         <div className="card" style={{ overflow:'hidden', marginBottom:24 }}>
           <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)' }}>
             Submissions ({submissions.length})
@@ -373,16 +466,16 @@ export default function HROnboarding() {
             {step === 2 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Employment Details</h3>
-                <div className="fg">
-                  <div><label className="lbl">Job Title</label><input className="inp" value={form.job_title} onChange={e=>sf('job_title',e.target.value)}/></div>
-                  <div><label className="lbl">Department</label><input className="inp" value={form.department} onChange={e=>sf('department',e.target.value)}/></div>
-                  <div><label className="lbl">Start Date</label><input className="inp" type="date" value={form.start_date} onChange={e=>sf('start_date',e.target.value)}/></div>
-                  <div><label className="lbl">Contract Type</label>
-                    <select className="inp" value={form.contract_type} onChange={e=>sf('contract_type',e.target.value)}>
-                      <option value="">Select...</option>
-                      {['Full-time','Part-time','Contractor','Zero Hours','Apprentice','Freelance'].map(t=><option key={t}>{t}</option>)}
-                    </select>
+                <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
+                    These employment details are set by DH Website Services. If anything looks wrong, contact your department manager before submitting.
                   </div>
+                </div>
+                <div className="fg">
+                  <div><label className="lbl">Job Title</label><input className="inp" value={form.job_title || employmentContext.job_title} readOnly /></div>
+                  <div><label className="lbl">Department</label><input className="inp" value={form.department || employmentContext.department} readOnly /></div>
+                  <div><label className="lbl">Start Date</label><input className="inp" type="date" value={form.start_date || employmentContext.start_date} readOnly /></div>
+                  <div><label className="lbl">Contract Type</label><input className="inp" value={form.contract_type || employmentContext.contract_type} readOnly /></div>
                   <div><label className="lbl">Hours per Week</label><input className="inp" type="number" value={form.hours_per_week} onChange={e=>sf('hours_per_week',e.target.value)} placeholder="e.g. 37.5"/></div>
                   <div><label className="lbl">Work Location</label>
                     <select className="inp" value={form.work_location} onChange={e=>sf('work_location',e.target.value)}>
@@ -390,7 +483,19 @@ export default function HROnboarding() {
                       {['Remote','Office','Hybrid','On-site (client)'].map(l=><option key={l}>{l}</option>)}
                     </select>
                   </div>
-                  <div><label className="lbl">Manager Name</label><input className="inp" value={form.manager_name} onChange={e=>sf('manager_name',e.target.value)}/></div>
+                  <div><label className="lbl">Manager Name</label><input className="inp" value={form.manager_name || employmentContext.manager_name} readOnly /></div>
+                  <div><label className="lbl">Manager Email</label><input className="inp" value={form.manager_email || employmentContext.manager_email} readOnly /></div>
+                  <div className="fc" style={{ marginTop:8 }}>
+                    <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${form.company_portal_confirmed?'var(--green)':'var(--border)'}`, background:form.company_portal_confirmed?'var(--green-bg)':'transparent', transition:'all 0.15s' }}>
+                      <input type="checkbox" checked={form.company_portal_confirmed} onChange={e=>sf('company_portal_confirmed',e.target.checked)} style={{ width:18,height:18,accentColor:'var(--green)',flexShrink:0,marginTop:1 }}/>
+                      <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+                        I have installed <strong>Microsoft Company Portal</strong> on my work device and confirmed I can access it.
+                      </span>
+                    </label>
+                    <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
+                      Install Company Portal before submitting onboarding so device access and company policies can be applied correctly.
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -503,6 +608,9 @@ export default function HROnboarding() {
                 {(!form.contract_signed || !form.handbook_read || !form.data_consent) && (
                   <div style={{ fontSize:12, color:'var(--amber)' }}>⚠ Please check all three boxes above before submitting</div>
                 )}
+                {!form.company_portal_confirmed && (
+                  <div style={{ fontSize:12, color:'var(--amber)' }}>⚠ Please confirm Microsoft Company Portal has been installed before submitting</div>
+                )}
               </div>
             )}
 
@@ -515,7 +623,7 @@ export default function HROnboarding() {
               <div>
                 {step < STEPS.length-1
                   ? <button className="btn btn-primary" onClick={() => setStep(s=>s+1)}>Next →</button>
-                  : <button className="btn btn-primary" onClick={submit} disabled={saving||!form.contract_signed||!form.handbook_read||!form.data_consent}>
+                  : <button className="btn btn-primary" onClick={submit} disabled={saving||!form.contract_signed||!form.handbook_read||!form.data_consent||!form.company_portal_confirmed}>
                       {saving ? 'Submitting...' : '✓ Submit Onboarding'}
                     </button>
                 }
@@ -563,7 +671,10 @@ export default function HROnboarding() {
                   ['Job Title', viewSub.job_title],
                   ['Contract', viewSub.contract_type],
                   ['Bank', viewSub.bank_name ? `${viewSub.bank_name} ••${viewSub.account_number?.slice(-4)}` : '—'],
+                  ['Department', viewSub.department || '—'],
+                  ['Manager', viewSub.manager_name ? `${viewSub.manager_name}${viewSub.manager_email ? ` (${viewSub.manager_email})` : ''}` : '—'],
                   ['RTW Doc', viewSub.rtw_type||'—'],
+                  ['Company Portal', viewSub.company_portal_confirmed ? 'Confirmed' : 'Not confirmed'],
                   ['Emergency', viewSub.emergency_name ? `${viewSub.emergency_name} (${viewSub.emergency_phone})` : '—'],
                   ['Address', viewSub.address_line1 ? `${viewSub.address_line1}, ${viewSub.city}, ${viewSub.postcode}` : '—'],
                 ].map(([k,v]) => (
