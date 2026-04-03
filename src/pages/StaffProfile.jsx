@@ -44,6 +44,11 @@ import {
   mergeOrgRecord,
   ORG_ROLE_SCOPES,
 } from '../utils/orgStructure'
+import {
+  buildComplianceSettingKey,
+  mergeComplianceRecord,
+  resolveRightToWorkRecord,
+} from '../utils/complianceRecords'
 import { sendEmail } from '../utils/email'
 
 const ALL_PAGES = [
@@ -167,6 +172,8 @@ export default function StaffProfile() {
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
   const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [departmentRequests, setDepartmentRequests] = useState([])
+  const [complianceRecord, setComplianceRecord] = useState(() => mergeComplianceRecord())
+  const [complianceSaving, setComplianceSaving] = useState(false)
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
@@ -262,6 +269,11 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildStaffOrgKey(email))
         .maybeSingle()
+      const { data: complianceSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildComplianceSettingKey(email))
+        .maybeSingle()
       const { data: departmentCatalogSetting } = await supabase
         .from('portal_settings')
         .select('value')
@@ -277,6 +289,7 @@ export default function StaffProfile() {
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
+      const complianceRaw = complianceSetting?.value?.value ?? complianceSetting?.value ?? {}
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
@@ -301,6 +314,7 @@ export default function StaffProfile() {
       setDepartmentCatalog(nextDepartmentCatalog)
       setOrgRecord(hydratedOrg)
       setOriginalOrgRecord(hydratedOrg)
+      setComplianceRecord(mergeComplianceRecord(complianceRaw))
       setDepartmentRequests((requestRows || [])
         .map((row) => createDepartmentRequest({
           id: String(row.key || '').replace('department_request:', ''),
@@ -823,6 +837,27 @@ export default function StaffProfile() {
     setDocs(p => p.filter(d => d.id !== doc.id))
   }
 
+  const saveComplianceRecord = async (nextRecord, successMessage = 'Compliance updated.') => {
+    setComplianceSaving(true)
+    try {
+      const merged = mergeComplianceRecord(nextRecord)
+      const { error } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildComplianceSettingKey(email),
+          value: { value: merged },
+        }, { onConflict: 'key' })
+      if (error) throw error
+      setComplianceRecord(merged)
+      setDocUploadError('')
+      setDocUploadSuccess(successMessage)
+    } catch (error) {
+      setDocUploadError(error.message || 'Could not update compliance status.')
+    } finally {
+      setComplianceSaving(false)
+    }
+  }
+
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
@@ -831,14 +866,17 @@ export default function StaffProfile() {
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
   const roleScopeLabel = getRoleScopeLabel(orgRecord.role_scope)
   const contractDoc = docs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
-  const rtwRemaining = profile.rtw_expiry ? Math.ceil((new Date(profile.rtw_expiry).getTime() - Date.now()) / 86400000) : null
-  const rtwStatus = !profile.rtw_document_url
-    ? { label: 'Missing', tone: 'red', hint: 'No right-to-work file linked.' }
+  const rtwRecord = resolveRightToWorkRecord(profile, docs, complianceRecord)
+  const rtwRemaining = rtwRecord.expiry ? Math.ceil((new Date(rtwRecord.expiry).getTime() - Date.now()) / 86400000) : null
+  const rtwStatus = !rtwRecord.hasDocument && !rtwRecord.rtw_override
+    ? { label: 'Missing', tone: 'red', hint: 'No right-to-work evidence linked yet.' }
+    : rtwRecord.rtw_override && !rtwRecord.expiry
+      ? { label: 'Compliant', tone: 'green', hint: rtwRecord.rtw_status_note || 'Manually verified by admin.' }
     : rtwRemaining !== null && rtwRemaining < 0
       ? { label: 'Expired', tone: 'red', hint: 'Document expiry date has passed.' }
       : rtwRemaining !== null && rtwRemaining <= 45
         ? { label: `${rtwRemaining}d left`, tone: 'amber', hint: 'Review before expiry.' }
-        : { label: 'Valid', tone: 'green', hint: 'Document is on file.' }
+        : { label: rtwRecord.rtw_override ? 'Compliant' : 'Valid', tone: 'green', hint: rtwRecord.rtw_status_note || 'Document is on file.' }
   const contractStatus = contractDoc
     ? { label: 'On file', tone: 'green', hint: contractDoc.name }
     : { label: 'Missing', tone: 'amber', hint: 'No contract document uploaded yet.' }
@@ -852,13 +890,13 @@ export default function StaffProfile() {
       action: doc.file_url,
       actionLabel: 'Open file',
     })),
-    ...(profile.rtw_document_url ? [{
+    ...(rtwRecord.documentUrl ? [{
       id: 'rtw-record',
       date: profile.updated_at || profile.created_at || null,
-      title: 'Right-to-work document linked',
-      subtitle: profile.rtw_expiry ? `Expiry: ${new Date(profile.rtw_expiry).toLocaleDateString('en-GB')}` : 'No expiry date recorded',
+      title: rtwRecord.rtw_override ? 'Right-to-work marked compliant' : 'Right-to-work document linked',
+      subtitle: rtwRecord.expiry ? `Expiry: ${new Date(rtwRecord.expiry).toLocaleDateString('en-GB')}` : 'No expiry date recorded',
       tone: rtwStatus.tone,
-      action: profile.rtw_document_url,
+      action: rtwRecord.documentUrl,
       actionLabel: 'Open RTW file',
     }] : []),
   ]
@@ -2172,6 +2210,56 @@ export default function StaffProfile() {
                 <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                   <span className={`badge badge-${rtwStatus.tone}`}>{rtwStatus.label}</span>
                   <span style={{ fontSize:12, color:'var(--sub)' }}>{rtwStatus.hint}</span>
+                </div>
+                <div style={{ display:'grid', gap:8, marginTop:10 }}>
+                  <input
+                    className="inp"
+                    type="date"
+                    value={complianceRecord.rtw_expiry || ''}
+                    onChange={(e) => setComplianceRecord((current) => ({ ...current, rtw_expiry: e.target.value }))}
+                    disabled={complianceSaving}
+                  />
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {rtwRecord.document ? (
+                      <button
+                        className="btn btn-outline btn-sm"
+                        disabled={complianceSaving}
+                        onClick={() => saveComplianceRecord({
+                          ...complianceRecord,
+                          rtw_override: false,
+                          rtw_document_url: rtwRecord.document.file_url || '',
+                          rtw_verified_at: new Date().toISOString(),
+                          rtw_verified_by: user?.name || user?.email || 'Admin',
+                          rtw_status_note: `Using uploaded evidence: ${rtwRecord.document.name || 'Right to Work file'}`,
+                        }, 'Right-to-work file linked as the active compliance record.')}
+                      >
+                        Use latest RTW file
+                      </button>
+                    ) : null}
+                    <button
+                      className="btn btn-outline btn-sm"
+                      disabled={complianceSaving}
+                      onClick={() => saveComplianceRecord({
+                        ...complianceRecord,
+                        rtw_override: true,
+                        rtw_document_url: complianceRecord.rtw_document_url || rtwRecord.documentUrl || '',
+                        rtw_verified_at: new Date().toISOString(),
+                        rtw_verified_by: user?.name || user?.email || 'Admin',
+                        rtw_status_note: 'Manually marked compliant by admin.',
+                      }, 'Right-to-work marked compliant.')}
+                    >
+                      Mark compliant
+                    </button>
+                    {(complianceRecord.rtw_override || complianceRecord.rtw_document_url || complianceRecord.rtw_expiry) ? (
+                      <button
+                        className="btn btn-outline btn-sm"
+                        disabled={complianceSaving}
+                        onClick={() => saveComplianceRecord({}, 'Right-to-work override cleared.')}
+                      >
+                        Clear override
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>

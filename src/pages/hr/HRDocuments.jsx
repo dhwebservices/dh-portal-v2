@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { FileText, FolderOpen, ShieldAlert, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import {
+  mergeComplianceRecord,
+  resolveRightToWorkRecord,
+} from '../../utils/complianceRecords'
 
 function daysUntil(dateString) {
   if (!dateString) return null
@@ -63,6 +67,7 @@ export default function HRDocuments() {
   const [documents, setDocuments] = useState([])
   const [payslips, setPayslips] = useState([])
   const [onboarding, setOnboarding] = useState([])
+  const [complianceMap, setComplianceMap] = useState({})
   const [filter, setFilter] = useState('all')
 
   useEffect(() => {
@@ -71,17 +76,22 @@ export default function HRDocuments() {
 
   async function load() {
     setLoading(true)
-    const [staffRes, docsRes, payslipsRes, onboardingRes] = await Promise.all([
+    const [staffRes, docsRes, payslipsRes, onboardingRes, complianceRes] = await Promise.all([
       supabase.from('hr_profiles').select('user_email,full_name,role,department,start_date').order('full_name'),
       supabase.from('staff_documents').select('*').order('created_at', { ascending: false }),
       supabase.from('payslips').select('*').order('uploaded_at', { ascending: false }),
       supabase.from('onboarding_submissions').select('user_email,user_name,rtw_type,rtw_document_url,rtw_expiry,status').order('submitted_at', { ascending: false }),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
     ])
 
     setStaff(staffRes.data || [])
     setDocuments(docsRes.data || [])
     setPayslips(payslipsRes.data || [])
     setOnboarding(onboardingRes.data || [])
+    setComplianceMap(Object.fromEntries((complianceRes.data || []).map((row) => {
+      const email = String(row.key || '').replace('staff_compliance:', '').toLowerCase()
+      return [email, mergeComplianceRecord(row.value?.value ?? row.value ?? {})]
+    })))
     setLoading(false)
   }
 
@@ -155,12 +165,14 @@ export default function HRDocuments() {
         const email = (person.user_email || '').toLowerCase()
         const personDocs = docMap[email] || []
         const personOnboarding = onboardingMap[email]
+        const personCompliance = complianceMap[email]
         const personPayslips = payslipMap[email] || []
         const contractDoc = personDocs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
-        const rtwRemaining = daysUntil(personOnboarding?.rtw_expiry)
+        const rtwRecord = resolveRightToWorkRecord(personOnboarding || {}, personDocs, personCompliance || {})
+        const rtwRemaining = daysUntil(rtwRecord.expiry)
 
         const contractStatus = contractDoc ? 'ok' : 'missing'
-        const rightToWorkStatus = !personOnboarding?.rtw_document_url
+        const rightToWorkStatus = !rtwRecord.hasDocument && !rtwRecord.rtw_override
           ? 'missing'
           : (rtwRemaining !== null && rtwRemaining < 0)
             ? 'expired'
@@ -187,7 +199,7 @@ export default function HRDocuments() {
         }
         return score(a) - score(b)
       })
-  }, [staff, docMap, onboardingMap, payslipMap])
+  }, [staff, docMap, onboardingMap, payslipMap, complianceMap])
 
   const documentTimeline = useMemo(() => {
     const docEvents = documents.map((doc) => ({
