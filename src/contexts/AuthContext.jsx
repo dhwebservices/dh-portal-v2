@@ -15,9 +15,11 @@ import {
   TERMINATED_STATES,
 } from '../utils/staffLifecycle'
 import {
+  buildDepartmentCatalogKey,
   buildStaffOrgKey,
   canViewStaffMember,
   getManagedDepartments,
+  hydrateManagedDepartments,
   isDirectorEmail,
   mergeOrgRecord,
 } from '../utils/orgStructure'
@@ -52,6 +54,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     preferenceResult,
     lifecycleResult,
     orgResult,
+    departmentCatalogResult,
   ] = await Promise.all([
     supabase
       .from('user_permissions')
@@ -78,17 +81,23 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       .select('value')
       .eq('key', buildStaffOrgKey(safeEmail))
       .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildDepartmentCatalogKey())
+      .maybeSingle(),
   ])
 
   const hrProfile = hrResult?.data || {}
   const preferenceRaw = preferenceResult?.data?.value?.value ?? preferenceResult?.data?.value ?? {}
   const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
   const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
-  const nextOrg = mergeOrgRecord(orgRaw, {
+  const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
+  const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
     email: safeEmail,
     department: hrProfile?.department,
     isDirector: isDirectorEmail(safeEmail),
-  })
+  }), departmentCatalogRaw, safeEmail)
   const permissionsData = permissionsResult?.data
   const safePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
 
@@ -194,8 +203,13 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', buildStaffOrgKey(normalizedEmail))
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildDepartmentCatalogKey())
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult]) => {
+      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, departmentCatalogResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         const hrProfile = hrResult?.data || {}
@@ -217,11 +231,12 @@ export function AuthProvider({ children }) {
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
         setLifecycle(mergeLifecycleRecord(lifecycleRaw))
         const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
-        const nextOrg = mergeOrgRecord(orgRaw, {
+        const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
+        const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
           email: normalizedEmail,
           department: hrProfile?.department,
           isDirector: isDirectorEmail(normalizedEmail),
-        })
+        }), departmentCatalogRaw, normalizedEmail)
         setOrg({
           ...nextOrg,
           reports_to_email: nextOrg.reports_to_email || String(hrProfile?.manager_email || '').toLowerCase().trim(),
@@ -247,10 +262,10 @@ export function AuthProvider({ children }) {
         setIsOnboarding(false)
         setMaintenance({ enabled: false, message: '', eta: '' })
         setLifecycle(mergeLifecycleRecord())
-        setOrg(mergeOrgRecord({}, {
+        setOrg(hydrateManagedDepartments(mergeOrgRecord({}, {
           email: normalizedEmail,
           isDirector: isDirectorEmail(normalizedEmail),
-        }))
+        }), [], normalizedEmail))
         const nextPreferences = mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences())
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
@@ -313,7 +328,7 @@ export function AuthProvider({ children }) {
       if (isDepartmentManager || org?.department) return isExplicitlyAllowed
       return isExplicitlyAllowed
     }
-    if (key === 'staff' || key === 'manager_board') {
+    if (key === 'staff' || key === 'manager_board' || key === 'contract_queue') {
       if (isDirector) return !isExplicitlyDenied
       if (isDepartmentManager) return isExplicitlyAllowed
     }

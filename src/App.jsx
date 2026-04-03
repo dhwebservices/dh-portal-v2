@@ -48,6 +48,7 @@ const Schedule = lazyRetry(() => import('./pages/Schedule'), 'schedule')
 const Reports = lazyRetry(() => import('./pages/Reports'), 'reports')
 const ManagerBoard = lazyRetry(() => import('./pages/ManagerBoard'), 'manager-board')
 const Departments = lazyRetry(() => import('./pages/Departments'), 'departments')
+const ContractQueue = lazyRetry(() => import('./pages/ContractQueue'), 'contract-queue')
 const ContractTemplates = lazyRetry(() => import('./pages/ContractTemplates'), 'contract-templates')
 const OrgChart = lazyRetry(() => import('./pages/OrgChart'), 'org-chart')
 const AdminSafeguards = lazyRetry(() => import('./pages/AdminSafeguards'), 'admin-safeguards')
@@ -184,6 +185,7 @@ function PortalLayout() {
               <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
               <Route path="/manager-board"   element={<PermissionGate permKey="manager_board"><ManagerBoard /></PermissionGate>} />
               <Route path="/departments"     element={<PermissionGate permKey="departments"><Departments /></PermissionGate>} />
+              <Route path="/contract-queue"  element={<PermissionGate permKey="contract_queue"><ContractQueue /></PermissionGate>} />
               <Route path="/contract-templates" element={<PermissionGate permKey="contract_templates"><ContractTemplates /></PermissionGate>} />
               <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
               <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />

@@ -602,9 +602,7 @@ export default function HROnboarding() {
   }
 
   const pct = completionPct()
-  const contractRequirementMet = staffContract
-    ? staffContract.status === 'completed' || !!form.contract_signed
-    : !!form.contract_signed
+  const contractRequirementMet = !!staffContract && (staffContract.status === 'completed' || !!form.contract_signed)
   const contractStatusLabel = staffContract ? getContractStatusLabel(staffContract.status) : null
   const adminSummary = isReviewer
     ? (() => {
@@ -907,7 +905,7 @@ export default function HROnboarding() {
 
             {step === 6 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Sign Off</h3>
+                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Contract & Sign Off</h3>
                 {staffContract ? (
                   <div style={{ padding:'16px 18px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap', marginBottom:10 }}>
@@ -937,10 +935,21 @@ export default function HROnboarding() {
                       </div>
                     ) : null}
                   </div>
-                ) : null}
+                ) : (
+                  <div style={{ padding:'16px 18px', border:'1px solid var(--amber)', borderRadius:12, background:'var(--amber-bg)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>No contract issued yet</div>
+                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.7, maxWidth:620 }}>
+                          Your manager needs to issue your contract before onboarding can be submitted. Once it has been issued, it will appear here for you to review and sign digitally.
+                        </div>
+                      </div>
+                      <span className="badge badge-amber">Waiting for manager</span>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {[
-                    ...(!staffContract ? [['contract_signed','I confirm I have received, read and signed my employment contract']] : []),
                     ['handbook_read', 'I have read and understood the DH Website Services staff handbook and policies'],
                     ['data_consent', 'I consent to DH Website Services storing and processing my personal data in accordance with GDPR and the company Privacy Policy'],
                   ].map(([k, label]) => (
@@ -954,9 +963,14 @@ export default function HROnboarding() {
                   <label className="lbl">Additional Notes / Questions for HR</label>
                   <textarea className="inp" rows={4} value={form.additional_notes} onChange={e=>sf('additional_notes',e.target.value)} style={{ resize:'vertical' }} placeholder="Anything you'd like HR to know, or any questions you have..."/>
                 </div>
-                {(!contractRequirementMet || !form.handbook_read || !form.data_consent) && (
+                {!staffContract && (
                   <div style={{ fontSize:12, color:'var(--amber)' }}>
-                    ⚠ Please {staffContract ? 'sign the contract and' : 'check all required confirmations and'} complete the sign-off section before submitting
+                    ⚠ A manager-issued contract must appear here before onboarding can be submitted.
+                  </div>
+                )}
+                {staffContract && (!contractRequirementMet || !form.handbook_read || !form.data_consent) && (
+                  <div style={{ fontSize:12, color:'var(--amber)' }}>
+                    ⚠ Please sign the contract and complete the sign-off section before submitting
                   </div>
                 )}
                 {!form.company_portal_confirmed && (

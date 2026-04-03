@@ -8,7 +8,7 @@
 - GitHub: [dhwebservices/dh-portal-v2](https://github.com/dhwebservices/dh-portal-v2)
 - Live URL: [staff.dhwebsiteservices.co.uk](https://staff.dhwebsiteservices.co.uk)
 - Last updated: 2026-04-03
-- Latest release summary: Department structure, team workspaces, onboarding recovery fixes, manual right-to-work compliance controls, and a new internal HR contract template and PDF signing flow.
+- Latest release summary: Department structure, team workspaces, onboarding recovery fixes, manual right-to-work compliance controls, and a new internal HR contract template, contract queue, and PDF signing flow.
 
 ## Stack
 - React 18 + Vite
@@ -45,7 +45,7 @@
 - Manual right-to-work compliance controls and uploaded evidence recovery path
 - Employee lifecycle states with termination request / director approval flow
 - Contract template library with custom HTML bodies and reference file attachments
-- Manager-issued staff contracts with staff signature during onboarding and final PDF storage
+- Manager-issued staff contracts with contract queue tracking, staff signature during onboarding, and final PDF storage
 
 ### Operations and management
 - Dashboard operations overview with manager and outreach widgets
@@ -137,6 +137,7 @@
 - Document compliance engine with required-document rules by role, department, and lifecycle
 - Training and certifications module with expiry reminders
 - Department dashboard depth with leave, onboarding, and compliance signals
+- Contract resend, replace, and void workflow hardening
 - Audit-log schema cleanup and remaining runtime query hardening
 
 ### After that

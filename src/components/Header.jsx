@@ -14,6 +14,7 @@ const TITLES = {
   '/schedule':'Schedule', '/reports':'Reports',
   '/manager-board':'Manager Board',
   '/departments':'Departments',
+  '/contract-queue':'Contract Queue',
   '/contract-templates':'Contract Templates',
   '/org-chart':'Organisation Chart',
   '/my-staff':'My Staff', '/proposals':'Proposal Builder',
