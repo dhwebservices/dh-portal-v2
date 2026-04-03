@@ -39,6 +39,12 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   )
 }
 
+const TASK_BOARD_COLUMNS = [
+  ['todo', 'To Do', 'var(--faint)'],
+  ['in_progress', 'In Progress', 'var(--accent)'],
+  ['done', 'Done', 'var(--green)'],
+]
+
 export default function MyTeam() {
   const navigate = useNavigate()
   const { org, user } = useAuth()
@@ -123,6 +129,12 @@ export default function MyTeam() {
   }).length
   const openTasks = tasks.filter((task) => task.status !== 'done')
   const overdueTasks = openTasks.filter((task) => task.due_date && new Date(task.due_date) < new Date())
+  const taskBoard = TASK_BOARD_COLUMNS.map(([key, label, tone]) => ({
+    key,
+    label,
+    tone,
+    items: tasks.filter((task) => task.status === key),
+  }))
 
   if (!currentDepartment) {
     return (
@@ -199,20 +211,34 @@ export default function MyTeam() {
 
           <div className="card card-pad">
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Tasks assigned to {currentDepartment}</div>
-            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              {tasks.slice(0, 8).map((task) => (
-                <div key={task.id} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{task.title}</div>
-                    <span className={`badge badge-${task.status === 'done' ? 'green' : task.status === 'in_progress' ? 'blue' : 'grey'}`}>{task.status.replace('_', ' ')}</span>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop: 4, flexWrap:'wrap' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Team task board</div>
+              <button className="btn btn-outline btn-sm" onClick={() => navigate('/tasks')}>Open full task manager</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:14 }}>
+              {taskBoard.map((column) => (
+                <div key={column.key} style={{ border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)', padding:12 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:10 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:column.tone, letterSpacing:'0.06em', textTransform:'uppercase' }}>{column.label}</div>
+                    <span className="badge badge-grey">{column.items.length}</span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 5 }}>
-                    {task.description_plain || 'No description'}{task.assigned_to_name ? ` · Owner ${task.assigned_to_name}` : ''}
+                  <div style={{ display:'grid', gap:10 }}>
+                    {column.items.map((task) => (
+                      <div key={task.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--card)' }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{task.title}</div>
+                        <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>
+                          {task.description_plain || 'No description'}
+                        </div>
+                        <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>
+                          {task.assigned_to_name ? `Owner ${task.assigned_to_name}` : 'Department queue'}
+                          {task.due_date ? ` · Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : ' · No due date'}
+                        </div>
+                      </div>
+                    ))}
+                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No tasks in this column.</div> : null}
                   </div>
                 </div>
               ))}
-              {tasks.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No department tasks have been assigned yet.</div>}
             </div>
           </div>
         </div>

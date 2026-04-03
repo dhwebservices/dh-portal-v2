@@ -125,6 +125,12 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   )
 }
 
+const TASK_BOARD_COLUMNS = [
+  ['todo', 'To Do', 'var(--faint)'],
+  ['in_progress', 'In Progress', 'var(--accent)'],
+  ['done', 'Done', 'var(--green)'],
+]
+
 export default function MyDepartment() {
   const navigate = useNavigate()
   const { user, org, isDirector, isDepartmentManager, managedDepartments, startPreviewAs, canPreviewStaffMember, isPreviewing, previewTarget } = useAuth()
@@ -278,6 +284,56 @@ export default function MyDepartment() {
   const currentDepartmentTasks = departmentTasks.filter((task) => String(task.assigned_department || '').trim() === currentDepartment)
   const openDepartmentTasks = currentDepartmentTasks.filter((task) => task.status !== 'done')
   const overdueDepartmentTasks = openDepartmentTasks.filter((task) => task.due_date && new Date(task.due_date) < new Date())
+  const departmentTaskBoard = TASK_BOARD_COLUMNS.map(([key, label, tone]) => ({
+    key,
+    label,
+    tone,
+    items: currentDepartmentTasks.filter((task) => task.status === key),
+  }))
+
+  async function updateDepartmentTask(taskId, patch = {}) {
+    const { error: saveError } = await supabase
+      .from('tasks')
+      .update({
+        ...patch,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', taskId)
+    if (saveError) throw saveError
+    setDepartmentTasks((current) => current.map((task) => (
+      task.id === taskId ? enrichTask({ ...task, ...patch }) : task
+    )))
+  }
+
+  async function claimDepartmentTask(task) {
+    try {
+      await updateDepartmentTask(task.id, {
+        assigned_to_email: normalizePortalEmail(user?.email),
+        assigned_to_name: user?.name || user?.email || 'Department manager',
+      })
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not claim the department task.')
+    }
+  }
+
+  async function releaseDepartmentTask(task) {
+    try {
+      await updateDepartmentTask(task.id, {
+        assigned_to_email: null,
+        assigned_to_name: null,
+      })
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not return the task to the department queue.')
+    }
+  }
+
+  async function changeDepartmentTaskStatus(task, nextStatus) {
+    try {
+      await updateDepartmentTask(task.id, { status: nextStatus })
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not update the task status.')
+    }
+  }
 
   async function impersonateStaffMember(staffRow) {
     try {
@@ -636,25 +692,50 @@ export default function MyDepartment() {
         <div style={{ display: 'grid', gap: 16 }}>
           <div className="card card-pad">
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Tasks assigned to {currentDepartment}</div>
-            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              {currentDepartmentTasks.slice(0, 6).map((task) => (
-                <div key={task.id} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{task.title}</div>
-                    <span className={`badge badge-${task.status === 'done' ? 'green' : task.status === 'in_progress' ? 'blue' : 'amber'}`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop: 4, flexWrap:'wrap' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Task board for {currentDepartment}</div>
+              <button className="btn btn-outline btn-sm" onClick={() => navigate('/tasks')}>Open full task manager</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop: 14 }}>
+              {departmentTaskBoard.map((column) => (
+                <div key={column.key} style={{ border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)', padding:12 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:10 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:column.tone, letterSpacing:'0.06em', textTransform:'uppercase' }}>{column.label}</div>
+                    <span className="badge badge-grey">{column.items.length}</span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 5 }}>
-                    {task.description_plain || 'No task description'}{task.assigned_to_name ? ` · Owner ${task.assigned_to_name}` : ' · Department queue'}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--faint)', marginTop: 5 }}>
-                    {task.due_date ? `Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : 'No due date set'}
+                  <div style={{ display:'grid', gap:10 }}>
+                    {column.items.map((task) => {
+                      const isOwnedByCurrentUser = normalizePortalEmail(task.assigned_to_email) === normalizePortalEmail(user?.email)
+                      return (
+                        <div key={task.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--card)' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{task.title}</div>
+                          <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>
+                            {task.description_plain || 'No task description'}
+                          </div>
+                          <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>
+                            {task.assigned_to_name ? `Owner ${task.assigned_to_name}` : 'Department queue'}
+                            {task.due_date ? ` · Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : ' · No due date'}
+                          </div>
+                          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                            {!task.assigned_to_email ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => claimDepartmentTask(task)}>Claim</button>
+                            ) : isOwnedByCurrentUser ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => releaseDepartmentTask(task)}>Return to queue</button>
+                            ) : null}
+                            {task.status !== 'in_progress' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => changeDepartmentTaskStatus(task, 'in_progress')}>Start</button>
+                            ) : null}
+                            {task.status !== 'done' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => changeDepartmentTaskStatus(task, 'done')}>Mark done</button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No tasks in this column.</div> : null}
                   </div>
                 </div>
               ))}
-              {currentDepartmentTasks.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No department tasks have been assigned to this team yet.</div>}
             </div>
           </div>
 
