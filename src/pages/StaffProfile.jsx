@@ -34,11 +34,13 @@ import {
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
 import {
+  buildDepartmentCatalogKey,
   buildDepartmentRequestKey,
   buildStaffOrgKey,
   createDepartmentRequest,
   getManagedDepartments,
   getRoleScopeLabel,
+  mergeDepartmentCatalog,
   mergeOrgRecord,
   ORG_ROLE_SCOPES,
 } from '../utils/orgStructure'
@@ -148,6 +150,7 @@ export default function StaffProfile() {
   const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
   const [orgRecord, setOrgRecord] = useState(() => mergeOrgRecord())
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
+  const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [departmentRequests, setDepartmentRequests] = useState([])
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
@@ -244,6 +247,11 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildStaffOrgKey(email))
         .maybeSingle()
+      const { data: departmentCatalogSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildDepartmentCatalogKey())
+        .maybeSingle()
       const { data: requestRows } = await supabase
         .from('portal_settings')
         .select('key,value')
@@ -254,6 +262,7 @@ export default function StaffProfile() {
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
+      const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
         onboarding: !!perm?.onboarding,
@@ -265,6 +274,7 @@ export default function StaffProfile() {
         department: mergedProfile.department,
         isDirector: DIRECTOR_EMAILS.has(email),
       })
+      setDepartmentCatalog(mergeDepartmentCatalog(departmentCatalogRaw))
       setOrgRecord(nextOrg)
       setOriginalOrgRecord(nextOrg)
       setDepartmentRequests((requestRows || [])
@@ -996,7 +1006,18 @@ export default function StaffProfile() {
               <div className="fg">
                 <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
                 <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
-                <div><label className="lbl">Department</label><input className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}/></div>
+                <div>
+                  <label className="lbl">Department</label>
+                  <select className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}>
+                    <option value="">— No department assigned —</option>
+                    {departmentCatalog.map((department) => (
+                      <option key={department.id} value={department.name}>{department.name}</option>
+                    ))}
+                    {profile.department && !departmentCatalog.some((department) => department.name === profile.department) ? (
+                      <option value={profile.department}>{profile.department}</option>
+                    ) : null}
+                  </select>
+                </div>
                 <div>
                   <label className="lbl">Access Role</label>
                   <select
