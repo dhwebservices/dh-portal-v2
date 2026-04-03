@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
@@ -49,6 +49,20 @@ import {
   mergeComplianceRecord,
   resolveRightToWorkRecord,
 } from '../utils/complianceRecords'
+import {
+  buildContractMergeFields,
+  buildContractFileName,
+  buildContractPdfBlob,
+  buildContractTemplateKey,
+  buildStaffContractKey,
+  buildSignedContractHtml,
+  CONTRACT_PLACEHOLDERS,
+  createPortalSignature,
+  createContractTemplate,
+  createStaffContract,
+  getContractStatusLabel,
+  renderContractHtml,
+} from '../utils/contracts'
 import { sendEmail } from '../utils/email'
 
 const ALL_PAGES = [
@@ -76,6 +90,7 @@ const ALL_PAGES = [
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
   {key:'hr_documents',  label:'HR Documents',       group:'HR', category:'Records', desc:'Document coverage and expiry checks'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
+  {key:'contract_templates', label:'Contract Templates', group:'HR', category:'Records', desc:'HR contract template library'},
   {key:'org_chart',     label:'Org Chart',          group:'HR', category:'Structure', desc:'Live reporting lines'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
@@ -138,6 +153,7 @@ function mergeManagedDepartmentScope(orgRecord = {}, departmentCatalog = [], ema
 
 export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
+  const location = useLocation()
   const email = decodeURIComponent(encodedEmail || '').toLowerCase().trim()
   const navigate = useNavigate()
   const { user, isDirector, isDepartmentManager, managedDepartments, canViewScopedStaff } = useAuth()
@@ -174,6 +190,17 @@ export default function StaffProfile() {
   const [departmentRequests, setDepartmentRequests] = useState([])
   const [complianceRecord, setComplianceRecord] = useState(() => mergeComplianceRecord())
   const [complianceSaving, setComplianceSaving] = useState(false)
+  const [contractTemplates, setContractTemplates] = useState([])
+  const [contracts, setContracts] = useState([])
+  const [contractSaving, setContractSaving] = useState(false)
+  const [contractError, setContractError] = useState('')
+  const [contractSuccess, setContractSuccess] = useState('')
+  const [contractForm, setContractForm] = useState({
+    templateId: '',
+    managerSignatureName: '',
+    managerSignatureTitle: '',
+    notes: '',
+  })
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
@@ -225,6 +252,11 @@ export default function StaffProfile() {
     loadAll()
     loadMsUsers()
   }, [email])
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get('tab')
+    if (requestedTab) setTab(requestedTab)
+  }, [location.search])
 
   const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
@@ -283,6 +315,14 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('key,value')
         .like('key', 'department_request:%')
+      const { data: templateRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'contract_template:%')
+      const { data: contractRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'staff_contract:%')
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
@@ -315,6 +355,28 @@ export default function StaffProfile() {
       setOrgRecord(hydratedOrg)
       setOriginalOrgRecord(hydratedOrg)
       setComplianceRecord(mergeComplianceRecord(complianceRaw))
+      const nextTemplates = (templateRows || [])
+        .map((row) => createContractTemplate({
+          id: String(row.key || '').replace('contract_template:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.active !== false)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+      setContractTemplates(nextTemplates)
+      const nextContracts = (contractRows || [])
+        .map((row) => createStaffContract({
+          id: String(row.key || '').replace('staff_contract:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
+      setContracts(nextContracts)
+      setContractForm((current) => ({
+        ...current,
+        templateId: current.templateId || nextTemplates[0]?.id || '',
+        managerSignatureName: current.managerSignatureName || user?.name || '',
+        managerSignatureTitle: current.managerSignatureTitle || getRoleScopeLabel(hydratedOrg.role_scope) || 'Department Manager',
+      }))
       setDepartmentRequests((requestRows || [])
         .map((row) => createDepartmentRequest({
           id: String(row.key || '').replace('department_request:', ''),
@@ -858,6 +920,145 @@ export default function StaffProfile() {
     }
   }
 
+  const persistContractRecord = async (nextContract) => {
+    const payload = createStaffContract(nextContract)
+    const { error } = await supabase
+      .from('portal_settings')
+      .upsert({
+        key: buildStaffContractKey(payload.id),
+        value: { value: payload },
+      }, { onConflict: 'key' })
+    if (error) throw error
+    setContracts((current) => [payload, ...current.filter((item) => item.id !== payload.id)]
+      .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()))
+    return payload
+  }
+
+  const issueContractToStaff = async () => {
+    if (!contractForm.templateId) {
+      setContractError('Choose a contract template first.')
+      return
+    }
+    if (!contractForm.managerSignatureName.trim() || !contractForm.managerSignatureTitle.trim()) {
+      setContractError('Add the signer name and title before issuing the contract.')
+      return
+    }
+
+    const template = contractTemplates.find((item) => item.id === contractForm.templateId)
+    if (!template) {
+      setContractError('That contract template could not be found.')
+      return
+    }
+
+    setContractSaving(true)
+    setContractError('')
+    setContractSuccess('')
+
+    try {
+      const mergeFields = buildContractMergeFields({
+        profile,
+        orgRecord,
+        template,
+        managerTitle: contractForm.managerSignatureTitle,
+        staffEmail: email,
+      })
+      const managerSignature = createPortalSignature({
+        name: contractForm.managerSignatureName,
+        title: contractForm.managerSignatureTitle,
+        email: user?.email || '',
+      })
+      const now = new Date().toISOString()
+      const nextContract = await persistContractRecord({
+        template_id: template.id,
+        template_name: template.name,
+        contract_type: template.contract_type,
+        subject: template.subject,
+        staff_email: email,
+        staff_name: profile.full_name || email,
+        staff_role: profile.role || '',
+        staff_department: profile.department || orgRecord.department || '',
+        manager_email: profile.manager_email || orgRecord.reports_to_email || normalizeEmail(user?.email || ''),
+        manager_name: profile.manager_name || orgRecord.reports_to_name || contractForm.managerSignatureName,
+        manager_title: contractForm.managerSignatureTitle,
+        status: 'awaiting_staff_signature',
+        notes: contractForm.notes || '',
+        merge_fields: mergeFields,
+        template_html: template.content_html,
+        template_reference_file_url: template.reference_file_url,
+        template_reference_file_path: template.reference_file_path,
+        template_reference_file_name: template.reference_file_name,
+        manager_signature: managerSignature,
+        manager_signed_at: managerSignature.signed_at,
+        issued_at: now,
+        updated_at: now,
+      })
+
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'info',
+        title: 'Contract ready to sign',
+        message: `${contractForm.managerSignatureName.trim()} has issued your ${template.contract_type || 'employment contract'}. Review and sign it in onboarding to complete your HR setup.`,
+        link: '/hr/onboarding',
+        emailSubject: `${template.subject || template.name} — ready to sign`,
+        emailHtml: `
+          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+          <p>Your ${template.contract_type || 'employment contract'} is ready for signature in DH Portal.</p>
+          <p>Please review and sign it inside onboarding to complete your staff setup.</p>
+          <p><a href="https://staff.dhwebsiteservices.co.uk/hr/onboarding" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open onboarding</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      })
+
+      setContractForm((current) => ({
+        ...current,
+        notes: '',
+      }))
+      setContractSuccess(`Issued ${nextContract.template_name} for staff signature.`)
+    } catch (error) {
+      console.error('Contract issue failed:', error)
+      setContractError(error.message || 'Could not issue the contract.')
+    } finally {
+      setContractSaving(false)
+    }
+  }
+
+  const voidContract = async (contract) => {
+    if (!confirm(`Void ${contract.template_name || 'this contract'}?`)) return
+    setContractSaving(true)
+    setContractError('')
+    setContractSuccess('')
+    try {
+      const nextContract = await persistContractRecord({
+        ...contract,
+        status: 'voided',
+        voided_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'warning',
+        title: 'Contract update',
+        message: `${nextContract.template_name || 'A contract'} has been voided and is no longer awaiting your signature.`,
+        link: '/hr/onboarding',
+        emailSubject: `Contract voided — ${nextContract.template_name || 'DH Portal'}`,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      }).catch(() => {})
+      setContractSuccess(`${nextContract.template_name || 'Contract'} marked as voided.`)
+    } catch (error) {
+      console.error('Contract void failed:', error)
+      setContractError(error.message || 'Could not void the contract.')
+    } finally {
+      setContractSaving(false)
+    }
+  }
+
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
@@ -866,6 +1067,19 @@ export default function StaffProfile() {
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
   const roleScopeLabel = getRoleScopeLabel(orgRecord.role_scope)
   const contractDoc = docs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
+  const activeContractTemplate = contractTemplates.find((item) => item.id === contractForm.templateId) || contractTemplates[0] || null
+  const contractPreviewFields = buildContractMergeFields({
+    profile,
+    orgRecord,
+    template: activeContractTemplate || {},
+    managerTitle: contractForm.managerSignatureTitle || activeContractTemplate?.manager_title_default || roleScopeLabel || 'Department Manager',
+    staffEmail: email,
+  })
+  const renderedContractPreview = activeContractTemplate
+    ? renderContractHtml(activeContractTemplate.content_html, contractPreviewFields)
+    : ''
+  const pendingSignatureContracts = contracts.filter((contract) => contract.status === 'awaiting_staff_signature')
+  const completedContracts = contracts.filter((contract) => contract.status === 'completed')
   const rtwRecord = resolveRightToWorkRecord(profile, docs, complianceRecord)
   const rtwRemaining = rtwRecord.expiry ? Math.ceil((new Date(rtwRecord.expiry).getTime() - Date.now()) / 86400000) : null
   const rtwStatus = !rtwRecord.hasDocument && !rtwRecord.rtw_override
@@ -1061,7 +1275,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['lifecycle','Lifecycle'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['lifecycle','Lifecycle'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -2158,6 +2372,133 @@ export default function StaffProfile() {
                 ) : (
                   <div style={{ padding:'16px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
                     No recent notifications have been sent to this staff member yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'contracts' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.1fr) minmax(320px,0.9fr)', gap:18 }} className="staff-profile-main-grid">
+            <div className="card card-pad">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Issue contract</div>
+                  <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Manager-signed contract pack</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                    Choose a contract template, apply the staff merge fields, and sign as the issuing manager. The staff member will then sign it in onboarding and receive a final PDF copy by email.
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => navigate('/contract-templates')}>Manage templates</button>
+                  <button className="btn btn-primary btn-sm" onClick={issueContractToStaff} disabled={contractSaving || !activeContractTemplate}>
+                    {contractSaving ? 'Issuing...' : 'Issue contract'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="fg" style={{ marginBottom:18 }}>
+                <div>
+                  <label className="lbl">Template</label>
+                  <select className="inp" value={contractForm.templateId} onChange={(e) => setContractForm((current) => ({ ...current, templateId: e.target.value }))}>
+                    <option value="">Choose template</option>
+                    {contractTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="lbl">Signer name</label>
+                  <input className="inp" value={contractForm.managerSignatureName} onChange={(e) => setContractForm((current) => ({ ...current, managerSignatureName: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="lbl">Signer title</label>
+                  <input className="inp" value={contractForm.managerSignatureTitle} onChange={(e) => setContractForm((current) => ({ ...current, managerSignatureTitle: e.target.value }))} />
+                </div>
+                <div className="fc">
+                  <label className="lbl">Issue notes</label>
+                  <textarea className="inp" rows={4} value={contractForm.notes} onChange={(e) => setContractForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} placeholder="Optional context for the staff member or HR audit trail." />
+                </div>
+              </div>
+
+              <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:10, flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Preview</div>
+                    <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>{activeContractTemplate?.name || 'Choose a template'}</div>
+                  </div>
+                  {activeContractTemplate?.reference_file_url ? <a className="btn btn-outline btn-sm" href={activeContractTemplate.reference_file_url} target="_blank" rel="noreferrer">Open reference file</a> : null}
+                </div>
+                {activeContractTemplate ? (
+                  <>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                      <span className="badge badge-blue">{activeContractTemplate.contract_type}</span>
+                      {CONTRACT_PLACEHOLDERS.map(([key]) => <span key={key} className="badge badge-grey">{`{{${key}}}`}</span>)}
+                    </div>
+                    <div style={{ padding:'18px 20px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
+                      <div style={{ fontSize:12.5, color:'var(--sub)', marginBottom:10 }}>Live merged contract body</div>
+                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedContractPreview }} />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize:13, color:'var(--sub)' }}>Choose a contract template to preview the merged document.</div>
+                )}
+              </div>
+
+              {contractError ? <div style={{ marginTop:12, fontSize:13, color:'var(--red)' }}>{contractError}</div> : null}
+              {contractSuccess ? <div style={{ marginTop:12, fontSize:13, color:'var(--green)' }}>{contractSuccess}</div> : null}
+            </div>
+
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Status</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:10 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Awaiting staff</div>
+                    <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{pendingSignatureContracts.length}</div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Completed</div>
+                    <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{completedContracts.length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Contract history</div>
+                {contracts.length ? (
+                  <div style={{ display:'grid', gap:10 }}>
+                    {contracts.map((contract) => {
+                      const [statusLabel, statusTone] = getContractStatusLabel(contract.status)
+                      return (
+                        <div key={contract.id} style={{ padding:'14px 16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                            <div>
+                              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{contract.template_name || contract.contract_type || 'Contract'}</div>
+                              <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{contract.staff_name || profile.full_name || email}</div>
+                            </div>
+                            <span className={`badge badge-${statusTone}`}>{statusLabel}</span>
+                          </div>
+                          <div style={{ display:'grid', gap:6, marginTop:10, fontSize:12.5, color:'var(--sub)' }}>
+                            <div>Issued {contract.issued_at ? new Date(contract.issued_at).toLocaleString('en-GB') : 'Not issued yet'}</div>
+                            <div>Manager sign-off: {contract.manager_signature?.name || 'Pending'}</div>
+                            <div>Staff sign-off: {contract.staff_signature?.name || 'Pending'}</div>
+                          </div>
+                          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+                            {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
+                            {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Open template attachment</a> : null}
+                            {contract.status !== 'completed' && contract.status !== 'voided' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => voidContract(contract)} disabled={contractSaving}>Void</button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                    No contracts have been issued for this staff member yet.
                   </div>
                 )}
               </div>

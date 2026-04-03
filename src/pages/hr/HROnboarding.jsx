@@ -1,10 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
+import { buildAddressFromOnboarding, normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
 import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
+import {
+  buildContractFileName,
+  buildContractPdfBlob,
+  buildStaffContractKey,
+  createPortalSignature,
+  createStaffContract,
+  getContractStatusLabel,
+  renderContractHtml,
+} from '../../utils/contracts'
 
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
@@ -28,6 +37,10 @@ function daysUntil(dateString) {
   if (!dateString) return null
   const diff = new Date(dateString).getTime() - Date.now()
   return Math.ceil(diff / 86400000)
+}
+
+function buildOnboardingPayloadKey(email = '') {
+  return `onboarding_payload:${normalizeEmail(email)}`
 }
 
 function buildSubmissionPayload({ user, form, employmentContext, status }) {
@@ -77,6 +90,44 @@ function buildSubmissionPayload({ user, form, employmentContext, status }) {
   }
 }
 
+function buildSubmissionRow(payload = {}) {
+  return {
+    user_email: normalizeEmail(payload.user_email || ''),
+    user_name: payload.user_name || '',
+    dob: payload.dob || null,
+    address: buildAddressFromOnboarding(payload),
+    personal_email: payload.personal_email || '',
+    manager_name: payload.manager_name || '',
+    manager_email: payload.manager_email || '',
+    emergency_phone: payload.emergency_phone || '',
+    bank_name: payload.bank_name || '',
+    account_name: payload.account_name || '',
+    sort_code: payload.sort_code || '',
+    account_number: payload.account_number || '',
+    rtw_type: payload.rtw_type || '',
+    rtw_expiry: payload.rtw_expiry || null,
+    status: payload.status || 'draft',
+    submitted_at: payload.status === 'submitted' ? (payload.submitted_at || new Date().toISOString()) : null,
+    updated_at: new Date().toISOString(),
+  }
+}
+
+function mergeSubmissionWithPayload(summary = {}, payload = {}) {
+  return {
+    ...summary,
+    ...payload,
+    user_email: normalizeEmail(payload.user_email || summary.user_email || ''),
+    user_name: payload.user_name || summary.user_name || '',
+    status: payload.status || summary.status || 'draft',
+    submitted_at: payload.submitted_at || summary.submitted_at || null,
+    manager_email: payload.manager_email || summary.manager_email || '',
+    manager_name: payload.manager_name || summary.manager_name || '',
+    personal_email: payload.personal_email || summary.personal_email || '',
+    rtw_type: payload.rtw_type || summary.rtw_type || '',
+    rtw_expiry: payload.rtw_expiry || summary.rtw_expiry || null,
+  }
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
@@ -90,6 +141,9 @@ export default function HROnboarding() {
   const [rtwUploading, setRtwUploading] = useState(false)
   const [rtwUploadError, setRtwUploadError] = useState('')
   const [rtwUploadName, setRtwUploadName] = useState('')
+  const [staffContract, setStaffContract] = useState(null)
+  const [contractSigning, setContractSigning] = useState(false)
+  const [contractMessage, setContractMessage] = useState('')
   const [viewSub, setViewSub]         = useState(null)
   const [adminBusyEmail, setAdminBusyEmail] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
@@ -124,11 +178,15 @@ export default function HROnboarding() {
       { data: mine },
       { data: profileRows },
       { data: orgSetting },
+      { data: payloadSettings },
+      { data: contractSettings },
     ] = await Promise.all([
       isReviewer ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', currentEmail).maybeSingle(),
       supabase.from('hr_profiles').select('*').ilike('user_email', currentEmail),
       supabase.from('portal_settings').select('value').eq('key', buildStaffOrgKey(currentEmail)).maybeSingle(),
+      supabase.from('portal_settings').select('key,value').like('key', 'onboarding_payload:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
     ])
     const profile = Array.isArray(profileRows) ? profileRows[0] || {} : (profileRows || {})
     const orgRecord = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
@@ -145,8 +203,22 @@ export default function HROnboarding() {
       start_date: profile?.start_date || '',
     })
 
+    const payloadMap = Object.fromEntries((payloadSettings || []).map((row) => [
+      String(row.key || '').replace('onboarding_payload:', '').toLowerCase(),
+      row.value?.value ?? row.value ?? {},
+    ]))
+    const currentContract = (contractSettings || [])
+      .map((row) => createStaffContract({
+        id: String(row.key || '').replace('staff_contract:', ''),
+        ...(row.value?.value ?? row.value ?? {}),
+      }))
+      .filter((item) => item.staff_email === currentEmail)
+      .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())[0] || null
+    setStaffContract(currentContract)
+    setContractMessage('')
+    const mergedAll = (all || []).map((submission) => mergeSubmissionWithPayload(submission, payloadMap[normalizeEmail(submission.user_email)] || {}))
     const currentReviewerEmail = normalizeEmail(user?.email || '')
-    const visibleSubmissions = (all || []).filter((submission) => {
+    const visibleSubmissions = mergedAll.filter((submission) => {
       if (canSeeAllSubmissions) return true
       const submissionDepartment = String(submission.department || '').trim()
       const submissionManagerEmail = normalizeEmail(submission.manager_email || '')
@@ -155,11 +227,13 @@ export default function HROnboarding() {
       return inManagedDepartment || assignedToCurrentManager
     })
     setSubmissions(visibleSubmissions)
-    if (mine) {
-      setMy(mine)
+    const mergedMine = mine ? mergeSubmissionWithPayload(mine, payloadMap[currentEmail] || {}) : null
+    if (mergedMine) {
+      setMy(mergedMine)
       // Pre-fill form from existing submission
       const saved = { ...form }
-      Object.keys(saved).forEach(k => { if (mine[k] !== undefined && mine[k] !== null) saved[k] = mine[k] })
+      Object.keys(saved).forEach(k => { if (mergedMine[k] !== undefined && mergedMine[k] !== null) saved[k] = mergedMine[k] })
+      if (currentContract?.status === 'completed') saved.contract_signed = true
       setForm(saved)
     }
     else {
@@ -171,6 +245,7 @@ export default function HROnboarding() {
         contract_type: profile?.contract_type || current.contract_type,
         manager_name: profile?.manager_name || orgRecord.reports_to_name || current.manager_name,
         manager_email: profile?.manager_email || orgRecord.reports_to_email || current.manager_email,
+        contract_signed: currentContract?.status === 'completed' ? true : current.contract_signed,
       }))
     }
     setLoading(false)
@@ -193,13 +268,155 @@ export default function HROnboarding() {
     setRtwUploading(false)
   }
 
+  const signContract = async () => {
+    if (!staffContract || staffContract.status !== 'awaiting_staff_signature') return
+    setContractSigning(true)
+    setContractMessage('')
+    try {
+      const normalizedEmail = normalizeEmail(user?.email || '')
+      const staffSignature = createPortalSignature({
+        name: form.full_name || user?.name || normalizedEmail,
+        title: 'Staff member',
+        email: normalizedEmail,
+      })
+      const now = new Date().toISOString()
+      const completedContract = createStaffContract({
+        ...staffContract,
+        staff_name: form.full_name || staffContract.staff_name || user?.name || normalizedEmail,
+        staff_role: form.job_title || employmentContext.job_title || staffContract.staff_role,
+        staff_department: form.department || employmentContext.department || staffContract.staff_department,
+        merge_fields: {
+          ...(staffContract.merge_fields || {}),
+          staff_name: form.full_name || staffContract.staff_name || user?.name || normalizedEmail,
+          staff_role: form.job_title || employmentContext.job_title || staffContract.staff_role,
+          staff_department: form.department || employmentContext.department || staffContract.staff_department,
+        },
+        staff_signature: staffSignature,
+        staff_signed_at: staffSignature.signed_at,
+        status: 'completed',
+        completed_at: now,
+        updated_at: now,
+      })
+
+      const pdfBlob = await buildContractPdfBlob(completedContract)
+      const fileName = buildContractFileName(completedContract)
+      const filePath = `contracts/${normalizedEmail}/${Date.now()}-${fileName}`
+      const { error: uploadError } = await supabase.storage.from('hr-documents').upload(filePath, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: false,
+      })
+      if (uploadError) throw uploadError
+      const { data: publicUrlData } = supabase.storage.from('hr-documents').getPublicUrl(filePath)
+
+      const finalizedContract = createStaffContract({
+        ...completedContract,
+        final_document_path: filePath,
+        final_document_url: publicUrlData.publicUrl,
+      })
+
+      const [{ error: contractError }, { error: docError }, { error: payloadError }] = await Promise.all([
+        supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildStaffContractKey(finalizedContract.id),
+            value: { value: finalizedContract },
+          }, { onConflict: 'key' }),
+        supabase
+          .from('staff_documents')
+          .insert([{
+            staff_email: normalizedEmail,
+            name: `${finalizedContract.template_name || finalizedContract.contract_type || 'Employment Contract'}.pdf`,
+            type: 'Contract',
+            file_url: publicUrlData.publicUrl,
+            file_path: filePath,
+            uploaded_by: 'Onboarding signature',
+            created_at: now,
+          }]),
+        supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildOnboardingPayloadKey(normalizedEmail),
+            value: {
+              value: {
+                ...(mySubmission || {}),
+                ...form,
+                contract_signed: true,
+              },
+            },
+          }, { onConflict: 'key' }),
+      ])
+      if (contractError) throw contractError
+      if (docError) throw docError
+      if (payloadError) throw payloadError
+
+      await sendManagedNotification({
+        userEmail: normalizedEmail,
+        userName: form.full_name || user?.name || normalizedEmail,
+        category: 'hr',
+        type: 'success',
+        title: 'Signed contract complete',
+        message: `Your ${finalizedContract.template_name || 'contract'} has been signed and stored in DH Portal.`,
+        link: finalizedContract.final_document_url || '/my-profile',
+        emailSubject: `${finalizedContract.template_name || 'Employment contract'} — signed copy`,
+        emailHtml: `
+          <p>Hi ${(form.full_name || user?.name || normalizedEmail).split(' ')[0] || 'there'},</p>
+          <p>Your contract has now been fully signed.</p>
+          <p><a href="${finalizedContract.final_document_url}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open signed PDF</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'DH Portal',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      }).catch(() => {})
+
+      const issuingManagerEmail = normalizeEmail(finalizedContract.manager_signature?.email || finalizedContract.manager_email || '')
+      const issuingManagerName = finalizedContract.manager_signature?.name || finalizedContract.manager_name || issuingManagerEmail
+      if (issuingManagerEmail) {
+        await sendManagedNotification({
+          userEmail: issuingManagerEmail,
+          userName: issuingManagerName,
+          category: 'hr',
+          type: 'success',
+          title: 'Staff contract signed',
+          message: `${finalizedContract.staff_name || normalizedEmail} has signed their contract. The final PDF is ready in DH Portal.`,
+          link: finalizedContract.final_document_url || '/my-staff',
+          emailSubject: `${finalizedContract.staff_name || normalizedEmail} — contract signed`,
+          emailHtml: `
+            <p>Hi ${(issuingManagerName).split(' ')[0] || 'there'},</p>
+            <p>${finalizedContract.staff_name || normalizedEmail} has signed their contract.</p>
+            <p><a href="${finalizedContract.final_document_url}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open signed PDF</a></p>
+          `,
+          sentBy: user?.name || user?.email || 'DH Portal',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        }).catch(() => {})
+      }
+
+      setStaffContract(finalizedContract)
+      setForm((current) => ({ ...current, contract_signed: true }))
+      setContractMessage('Contract signed successfully. The final PDF has been stored and emailed.')
+    } catch (error) {
+      console.error('Contract sign failed:', error)
+      setContractMessage(error.message || 'Could not sign the contract right now.')
+    } finally {
+      setContractSigning(false)
+    }
+  }
+
   const submit = async () => {
     setSaving(true)
     try {
       const normalizedEmail = normalizeEmail(user?.email || '')
       const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'submitted' })
-      const { error } = await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
-      if (error) throw error
+      const summaryRow = buildSubmissionRow(payload)
+      const [{ error: summaryError }, { error: payloadError }] = await Promise.all([
+        supabase.from('onboarding_submissions').upsert(summaryRow, { onConflict:'user_email' }),
+        supabase.from('portal_settings').upsert({
+          key: buildOnboardingPayloadKey(normalizedEmail),
+          value: { value: payload },
+        }, { onConflict: 'key' }),
+      ])
+      if (summaryError) throw summaryError
+      if (payloadError) throw payloadError
 
       await syncOnboardingSubmissionToHrProfile({
         ...payload,
@@ -247,8 +464,16 @@ export default function HROnboarding() {
     setSaving(true)
     try {
       const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'draft' })
-      const { error } = await supabase.from('onboarding_submissions').upsert(payload, { onConflict:'user_email' })
-      if (error) throw error
+      const summaryRow = buildSubmissionRow(payload)
+      const [{ error: summaryError }, { error: payloadError }] = await Promise.all([
+        supabase.from('onboarding_submissions').upsert(summaryRow, { onConflict:'user_email' }),
+        supabase.from('portal_settings').upsert({
+          key: buildOnboardingPayloadKey(normalizeEmail(user?.email || '')),
+          value: { value: payload },
+        }, { onConflict: 'key' }),
+      ])
+      if (summaryError) throw summaryError
+      if (payloadError) throw payloadError
       await load()
     } catch (error) {
       console.error('Onboarding draft save failed:', error)
@@ -270,7 +495,7 @@ export default function HROnboarding() {
     try {
       const { data, error } = await supabase
         .from('onboarding_submissions')
-        .update({ status, decided_by: user.name, decided_at: new Date().toISOString(), admin_notes: notes })
+        .update({ status, updated_at: new Date().toISOString() })
         .ilike('user_email', normalizedEmail)
         .select('*')
 
@@ -278,8 +503,27 @@ export default function HROnboarding() {
       const submission = Array.isArray(data) ? data[0] : data
       if (!submission) throw new Error('No onboarding submission was updated for this staff member.')
 
+      const updatedPayload = mergeSubmissionWithPayload(submission, {
+        ...(submissions.find((item) => normalizeEmail(item.user_email) === normalizedEmail) || {}),
+        status,
+        admin_notes: notes,
+        decided_by: user?.name || user?.email || '',
+        decided_at: new Date().toISOString(),
+      })
+
+      const { error: payloadError } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildOnboardingPayloadKey(normalizedEmail),
+          value: { value: updatedPayload },
+        }, { onConflict: 'key' })
+      if (payloadError) throw payloadError
+
       if (status === 'approved') {
-        await syncOnboardingSubmissionToHrProfile(submission, { overwrite: true })
+        await syncOnboardingSubmissionToHrProfile({
+          ...updatedPayload,
+          full_name: updatedPayload.full_name || updatedPayload.user_name,
+        }, { overwrite: true })
       }
 
       await sendManagedNotification({
@@ -300,12 +544,12 @@ export default function HROnboarding() {
       setSubmissions((current) =>
         current.map((item) =>
           normalizeEmail(item.user_email) === normalizedEmail
-            ? { ...item, ...submission }
+            ? mergeSubmissionWithPayload(item, updatedPayload)
             : item
         )
       )
       if (viewSub && normalizeEmail(viewSub.user_email) === normalizedEmail) {
-        setViewSub({ ...viewSub, ...submission })
+        setViewSub(mergeSubmissionWithPayload(viewSub, updatedPayload))
       } else {
         setViewSub(null)
       }
@@ -326,12 +570,19 @@ export default function HROnboarding() {
     setAdminBusyEmail(normalizedEmail)
     setAdminMessage('')
     try {
-      const { error } = await supabase
-        .from('onboarding_submissions')
-        .delete()
-        .ilike('user_email', normalizedEmail)
+      const [{ error }, { error: payloadError }] = await Promise.all([
+        supabase
+          .from('onboarding_submissions')
+          .delete()
+          .ilike('user_email', normalizedEmail),
+        supabase
+          .from('portal_settings')
+          .delete()
+          .eq('key', buildOnboardingPayloadKey(normalizedEmail)),
+      ])
 
       if (error) throw error
+      if (payloadError) throw payloadError
 
       setSubmissions((current) => current.filter((item) => normalizeEmail(item.user_email) !== normalizedEmail))
       if (viewSub && normalizeEmail(viewSub.user_email) === normalizedEmail) {
@@ -351,6 +602,10 @@ export default function HROnboarding() {
   }
 
   const pct = completionPct()
+  const contractRequirementMet = staffContract
+    ? staffContract.status === 'completed' || !!form.contract_signed
+    : !!form.contract_signed
+  const contractStatusLabel = staffContract ? getContractStatusLabel(staffContract.status) : null
   const adminSummary = isReviewer
     ? (() => {
         const submitted = submissions.filter((item) => item.status === 'submitted').length
@@ -653,9 +908,39 @@ export default function HROnboarding() {
             {step === 6 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Sign Off</h3>
+                {staffContract ? (
+                  <div style={{ padding:'16px 18px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap', marginBottom:10 }}>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{staffContract.template_name || 'Employment contract'}</div>
+                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>
+                          Issued by {staffContract.manager_signature?.name || staffContract.manager_name || 'Department manager'} · {staffContract.contract_type || 'Employment Contract'}
+                        </div>
+                      </div>
+                      {contractStatusLabel ? <span className={`badge badge-${contractStatusLabel[1]}`}>{contractStatusLabel[0]}</span> : null}
+                    </div>
+                    <div style={{ padding:'16px 18px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)', color:'var(--text)', lineHeight:1.75, fontSize:14 }}>
+                      <div dangerouslySetInnerHTML={{ __html: renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}) }} />
+                    </div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+                      {staffContract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={staffContract.template_reference_file_url} target="_blank" rel="noreferrer">Open attached template file</a> : null}
+                      {staffContract.final_document_url ? <a className="btn btn-outline btn-sm" href={staffContract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
+                      {staffContract.status === 'awaiting_staff_signature' ? (
+                        <button className="btn btn-primary btn-sm" onClick={signContract} disabled={contractSigning}>
+                          {contractSigning ? 'Signing contract...' : `Sign as ${form.full_name || user?.name || user?.email || 'staff member'}`}
+                        </button>
+                      ) : null}
+                    </div>
+                    {contractMessage ? (
+                      <div style={{ fontSize:12.5, color:contractRequirementMet ? 'var(--green)' : 'var(--amber)', marginTop:10 }}>
+                        {contractMessage}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {[
-                    ['contract_signed','I confirm I have received, read and signed my employment contract'],
+                    ...(!staffContract ? [['contract_signed','I confirm I have received, read and signed my employment contract']] : []),
                     ['handbook_read', 'I have read and understood the DH Website Services staff handbook and policies'],
                     ['data_consent', 'I consent to DH Website Services storing and processing my personal data in accordance with GDPR and the company Privacy Policy'],
                   ].map(([k, label]) => (
@@ -669,8 +954,10 @@ export default function HROnboarding() {
                   <label className="lbl">Additional Notes / Questions for HR</label>
                   <textarea className="inp" rows={4} value={form.additional_notes} onChange={e=>sf('additional_notes',e.target.value)} style={{ resize:'vertical' }} placeholder="Anything you'd like HR to know, or any questions you have..."/>
                 </div>
-                {(!form.contract_signed || !form.handbook_read || !form.data_consent) && (
-                  <div style={{ fontSize:12, color:'var(--amber)' }}>⚠ Please check all three boxes above before submitting</div>
+                {(!contractRequirementMet || !form.handbook_read || !form.data_consent) && (
+                  <div style={{ fontSize:12, color:'var(--amber)' }}>
+                    ⚠ Please {staffContract ? 'sign the contract and' : 'check all required confirmations and'} complete the sign-off section before submitting
+                  </div>
                 )}
                 {!form.company_portal_confirmed && (
                   <div style={{ fontSize:12, color:'var(--amber)' }}>⚠ Please confirm Microsoft Company Portal has been installed before submitting</div>
@@ -687,7 +974,7 @@ export default function HROnboarding() {
               <div>
                 {step < STEPS.length-1
                   ? <button className="btn btn-primary" onClick={() => setStep(s=>s+1)}>Next →</button>
-                  : <button className="btn btn-primary" onClick={submit} disabled={saving||!form.contract_signed||!form.handbook_read||!form.data_consent||!form.company_portal_confirmed}>
+                  : <button className="btn btn-primary" onClick={submit} disabled={saving||!contractRequirementMet||!form.handbook_read||!form.data_consent||!form.company_portal_confirmed}>
                       {saving ? 'Submitting...' : '✓ Submit Onboarding'}
                     </button>
                 }

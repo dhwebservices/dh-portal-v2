@@ -665,6 +665,9 @@ export default function MyDepartment() {
                     {isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'Impersonating' : 'Impersonate'}
                   </button>
                 ) : null}
+                <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}?tab=contracts`)}>
+                  Contracts
+                </button>
                 {isDirector ? (
                   <>
                     <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>

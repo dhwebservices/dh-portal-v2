@@ -43,6 +43,7 @@ const ALL_PAGES = [
   {key:'hr_leave',label:'HR Leave'},{key:'hr_payslips',label:'HR Payslips'},
   {key:'hr_profiles',label:'HR Profiles'},{key:'hr_policies',label:'HR Policies'},
   {key:'hr_documents',label:'HR Documents'},{key:'hr_timesheet',label:'HR Timesheets'},{key:'hr_onboarding',label:'HR Onboarding'},
+  {key:'contract_templates',label:'Contract Templates'},
   {key:'website_editor',label:'Web Manager'},
 ]
 
@@ -275,6 +276,12 @@ export default function MyStaff() {
                 onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
               >
                 <div style={{ position:'absolute', top:10, right:10, display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=contracts`)}
+                  >
+                    Contracts
+                  </button>
                   {canImpersonate ? (
                     <button
                       className={isCurrentImpersonation ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
