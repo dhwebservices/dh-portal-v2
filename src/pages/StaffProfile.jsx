@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
-import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
   ACCENT_SCHEMES,
@@ -49,6 +49,21 @@ import {
   mergeComplianceRecord,
   resolveRightToWorkRecord,
 } from '../utils/complianceRecords'
+import {
+  buildManagerCheckInKey,
+  buildProbationReviewKey,
+  buildStaffGoalKey,
+  CHECK_IN_STATUS_OPTIONS,
+  createManagerCheckIn,
+  createProbationReview,
+  createStaffGoal,
+  getCheckInStatusLabel,
+  getGoalStatusLabel,
+  getReviewTypeLabel,
+  GOAL_STATUS_OPTIONS,
+  REVIEW_STATUS_OPTIONS,
+  REVIEW_TYPE_OPTIONS,
+} from '../utils/peopleOps'
 import {
   buildContractMergeFields,
   buildContractFileName,
@@ -189,6 +204,9 @@ export default function StaffProfile() {
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
   const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [departmentRequests, setDepartmentRequests] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [checkIns, setCheckIns] = useState([])
+  const [goals, setGoals] = useState([])
   const [complianceRecord, setComplianceRecord] = useState(() => mergeComplianceRecord())
   const [complianceSaving, setComplianceSaving] = useState(false)
   const [contractTemplates, setContractTemplates] = useState([])
@@ -202,6 +220,33 @@ export default function StaffProfile() {
     managerSignatureTitle: '',
     notes: '',
   })
+  const [reviewForm, setReviewForm] = useState({
+    review_type: 'probation_30',
+    due_date: '',
+    meeting_date: '',
+    meeting_method: 'Teams call',
+    status: 'scheduled',
+    outcome: '',
+    decision: '',
+    summary: '',
+    manager_notes: '',
+    action_plan: '',
+  })
+  const [checkInForm, setCheckInForm] = useState({
+    check_in_date: '',
+    status: 'scheduled',
+    notes: '',
+    follow_up_date: '',
+  })
+  const [goalForm, setGoalForm] = useState({
+    title: '',
+    description: '',
+    progress: 0,
+    due_date: '',
+    status: 'active',
+  })
+  const [peopleOpsSaving, setPeopleOpsSaving] = useState(false)
+  const [peopleOpsSaved, setPeopleOpsSaved] = useState(false)
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
@@ -324,6 +369,18 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('key,value')
         .like('key', 'staff_contract:%')
+      const { data: reviewRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'probation_review:%')
+      const { data: checkInRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'manager_checkin:%')
+      const { data: goalRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'staff_goal:%')
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
@@ -372,11 +429,64 @@ export default function StaffProfile() {
         .filter((item) => item.staff_email === email)
         .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
       setContracts(nextContracts)
+      const nextReviews = (reviewRows || [])
+        .map((row) => createProbationReview({
+          id: String(row.key || '').replace('probation_review:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => new Date(a.due_date || a.meeting_date || a.created_at || 0).getTime() - new Date(b.due_date || b.meeting_date || b.created_at || 0).getTime())
+      const nextCheckIns = (checkInRows || [])
+        .map((row) => createManagerCheckIn({
+          id: String(row.key || '').replace('manager_checkin:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => new Date(b.check_in_date || b.created_at || 0).getTime() - new Date(a.check_in_date || a.created_at || 0).getTime())
+      const nextGoals = (goalRows || [])
+        .map((row) => createStaffGoal({
+          id: String(row.key || '').replace('staff_goal:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => {
+          if (a.status === 'completed' && b.status !== 'completed') return 1
+          if (a.status !== 'completed' && b.status === 'completed') return -1
+          return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
+        })
+      setReviews(nextReviews)
+      setCheckIns(nextCheckIns)
+      setGoals(nextGoals)
       setContractForm((current) => ({
         ...current,
         templateId: current.templateId || nextTemplates[0]?.id || '',
         managerSignatureName: current.managerSignatureName || user?.name || '',
         managerSignatureTitle: current.managerSignatureTitle || getRoleScopeLabel(hydratedOrg.role_scope) || 'Department Manager',
+      }))
+      setReviewForm((current) => ({
+        review_type: current.review_type || 'probation_30',
+        due_date: current.due_date || lifecycleRaw?.probation_end_date || mergedProfile.start_date || '',
+        meeting_date: current.meeting_date || '',
+        meeting_method: current.meeting_method || 'Teams call',
+        status: current.status || 'scheduled',
+        outcome: current.outcome || '',
+        decision: current.decision || '',
+        summary: current.summary || '',
+        manager_notes: current.manager_notes || '',
+        action_plan: current.action_plan || '',
+      }))
+      setCheckInForm((current) => ({
+        check_in_date: current.check_in_date || '',
+        status: current.status || 'scheduled',
+        notes: current.notes || '',
+        follow_up_date: current.follow_up_date || '',
+      }))
+      setGoalForm((current) => ({
+        title: current.title || '',
+        description: current.description || '',
+        progress: Number.isFinite(Number(current.progress)) ? Number(current.progress) : 0,
+        due_date: current.due_date || '',
+        status: current.status || 'active',
       }))
       setDepartmentRequests((requestRows || [])
         .map((row) => createDepartmentRequest({
@@ -860,6 +970,269 @@ export default function StaffProfile() {
     setTimeout(() => setLifecycleSaved(false), 3000)
   }
 
+  const resetReviewForm = () => setReviewForm({
+    review_type: 'probation_30',
+    due_date: lifecycleRecord.probation_end_date || profile.start_date || '',
+    meeting_date: '',
+    meeting_method: 'Teams call',
+    status: 'scheduled',
+    outcome: '',
+    decision: '',
+    summary: '',
+    manager_notes: '',
+    action_plan: '',
+  })
+
+  const resetCheckInForm = () => setCheckInForm({
+    check_in_date: '',
+    status: 'scheduled',
+    notes: '',
+    follow_up_date: '',
+  })
+
+  const resetGoalForm = () => setGoalForm({
+    title: '',
+    description: '',
+    progress: 0,
+    due_date: '',
+    status: 'active',
+  })
+
+  const savePeopleOpsRecord = async ({ key, value, onSuccess }) => {
+    const { error } = await supabase
+      .from('portal_settings')
+      .upsert({
+        key,
+        value: { value },
+      }, { onConflict: 'key' })
+    if (error) throw error
+    if (onSuccess) onSuccess(value)
+    setPeopleOpsSaved(true)
+    setTimeout(() => setPeopleOpsSaved(false), 3000)
+    return value
+  }
+
+  const scheduleReviewMeeting = async () => {
+    if (!reviewForm.meeting_date || !reviewForm.meeting_method.trim()) {
+      alert('Add the review meeting date and how the meeting will happen first.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const review = createProbationReview({
+        ...reviewForm,
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || profile.manager_email || orgRecord.reports_to_email || '',
+        manager_name: user?.name || profile.manager_name || orgRecord.reports_to_name || '',
+        due_date: reviewForm.due_date || reviewForm.meeting_date,
+        status: 'meeting_booked',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildProbationReviewKey(review.id),
+        value: review,
+        onSuccess: (savedReview) => setReviews((current) => [savedReview, ...current.filter((item) => item.id !== savedReview.id)]
+          .sort((a, b) => new Date(a.due_date || a.meeting_date || a.created_at || 0).getTime() - new Date(b.due_date || b.meeting_date || b.created_at || 0).getTime())),
+      })
+      await sendManagedNotification({
+        userEmail: email,
+        userName: displayName,
+        category: 'hr',
+        type: 'info',
+        title: 'Staff review meeting booked',
+        message: `Your ${getReviewTypeLabel(review.review_type).toLowerCase()} has been booked for ${review.meeting_date}${review.meeting_method ? ` via ${review.meeting_method}` : ''} with ${review.manager_name || 'your manager'}.`,
+        link: '/my-profile',
+        emailSubject: `Staff review booked — ${review.meeting_date}`,
+        emailHtml: `
+          <p>Hi ${(displayName || email).split(' ')[0] || 'there'},</p>
+          <p>Your ${getReviewTypeLabel(review.review_type).toLowerCase()} has been booked.</p>
+          <p><strong>Date:</strong> ${review.meeting_date}<br/><strong>Manager:</strong> ${review.manager_name || 'Your manager'}<br/><strong>Meeting method:</strong> ${review.meeting_method}</p>
+          <p>Please make sure you are available and prepared for the review meeting.</p>
+        `,
+        sentBy: user?.name || user?.email || 'Manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      }).catch(() => {})
+      resetReviewForm()
+    } catch (error) {
+      console.error('Review meeting scheduling failed:', error)
+      alert(error.message || 'Could not schedule the review meeting.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const selectReview = (review) => {
+    setReviewForm({
+      id: review.id,
+      review_type: review.review_type || 'probation_30',
+      due_date: review.due_date || '',
+      meeting_date: review.meeting_date || '',
+      meeting_method: review.meeting_method || 'Teams call',
+      status: review.status || 'scheduled',
+      outcome: review.outcome || '',
+      decision: review.decision || '',
+      summary: review.summary || '',
+      manager_notes: review.manager_notes || '',
+      action_plan: review.action_plan || '',
+    })
+  }
+
+  const saveReviewNotes = async () => {
+    if (!reviewForm.id) {
+      alert('Select a review from the list first, or schedule a new meeting.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const existing = reviews.find((item) => item.id === reviewForm.id)
+      const review = createProbationReview({
+        ...existing,
+        ...reviewForm,
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || existing?.manager_email || '',
+        manager_name: user?.name || existing?.manager_name || '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildProbationReviewKey(review.id),
+        value: review,
+        onSuccess: (savedReview) => setReviews((current) => current.map((item) => item.id === savedReview.id ? savedReview : item)),
+      })
+    } catch (error) {
+      console.error('Review notes save failed:', error)
+      alert(error.message || 'Could not save the review notes.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const completeReview = async (outcome) => {
+    if (!reviewForm.id) {
+      alert('Select the review you want to complete first.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const existing = reviews.find((item) => item.id === reviewForm.id)
+      const review = createProbationReview({
+        ...existing,
+        ...reviewForm,
+        outcome,
+        decision: outcome === 'pass' ? 'Passed review' : 'Failed review',
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || existing?.manager_email || '',
+        manager_name: user?.name || existing?.manager_name || '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildProbationReviewKey(review.id),
+        value: review,
+        onSuccess: (savedReview) => setReviews((current) => current.map((item) => item.id === savedReview.id ? savedReview : item)),
+      })
+      await sendManagedNotification({
+        userEmail: email,
+        userName: displayName,
+        category: 'hr',
+        type: outcome === 'pass' ? 'success' : 'warning',
+        title: `Staff review outcome: ${outcome === 'pass' ? 'passed' : 'failed'}`,
+        message: `Your ${getReviewTypeLabel(review.review_type).toLowerCase()} has been completed by ${review.manager_name || 'your manager'}. Outcome: ${outcome === 'pass' ? 'pass' : 'fail'}.`,
+        link: '/my-profile',
+        emailSubject: `Staff review outcome — ${outcome === 'pass' ? 'passed' : 'failed'}`,
+        emailHtml: `
+          <p>Hi ${(displayName || email).split(' ')[0] || 'there'},</p>
+          <p>Your ${getReviewTypeLabel(review.review_type).toLowerCase()} has now been completed by ${review.manager_name || 'your manager'}.</p>
+          <p><strong>Outcome:</strong> ${outcome === 'pass' ? 'Pass' : 'Fail'}</p>
+          ${review.summary ? `<p><strong>Summary:</strong><br/>${review.summary.replace(/\n/g, '<br/>')}</p>` : ''}
+          ${review.action_plan ? `<p><strong>Next steps:</strong><br/>${review.action_plan.replace(/\n/g, '<br/>')}</p>` : ''}
+        `,
+        sentBy: user?.name || user?.email || 'Manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      }).catch(() => {})
+      resetReviewForm()
+    } catch (error) {
+      console.error('Review completion failed:', error)
+      alert(error.message || 'Could not complete the review.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const saveManagerCheckIn = async () => {
+    if (!checkInForm.check_in_date) {
+      alert('Add a check-in date first.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const checkIn = createManagerCheckIn({
+        ...checkInForm,
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || profile.manager_email || orgRecord.reports_to_email || '',
+        manager_name: user?.name || profile.manager_name || orgRecord.reports_to_name || '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildManagerCheckInKey(checkIn.id),
+        value: checkIn,
+        onSuccess: (savedCheckIn) => setCheckIns((current) => [savedCheckIn, ...current.filter((item) => item.id !== savedCheckIn.id)]
+          .sort((a, b) => new Date(b.check_in_date || b.created_at || 0).getTime() - new Date(a.check_in_date || a.created_at || 0).getTime())),
+      })
+      resetCheckInForm()
+    } catch (error) {
+      console.error('Check-in save failed:', error)
+      alert(error.message || 'Could not save the manager check-in.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const saveGoal = async () => {
+    if (!goalForm.title.trim()) {
+      alert('Add a goal title first.')
+      return
+    }
+    setPeopleOpsSaving(true)
+    try {
+      const goal = createStaffGoal({
+        ...goalForm,
+        staff_email: email,
+        staff_name: displayName,
+        department: profile.department || orgRecord.department || '',
+        manager_email: user?.email || profile.manager_email || orgRecord.reports_to_email || '',
+        manager_name: user?.name || profile.manager_name || orgRecord.reports_to_name || '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildStaffGoalKey(goal.id),
+        value: goal,
+        onSuccess: (savedGoal) => setGoals((current) => [savedGoal, ...current.filter((item) => item.id !== savedGoal.id)]
+          .sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1
+            if (a.status !== 'completed' && b.status === 'completed') return -1
+            return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
+          })),
+      })
+      resetGoalForm()
+    } catch (error) {
+      console.error('Goal save failed:', error)
+      alert(error.message || 'Could not save the goal.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
   // ── Docs ────────────────────────────────────────────────────────────────
   const uploadDoc = async () => {
     if (!selectedDoc) {
@@ -1166,6 +1539,35 @@ export default function StaffProfile() {
     : ''
   const pendingSignatureContracts = contracts.filter((contract) => contract.status === 'awaiting_staff_signature')
   const completedContracts = contracts.filter((contract) => contract.status === 'completed')
+  const openReviews = reviews.filter((review) => review.status !== 'completed')
+  const overdueReviews = openReviews.filter((review) => review.due_date && new Date(`${review.due_date}T23:59:59`).getTime() < Date.now())
+  const openGoals = goals.filter((goal) => goal.status !== 'completed')
+  const dueGoals = openGoals.filter((goal) => goal.due_date && new Date(`${goal.due_date}T23:59:59`).getTime() <= Date.now())
+  const reviewHistory = [
+    ...reviews.map((review) => ({
+      id: `review-${review.id}`,
+      date: review.completed_at || review.meeting_date || review.due_date || review.updated_at || review.created_at,
+      title: getReviewTypeLabel(review.review_type),
+      subtitle: review.outcome
+        ? `Outcome: ${review.outcome}${review.manager_notes ? ` · ${review.manager_notes}` : ''}`
+        : `${review.status === 'meeting_booked' ? `Meeting ${review.meeting_date}${review.meeting_method ? ` via ${review.meeting_method}` : ''}` : review.status}`,
+      tone: review.outcome === 'fail' ? 'red' : review.outcome === 'pass' ? 'green' : review.status === 'meeting_booked' ? 'blue' : 'amber',
+    })),
+    ...checkIns.map((checkIn) => ({
+      id: `checkin-${checkIn.id}`,
+      date: checkIn.check_in_date || checkIn.updated_at || checkIn.created_at,
+      title: 'Manager check-in',
+      subtitle: checkIn.notes || getCheckInStatusLabel(checkIn.status),
+      tone: checkIn.status === 'completed' ? 'green' : 'blue',
+    })),
+    ...goals.map((goal) => ({
+      id: `goal-${goal.id}`,
+      date: goal.completed_at || goal.due_date || goal.updated_at || goal.created_at,
+      title: goal.title,
+      subtitle: `${Math.round(goal.progress || 0)}% · ${getGoalStatusLabel(goal.status)}`,
+      tone: goal.status === 'completed' ? 'green' : goal.status === 'at_risk' ? 'red' : 'amber',
+    })),
+  ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
   const rtwRecord = resolveRightToWorkRecord(profile, docs, complianceRecord)
   const rtwRemaining = rtwRecord.expiry ? Math.ceil((new Date(rtwRecord.expiry).getTime() - Date.now()) / 86400000) : null
   const rtwStatus = !rtwRecord.hasDocument && !rtwRecord.rtw_override
@@ -1361,7 +1763,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['lifecycle','Lifecycle'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['lifecycle','Lifecycle'],['performance','Performance'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -1546,6 +1948,7 @@ export default function StaffProfile() {
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       {[
                         ['Lifecycle', 'lifecycle'],
+                        ['Performance', 'performance'],
                         ['Permissions', 'permissions'],
                         ['Documents', 'docs'],
                         ['Commissions', 'commissions'],
@@ -1684,6 +2087,252 @@ export default function StaffProfile() {
                   Requested by: {lifecycleRecord.termination.requested_by_name || '—'}{lifecycleRecord.termination.requested_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.requested_at)}` : ''}
                   <br />
                   Approved by: {lifecycleRecord.termination.approved_by_name || '—'}{lifecycleRecord.termination.approved_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.approved_at)}` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'performance' && (
+          <div style={{ display:'grid', gap:18 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:14 }}>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Reviews open</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{openReviews.length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>{overdueReviews.length} overdue</div>
+              </div>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Goals open</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{openGoals.length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>{dueGoals.length} due now</div>
+              </div>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Check-ins</div>
+                <div style={{ fontSize:28, fontWeight:700, color:'var(--text)', marginTop:10 }}>{checkIns.length}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>Manager 1:1 and follow-up notes</div>
+              </div>
+              <div className="card card-pad">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>People ops</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:10 }}>{peopleOpsSaved ? 'Saved' : 'Live'}</div>
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>
+                  Schedule reviews, capture notes, and send review outcomes by email.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.12fr) minmax(320px,0.88fr)', gap:18 }} className="staff-profile-main-grid">
+              <div style={{ display:'grid', gap:18 }}>
+                <div className="card card-pad">
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Performance reviews</div>
+                      <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:4 }}>Review meeting and outcome</div>
+                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:540 }}>
+                        Book the review meeting, email the staff member with the date and meeting method, then add manager notes and mark the review as pass or fail once it is complete.
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                      {peopleOpsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                      {reviewForm.id ? (
+                        <button className="btn btn-outline btn-sm" onClick={resetReviewForm}>New review</button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="fg" style={{ marginTop:18 }}>
+                    <div>
+                      <label className="lbl">Review type</label>
+                      <select className="inp" value={reviewForm.review_type} onChange={(e) => setReviewForm((current) => ({ ...current, review_type: e.target.value }))}>
+                        {REVIEW_TYPE_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="lbl">Review due date</label>
+                      <input className="inp" type="date" value={reviewForm.due_date || ''} onChange={(e) => setReviewForm((current) => ({ ...current, due_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="lbl">Review meeting date</label>
+                      <input className="inp" type="date" value={reviewForm.meeting_date || ''} onChange={(e) => setReviewForm((current) => ({ ...current, meeting_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="lbl">Meeting method</label>
+                      <select className="inp" value={reviewForm.meeting_method || 'Teams call'} onChange={(e) => setReviewForm((current) => ({ ...current, meeting_method: e.target.value }))}>
+                        {['Teams call', 'Phone call', 'WhatsApp call', 'WhatsApp message', 'Text message', 'In person'].map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="fc">
+                      <label className="lbl">Review summary</label>
+                      <textarea className="inp" rows={3} value={reviewForm.summary || ''} onChange={(e) => setReviewForm((current) => ({ ...current, summary: e.target.value }))} style={{ resize:'vertical' }} placeholder="Headline summary of performance, concerns, or progress..." />
+                    </div>
+                    <div className="fc">
+                      <label className="lbl">Manager notes</label>
+                      <textarea className="inp" rows={4} value={reviewForm.manager_notes || ''} onChange={(e) => setReviewForm((current) => ({ ...current, manager_notes: e.target.value }))} style={{ resize:'vertical' }} placeholder="Manager notes from the review meeting..." />
+                    </div>
+                    <div className="fc">
+                      <label className="lbl">Action plan / next steps</label>
+                      <textarea className="inp" rows={3} value={reviewForm.action_plan || ''} onChange={(e) => setReviewForm((current) => ({ ...current, action_plan: e.target.value }))} style={{ resize:'vertical' }} placeholder="Follow-up actions, support, targets, or extension notes..." />
+                    </div>
+                  </div>
+
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:18 }}>
+                    {!reviewForm.id ? (
+                      <button className="btn btn-primary" onClick={scheduleReviewMeeting} disabled={peopleOpsSaving}>
+                        {peopleOpsSaving ? 'Scheduling...' : 'Schedule review meeting'}
+                      </button>
+                    ) : (
+                      <>
+                        <button className="btn btn-outline" onClick={saveReviewNotes} disabled={peopleOpsSaving}>
+                          {peopleOpsSaving ? 'Saving...' : 'Save review notes'}
+                        </button>
+                        <button className="btn btn-primary" onClick={() => completeReview('pass')} disabled={peopleOpsSaving}>
+                          Mark pass
+                        </button>
+                        <button className="btn btn-outline" onClick={() => completeReview('fail')} disabled={peopleOpsSaving} style={{ color:'var(--red)', borderColor:'rgba(229,77,46,0.25)' }}>
+                          Mark fail
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="card" style={{ overflow:'hidden' }}>
+                  <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)' }}>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Review queue</div>
+                    <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:4 }}>Scheduled and completed reviews</div>
+                  </div>
+                  {reviews.length === 0 ? (
+                    <div style={{ padding:'22px 18px', fontSize:13, color:'var(--faint)' }}>No performance or probation reviews have been logged for this staff member yet.</div>
+                  ) : reviews.map((review) => (
+                    <div key={review.id} style={{ padding:'14px 18px', borderBottom:'1px solid var(--border)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                        <div>
+                          <div style={{ fontSize:13.5, fontWeight:600, color:'var(--text)' }}>{getReviewTypeLabel(review.review_type)}</div>
+                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4, lineHeight:1.6 }}>
+                            {review.meeting_date ? `Meeting ${review.meeting_date}` : 'No meeting date set'}
+                            {review.meeting_method ? ` · ${review.meeting_method}` : ''}
+                            {review.due_date ? ` · Due ${review.due_date}` : ''}
+                          </div>
+                          <div style={{ fontSize:12, color:'var(--faint)', marginTop:6, lineHeight:1.6 }}>
+                            {review.manager_notes || review.summary || 'No notes added yet.'}
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                          <span className={`badge badge-${review.outcome === 'fail' ? 'red' : review.outcome === 'pass' ? 'green' : review.status === 'meeting_booked' ? 'blue' : review.due_date && new Date(`${review.due_date}T23:59:59`).getTime() < Date.now() ? 'amber' : 'grey'}`}>
+                            {review.outcome ? review.outcome : review.status}
+                          </span>
+                          <button className="btn btn-outline btn-sm" onClick={() => selectReview(review)}>Open</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gap:18 }}>
+                <div className="card card-pad">
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Manager check-ins</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>1:1 notes and follow-up</div>
+                  <div className="fg" style={{ marginTop:14 }}>
+                    <div>
+                      <label className="lbl">Check-in date</label>
+                      <input className="inp" type="date" value={checkInForm.check_in_date || ''} onChange={(e) => setCheckInForm((current) => ({ ...current, check_in_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="lbl">Status</label>
+                      <select className="inp" value={checkInForm.status || 'scheduled'} onChange={(e) => setCheckInForm((current) => ({ ...current, status: e.target.value }))}>
+                        {CHECK_IN_STATUS_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="lbl">Follow-up date</label>
+                      <input className="inp" type="date" value={checkInForm.follow_up_date || ''} onChange={(e) => setCheckInForm((current) => ({ ...current, follow_up_date: e.target.value }))} />
+                    </div>
+                    <div className="fc">
+                      <label className="lbl">Check-in notes</label>
+                      <textarea className="inp" rows={3} value={checkInForm.notes || ''} onChange={(e) => setCheckInForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} placeholder="Capture 1:1 notes, support needs, and actions..." />
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:16 }}>
+                    <button className="btn btn-primary" onClick={saveManagerCheckIn} disabled={peopleOpsSaving}>{peopleOpsSaving ? 'Saving...' : 'Save check-in'}</button>
+                    <button className="btn btn-outline" onClick={resetCheckInForm}>Clear</button>
+                  </div>
+                  <div style={{ display:'grid', gap:10, marginTop:16 }}>
+                    {checkIns.slice(0, 4).map((checkIn) => (
+                      <div key={checkIn.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{checkIn.check_in_date || 'No date set'}</div>
+                          <span className={`badge badge-${checkIn.status === 'completed' ? 'green' : checkIn.status === 'follow_up_needed' ? 'amber' : 'grey'}`}>{getCheckInStatusLabel(checkIn.status)}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{checkIn.notes || 'No notes captured yet.'}</div>
+                      </div>
+                    ))}
+                    {checkIns.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No manager check-ins saved yet.</div> : null}
+                  </div>
+                </div>
+
+                <div className="card card-pad">
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Goals and objectives</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Track expectations and progress</div>
+                  <div className="fg" style={{ marginTop:14 }}>
+                    <div className="fc">
+                      <label className="lbl">Goal title</label>
+                      <input className="inp" value={goalForm.title || ''} onChange={(e) => setGoalForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Hit outreach target for the month" />
+                    </div>
+                    <div className="fc">
+                      <label className="lbl">Goal description</label>
+                      <textarea className="inp" rows={3} value={goalForm.description || ''} onChange={(e) => setGoalForm((current) => ({ ...current, description: e.target.value }))} style={{ resize:'vertical' }} placeholder="Describe what success looks like..." />
+                    </div>
+                    <div>
+                      <label className="lbl">Progress %</label>
+                      <input className="inp" type="number" min="0" max="100" value={goalForm.progress} onChange={(e) => setGoalForm((current) => ({ ...current, progress: Number(e.target.value || 0) }))} />
+                    </div>
+                    <div>
+                      <label className="lbl">Due date</label>
+                      <input className="inp" type="date" value={goalForm.due_date || ''} onChange={(e) => setGoalForm((current) => ({ ...current, due_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="lbl">Status</label>
+                      <select className="inp" value={goalForm.status || 'active'} onChange={(e) => setGoalForm((current) => ({ ...current, status: e.target.value }))}>
+                        {GOAL_STATUS_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:16 }}>
+                    <button className="btn btn-primary" onClick={saveGoal} disabled={peopleOpsSaving}>{peopleOpsSaving ? 'Saving...' : 'Save goal'}</button>
+                    <button className="btn btn-outline" onClick={resetGoalForm}>Clear</button>
+                  </div>
+                  <div style={{ display:'grid', gap:10, marginTop:16 }}>
+                    {goals.slice(0, 5).map((goal) => (
+                      <div key={goal.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{goal.title}</div>
+                          <span className={`badge badge-${goal.status === 'completed' ? 'green' : goal.status === 'at_risk' ? 'red' : 'amber'}`}>{getGoalStatusLabel(goal.status)}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{goal.description || 'No description added.'}</div>
+                        <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>{Math.round(goal.progress || 0)}% · {goal.due_date ? `Due ${goal.due_date}` : 'No due date'}</div>
+                      </div>
+                    ))}
+                    {goals.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No goals or objectives saved yet.</div> : null}
+                  </div>
+                </div>
+
+                <div className="card card-pad">
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Review history</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Recent people ops timeline</div>
+                  <div style={{ display:'grid', gap:10, marginTop:14 }}>
+                    {reviewHistory.slice(0, 8).map((item) => (
+                      <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
+                          <span className={`badge badge-${item.tone}`}>{item.date ? formatTimelineDate(item.date) : 'No date'}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.subtitle}</div>
+                      </div>
+                    ))}
+                    {reviewHistory.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No people-ops history has been recorded yet.</div> : null}
+                  </div>
                 </div>
               </div>
             </div>
