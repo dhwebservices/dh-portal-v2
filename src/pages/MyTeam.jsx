@@ -7,6 +7,8 @@ import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
 import { getLifecycleLabel, mergeLifecycleRecord } from '../utils/staffLifecycle'
 import { mergeOrgRecord } from '../utils/orgStructure'
 import { enrichTask } from '../utils/taskMetadata'
+import { mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
+import { createDepartmentAnnouncement } from '../utils/peopleOps'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -39,6 +41,13 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   )
 }
 
+function isDateInRange(today, startDate, endDate) {
+  if (!startDate || !endDate) return false
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59`)
+  return start.getTime() <= today.getTime() && end.getTime() >= today.getTime()
+}
+
 const TASK_BOARD_COLUMNS = [
   ['todo', 'To Do', 'var(--faint)'],
   ['in_progress', 'In Progress', 'var(--accent)'],
@@ -53,6 +62,12 @@ export default function MyTeam() {
   const [outreachRows, setOutreachRows] = useState([])
   const [emailLogRows, setEmailLogRows] = useState([])
   const [tasks, setTasks] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [activityRows, setActivityRows] = useState([])
+  const [leaveRows, setLeaveRows] = useState([])
+  const [docRows, setDocRows] = useState([])
+  const [complianceMap, setComplianceMap] = useState({})
+  const [contracts, setContracts] = useState([])
 
   const currentDepartment = String(org?.department || '').trim()
 
@@ -70,7 +85,7 @@ export default function MyTeam() {
       return
     }
     setLoading(true)
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: outreachData }, { data: emailData }, { data: taskData }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -78,6 +93,12 @@ export default function MyTeam() {
       supabase.from('outreach').select('id,created_at,notes,added_by'),
       supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+      supabase.from('portal_settings').select('key,value').like('key', 'department_announcement:%'),
+      supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(120),
+      supabase.from('hr_leave').select('id,user_email,user_name,leave_type,start_date,end_date,status').eq('status', 'approved').order('start_date', { ascending: true }),
+      supabase.from('staff_documents').select('staff_email,name,type,file_url,file_path,created_at'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [normalizePortalEmail(row.user_email), row]))
@@ -107,6 +128,21 @@ export default function MyTeam() {
     setOutreachRows(outreachData || [])
     setEmailLogRows(emailData || [])
     setTasks((taskData || []).map(enrichTask).filter((task) => String(task.assigned_department || '').trim() === currentDepartment))
+    setAnnouncements((announcementSettings || [])
+      .map((row) => createDepartmentAnnouncement({
+        id: String(row.key || '').replace('department_announcement:', ''),
+        ...(row.value?.value ?? row.value ?? {}),
+      }))
+      .filter((item) => item.department === currentDepartment)
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
+    setActivityRows(auditRows || [])
+    setLeaveRows(leaveData || [])
+    setDocRows(docsData || [])
+    setComplianceMap(Object.fromEntries((complianceSettings || []).map((row) => [
+      String(row.key || '').replace('staff_compliance:', '').toLowerCase(),
+      mergeComplianceRecord(row.value?.value ?? row.value ?? {}),
+    ])))
+    setContracts((contractSettings || []).map((row) => row.value?.value ?? row.value ?? {}))
     setLoading(false)
   }
 
@@ -129,6 +165,31 @@ export default function MyTeam() {
   }).length
   const openTasks = tasks.filter((task) => task.status !== 'done')
   const overdueTasks = openTasks.filter((task) => task.due_date && new Date(task.due_date) < new Date())
+  const today = new Date()
+  const docsByEmail = useMemo(() => docRows.reduce((acc, row) => {
+    const safeEmail = normalizePortalEmail(row.staff_email)
+    if (!safeEmail) return acc
+    acc[safeEmail] = acc[safeEmail] || []
+    acc[safeEmail].push(row)
+    return acc
+  }, {}), [docRows])
+  const todayLeave = leaveRows.filter((row) => teamEmailSet.has(normalizePortalEmail(row.user_email)) && isDateInRange(today, row.start_date, row.end_date))
+  const newStarters = profiles.filter((row) => {
+    if (['onboarding', 'probation'].includes(row.lifecycle?.state)) return true
+    if (!row.start_date) return false
+    const days = Math.floor((today.getTime() - new Date(`${row.start_date}T00:00:00`).getTime()) / 86400000)
+    return days >= 0 && days <= 30
+  })
+  const missingRtwCount = profiles.filter((row) => {
+    const safeEmail = normalizePortalEmail(row.user_email)
+    const rtw = resolveRightToWorkRecord(row, docsByEmail[safeEmail] || [], complianceMap[safeEmail] || {})
+    return !rtw.hasDocument && !rtw.rtw_override
+  }).length
+  const pendingContractCount = profiles.filter((row) => contracts.some((contract) => normalizePortalEmail(contract.staff_email) === normalizePortalEmail(row.user_email) && contract.status === 'awaiting_staff_signature')).length
+  const teamActivity = activityRows.filter((row) => {
+    const actor = String(row.user_name || '').toLowerCase()
+    return profiles.some((member) => String(member.full_name || '').toLowerCase() === actor)
+  }).slice(0, 6)
   const taskBoard = TASK_BOARD_COLUMNS.map(([key, label, tone]) => ({
     key,
     label,
@@ -163,6 +224,7 @@ export default function MyTeam() {
         <StatCard icon={Users} label="Team members" value={profiles.length} hint="People currently assigned to this department" tone="var(--green)" />
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Open team tasks" value={openTasks.length} hint={`${overdueTasks.length} overdue`} tone="var(--amber)" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts`} tone="var(--red)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(320px,0.85fr)', gap: 18 }} className="staff-profile-main-grid">
@@ -190,6 +252,23 @@ export default function MyTeam() {
 
         <div style={{ display: 'grid', gap: 16 }}>
           <div className="card card-pad">
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department announcements</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Team updates</div>
+            <div style={{ display:'grid', gap:10, marginTop:14 }}>
+              {announcements.slice(0, 4).map((item) => (
+                <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
+                    <span className={`badge badge-${item.important ? 'red' : 'blue'}`}>{item.important ? 'Important' : 'Update'}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
+                </div>
+              ))}
+              {announcements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No team announcements yet.</div> : null}
+            </div>
+          </div>
+
+          <div className="card card-pad">
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team overview</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Manager and team activity</div>
             <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
@@ -203,7 +282,28 @@ export default function MyTeam() {
                 <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
                   Outreach added: <strong style={{ color: 'var(--text)' }}>{outreachAddedToday}</strong><br />
                   Emails sent: <strong style={{ color: 'var(--text)' }}>{outreachEmailsToday}</strong><br />
-                  Open team tasks: <strong style={{ color: 'var(--text)' }}>{openTasks.length}</strong>
+                  Open team tasks: <strong style={{ color: 'var(--text)' }}>{openTasks.length}</strong><br />
+                  Staff off today: <strong style={{ color: 'var(--text)' }}>{todayLeave.length}</strong><br />
+                  New starters: <strong style={{ color: 'var(--text)' }}>{newStarters.length}</strong>
+                </div>
+              </div>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team activity feed</div>
+                <div style={{ marginTop: 8, display:'grid', gap:8 }}>
+                  {teamActivity.map((row, index) => (
+                    <div key={`${row.user_name}-${row.created_at}-${index}`} style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                      <strong style={{ color:'var(--text)' }}>{row.user_name || 'Team member'}</strong> · {row.action}
+                    </div>
+                  ))}
+                  {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent team activity yet.</div> : null}
+                </div>
+              </div>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Leave and compliance</div>
+                <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
+                  Missing RTW: <strong style={{ color: 'var(--text)' }}>{missingRtwCount}</strong><br />
+                  Unsigned contracts: <strong style={{ color: 'var(--text)' }}>{pendingContractCount}</strong><br />
+                  Off today: <strong style={{ color: 'var(--text)' }}>{todayLeave.length}</strong>
                 </div>
               </div>
             </div>

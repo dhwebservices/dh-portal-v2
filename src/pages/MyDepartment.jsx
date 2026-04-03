@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
-import { Building2, FolderPlus, ShieldCheck, Users } from 'lucide-react'
+import { Bell, Building2, FolderPlus, ShieldCheck, Users } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
@@ -18,6 +18,8 @@ import {
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { enrichTask } from '../utils/taskMetadata'
+import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
+import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement } from '../utils/peopleOps'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -125,6 +127,13 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   )
 }
 
+function isDateInRange(today, startDate, endDate) {
+  if (!startDate || !endDate) return false
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59`)
+  return start.getTime() <= today.getTime() && end.getTime() >= today.getTime()
+}
+
 const TASK_BOARD_COLUMNS = [
   ['todo', 'To Do', 'var(--faint)'],
   ['in_progress', 'In Progress', 'var(--accent)'],
@@ -143,6 +152,13 @@ export default function MyDepartment() {
   const [outreachRows, setOutreachRows] = useState([])
   const [emailLogRows, setEmailLogRows] = useState([])
   const [departmentTasks, setDepartmentTasks] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [activityRows, setActivityRows] = useState([])
+  const [leaveRows, setLeaveRows] = useState([])
+  const [docRows, setDocRows] = useState([])
+  const [complianceMap, setComplianceMap] = useState({})
+  const [contractRows, setContractRows] = useState([])
+  const [announcementForm, setAnnouncementForm] = useState({ title: '', message: '', important: false, email_team: true })
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
   const [memberActions, setMemberActions] = useState({})
@@ -173,7 +189,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -183,6 +199,12 @@ export default function MyDepartment() {
       supabase.from('outreach').select('id,created_at,notes,added_by'),
       supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+      supabase.from('portal_settings').select('key,value').like('key', 'department_announcement:%'),
+      supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(120),
+      supabase.from('hr_leave').select('id,user_email,user_name,leave_type,start_date,end_date,status').eq('status', 'approved').order('start_date', { ascending: true }),
+      supabase.from('staff_documents').select('staff_email,name,type,file_url,file_path,created_at'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [String(row.user_email || '').toLowerCase(), row]))
@@ -224,6 +246,20 @@ export default function MyDepartment() {
     setOutreachRows(outreachData || [])
     setEmailLogRows(emailData || [])
     setDepartmentTasks((taskData || []).map(enrichTask))
+    setAnnouncements((announcementSettings || [])
+      .map((row) => createDepartmentAnnouncement({
+        id: String(row.key || '').replace('department_announcement:', ''),
+        ...(row.value?.value ?? row.value ?? {}),
+      }))
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
+    setActivityRows(auditRows || [])
+    setLeaveRows(leaveData || [])
+    setDocRows(docsData || [])
+    setComplianceMap(Object.fromEntries((complianceSettings || []).map((row) => [
+      String(row.key || '').replace('staff_compliance:', '').toLowerCase(),
+      mergeComplianceRecord(row.value?.value ?? row.value ?? {}),
+    ])))
+    setContractRows((contractSettings || []).map((row) => row.value?.value ?? row.value ?? {}))
     setSelectedDepartment((current) => current || preferred)
     setRequestRows((requestSettings || [])
       .map((row) => createDepartmentRequest({ id: String(row.key).replace('department_request:', ''), ...(row.value?.value ?? row.value ?? {}) }))
@@ -256,6 +292,7 @@ export default function MyDepartment() {
 
   const currentDepartment = selectedDepartment || visibleDepartments[0]?.name || ''
   const teamMembers = profiles.filter((row) => row.department === currentDepartment)
+  const today = new Date()
   const unassigned = profiles.filter((row) => !String(row.department || '').trim())
   const departmentMeta = catalog.find((item) => item.name === currentDepartment)
   const visibleRequests = requestRows.filter((row) => row.requested_department === currentDepartment || row.current_department === currentDepartment)
@@ -290,6 +327,86 @@ export default function MyDepartment() {
     tone,
     items: currentDepartmentTasks.filter((task) => task.status === key),
   }))
+  const docsByEmail = useMemo(() => docRows.reduce((acc, row) => {
+    const safeEmail = normalizePortalEmail(row.staff_email)
+    if (!safeEmail) return acc
+    acc[safeEmail] = acc[safeEmail] || []
+    acc[safeEmail].push(row)
+    return acc
+  }, {}), [docRows])
+  const todayLeave = leaveRows.filter((row) => teamEmailSet.has(normalizePortalEmail(row.user_email)) && isDateInRange(today, row.start_date, row.end_date))
+  const upcomingLeave = leaveRows.filter((row) => teamEmailSet.has(normalizePortalEmail(row.user_email)) && new Date(`${row.start_date}T00:00:00`).getTime() > todayStart.getTime()).slice(0, 6)
+  const newStarters = teamMembers.filter((row) => {
+    if (['onboarding', 'probation'].includes(row.lifecycle?.state)) return true
+    if (!row.start_date) return false
+    const days = Math.floor((today.getTime() - new Date(`${row.start_date}T00:00:00`).getTime()) / 86400000)
+    return days >= 0 && days <= 30
+  })
+  const complianceSignals = teamMembers.map((row) => {
+    const safeEmail = normalizePortalEmail(row.user_email)
+    const rtw = resolveRightToWorkRecord(row, docsByEmail[safeEmail] || [], complianceMap[safeEmail] || {})
+    const pendingContract = contractRows.some((contract) => normalizePortalEmail(contract.staff_email) === safeEmail && contract.status === 'awaiting_staff_signature')
+    return {
+      email: safeEmail,
+      name: row.full_name || row.user_email,
+      missingRtw: !rtw.hasDocument && !rtw.rtw_override,
+      pendingContract,
+      onboarding: row.lifecycle?.state === 'onboarding',
+    }
+  })
+  const missingRtwCount = complianceSignals.filter((row) => row.missingRtw).length
+  const pendingContractCount = complianceSignals.filter((row) => row.pendingContract).length
+  const teamActivity = activityRows.filter((row) => {
+    const actor = String(row.user_name || '').toLowerCase()
+    return teamMembers.some((member) => String(member.full_name || '').toLowerCase() === actor)
+  }).slice(0, 8)
+  const departmentAnnouncements = announcements.filter((item) => item.department === currentDepartment).slice(0, 6)
+
+  async function postAnnouncement() {
+    if (!currentDepartment || !announcementForm.title.trim() || !announcementForm.message.trim()) {
+      setError('Add an announcement title and message first.')
+      return
+    }
+    setSaving('announcement')
+    setError('')
+    try {
+      const announcement = createDepartmentAnnouncement({
+        department: currentDepartment,
+        title: announcementForm.title,
+        message: announcementForm.message,
+        important: announcementForm.important,
+        email_team: announcementForm.email_team,
+        created_by_email: user?.email || '',
+        created_by_name: user?.name || '',
+      })
+      const { error: saveError } = await supabase.from('portal_settings').upsert({
+        key: buildDepartmentAnnouncementKey(announcement.id),
+        value: { value: announcement },
+      }, { onConflict: 'key' })
+      if (saveError) throw saveError
+      setAnnouncements((current) => [announcement, ...current].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
+      if (announcement.email_team || announcement.important) {
+        await Promise.allSettled(teamMembers.map((member) => sendManagedNotification({
+          userEmail: member.user_email,
+          userName: member.full_name || member.user_email,
+          category: announcement.important ? 'urgent' : 'general',
+          type: announcement.important ? 'warning' : 'info',
+          title: `${currentDepartment} update: ${announcement.title}`,
+          message: announcement.message,
+          link: '/my-team',
+          emailSubject: `${currentDepartment} update — ${announcement.title}`,
+          sentBy: user?.name || user?.email || 'Department manager',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: announcement.important,
+        })))
+      }
+      setAnnouncementForm({ title: '', message: '', important: false, email_team: true })
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not post the announcement.')
+    } finally {
+      setSaving('')
+    }
+  }
 
   async function updateDepartmentTask(taskId, patch = {}) {
     const { error: saveError } = await supabase
@@ -618,81 +735,185 @@ export default function MyDepartment() {
         <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
         <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
         <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts`} tone="var(--red)" />
         <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
         <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,0.8fr)', gap: 18 }} className="staff-profile-main-grid">
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team members</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>{currentDepartment || 'No department selected'}</div>
-          </div>
-          {teamMembers.length === 0 ? (
-            <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff currently assigned to this department.</div>
-          ) : teamMembers.map((row) => (
-            <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-              <button onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                    <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
-                  </div>
-                  <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
-                    {getLifecycleLabel(row.lifecycle?.state)}
-                  </span>
-                </div>
-              </button>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
-                <select
-                  className="inp"
-                  value={memberActions[row.user_email]?.nextDepartment || ''}
-                  onChange={(e) => setMemberActions((current) => ({
-                    ...current,
-                    [row.user_email]: { ...current[row.user_email], nextDepartment: e.target.value },
-                  }))}
-                >
-                  <option value="">Choose department</option>
-                  {catalog.filter((item) => item.active !== false && item.name !== currentDepartment).map((item) => (
-                    <option key={item.id} value={item.name}>{item.name}</option>
+        <div style={{ display:'grid', gap:16 }}>
+          <div className="card card-pad">
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department operating layer</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:14 }}>
+              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Leave today / who’s off</div>
+                <div style={{ marginTop:8, display:'grid', gap:8 }}>
+                  {todayLeave.slice(0, 4).map((row) => (
+                    <div key={row.id} style={{ fontSize:12.5, color:'var(--sub)' }}>
+                      <strong style={{ color:'var(--text)' }}>{row.user_name || row.user_email}</strong> · {row.leave_type}
+                    </div>
                   ))}
-                </select>
-                {canPreviewStaffMember(row, row.org) ? (
-                  <button
-                    className={isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
-                    onClick={() => impersonateStaffMember(row)}
-                  >
-                    {isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'Impersonating' : 'Impersonate'}
-                  </button>
-                ) : null}
-                <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}?tab=contracts`)}>
-                  Contracts
-                </button>
-                {isDirector ? (
-                  <>
-                    <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
-                      {saving === row.user_email ? 'Saving...' : 'Move now'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => removeDirectly(row)} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
-                      Remove
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'move_staff')} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
-                      {saving === row.user_email ? 'Sending...' : 'Request move'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'remove_staff')} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
-                      Request removal
-                    </button>
-                  </>
-                )}
+                  {todayLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>Nobody is off today.</div> : null}
+                </div>
+              </div>
+              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>New starters in team</div>
+                <div style={{ marginTop:8, display:'grid', gap:8 }}>
+                  {newStarters.slice(0, 4).map((row) => (
+                    <div key={row.user_email} style={{ fontSize:12.5, color:'var(--sub)' }}>
+                      <strong style={{ color:'var(--text)' }}>{row.full_name || row.user_email}</strong> · {getLifecycleLabel(row.lifecycle?.state)}
+                    </div>
+                  ))}
+                  {newStarters.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent starters in this department.</div> : null}
+                </div>
+              </div>
+              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Department compliance</div>
+                <div style={{ marginTop:8, fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
+                  Missing RTW: <strong style={{ color:'var(--text)' }}>{missingRtwCount}</strong><br/>
+                  Unsigned contracts: <strong style={{ color:'var(--text)' }}>{pendingContractCount}</strong><br/>
+                  Onboarding staff: <strong style={{ color:'var(--text)' }}>{onboardingCount}</strong>
+                </div>
+              </div>
+              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Upcoming leave</div>
+                <div style={{ marginTop:8, display:'grid', gap:8 }}>
+                  {upcomingLeave.slice(0, 3).map((row) => (
+                    <div key={row.id} style={{ fontSize:12.5, color:'var(--sub)' }}>
+                      <strong style={{ color:'var(--text)' }}>{row.user_name || row.user_email}</strong> · {row.start_date}
+                    </div>
+                  ))}
+                  {upcomingLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No upcoming approved leave booked.</div> : null}
+                </div>
               </div>
             </div>
-          ))}
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department announcements</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Post an update to the team</div>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={postAnnouncement} disabled={saving === 'announcement'}>
+                {saving === 'announcement' ? 'Posting...' : 'Post announcement'}
+              </button>
+            </div>
+            <div className="fg" style={{ marginTop:14 }}>
+              <div><label className="lbl">Title</label><input className="inp" value={announcementForm.title} onChange={(e) => setAnnouncementForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Team update for this week" /></div>
+              <div className="fc"><label className="lbl">Message</label><textarea className="inp" rows={3} value={announcementForm.message} onChange={(e) => setAnnouncementForm((current) => ({ ...current, message: e.target.value }))} style={{ resize:'vertical' }} placeholder="Share the update, priority, or next steps..." /></div>
+            </div>
+            <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginTop:12 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--sub)' }}>
+                <input type="checkbox" checked={announcementForm.email_team} onChange={(e) => setAnnouncementForm((current) => ({ ...current, email_team: e.target.checked }))} />
+                Email the team too
+              </label>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--sub)' }}>
+                <input type="checkbox" checked={announcementForm.important} onChange={(e) => setAnnouncementForm((current) => ({ ...current, important: e.target.checked }))} />
+                Mark as important
+              </label>
+            </div>
+            <div style={{ display:'grid', gap:10, marginTop:16 }}>
+              {departmentAnnouncements.map((item) => (
+                <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
+                    <span className={`badge badge-${item.important ? 'red' : 'blue'}`}>{item.important ? 'Important' : 'Team update'}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
+                  <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{item.created_by_name || item.created_by_email} · {new Date(item.created_at).toLocaleString('en-GB')}</div>
+                </div>
+              ))}
+              {departmentAnnouncements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No department announcements posted yet.</div> : null}
+            </div>
+          </div>
+
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team members</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>{currentDepartment || 'No department selected'}</div>
+            </div>
+            {teamMembers.length === 0 ? (
+              <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff currently assigned to this department.</div>
+            ) : teamMembers.map((row) => (
+              <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+                <button onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
+                      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
+                    </div>
+                    <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
+                      {getLifecycleLabel(row.lifecycle?.state)}
+                    </span>
+                  </div>
+                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
+                  <select
+                    className="inp"
+                    value={memberActions[row.user_email]?.nextDepartment || ''}
+                    onChange={(e) => setMemberActions((current) => ({
+                      ...current,
+                      [row.user_email]: { ...current[row.user_email], nextDepartment: e.target.value },
+                    }))}
+                  >
+                    <option value="">Choose department</option>
+                    {catalog.filter((item) => item.active !== false && item.name !== currentDepartment).map((item) => (
+                      <option key={item.id} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                  {canPreviewStaffMember(row, row.org) ? (
+                    <button
+                      className={isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                      onClick={() => impersonateStaffMember(row)}
+                    >
+                      {isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'Impersonating' : 'Impersonate'}
+                    </button>
+                  ) : null}
+                  <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}?tab=contracts`)}>
+                    Contracts
+                  </button>
+                  {isDirector ? (
+                    <>
+                      <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                        {saving === row.user_email ? 'Saving...' : 'Move now'}
+                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={() => removeDirectly(row)} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'move_staff')} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                        {saving === row.user_email ? 'Sending...' : 'Request move'}
+                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'remove_staff')} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                        Request removal
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
+          <div className="card card-pad">
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team activity feed</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Latest department actions</div>
+            <div style={{ display:'grid', gap:10, marginTop:14 }}>
+              {teamActivity.map((row, index) => (
+                <div key={`${row.user_name}-${row.created_at}-${index}`} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.user_name || 'Team member'}</div>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>{row.action}{row.target ? ` · ${row.target}` : ''}</div>
+                  <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{new Date(row.created_at).toLocaleString('en-GB')}</div>
+                </div>
+              ))}
+              {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent team activity yet.</div> : null}
+            </div>
+          </div>
+
           <div className="card card-pad">
             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop: 4, flexWrap:'wrap' }}>
