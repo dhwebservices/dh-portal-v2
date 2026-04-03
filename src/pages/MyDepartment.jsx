@@ -259,6 +259,8 @@ export default function MyDepartment() {
   const unassigned = profiles.filter((row) => !String(row.department || '').trim())
   const departmentMeta = catalog.find((item) => item.name === currentDepartment)
   const visibleRequests = requestRows.filter((row) => row.requested_department === currentDepartment || row.current_department === currentDepartment)
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
   const onboardingCount = teamMembers.filter((row) => row.lifecycle?.state === 'onboarding').length
   const activeCount = teamMembers.filter((row) => row.lifecycle?.state === 'active').length
   const activeStaffToday = teamMembers.filter((row) => {
@@ -267,8 +269,6 @@ export default function MyDepartment() {
   }).length
   const needsReviewCount = visibleRequests.filter((row) => row.status === 'pending').length
   const teamEmailSet = new Set(teamMembers.map((row) => normalizePortalEmail(row.user_email)).filter(Boolean))
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
   const outreachAddedToday = outreachRows.filter((row) => {
     const createdAt = row.created_at ? new Date(row.created_at) : null
     if (!createdAt || createdAt < todayStart) return false

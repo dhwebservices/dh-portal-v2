@@ -98,10 +98,14 @@ export default function HROnboarding() {
       start_date: profile?.start_date || '',
     })
 
+    const currentReviewerEmail = normalizeEmail(user?.email || '')
     const visibleSubmissions = (all || []).filter((submission) => {
       if (canSeeAllSubmissions) return true
       const submissionDepartment = String(submission.department || '').trim()
-      return !!submissionDepartment && managedDepartments.includes(submissionDepartment)
+      const submissionManagerEmail = normalizeEmail(submission.manager_email || '')
+      const inManagedDepartment = !!submissionDepartment && managedDepartments.includes(submissionDepartment)
+      const assignedToCurrentManager = !!submissionManagerEmail && submissionManagerEmail === currentReviewerEmail
+      return inManagedDepartment || assignedToCurrentManager
     })
     setSubmissions(visibleSubmissions)
     if (mine) {
