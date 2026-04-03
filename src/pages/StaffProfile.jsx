@@ -25,6 +25,15 @@ import {
   describeWorkspacePreset,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
+import {
+  buildLifecycleSettingKey,
+  DIRECTOR_EMAILS,
+  getLifecycleLabel,
+  getLifecycleMeta,
+  LIFECYCLE_STATES,
+  mergeLifecycleRecord,
+} from '../utils/staffLifecycle'
+import { sendEmail } from '../utils/email'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
@@ -81,20 +90,6 @@ function detectPreset(perms) {
   )?.[0] || 'Custom'
 }
 
-function getLifecycleMeta({ onboarding, startDate, contractType }) {
-  if (onboarding) {
-    return { label: 'Onboarding', tone: 'amber', note: 'Portal access is still being set up.' }
-  }
-  if (startDate) {
-    return {
-      label: 'Active',
-      tone: 'green',
-      note: `${contractType || 'Staff member'} · started ${new Date(startDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}`,
-    }
-  }
-  return { label: 'Active', tone: 'green', note: contractType || 'Staff member is active in the portal.' }
-}
-
 function formatTimelineDate(value) {
   if (!value) return 'Unknown time'
   return new Date(value).toLocaleString('en-GB', {
@@ -137,6 +132,9 @@ export default function StaffProfile() {
   const [portalPrefs, setPortalPrefs] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES))
   const [portalPrefsSaving, setPortalPrefsSaving] = useState(false)
   const [portalPrefsSaved, setPortalPrefsSaved] = useState(false)
+  const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
+  const [lifecycleSaving, setLifecycleSaving] = useState(false)
+  const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [customNotification, setCustomNotification] = useState({
     title: '',
     message: '',
@@ -220,11 +218,22 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildPreferenceSettingKey(email))
         .maybeSingle()
+      const { data: lifecycleSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildLifecycleSettingKey(email))
+        .maybeSingle()
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
+      const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
+      setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
+        onboarding: !!perm?.onboarding,
+        startDate: mergedProfile.start_date,
+        contractType: mergedProfile.contract_type,
+      }))
 
       if (p || onboardingSubmission) {
         setProfile(mergedProfile)
@@ -425,6 +434,168 @@ export default function StaffProfile() {
     }
   }
 
+  const saveLifecycleRecord = async (nextRecord = lifecycleRecord, { silent = false } = {}) => {
+    setLifecycleSaving(true)
+    try {
+      const payload = mergeLifecycleRecord(nextRecord, {
+        onboarding,
+        startDate: profile.start_date,
+        contractType: profile.contract_type,
+      })
+      const { error } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildLifecycleSettingKey(email),
+          value: { value: payload },
+        }, { onConflict: 'key' })
+      if (error) throw error
+      setLifecycleRecord(payload)
+      if (!silent) {
+        setLifecycleSaved(true)
+        setTimeout(() => setLifecycleSaved(false), 3000)
+      }
+      return payload
+    } catch (error) {
+      console.error('Lifecycle save failed:', error)
+      alert('Could not save lifecycle details right now.')
+      throw error
+    } finally {
+      setLifecycleSaving(false)
+    }
+  }
+
+  const requestTermination = async () => {
+    if (!lifecycleRecord.termination.reason?.trim() || !lifecycleRecord.termination.effective_date) {
+      alert('Add a termination reason and effective date first.')
+      return
+    }
+
+    const nextRecord = mergeLifecycleRecord({
+      ...lifecycleRecord,
+      state: 'termination_requested',
+      termination: {
+        ...lifecycleRecord.termination,
+        status: 'requested',
+        requested_by_email: user?.email || '',
+        requested_by_name: user?.name || '',
+        requested_at: new Date().toISOString(),
+        approved_by_email: '',
+        approved_by_name: '',
+        approved_at: '',
+        rejected_at: '',
+        rejected_by_email: '',
+        rejected_by_name: '',
+        rejection_reason: '',
+      },
+    }, {
+      onboarding,
+      startDate: profile.start_date,
+      contractType: profile.contract_type,
+    })
+
+    await saveLifecycleRecord(nextRecord, { silent: true })
+
+    const directorEmails = Array.from(DIRECTOR_EMAILS)
+    await Promise.allSettled(directorEmails.map((directorEmail) => sendManagedNotification({
+      userEmail: directorEmail,
+      userName: directorEmail,
+      category: 'urgent',
+      type: 'warning',
+      title: 'Termination approval required',
+      message: `${displayName} has a termination request awaiting director approval. Effective date: ${lifecycleRecord.termination.effective_date}.`,
+      link: `/my-staff/${encodeURIComponent(email)}`,
+      emailSubject: `Termination approval required — ${displayName}`,
+      sentBy: user?.name || user?.email || 'Portal admin',
+      forceImportant: true,
+      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+    })))
+
+    setLifecycleSaved(true)
+    setTimeout(() => setLifecycleSaved(false), 3000)
+  }
+
+  const decideTermination = async (decision) => {
+    const isDirector = DIRECTOR_EMAILS.has(String(user?.email || '').toLowerCase())
+    if (!isDirector) {
+      alert('Only the director account can approve or reject terminations.')
+      return
+    }
+
+    const approved = decision === 'approve'
+    const nextState = approved ? 'terminated' : 'active'
+    const nextRecord = mergeLifecycleRecord({
+      ...lifecycleRecord,
+      state: nextState,
+      termination: {
+        ...lifecycleRecord.termination,
+        status: approved ? 'approved' : 'rejected',
+        approved_by_email: approved ? (user?.email || '') : '',
+        approved_by_name: approved ? (user?.name || '') : '',
+        approved_at: approved ? new Date().toISOString() : '',
+        rejected_by_email: approved ? '' : (user?.email || ''),
+        rejected_by_name: approved ? '' : (user?.name || ''),
+        rejected_at: approved ? '' : new Date().toISOString(),
+      },
+    }, {
+      onboarding,
+      startDate: profile.start_date,
+      contractType: profile.contract_type,
+    })
+
+    await saveLifecycleRecord(nextRecord, { silent: true })
+
+    if (approved) {
+      await fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
+        method: 'PATCH',
+        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          permissions: {},
+          onboarding: false,
+          bookable_staff: false,
+          updated_at: new Date().toISOString(),
+        }),
+      }).catch(() => {})
+    }
+
+    await Promise.allSettled([
+      sendManagedNotification({
+        userEmail: email,
+        userName: displayName,
+        category: 'urgent',
+        type: approved ? 'warning' : 'info',
+        title: approved ? 'Employment termination approved' : 'Termination request update',
+        message: approved
+          ? `Your employment status has been updated. Effective date: ${lifecycleRecord.termination.effective_date}.`
+          : `The termination request has been rejected by the director.`,
+        link: '/my-profile',
+        emailSubject: approved ? 'Employment termination approved' : 'Termination request update',
+        sentBy: user?.name || user?.email || 'Director',
+        forceImportant: true,
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      }),
+      profile.personal_email
+        ? sendEmail('send_email', {
+            to: profile.personal_email,
+            to_name: displayName,
+            subject: approved ? 'Employment termination approved — DH Website Services' : 'Termination request update — DH Website Services',
+            html: `<p>Hi ${displayName.split(' ')[0] || 'there'},</p><p>${approved ? `Your termination has been approved with an effective date of ${lifecycleRecord.termination.effective_date}.` : 'The termination request affecting your employment has been rejected by the director.'}</p><p>If you have any questions, please contact DH Website Services.</p>`,
+            from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            sent_by: user?.name || user?.email || 'Director',
+            log_outreach: false,
+          })
+        : Promise.resolve(),
+    ])
+
+    if (approved) {
+      setEditPerms({})
+      setOnboarding(false)
+      setBookable(false)
+    }
+
+    setLifecycleSaved(true)
+    setTimeout(() => setLifecycleSaved(false), 3000)
+  }
+
   // ── Docs ────────────────────────────────────────────────────────────────
   const uploadDoc = async () => {
     if (!selectedDoc) {
@@ -468,7 +639,8 @@ export default function StaffProfile() {
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
-  const lifecycle = getLifecycleMeta({ onboarding, startDate: profile.start_date, contractType: profile.contract_type })
+  const lifecycle = getLifecycleMeta(lifecycleRecord, { onboarding, startDate: profile.start_date, contractType: profile.contract_type })
+  const isDirector = DIRECTOR_EMAILS.has(String(user?.email || '').toLowerCase())
   const enabledPermissionCount = countEnabledPermissions(editPerms)
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
   const contractDoc = docs.find((doc) => String(doc.type || '').toLowerCase().includes('contract') || String(doc.name || '').toLowerCase().includes('contract'))
@@ -649,7 +821,7 @@ export default function StaffProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['profile','Profile'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
+        {[['profile','Profile'],['lifecycle','Lifecycle'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['docs','Documents']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -745,6 +917,7 @@ export default function StaffProfile() {
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Quick admin jumps</div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       {[
+                        ['Lifecycle', 'lifecycle'],
                         ['Permissions', 'permissions'],
                         ['Documents', 'docs'],
                         ['Commissions', 'commissions'],
@@ -772,6 +945,99 @@ export default function StaffProfile() {
                       })}
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'lifecycle' && (
+          <div className="card card-pad">
+            <div style={{ display:'grid', gap:20 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Employee lifecycle</div>
+                  <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:4 }}>Lifecycle and termination controls</div>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>Track employment state, probation, restrictions, and controlled termination requests.</div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+                  {lifecycleSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+                </div>
+              </div>
+
+              <div className="fg">
+                <div>
+                  <label className="lbl">Lifecycle State</label>
+                  <select className="inp" value={lifecycleRecord.state} onChange={(e) => setLifecycleRecord((current) => mergeLifecycleRecord({ ...current, state: e.target.value }, { onboarding, startDate: profile.start_date, contractType: profile.contract_type }))}>
+                    {LIFECYCLE_STATES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="lbl">Probation End Date</label>
+                  <input className="inp" type="date" value={lifecycleRecord.probation_end_date || ''} onChange={(e) => setLifecycleRecord((current) => ({ ...current, probation_end_date: e.target.value }))} />
+                </div>
+                <div className="fc">
+                  <label className="lbl">Lifecycle Notes</label>
+                  <textarea className="inp" rows={3} value={lifecycleRecord.notes || ''} onChange={(e) => setLifecycleRecord((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} />
+                </div>
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                <button className="btn btn-primary" onClick={() => saveLifecycleRecord()} disabled={lifecycleSaving}>{lifecycleSaving ? 'Saving...' : 'Save lifecycle state'}</button>
+              </div>
+
+              <div style={{ padding:'16px 18px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:14 }}>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Termination workflow</div>
+                <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, marginBottom:16 }}>
+                  Managers/admins can request termination. Only the director account can approve or reject it. On approval, the employee is notified on both work and personal email.
+                </div>
+
+                <div className="fg">
+                  <div>
+                    <label className="lbl">Termination status</label>
+                    <div className={`badge badge-${lifecycleRecord.termination.status === 'approved' ? 'red' : lifecycleRecord.termination.status === 'requested' ? 'amber' : lifecycleRecord.termination.status === 'rejected' ? 'blue' : 'grey'}`}>
+                      {getLifecycleLabel(lifecycleRecord.state)} · {lifecycleRecord.termination.status || 'none'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="lbl">Effective Date</label>
+                    <input className="inp" type="date" value={lifecycleRecord.termination.effective_date || ''} onChange={(e) => setLifecycleRecord((current) => ({ ...current, termination: { ...current.termination, effective_date: e.target.value } }))} />
+                  </div>
+                  <div className="fc">
+                    <label className="lbl">Termination Reason</label>
+                    <textarea className="inp" rows={3} value={lifecycleRecord.termination.reason || ''} onChange={(e) => setLifecycleRecord((current) => ({ ...current, termination: { ...current.termination, reason: e.target.value } }))} style={{ resize:'vertical' }} placeholder="Explain the reason for termination request..." />
+                  </div>
+                  <div className="fc">
+                    <label className="lbl">Termination Notes</label>
+                    <textarea className="inp" rows={3} value={lifecycleRecord.termination.notes || ''} onChange={(e) => setLifecycleRecord((current) => ({ ...current, termination: { ...current.termination, notes: e.target.value } }))} style={{ resize:'vertical' }} placeholder="Optional admin notes, handover points, equipment recovery notes..." />
+                  </div>
+                </div>
+
+                <label style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop:14 }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Immediate access removal recommended</div>
+                    <div style={{ fontSize:11, color:'var(--sub)' }}>Use this when portal access should be revoked as soon as the director approves.</div>
+                  </div>
+                  <button onClick={() => setLifecycleRecord((current) => ({ ...current, termination: { ...current.termination, immediate_access_removal: !current.termination.immediate_access_removal } }))} style={{ width:40, height:22, borderRadius:11, background: lifecycleRecord.termination.immediate_access_removal ? 'var(--red)' : 'var(--bg3)', border:'none', position:'relative', flexShrink:0 }}>
+                    <div style={{ position:'absolute', top:2, left: lifecycleRecord.termination.immediate_access_removal ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                  </button>
+                </label>
+
+                <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:18 }}>
+                  <button className="btn btn-outline" onClick={requestTermination} disabled={lifecycleSaving}>Request termination</button>
+                  {isDirector && lifecycleRecord.termination.status === 'requested' ? (
+                    <>
+                      <button className="btn btn-primary" onClick={() => decideTermination('approve')} disabled={lifecycleSaving}>Director approve</button>
+                      <button className="btn btn-outline" onClick={() => decideTermination('reject')} disabled={lifecycleSaving}>Reject request</button>
+                    </>
+                  ) : null}
+                </div>
+
+                <div style={{ marginTop:16, fontSize:12, color:'var(--faint)', lineHeight:1.7 }}>
+                  Requested by: {lifecycleRecord.termination.requested_by_name || '—'}{lifecycleRecord.termination.requested_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.requested_at)}` : ''}
+                  <br />
+                  Approved by: {lifecycleRecord.termination.approved_by_name || '—'}{lifecycleRecord.termination.approved_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.approved_at)}` : ''}
                 </div>
               </div>
             </div>

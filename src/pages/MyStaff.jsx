@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
+import { buildLifecycleSettingKey, getLifecycleLabel, mergeLifecycleRecord } from '../utils/staffLifecycle'
 
 function isRecentlyActive(value) {
   if (!value) return false
@@ -55,6 +56,7 @@ export default function MyStaff() {
   const [msUsers, setMsUsers]   = useState([])
   const [profiles, setProfiles] = useState({})
   const [permsMap, setPermsMap] = useState({})
+  const [lifecycleMap, setLifecycleMap] = useState({})
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
@@ -110,10 +112,11 @@ export default function MyStaff() {
       }
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
-    const [{ data: pd }, { data: hrd }, { data: onboard }] = await Promise.all([
+    const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }] = await Promise.all([
       supabase.from('user_permissions').select('*'),
       supabase.from('hr_profiles').select('*'),
       supabase.from('onboarding_submissions').select('*'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
     ])
     const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding } })
     setPermsMap(pm)
@@ -124,6 +127,17 @@ export default function MyStaff() {
       hm[key] = mergeHrProfileWithOnboarding(hm[key] || {}, submission)
     })
     setProfiles(hm)
+    const lm = {}
+    ;(lifecycleSettings || []).forEach((row) => {
+      const key = String(row.key || '').replace('staff_lifecycle:', '').toLowerCase().trim()
+      if (!key) return
+      lm[key] = mergeLifecycleRecord(row.value?.value ?? row.value ?? {}, {
+        onboarding: !!pm[key]?.onboarding,
+        startDate: hm[key]?.start_date,
+        contractType: hm[key]?.contract_type,
+      })
+    })
+    setLifecycleMap(lm)
     setLoading(false)
   }
 
@@ -188,6 +202,11 @@ export default function MyStaff() {
             const profile = profiles[userEmail] || {}
             const userPm = permsMap[userEmail]
             const isOnboarding = userPm?.onboarding || false
+            const lifecycle = lifecycleMap[userEmail] || mergeLifecycleRecord({}, {
+              onboarding: isOnboarding,
+              startDate: profile.start_date,
+              contractType: profile.contract_type,
+            })
             const isActiveNow = isRecentlyActive(profile.last_seen)
             const colour = colourFor(userEmail)
             return (
@@ -213,8 +232,8 @@ export default function MyStaff() {
 
                 {/* Status */}
                 <div style={{ display:'grid', gap:8, justifyItems:'center' }}>
-                  <span className={`badge badge-${isOnboarding?'amber':'green'}`}>
-                    {isOnboarding ? 'Onboarding' : 'Active'}
+                  <span className={`badge badge-${lifecycle.state === 'terminated' || lifecycle.state === 'termination_approved' || lifecycle.state === 'left' || lifecycle.state === 'archived' ? 'red' : lifecycle.state === 'probation' ? 'blue' : lifecycle.state === 'onboarding' ? 'amber' : 'green'}`}>
+                    {getLifecycleLabel(lifecycle.state || (isOnboarding ? 'onboarding' : 'active'))}
                   </span>
                   <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>
                     {formatPresenceLabel(profile.last_seen)}

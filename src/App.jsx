@@ -6,6 +6,7 @@ import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 
 function lazyRetry(importer, key) {
   return lazy(async () => {
@@ -100,6 +101,23 @@ function MaintenanceLock() {
   )
 }
 
+function LifecycleLock() {
+  const { lifecycle } = useAuth()
+  return (
+    <div className="fade-in" style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', background:'var(--bg2)' }}>
+      <div className="card card-pad" style={{ maxWidth:640, width:'100%', textAlign:'center', border:'2px solid var(--red)' }}>
+        <div style={{ fontSize:44, marginBottom:12 }}>🔒</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:30, fontWeight:400, color:'var(--text)', marginBottom:10 }}>
+          Access Unavailable
+        </div>
+        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:14 }}>
+          This staff account is currently marked as <strong>{getLifecycleLabel(lifecycle?.state)}</strong>. If you think this is incorrect, please contact DH Website Services directly.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Wraps any page — if user is in onboarding mode, show only the onboarding form
 function OnboardingWall({ children }) {
   const { isOnboarding, loading } = useAuth()
@@ -109,8 +127,9 @@ function OnboardingWall({ children }) {
 }
 
 function MaintenanceWall({ children }) {
-  const { maintenance, isAdmin, loading } = useAuth()
+  const { maintenance, isAdmin, lifecycle, loading } = useAuth()
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (TERMINATED_STATES.has(lifecycle?.state)) return <LifecycleLock />
   if (maintenance?.enabled && !isAdmin) return <MaintenanceLock />
   return children
 }

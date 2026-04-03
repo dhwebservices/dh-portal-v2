@@ -8,13 +8,17 @@ import {
   mergePortalPreferences,
   readStoredPortalPreferences,
 } from '../utils/portalPreferences'
+import {
+  buildLifecycleSettingKey,
+  DIRECTOR_EMAILS,
+  mergeLifecycleRecord,
+  TERMINATED_STATES,
+} from '../utils/staffLifecycle'
 
 const Ctx = createContext(null)
 const ACTIVE_HEARTBEAT_MS = 60 * 1000
 
-const OWNER_EMAILS = new Set([
-  'david@dhwebsiteservices.co.uk',
-])
+const OWNER_EMAILS = DIRECTOR_EMAILS
 
 const BASE_PERMISSIONS = {
   dashboard: true,
@@ -39,6 +43,7 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin]       = useState(false)
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
+  const [lifecycle, setLifecycle] = useState(mergeLifecycleRecord())
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
   const [loading, setLoading]       = useState(true)
 
@@ -96,8 +101,13 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', buildPreferenceSettingKey(normalizedEmail))
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildLifecycleSettingKey(normalizedEmail))
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, maintenanceResult, preferenceResult]) => {
+      .then(([permissionsResult, maintenanceResult, preferenceResult, lifecycleResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         if (!maintenanceResult?.error && maintenanceResult?.data) {
@@ -115,6 +125,8 @@ export function AuthProvider({ children }) {
         const nextPreferences = mergePortalPreferences(readStoredPortalPreferences(), preferenceRaw)
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
+        const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
+        setLifecycle(mergeLifecycleRecord(lifecycleRaw))
 
         if (!error && data) {
           const safePerms = sanitizePermissions(data.permissions)
@@ -134,6 +146,7 @@ export function AuthProvider({ children }) {
         setIsAdmin(isOwner)
         setIsOnboarding(false)
         setMaintenance({ enabled: false, message: '', eta: '' })
+        setLifecycle(mergeLifecycleRecord())
         const nextPreferences = mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences())
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
@@ -162,6 +175,7 @@ export function AuthProvider({ children }) {
   } : null
 
   const can = (key) => {
+    if (TERMINATED_STATES.has(lifecycle?.state)) return false
     if (isAdmin) return true
     if (perms === null) return false
     if (typeof perms !== 'object') return false
@@ -190,7 +204,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, maintenance, preferences, updatePreferences, loading }}>
+    <Ctx.Provider value={{ user, perms, can, isAdmin, isOnboarding, maintenance, lifecycle, preferences, updatePreferences, loading }}>
       {children}
     </Ctx.Provider>
   )
