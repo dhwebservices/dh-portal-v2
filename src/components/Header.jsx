@@ -45,6 +45,16 @@ function SearchIcon() {
   )
 }
 
+function MoreIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.8"/>
+      <circle cx="12" cy="12" r="1.8"/>
+      <circle cx="19" cy="12" r="1.8"/>
+    </svg>
+  )
+}
+
 export default function Header() {
   const { pathname } = useLocation()
   const { user, realUser, isPreviewing, previewTarget, stopPreviewAs } = useAuth()
@@ -53,6 +63,7 @@ export default function Header() {
   const [pinnedAlerts, setPinnedAlerts] = useState([])
   const [unread, setUnread]       = useState(0)
   const [bellOpen, setBellOpen]   = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const bellRef                   = useRef()
 
   useEffect(() => {
@@ -89,6 +100,11 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  useEffect(() => {
+    setBellOpen(false)
+    setMobileMenuOpen(false)
+  }, [pathname])
+
   const markAllRead = async () => {
     await supabase.from('notifications').update({ read: true }).ilike('user_email', user.email).eq('read', false)
     setNotifs([]); setUnread(0)
@@ -101,19 +117,25 @@ export default function Header() {
   }
 
   const typeIcon = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
+  const pageTitle = TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')
+  const openMenuRoute = (route) => {
+    setMobileMenuOpen(false)
+    navigate(route)
+  }
 
   return (
+    <>
     <header className="main-header">
       <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0, flex:1 }}>
         <div className="header-crumbs">
           <button className="header-crumb-home" onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
           <span className="header-crumb-sep" style={{ color:'var(--border2)', fontSize:14 }}>/</span>
           <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
-            {TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')}
+            {pageTitle}
           </span>
         </div>
         {isPreviewing && previewTarget ? (
-          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'6px 10px', borderRadius:999, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
+          <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'6px 10px', borderRadius:999, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
             <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>Impersonating</span>
             <span style={{ fontSize:12.5, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220 }}>
               {previewTarget.name || previewTarget.email}
@@ -131,7 +153,7 @@ export default function Header() {
         ) : null}
       </div>
 
-      <div className="header-actions">
+      <div className="header-actions hide-mob">
         {/* Search */}
         <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
@@ -207,6 +229,134 @@ export default function Header() {
           <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
         </button>
       </div>
+
+      <div className="header-actions mobile-only">
+        <div ref={bellRef} style={{ position:'relative' }}>
+          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}>
+            <BellIcon/>
+            {unread > 0 && (
+              <span style={{ position:'absolute', top:3, right:3, width:8, height:8, borderRadius:'50%', background:'var(--red)', border:'2px solid var(--card)' }}/>
+            )}
+          </button>
+          {bellOpen && (
+            <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
+                <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                  <button onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+                  {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
+                </div>
+              </div>
+              <div style={{ maxHeight:320, overflowY:'auto' }}>
+                {pinnedAlerts.length > 0 && (
+                  <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
+                    <div style={{ display:'grid', gap:8 }}>
+                      {pinnedAlerts.map((banner) => (
+                        <button key={banner.id} onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
+                            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
+                            <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
+                          </div>
+                          <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5 }}>{banner.message}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {notifs.length === 0 ? (
+                  <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--faint)', fontSize:13 }}>No new notifications</div>
+                ) : notifs.map(n => (
+                  <div key={n.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start', background:'var(--accent-soft)' }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{typeIcon[n.type] || 'ℹ️'}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      {n.title && <div style={{ fontSize:13, fontWeight:500, marginBottom:2 }}>{n.title}</div>}
+                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
+                      <div style={{ fontSize:10, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+                    </div>
+                    {n.link ? <button onClick={async () => { await markRead(n.id); setBellOpen(false); navigate(n.link) }} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
+                    <button onClick={() => markRead(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:16, flexShrink:0, lineHeight:1 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          className="header-icon-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          title="More"
+          style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)' }}
+        >
+          <MoreIcon />
+        </button>
+      </div>
     </header>
+
+    {mobileMenuOpen ? (
+      <>
+        <button className="header-mobile-menu-scrim" onClick={() => setMobileMenuOpen(false)} aria-label="Close actions menu" />
+        <aside className="header-mobile-menu">
+          <div className="header-mobile-menu-head">
+            <div>
+              <div className="header-mobile-menu-kicker">Quick actions</div>
+              <div className="header-mobile-menu-title">{pageTitle}</div>
+            </div>
+            <button className="header-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close">
+              ×
+            </button>
+          </div>
+
+          <div className="header-mobile-menu-user">
+            <div className="header-mobile-menu-avatar">
+              <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
+            </div>
+            <div style={{ minWidth:0 }}>
+              <div className="header-mobile-menu-user-name">{user?.name || 'Staff user'}</div>
+              <div className="header-mobile-menu-user-email">{user?.email}</div>
+            </div>
+          </div>
+
+          <div className="header-mobile-menu-actions">
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/search')}>
+              <SearchIcon />
+              <span>Search portal</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/notifications')}>
+              <BellIcon />
+              <span>Open notifications</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/my-profile')}>
+              <img src="/dh-logo-icon.png" alt="" style={{ width:15, height:15, objectFit:'contain' }} />
+              <span>My profile</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/dashboard')}>
+              <span style={{ fontSize:14, lineHeight:1 }}>⌂</span>
+              <span>Dashboard</span>
+            </button>
+          </div>
+
+          {isPreviewing && previewTarget ? (
+            <div className="header-mobile-menu-preview">
+              <div className="header-mobile-menu-preview-copy">
+                Previewing {previewTarget.name || previewTarget.email}
+              </div>
+              <button
+                className="header-mobile-menu-primary"
+                onClick={() => {
+                  stopPreviewAs()
+                  setMobileMenuOpen(false)
+                  navigate('/my-staff')
+                }}
+              >
+                Exit impersonation
+              </button>
+            </div>
+          ) : null}
+        </aside>
+      </>
+    ) : null}
+    </>
   )
 }
