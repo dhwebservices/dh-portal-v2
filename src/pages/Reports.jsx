@@ -19,6 +19,7 @@ const ACTION_COLORS = {
 const LOG_PAGE_SIZE = 50
 const ACTION_TYPES = ['all', 'outreach', 'client', 'task', 'support', 'staff', 'leave', 'login']
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
@@ -46,6 +47,67 @@ function formatMoney(value) {
 
 function formatAction(action) {
   return action?.replace(/_/g, ' ') || '—'
+}
+
+function labelize(value = '') {
+  return String(value || '').replace(/_/g, ' ')
+}
+
+function normalizeOutreachStatus(value = '') {
+  const safe = String(value || '').toLowerCase().replace(/\s+/g, '_')
+  return ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted'].includes(safe) ? safe : 'new'
+}
+
+function parseOutreachNotes(raw = '') {
+  const text = String(raw || '')
+  if (!text.startsWith(OUTREACH_META_PREFIX)) {
+    return {
+      outcome: 'none',
+      follow_up_date: '',
+      assigned_to_email: '',
+      assigned_to_name: '',
+      creator_email: '',
+    }
+  }
+
+  const newlineIndex = text.indexOf('\n')
+  const metaLine = newlineIndex >= 0 ? text.slice(OUTREACH_META_PREFIX.length, newlineIndex).trim() : text.slice(OUTREACH_META_PREFIX.length).trim()
+
+  try {
+    const parsed = JSON.parse(metaLine || '{}')
+    return {
+      outcome: parsed.outcome || 'none',
+      follow_up_date: parsed.follow_up_date || '',
+      assigned_to_email: parsed.assigned_to_email || '',
+      assigned_to_name: parsed.assigned_to_name || '',
+      creator_email: parsed.creator_email || '',
+    }
+  } catch {
+    return {
+      outcome: 'none',
+      follow_up_date: '',
+      assigned_to_email: '',
+      assigned_to_name: '',
+      creator_email: '',
+    }
+  }
+}
+
+function needsOutreachFollowUp(row) {
+  return ['contacted', 'interested', 'follow_up'].includes(normalizeOutreachStatus(row.status))
+}
+
+function isOutreachOverdue(row) {
+  if (!needsOutreachFollowUp(row)) return false
+  if (row.follow_up_date) {
+    return new Date(`${row.follow_up_date}T23:59:59`).getTime() < Date.now()
+  }
+  const touchedAt = row.updated_at || row.created_at
+  if (!touchedAt) return false
+  const ageDays = Math.max(0, Math.floor((Date.now() - new Date(touchedAt).getTime()) / 86400000))
+  const status = normalizeOutreachStatus(row.status)
+  if (status === 'interested' || status === 'follow_up') return ageDays >= 2
+  return ageDays >= 4
 }
 
 function timeAgo(dt) {
@@ -135,6 +197,15 @@ export default function Reports() {
   })
   const [people, setPeople] = useState([])
   const [peopleLoading, setPeopleLoading] = useState(false)
+  const [outreach, setOutreach] = useState({
+    stats: {},
+    byStaff: [],
+    byStatus: [],
+    byOutcome: [],
+    queue: [],
+    exportRows: [],
+  })
+  const [outreachLoading, setOutreachLoading] = useState(false)
   const [logs, setLogs] = useState([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [logSearch, setLogSearch] = useState('')
@@ -147,6 +218,10 @@ export default function Reports() {
 
   useEffect(() => {
     if (tab === 'people') loadPeople()
+  }, [tab])
+
+  useEffect(() => {
+    if (tab === 'outreach') loadOutreach()
   }, [tab])
 
   useEffect(() => {
@@ -317,6 +392,155 @@ export default function Reports() {
     }
   }
 
+  async function loadOutreach() {
+    setOutreachLoading(true)
+    try {
+      const [{ data: rows }, { data: appointments }, { data: clients }] = await Promise.all([
+        supabase.from('outreach').select('*').order('created_at', { ascending: false }),
+        supabase.from('appointments').select('id,client_email,client_business,status').neq('status', 'cancelled'),
+        supabase.from('clients').select('id,email,name,status').order('created_at', { ascending: false }),
+      ])
+
+      const normalized = (rows || []).map((row) => {
+        const meta = parseOutreachNotes(row.notes)
+        const status = normalizeOutreachStatus(row.status)
+        const assignedTo = meta.assigned_to_name || meta.assigned_to_email || ''
+        const owner = assignedTo || row.added_by || meta.creator_email || 'Unassigned'
+        const matchedAppointment = (appointments || []).some((entry) => {
+          const leadEmail = String(row.email || '').toLowerCase()
+          const apptEmail = String(entry.client_email || '').toLowerCase()
+          const leadBusiness = String(row.business_name || '').toLowerCase()
+          const apptBusiness = String(entry.client_business || '').toLowerCase()
+          return (leadEmail && apptEmail && leadEmail === apptEmail) || (leadBusiness && apptBusiness && leadBusiness === apptBusiness)
+        })
+        const matchedClient = (clients || []).some((entry) => {
+          const leadEmail = String(row.email || '').toLowerCase()
+          const clientEmail = String(entry.email || '').toLowerCase()
+          const leadBusiness = String(row.business_name || '').toLowerCase()
+          const clientBusiness = String(entry.name || '').toLowerCase()
+          return (leadEmail && clientEmail && leadEmail === clientEmail) || (leadBusiness && clientBusiness && leadBusiness === clientBusiness)
+        })
+
+        return {
+          id: row.id,
+          business_name: row.business_name || 'Unnamed lead',
+          contact_name: row.contact_name || '',
+          email: row.email || '',
+          status,
+          outcome: meta.outcome || 'none',
+          follow_up_date: meta.follow_up_date || '',
+          owner,
+          added_by: row.added_by || '',
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          overdue: isOutreachOverdue({ ...row, status, follow_up_date: meta.follow_up_date }),
+          booked_call: matchedAppointment || meta.outcome === 'booked_call',
+          proposal_requested: meta.outcome === 'proposal_requested',
+          converted: status === 'converted' || matchedClient,
+        }
+      })
+
+      const total = normalized.length
+      const converted = normalized.filter((row) => row.converted).length
+      const interested = normalized.filter((row) => row.status === 'interested').length
+      const queue = normalized.filter((row) => needsOutreachFollowUp(row))
+      const overdue = normalized.filter((row) => row.overdue).length
+      const bookedCalls = normalized.filter((row) => row.booked_call).length
+      const proposals = normalized.filter((row) => row.proposal_requested).length
+
+      const byStaffMap = normalized.reduce((acc, row) => {
+        const key = row.owner || 'Unassigned'
+        if (!acc[key]) {
+          acc[key] = {
+            staff: key,
+            leads: 0,
+            followUps: 0,
+            overdue: 0,
+            interested: 0,
+            bookedCalls: 0,
+            converted: 0,
+          }
+        }
+        acc[key].leads += 1
+        if (needsOutreachFollowUp(row)) acc[key].followUps += 1
+        if (row.overdue) acc[key].overdue += 1
+        if (row.status === 'interested') acc[key].interested += 1
+        if (row.booked_call) acc[key].bookedCalls += 1
+        if (row.converted) acc[key].converted += 1
+        return acc
+      }, {})
+
+      const byStatusMap = normalized.reduce((acc, row) => {
+        acc[row.status] = (acc[row.status] || 0) + 1
+        return acc
+      }, {})
+
+      const byOutcomeMap = normalized.reduce((acc, row) => {
+        const key = row.outcome && row.outcome !== 'none' ? row.outcome : 'unset'
+        acc[key] = (acc[key] || 0) + 1
+        return acc
+      }, {})
+
+      setOutreach({
+        stats: {
+          total,
+          converted,
+          conversionRate: total ? Math.round((converted / total) * 100) : 0,
+          queue: queue.length,
+          overdue,
+          interested,
+          bookedCalls,
+          proposals,
+        },
+        byStaff: Object.values(byStaffMap)
+          .sort((a, b) => (b.converted - a.converted) || (b.bookedCalls - a.bookedCalls) || (b.leads - a.leads))
+          .slice(0, 10),
+        byStatus: Object.entries(byStatusMap)
+          .map(([status, count]) => ({ status: labelize(status), count }))
+          .sort((a, b) => b.count - a.count),
+        byOutcome: Object.entries(byOutcomeMap)
+          .map(([outcome, count]) => ({ outcome: labelize(outcome), count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8),
+        queue: normalized
+          .filter((row) => row.overdue || row.follow_up_date)
+          .sort((a, b) => {
+            if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
+            return String(a.follow_up_date || '').localeCompare(String(b.follow_up_date || ''))
+          })
+          .slice(0, 8),
+        exportRows: normalized.map((row) => ({
+          business_name: row.business_name,
+          contact_name: row.contact_name,
+          email: row.email,
+          owner: row.owner,
+          added_by: row.added_by,
+          status: row.status,
+          outcome: row.outcome,
+          follow_up_date: row.follow_up_date,
+          overdue: row.overdue ? 'yes' : 'no',
+          booked_call: row.booked_call ? 'yes' : 'no',
+          proposal_requested: row.proposal_requested ? 'yes' : 'no',
+          converted: row.converted ? 'yes' : 'no',
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+        })),
+      })
+    } catch (err) {
+      console.error('Outreach reports load failed:', err)
+      setOutreach({
+        stats: {},
+        byStaff: [],
+        byStatus: [],
+        byOutcome: [],
+        queue: [],
+        exportRows: [],
+      })
+    } finally {
+      setOutreachLoading(false)
+    }
+  }
+
   async function loadLogs() {
     setLogsLoading(true)
     let query = supabase
@@ -362,6 +586,7 @@ export default function Reports() {
         {[
           ['overview', 'Overview'],
           ['people', 'People'],
+          ['outreach', 'Outreach'],
           ['audit', 'Audit Log'],
         ].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} className={`tab${tab === key ? ' on' : ''}`}>{label}</button>
@@ -534,6 +759,108 @@ export default function Reports() {
               <EmptyState text="No people activity data is available yet." />
             )}
           </ReportPanel>
+        </div>
+      )}
+
+      {tab === 'outreach' && (
+        <div style={{ display: 'grid', gap: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>
+              Outreach performance across assigned leads, booked calls, overdue follow-ups, and conversion progress.
+            </div>
+            <button className="btn btn-outline btn-sm" onClick={() => downloadCsv('dh-outreach-performance.csv', outreach.exportRows)} disabled={!outreach.exportRows.length}>
+              <Download size={14} /> Export
+            </button>
+          </div>
+
+          {outreachLoading ? (
+            <div className="spin-wrap"><div className="spin" /></div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
+                <ReportStatCard icon={Users} label="Leads tracked" value={outreach.stats.total || 0} hint="All outreach records currently in the portal" accent="var(--accent)" />
+                <ReportStatCard icon={UserCheck} label="Booked calls" value={outreach.stats.bookedCalls || 0} hint="Leads that have turned into booked appointments" accent="var(--green)" />
+                <ReportStatCard icon={Clock3} label="Follow-up queue" value={outreach.stats.queue || 0} hint="Leads still needing another touch" accent="var(--amber)" />
+                <ReportStatCard icon={ShieldCheck} label="Overdue" value={outreach.stats.overdue || 0} hint="Follow-ups now late and needing attention" accent="var(--red)" />
+                <ReportStatCard icon={CheckSquare} label="Interested" value={outreach.stats.interested || 0} hint="Leads showing live momentum" accent="var(--blue)" />
+                <ReportStatCard icon={BarChart3} label="Conversion rate" value={`${outreach.stats.conversionRate || 0}%`} hint={`${outreach.stats.converted || 0} leads converted into clients`} accent="var(--green)" />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(300px,0.85fr)', gap: 18 }}>
+                <ReportPanel title="Performance by staff" subtitle="Assigned ownership, follow-up pressure, booked calls, and conversion output.">
+                  {outreach.byStaff.length ? (
+                    <div style={{ padding: '18px 18px 8px' }}>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={outreach.byStaff} margin={{ left: 18 }}>
+                          <CartesianGrid stroke="var(--border)" vertical={false} />
+                          <XAxis dataKey="staff" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11, fontFamily: 'var(--font-mono)' }} />
+                          <Tooltip />
+                          <Bar dataKey="converted" fill="var(--green)" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="bookedCalls" fill="var(--accent)" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="overdue" fill="var(--red)" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <EmptyState text="No outreach ownership data is available yet." />
+                  )}
+                </ReportPanel>
+
+                <ReportPanel title="Status mix" subtitle="Where the current outreach pool is sitting right now.">
+                  {outreach.byStatus.length ? (
+                    <div style={{ display: 'grid', gap: 10, padding: 18 }}>
+                      {outreach.byStatus.map((row) => (
+                        <div key={row.status} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg2)' }}>
+                          <span style={{ fontSize: 13, color: 'var(--sub)' }}>{row.status}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState text="No outreach status data is available yet." />
+                  )}
+                </ReportPanel>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(300px,0.95fr)', gap: 18 }}>
+                <ReportPanel title="Follow-up pressure" subtitle="Leads that should be worked next, prioritised by lateness and due date.">
+                  {outreach.queue.length ? (
+                    <div>
+                      {outreach.queue.map((row, index) => (
+                        <div key={row.id} style={{ padding: '14px 18px', borderBottom: index === outreach.queue.length - 1 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{row.business_name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>
+                              {row.owner} · {row.follow_up_date ? `follow up ${row.follow_up_date}` : 'no follow-up date set'}{row.email ? ` · ${row.email}` : ''}
+                            </div>
+                          </div>
+                          <span className={`badge badge-${row.overdue ? 'red' : 'amber'}`}>{row.overdue ? 'overdue' : 'due'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState text="No follow-up pressure is showing right now." />
+                  )}
+                </ReportPanel>
+
+                <ReportPanel title="Outcome mix" subtitle="How calls and follow-ups are being resolved across the current lead pool.">
+                  {outreach.byOutcome.length ? (
+                    <div style={{ display: 'grid', gap: 10, padding: 18 }}>
+                      {outreach.byOutcome.map((row) => (
+                        <div key={row.outcome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg2)' }}>
+                          <span style={{ fontSize: 13, color: 'var(--sub)' }}>{row.outcome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState text="No outreach outcome data is available yet." />
+                  )}
+                </ReportPanel>
+              </div>
+            </>
+          )}
         </div>
       )}
 
