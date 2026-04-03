@@ -1344,6 +1344,66 @@ export default function StaffProfile() {
     }
   }
 
+  const updateTrainingStatus = async (record, nextStatus) => {
+    setPeopleOpsSaving(true)
+    try {
+      const nextRecord = createTrainingRecord({
+        ...record,
+        status: nextStatus,
+        completed_at: nextStatus === 'completed' ? new Date().toISOString() : '',
+        updated_at: new Date().toISOString(),
+      })
+      await savePeopleOpsRecord({
+        key: buildTrainingRecordKey(nextRecord.id),
+        value: nextRecord,
+        onSuccess: (savedTraining) => setTrainingRecords((current) => current
+          .map((item) => item.id === savedTraining.id ? savedTraining : item)
+          .sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1
+            if (a.status !== 'completed' && b.status === 'completed') return -1
+            return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
+          })),
+      })
+    } catch (error) {
+      console.error('Training status update failed:', error)
+      alert(error.message || 'Could not update the training status.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
+  const sendTrainingReminder = async (record) => {
+    setPeopleOpsSaving(true)
+    try {
+      await sendManagedNotification({
+        userEmail: email,
+        userName: displayName,
+        category: 'hr',
+        type: record.mandatory ? 'warning' : 'info',
+        title: `${record.mandatory ? 'Mandatory training reminder' : 'Training reminder'}: ${record.title}`,
+        message: `${record.title} is still outstanding${record.due_date ? ` and was due on ${record.due_date}` : ''}. Please complete it and update your manager once done.`,
+        link: '/my-profile',
+        emailSubject: `${record.title} — training reminder`,
+        emailHtml: `
+          <p>Hi ${(displayName || email).split(' ')[0] || 'there'},</p>
+          <p>This is a reminder that <strong>${record.title}</strong> is still outstanding.</p>
+          <p><strong>Category:</strong> ${getTrainingCategoryLabel(record.category)}<br/><strong>Mandatory:</strong> ${record.mandatory ? 'Yes' : 'No'}${record.due_date ? `<br/><strong>Due date:</strong> ${record.due_date}` : ''}</p>
+          ${record.notes ? `<p><strong>Notes:</strong><br/>${record.notes.replace(/\n/g, '<br/>')}</p>` : ''}
+        `,
+        sentBy: user?.name || user?.email || 'Manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceDelivery: 'both',
+      })
+      setPeopleOpsSaved(true)
+      setTimeout(() => setPeopleOpsSaved(false), 3000)
+    } catch (error) {
+      console.error('Training reminder failed:', error)
+      alert(error.message || 'Could not send the training reminder.')
+    } finally {
+      setPeopleOpsSaving(false)
+    }
+  }
+
   // ── Docs ────────────────────────────────────────────────────────────────
   const uploadDoc = async () => {
     if (!selectedDoc) {
@@ -2566,6 +2626,19 @@ export default function StaffProfile() {
                           {record.certificate_url ? ` · ${record.certificate_url}` : ''}
                         </div>
                       ) : null}
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                        {record.status !== 'in_progress' && record.status !== 'completed' ? (
+                          <button className="btn btn-outline btn-sm" onClick={() => updateTrainingStatus(record, 'in_progress')} disabled={peopleOpsSaving}>Mark in progress</button>
+                        ) : null}
+                        {record.status !== 'completed' ? (
+                          <button className="btn btn-primary btn-sm" onClick={() => updateTrainingStatus(record, 'completed')} disabled={peopleOpsSaving}>Mark completed</button>
+                        ) : (
+                          <button className="btn btn-outline btn-sm" onClick={() => updateTrainingStatus(record, 'assigned')} disabled={peopleOpsSaving}>Re-open</button>
+                        )}
+                        <button className="btn btn-outline btn-sm" onClick={() => sendTrainingReminder(record)} disabled={peopleOpsSaving}>
+                          Send reminder
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {trainingRecords.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No training or certification records saved yet.</div> : null}

@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { createTrainingRecord } from '../utils/peopleOps'
 import {
   ACCENT_SCHEMES,
   CONTRAST_OPTIONS,
@@ -325,6 +326,9 @@ export default function Dashboard() {
         isAdmin
           ? supabase.from('notifications').select('user_email,title,link,created_at').gte('created_at', todayStartIso)
           : Promise.resolve({ data: [] }),
+        isAdmin
+          ? supabase.from('portal_settings').select('key,value').like('key', 'training_record:%')
+          : Promise.resolve({ data: [] }),
       ])
 
       const get = (index, fallback) => (results[index].status === 'fulfilled' ? results[index].value : fallback)
@@ -343,6 +347,7 @@ export default function Dashboard() {
       const appointmentRows = get(11, { data: [] }).data || []
       const outreachRows = get(12, { data: [] }).data || []
       const todayNotifications = get(13, { data: [] }).data || []
+      const trainingRows = get(14, { data: [] }).data || []
 
       const todaysScheduleRows = scheduleRows
         .map((row) => {
@@ -465,6 +470,13 @@ export default function Dashboard() {
         })
         .filter((row) => row && row.daysLeft >= 0 && row.daysLeft <= 30)
 
+      const overdueTraining = trainingRows
+        .map((row) => createTrainingRecord({
+          id: String(row.key || '').replace('training_record:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((row) => row.mandatory && row.status !== 'completed' && row.due_date && new Date(`${row.due_date}T23:59:59`).getTime() <= Date.now())
+
       const managerItems = [
         ...nextFollowUps.slice(0, 3).map((lead) => ({
           id: `mgr-outreach-${lead.id}`,
@@ -497,6 +509,14 @@ export default function Dashboard() {
           status: 'document risk',
           tone: 'red',
           route: '/hr/documents',
+        })),
+        ...overdueTraining.slice(0, 2).map((row) => ({
+          id: `mgr-training-${row.id}`,
+          title: row.staff_name || row.staff_email,
+          meta: `${row.title}${row.due_date ? ` · due ${formatDayLabel(row.due_date)}` : ''}`,
+          status: 'training overdue',
+          tone: 'amber',
+          route: `/my-staff/${encodeURIComponent(row.staff_email)}?tab=training`,
         })),
       ].slice(0, 8)
       setManagerBoard(managerItems)
@@ -582,6 +602,26 @@ export default function Dashboard() {
               message: `${expiringDocs.length} staff record${expiringDocs.length === 1 ? '' : 's'} ha${expiringDocs.length === 1 ? 's' : 've'} right-to-work documents expiring in the next 30 days.`,
               link: '/hr/documents',
               emailSubject: 'Right-to-work documents expiring soon',
+              sentBy: 'DH Portal',
+              fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            }))
+            alreadySent.add(key)
+          }
+        }
+
+        if (overdueTraining.length) {
+          const title = 'Mandatory training is overdue'
+          const key = `${adminEmail}|${title}|/my-staff`
+          if (!alreadySent.has(key)) {
+            escalationJobs.push(sendManagedNotification({
+              userEmail: adminEmail,
+              userName: user?.name || adminEmail,
+              category: 'urgent',
+              type: 'warning',
+              title,
+              message: `${overdueTraining.length} mandatory training item${overdueTraining.length === 1 ? ' is' : 's are'} overdue and should be reviewed.`,
+              link: '/my-staff',
+              emailSubject: 'Mandatory training is overdue',
               sentBy: 'DH Portal',
               fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
             }))
