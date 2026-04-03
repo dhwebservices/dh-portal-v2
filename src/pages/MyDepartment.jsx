@@ -228,8 +228,14 @@ export default function MyDepartment() {
   const visibleDepartments = useMemo(() => {
     if (isDirector) return catalog.filter((item) => item.active !== false)
     const allowed = new Set(getManagedDepartments(org).filter((item) => item !== '*'))
+    const currentUserEmail = normalizePortalEmail(user?.email)
+    catalog.forEach((item) => {
+      if (normalizePortalEmail(item.manager_email) === currentUserEmail) {
+        allowed.add(item.name)
+      }
+    })
     return catalog.filter((item) => item.active !== false && allowed.has(item.name))
-  }, [catalog, isDirector, org])
+  }, [catalog, isDirector, org, user?.email])
 
   useEffect(() => {
     if (!visibleDepartments.length) {

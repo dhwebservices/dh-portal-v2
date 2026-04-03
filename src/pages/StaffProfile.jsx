@@ -117,6 +117,20 @@ function formatTimelineDate(value) {
   })
 }
 
+function mergeManagedDepartmentScope(orgRecord = {}, departmentCatalog = [], email = '') {
+  const safeEmail = String(email || '').toLowerCase().trim()
+  const managed = new Set(Array.isArray(orgRecord?.managed_departments) ? orgRecord.managed_departments : [])
+  departmentCatalog.forEach((department) => {
+    if (String(department?.manager_email || '').toLowerCase().trim() === safeEmail && department?.name) {
+      managed.add(department.name)
+    }
+  })
+  if (orgRecord?.role_scope === 'department_manager' && orgRecord?.department) {
+    managed.add(orgRecord.department)
+  }
+  return [...managed].filter(Boolean)
+}
+
 export default function StaffProfile() {
   const { email: encodedEmail } = useParams()
   const email = decodeURIComponent(encodedEmail || '').toLowerCase().trim()
@@ -275,9 +289,18 @@ export default function StaffProfile() {
         department: mergedProfile.department,
         isDirector: DIRECTOR_EMAILS.has(email),
       })
-      setDepartmentCatalog(mergeDepartmentCatalog(departmentCatalogRaw))
-      setOrgRecord(nextOrg)
-      setOriginalOrgRecord(nextOrg)
+      const nextDepartmentCatalog = mergeDepartmentCatalog(departmentCatalogRaw)
+      const hydratedOrg = mergeOrgRecord({
+        ...nextOrg,
+        managed_departments: mergeManagedDepartmentScope(nextOrg, nextDepartmentCatalog, email),
+      }, {
+        email,
+        department: mergedProfile.department,
+        isDirector: DIRECTOR_EMAILS.has(email),
+      })
+      setDepartmentCatalog(nextDepartmentCatalog)
+      setOrgRecord(hydratedOrg)
+      setOriginalOrgRecord(hydratedOrg)
       setDepartmentRequests((requestRows || [])
         .map((row) => createDepartmentRequest({
           id: String(row.key || '').replace('department_request:', ''),
@@ -353,8 +376,12 @@ export default function StaffProfile() {
         department: profile.department,
         reports_to_email: profile.manager_email || '',
         reports_to_name: profile.manager_name || '',
-        managed_departments: orgRecord.role_scope === 'department_manager' && profile.department
-          ? [profile.department]
+        managed_departments: orgRecord.role_scope === 'department_manager'
+          ? mergeManagedDepartmentScope({
+              ...orgRecord,
+              department: profile.department,
+              managed_departments: orgRecord.managed_departments || [],
+            }, departmentCatalog, email)
           : (orgRecord.role_scope === 'director' ? [] : (orgRecord.managed_departments || [])),
       }, {
         email,
@@ -364,7 +391,8 @@ export default function StaffProfile() {
       const orgManagedChange = (
         profile.department !== (originalOrgRecord.department || '') ||
         (profile.manager_email || '') !== (originalOrgRecord.reports_to_email || '') ||
-        preparedOrgRecord.role_scope !== (originalOrgRecord.role_scope || 'staff')
+        preparedOrgRecord.role_scope !== (originalOrgRecord.role_scope || 'staff') ||
+        JSON.stringify([...(preparedOrgRecord.managed_departments || [])].sort()) !== JSON.stringify([...(originalOrgRecord.managed_departments || [])].sort())
       )
       const requiresDirectorApproval = !isDirector && isDepartmentManager && orgManagedChange
       const hrDepartment = requiresDirectorApproval ? (originalOrgRecord.department || '') : (profile.department || null)
@@ -1028,7 +1056,13 @@ export default function StaffProfile() {
                       ...current,
                       role_scope: e.target.value,
                       department: profile.department,
-                      managed_departments: e.target.value === 'department_manager' && profile.department ? [profile.department] : [],
+                      managed_departments: e.target.value === 'department_manager'
+                        ? mergeManagedDepartmentScope({
+                            ...current,
+                            role_scope: 'department_manager',
+                            department: profile.department,
+                          }, departmentCatalog, email)
+                        : [],
                     }, { email, department: profile.department }))}
                     disabled={!isDirector && isDepartmentManager}
                   >
@@ -1036,6 +1070,42 @@ export default function StaffProfile() {
                   </select>
                   {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
                 </div>
+                {orgRecord.role_scope === 'department_manager' ? (
+                  <div className="fc">
+                    <label className="lbl">Managed Departments</label>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:8 }}>
+                      {departmentCatalog.filter((department) => department.active !== false).map((department) => {
+                        const enabled = (orgRecord.managed_departments || []).includes(department.name)
+                        return (
+                          <label key={department.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 12px', borderRadius:10, border:'1px solid var(--border)', background: enabled ? 'var(--accent-soft)' : 'var(--card)', cursor:'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={() => setOrgRecord((current) => {
+                                const nextManaged = new Set(current.managed_departments || [])
+                                if (nextManaged.has(department.name)) nextManaged.delete(department.name)
+                                else nextManaged.add(department.name)
+                                return mergeOrgRecord({
+                                  ...current,
+                                  managed_departments: [...nextManaged],
+                                }, { email, department: profile.department })
+                              })}
+                            />
+                            <div style={{ minWidth:0 }}>
+                              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{department.name}</div>
+                              <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>
+                                {department.manager_email && department.manager_email !== email ? `Catalogue manager: ${department.manager_name || department.manager_email}` : 'Department manager scope'}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>
+                      Department Managers can manage more than one department. This list now syncs with the live department catalogue and can include multiple departments.
+                    </div>
+                  </div>
+                ) : null}
                 <div>
                   <label className="lbl">Manager</label>
                   <select className="inp" value={profile.manager_email || ''} onChange={e => {
