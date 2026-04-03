@@ -33,6 +33,7 @@ const EMPTY = {
   assigned_to_email: '',
   creator_department: '',
 }
+const FOLLOW_UP_DONE_OUTCOMES = ['no_answer', 'follow_up_later', 'interested', 'send_info', 'booked_call', 'proposal_requested', 'not_interested', 'converted']
 
 const statusColor = {
   new: 'grey',
@@ -329,6 +330,8 @@ export default function Outreach() {
   const [bookingForm, setBookingForm] = useState({ date: '', start_time: '10:00', duration: 30, staff_email: '' })
   const [quickNoteLead, setQuickNoteLead] = useState(null)
   const [quickNote, setQuickNote] = useState('')
+  const [followUpDoneLead, setFollowUpDoneLead] = useState(null)
+  const [followUpDoneForm, setFollowUpDoneForm] = useState({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
 
@@ -546,6 +549,16 @@ export default function Outreach() {
     setQuickNote('')
   }
 
+  const openFollowUpDone = (row) => {
+    setFollowUpDoneLead(row)
+    setFollowUpDoneForm({
+      outcome: row.outcome && row.outcome !== 'none' ? row.outcome : 'follow_up_later',
+      note: '',
+      next_follow_up_date: '',
+      clear_queue: true,
+    })
+  }
+
   const saveQuickNote = async () => {
     if (!quickNoteLead) return
     const noteText = String(quickNote || '').trim()
@@ -582,6 +595,64 @@ export default function Outreach() {
     }
     setQuickNoteLead(null)
     setQuickNote('')
+    load()
+  }
+
+  const completeFollowUp = async () => {
+    if (!followUpDoneLead) return
+    const outcome = FOLLOW_UP_DONE_OUTCOMES.includes(followUpDoneForm.outcome) ? followUpDoneForm.outcome : 'follow_up_later'
+    const noteText = String(followUpDoneForm.note || '').trim()
+    const nextDate = followUpDoneForm.clear_queue ? '' : String(followUpDoneForm.next_follow_up_date || '').trim()
+    const existingPlainNotes = String(followUpDoneLead.plainNotes || '').trim()
+    const completionNote = noteText ? `Follow-up completed: ${noteText}` : 'Follow-up completed'
+    const nextPlainNotes = existingPlainNotes ? `${completionNote}\n\n${existingPlainNotes}` : completionNote
+    const statusFromOutcome = outcome === 'converted'
+      ? 'converted'
+      : outcome === 'not_interested'
+        ? 'not_interested'
+        : outcome === 'interested' || outcome === 'booked_call' || outcome === 'proposal_requested'
+          ? 'interested'
+          : nextDate
+            ? 'follow_up'
+            : 'contacted'
+
+    const meta = {
+      outcome,
+      follow_up_date: nextDate,
+      assigned_to_email: followUpDoneLead.assigned_to_email || '',
+      assigned_to_name: followUpDoneLead.assigned_to_name || '',
+      creator_email: followUpDoneLead.creator_email || '',
+      reminder_notice_key: nextDate ? '' : '',
+      history: [
+        buildHistoryEntry({
+          action: 'follow_up_done',
+          value: `${labelize(outcome)}${nextDate ? ` · next follow-up ${nextDate}` : ' · queue cleared'}`,
+          actor: user?.name || user?.email || 'Portal user',
+        }),
+        ...(followUpDoneLead.history || []),
+      ].slice(0, 12),
+      creator_department: followUpDoneLead.creator_department || '',
+    }
+
+    const { error } = await supabase.from('outreach').update({
+      status: statusFromOutcome,
+      notes: buildOutreachNotes(nextPlainNotes, meta),
+      updated_at: new Date().toISOString(),
+    }).eq('id', followUpDoneLead.id)
+
+    if (error) {
+      alert('Could not complete follow-up: ' + error.message)
+      return
+    }
+
+    await logAction(user?.email, user?.name, 'outreach_follow_up_completed', followUpDoneLead.business_name, followUpDoneLead.id, {
+      outcome,
+      next_follow_up_date: nextDate || null,
+      queue_cleared: !nextDate,
+    }).catch(() => {})
+
+    setFollowUpDoneLead(null)
+    setFollowUpDoneForm({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
     load()
   }
 
@@ -999,6 +1070,7 @@ export default function Outreach() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => openEdit(row)}>Open</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(row)}>Follow-up done</button>
                     <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(row)}>Book call</button>
                     {row.status !== 'interested' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'interested')}>Mark hot</button> : null}
                     {row.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'follow_up')}>Set follow-up</button> : null}
@@ -1156,6 +1228,7 @@ export default function Outreach() {
                               {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
                               {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
                               <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(r)}>Done</button>
                               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
                               <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
                               <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
@@ -1235,6 +1308,7 @@ export default function Outreach() {
                           {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
                           {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
                           <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(r)}>Done</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
                           <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
                           <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
@@ -1509,6 +1583,65 @@ export default function Outreach() {
                 placeholder="Log the latest call, voicemail, objection, or next step..."
               />
             </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {followUpDoneLead ? (
+        <Modal
+          title={`Follow-up done for ${followUpDoneLead.business_name || followUpDoneLead.contact_name || 'lead'}`}
+          onClose={() => {
+            setFollowUpDoneLead(null)
+            setFollowUpDoneForm({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
+          }}
+          footer={<><button className="btn btn-outline" onClick={() => {
+            setFollowUpDoneLead(null)
+            setFollowUpDoneForm({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
+          }}>Cancel</button><button className="btn btn-primary" onClick={completeFollowUp}>Save follow-up</button></>}
+        >
+          <div style={{ display:'grid', gap:12 }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+              {followUpDoneLead.contact_name || 'No contact name'}{followUpDoneLead.email ? ` · ${followUpDoneLead.email}` : ''}{followUpDoneLead.phone ? ` · ${followUpDoneLead.phone}` : ''}
+            </div>
+            <div>
+              <label className="lbl">Outcome</label>
+              <select className="inp" value={followUpDoneForm.outcome} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, outcome: e.target.value }))}>
+                {CALL_OUTCOMES.filter(([key]) => FOLLOW_UP_DONE_OUTCOMES.includes(key)).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="lbl">Quick note</label>
+              <textarea
+                className="inp"
+                rows={4}
+                value={followUpDoneForm.note}
+                onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, note: e.target.value }))}
+                style={{ resize:'vertical' }}
+                placeholder="What happened on the follow-up?"
+              />
+            </div>
+            <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${followUpDoneForm.clear_queue ? 'var(--green)' : 'var(--border)'}`, background:followUpDoneForm.clear_queue ? 'var(--green-bg)' : 'transparent' }}>
+              <input
+                type="checkbox"
+                checked={followUpDoneForm.clear_queue}
+                onChange={(e) => setFollowUpDoneForm((current) => ({
+                  ...current,
+                  clear_queue: e.target.checked,
+                  next_follow_up_date: e.target.checked ? '' : current.next_follow_up_date,
+                }))}
+                style={{ width:18, height:18, accentColor:'var(--green)', flexShrink:0, marginTop:1 }}
+              />
+              <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+                Clear this lead from the active follow-up queue
+              </span>
+            </label>
+            {!followUpDoneForm.clear_queue ? (
+              <div>
+                <label className="lbl">Next follow-up date</label>
+                <input className="inp" type="date" value={followUpDoneForm.next_follow_up_date} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, next_follow_up_date: e.target.value }))} />
+                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>Leave this lead in the queue and set the next chase date.</div>
+              </div>
+            ) : null}
           </div>
         </Modal>
       ) : null}
