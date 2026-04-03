@@ -76,6 +76,7 @@ export default function Departments() {
   const [newDepartment, setNewDepartment] = useState('')
   const [assignments, setAssignments] = useState({})
   const [error, setError] = useState('')
+  const [renameMap, setRenameMap] = useState({})
 
   useEffect(() => {
     load()
@@ -154,6 +155,38 @@ export default function Departments() {
   const unassigned = profiles.filter((row) => !String(row.department || '').trim())
   const pendingRequests = requests.filter((row) => row.status === 'pending')
 
+  async function persistDepartmentChange(row, requestedDepartment = '', requestedRole = 'staff') {
+    const departmentMeta = catalog.find((item) => item.name === requestedDepartment)
+    const safeDepartment = String(requestedDepartment || '').trim()
+    const existingManaged = new Set(Array.isArray(row.org?.managed_departments) ? row.org.managed_departments : [])
+    if (row.org?.department && existingManaged.has(row.org.department) && row.org.department !== safeDepartment) {
+      existingManaged.delete(row.org.department)
+    }
+    if (requestedRole === 'department_manager' && safeDepartment) {
+      existingManaged.add(safeDepartment)
+    }
+
+    const nextOrg = mergeOrgRecord({
+      email: row.user_email,
+      department: safeDepartment,
+      role_scope: requestedRole,
+      reports_to_email: departmentMeta?.manager_email || '',
+      reports_to_name: departmentMeta?.manager_name || '',
+      managed_departments: [...existingManaged],
+    }, { email: row.user_email, department: safeDepartment })
+
+    await Promise.all([
+      supabase.from('portal_settings').upsert({
+        key: buildStaffOrgKey(row.user_email),
+        value: { value: nextOrg },
+      }, { onConflict: 'key' }),
+      supabase.from('hr_profiles').upsert(
+        buildHrProfilePayload(row, departmentMeta, safeDepartment),
+        { onConflict: 'user_email' },
+      ),
+    ])
+  }
+
   async function saveCatalog(nextCatalog) {
     const { error } = await supabase.from('portal_settings').upsert({
       key: buildDepartmentCatalogKey(),
@@ -221,6 +254,46 @@ export default function Departments() {
         }).catch(() => {})
       }
       await load()
+    } finally {
+      setSavingKey('')
+    }
+  }
+
+  async function renameDepartment(department) {
+    const nextName = String(renameMap[department.id] || '').trim()
+    if (!nextName || nextName === department.name) return
+    const duplicate = catalog.some((item) => item.id !== department.id && item.name.toLowerCase() === nextName.toLowerCase())
+    if (duplicate) {
+      setError(`A department named ${nextName} already exists.`)
+      return
+    }
+
+    setSavingKey(`rename:${department.id}`)
+    setError('')
+    try {
+      const nextCatalog = catalog.map((item) => item.id === department.id ? { ...item, name: nextName, updated_at: new Date().toISOString() } : item)
+      await saveCatalog(nextCatalog)
+
+      const impactedProfiles = profiles.filter((row) => row.department === department.name)
+      await Promise.all(impactedProfiles.map((row) => persistDepartmentChange(row, nextName, row.org?.role_scope || 'staff')))
+
+      const impactedRequests = requests.filter((row) => row.current_department === department.name || row.requested_department === department.name)
+      await Promise.all(impactedRequests.map((request) => supabase.from('portal_settings').upsert({
+        key: buildDepartmentRequestKey(request.id),
+        value: {
+          value: createDepartmentRequest({
+            ...request,
+            current_department: request.current_department === department.name ? nextName : request.current_department,
+            requested_department: request.requested_department === department.name ? nextName : request.requested_department,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      }, { onConflict: 'key' })))
+
+      setRenameMap((current) => ({ ...current, [department.id]: nextName }))
+      await load()
+    } catch (renameError) {
+      setError(renameError?.message || 'Could not rename the department.')
     } finally {
       setSavingKey('')
     }
@@ -309,14 +382,7 @@ export default function Departments() {
       }, { email: row.user_email, department: requestedDepartment })
 
       await Promise.all([
-        supabase.from('portal_settings').upsert({
-          key: buildStaffOrgKey(row.user_email),
-          value: { value: nextOrg },
-        }, { onConflict: 'key' }),
-        supabase.from('hr_profiles').upsert(
-          buildHrProfilePayload(row, departmentMeta, requestedDepartment),
-          { onConflict: 'user_email' },
-        ),
+        persistDepartmentChange(row, requestedDepartment, requestedRole),
       ])
 
       if (requestedRole === 'department_manager') {
@@ -382,10 +448,14 @@ export default function Departments() {
       if (approved) {
         const targetRow = profiles.find((row) => row.user_email === request.target_email)
         if (targetRow) {
-          await applyAssignment(targetRow, {
-            department: request.requested_department,
-            role_scope: request.requested_role_scope,
-          })
+          if (request.type === 'remove_staff') {
+            await persistDepartmentChange(targetRow, '', 'staff')
+          } else {
+            await applyAssignment(targetRow, {
+              department: request.requested_department,
+              role_scope: request.requested_role_scope,
+            })
+          }
         }
       }
 
@@ -454,7 +524,20 @@ export default function Departments() {
                     </div>
                     <span className={`badge badge-${department.active !== false ? 'green' : 'grey'}`}>{department.active !== false ? 'Active' : 'Archived'}</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 10, marginTop: 14, alignItems: 'end' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, marginTop: 14, alignItems: 'end' }}>
+                    <div>
+                      <label className="lbl">Department name</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          className="inp"
+                          value={renameMap[department.id] ?? department.name}
+                          onChange={(e) => setRenameMap((current) => ({ ...current, [department.id]: e.target.value }))}
+                        />
+                        <button className="btn btn-outline btn-sm" onClick={() => renameDepartment(department)} disabled={savingKey === `rename:${department.id}`}>
+                          {savingKey === `rename:${department.id}` ? 'Saving...' : 'Rename'}
+                        </button>
+                      </div>
+                    </div>
                     <div>
                       <label className="lbl">Department Manager</label>
                       <select
@@ -472,9 +555,13 @@ export default function Departments() {
                         {profiles.map((row) => <option key={row.user_email} value={row.user_email}>{row.full_name || row.user_email}</option>)}
                       </select>
                     </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { active: !department.active })} disabled={savingKey === department.id}>
                       {department.active !== false ? 'Archive' : 'Restore'}
                     </button>
+                    <div>
+                    </div>
                     <button
                       className="btn btn-outline btn-sm"
                       onClick={() => deleteDepartment(department)}
@@ -482,9 +569,6 @@ export default function Departments() {
                       style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}
                     >
                       {savingKey === `delete:${department.id}` ? 'Deleting...' : 'Delete'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { name: `${department.name} (Updated)` })} disabled style={{ opacity: 0.45 }}>
-                      Rename later
                     </button>
                   </div>
                 </div>

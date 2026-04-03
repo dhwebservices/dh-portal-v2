@@ -79,6 +79,7 @@ export default function MyDepartment() {
   const [requestRows, setRequestRows] = useState([])
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
+  const [memberActions, setMemberActions] = useState({})
 
   useEffect(() => {
     load()
@@ -169,30 +170,50 @@ export default function MyDepartment() {
   const unassigned = profiles.filter((row) => !String(row.department || '').trim())
   const departmentMeta = catalog.find((item) => item.name === currentDepartment)
   const visibleRequests = requestRows.filter((row) => row.requested_department === currentDepartment || row.current_department === currentDepartment)
+  const onboardingCount = teamMembers.filter((row) => row.lifecycle?.state === 'onboarding').length
+  const activeCount = teamMembers.filter((row) => row.lifecycle?.state === 'active').length
+  const needsReviewCount = visibleRequests.filter((row) => row.status === 'pending').length
+
+  async function persistDepartmentChange(staffRow, nextDepartment = '', roleScope = '', nextManager = null) {
+    const safeDepartment = String(nextDepartment || '').trim()
+    const existingManaged = new Set(Array.isArray(staffRow.org?.managed_departments) ? staffRow.org.managed_departments : [])
+    if (staffRow.org?.department && existingManaged.has(staffRow.org.department) && staffRow.org.department !== safeDepartment) {
+      existingManaged.delete(staffRow.org.department)
+    }
+    if (roleScope === 'department_manager' && safeDepartment) {
+      existingManaged.add(safeDepartment)
+    }
+
+    const nextOrg = mergeOrgRecord({
+      email: staffRow.user_email,
+      department: safeDepartment,
+      role_scope: roleScope || staffRow.org?.role_scope || 'staff',
+      reports_to_email: normalizePortalEmail(nextManager?.manager_email),
+      reports_to_name: String(nextManager?.manager_name || '').trim(),
+      managed_departments: [...existingManaged],
+    }, { email: staffRow.user_email, department: safeDepartment })
+
+    const nextRole = nextOrg.role_scope === 'department_manager' && !safeDepartment ? 'staff' : nextOrg.role_scope
+    const finalOrg = mergeOrgRecord({ ...nextOrg, role_scope: nextRole }, { email: staffRow.user_email, department: safeDepartment })
+
+    await Promise.all([
+      supabase.from('portal_settings').upsert({
+        key: buildStaffOrgKey(staffRow.user_email),
+        value: { value: finalOrg },
+      }, { onConflict: 'key' }),
+      supabase.from('hr_profiles').upsert(
+        buildHrProfilePayload(staffRow, nextManager || {}, safeDepartment),
+        { onConflict: 'user_email' },
+      ),
+    ])
+  }
 
   async function assignDirectly(staffRow) {
     if (!isDirector || !currentDepartment) return
     setSaving(staffRow.user_email)
     try {
       const departmentManager = catalog.find((item) => item.name === currentDepartment)
-      const nextOrg = mergeOrgRecord({
-        email: staffRow.user_email,
-        department: currentDepartment,
-        role_scope: 'staff',
-        reports_to_email: departmentManager?.manager_email || '',
-        reports_to_name: departmentManager?.manager_name || '',
-      }, { email: staffRow.user_email, department: currentDepartment })
-
-      await Promise.all([
-        supabase.from('portal_settings').upsert({
-          key: buildStaffOrgKey(staffRow.user_email),
-          value: { value: nextOrg },
-        }, { onConflict: 'key' }),
-        supabase.from('hr_profiles').upsert(
-          buildHrProfilePayload(staffRow, departmentManager, currentDepartment),
-          { onConflict: 'user_email' },
-        ),
-      ])
+      await persistDepartmentChange(staffRow, currentDepartment, 'staff', departmentManager)
       await load()
     } catch (saveError) {
       setError(saveError?.message || 'Could not save the department assignment.')
@@ -260,6 +281,115 @@ export default function MyDepartment() {
     }
   }
 
+  async function moveDirectly(staffRow) {
+    const action = memberActions[staffRow.user_email] || {}
+    const nextDepartment = String(action.nextDepartment || '').trim()
+    if (!nextDepartment || nextDepartment === currentDepartment) return
+    setSaving(staffRow.user_email)
+    setError('')
+    try {
+      const departmentManager = catalog.find((item) => item.name === nextDepartment)
+      await persistDepartmentChange(staffRow, nextDepartment, staffRow.org?.role_scope || 'staff', departmentManager)
+      setMemberActions((current) => ({ ...current, [staffRow.user_email]: { nextDepartment: '' } }))
+      await load()
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not move the staff member.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  async function removeDirectly(staffRow) {
+    setSaving(staffRow.user_email)
+    setError('')
+    try {
+      await persistDepartmentChange(staffRow, '', 'staff', { manager_email: '', manager_name: '' })
+      await load()
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not remove the staff member from the department.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  async function requestDepartmentChange(staffRow, type) {
+    const action = memberActions[staffRow.user_email] || {}
+    const nextDepartment = String(action.nextDepartment || '').trim()
+    if (type === 'move_staff' && (!nextDepartment || nextDepartment === currentDepartment)) {
+      setError('Choose a different department before requesting a transfer.')
+      return
+    }
+    setSaving(staffRow.user_email)
+    setError('')
+    try {
+      const request = createDepartmentRequest({
+        type,
+        target_email: staffRow.user_email,
+        target_name: staffRow.full_name || staffRow.user_email,
+        current_department: currentDepartment,
+        requested_department: type === 'remove_staff' ? '' : nextDepartment,
+        requested_role_scope: 'staff',
+        requested_manager_email: user?.email || '',
+        requested_manager_name: user?.name || '',
+        requested_by_email: user?.email || '',
+        requested_by_name: user?.name || '',
+        notes: type === 'remove_staff'
+          ? `Requested removal from ${currentDepartment}.`
+          : `Requested move from ${currentDepartment} to ${nextDepartment}.`,
+      })
+
+      const { error } = await supabase.from('portal_settings').upsert({
+        key: buildDepartmentRequestKey(request.id),
+        value: { value: request },
+      }, { onConflict: 'key' })
+      if (error) throw error
+
+      await Promise.allSettled([...DIRECTOR_EMAILS].map((directorEmail) => sendManagedNotification({
+        userEmail: directorEmail,
+        userName: directorEmail,
+        category: 'urgent',
+        type: 'warning',
+        title: type === 'remove_staff' ? 'Department removal request' : 'Department transfer request',
+        message: type === 'remove_staff'
+          ? `${user?.name || 'A manager'} wants to remove ${request.target_name} from ${currentDepartment}.`
+          : `${user?.name || 'A manager'} wants to move ${request.target_name} from ${currentDepartment} to ${nextDepartment}.`,
+        link: '/departments',
+        emailSubject: type === 'remove_staff'
+          ? `Department removal request — ${request.target_name}`
+          : `Department transfer request — ${request.target_name}`,
+        sentBy: user?.name || user?.email || 'Department manager',
+        forceImportant: true,
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })))
+
+      if (user?.email) {
+        await sendManagedNotification({
+          userEmail: user.email,
+          userName: user.name || user.email,
+          category: 'general',
+          type: 'info',
+          title: type === 'remove_staff' ? 'Removal request sent' : 'Transfer request sent',
+          message: type === 'remove_staff'
+            ? `${request.target_name} has been submitted for removal from ${currentDepartment}.`
+            : `${request.target_name} has been submitted for transfer to ${nextDepartment}.`,
+          link: '/my-department',
+          emailSubject: type === 'remove_staff'
+            ? `Removal request sent — ${request.target_name}`
+            : `Transfer request sent — ${request.target_name}`,
+          sentBy: 'DH Portal',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        }).catch(() => {})
+      }
+
+      setMemberActions((current) => ({ ...current, [staffRow.user_email]: { nextDepartment: '' } }))
+      await load()
+    } catch (saveError) {
+      setError(saveError?.message || 'Could not send the department request.')
+    } finally {
+      setSaving('')
+    }
+  }
+
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
   if (!isDirector && !isDepartmentManager) {
@@ -297,9 +427,9 @@ export default function MyDepartment() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
-        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint="Staff currently assigned to this department" tone="var(--green)" />
+        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
         <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
-        <StatCard icon={ShieldCheck} label="Pending requests" value={visibleRequests.filter((row) => row.status === 'pending').length} hint="Director approvals tied to this department" tone="var(--red)" />
+        <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,0.8fr)', gap: 18 }} className="staff-profile-main-grid">
@@ -311,17 +441,53 @@ export default function MyDepartment() {
           {teamMembers.length === 0 ? (
             <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff currently assigned to this department.</div>
           ) : teamMembers.map((row) => (
-            <button key={row.user_email} onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', padding: '14px 18px', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                  <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
+            <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+              <button onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
+                    <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
+                  </div>
+                  <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
+                    {getLifecycleLabel(row.lifecycle?.state)}
+                  </span>
                 </div>
-                <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
-                  {getLifecycleLabel(row.lifecycle?.state)}
-                </span>
+              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
+                <select
+                  className="inp"
+                  value={memberActions[row.user_email]?.nextDepartment || ''}
+                  onChange={(e) => setMemberActions((current) => ({
+                    ...current,
+                    [row.user_email]: { ...current[row.user_email], nextDepartment: e.target.value },
+                  }))}
+                >
+                  <option value="">Choose department</option>
+                  {catalog.filter((item) => item.active !== false && item.name !== currentDepartment).map((item) => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
+                </select>
+                {isDirector ? (
+                  <>
+                    <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                      {saving === row.user_email ? 'Saving...' : 'Move now'}
+                    </button>
+                    <button className="btn btn-outline btn-sm" onClick={() => removeDirectly(row)} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'move_staff')} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                      {saving === row.user_email ? 'Sending...' : 'Request move'}
+                    </button>
+                    <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'remove_staff')} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                      Request removal
+                    </button>
+                  </>
+                )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
 
