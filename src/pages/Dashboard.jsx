@@ -196,6 +196,32 @@ function EmptyState({ text }) {
   return <div style={{ padding: '28px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{text}</div>
 }
 
+function ToolShortcutRow({ label, hint, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        padding: '12px 18px',
+        border: 'none',
+        borderBottom: '1px solid var(--border)',
+        background: 'transparent',
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 14,
+        cursor: 'pointer',
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
+      </div>
+      <ArrowRight size={13} style={{ alignSelf: 'center', color: 'var(--faint)' }} />
+    </button>
+  )
+}
+
 function ActiveBanners() {
   const [banners, setBanners] = useState([])
   const [dismissed, setDismissed] = useState([])
@@ -292,6 +318,13 @@ export default function Dashboard() {
   const showSystemBanners = preferences?.showSystemBanners !== false
   const quickActions = preferences?.quickActions || []
   const dashboardOrder = preferences?.dashboardOrder || DASHBOARD_SECTIONS.map(([key]) => key)
+  const phase9Tools = [
+    { label: 'Support Desk', hint: 'Queue-driven ticket handling with SLA and ownership.', route: '/support' },
+    { label: 'Knowledge Base', hint: 'Shared answers and internal playbooks for repeated issues.', route: '/knowledge-base' },
+    { label: 'Compliance Rules', hint: 'Auto-check required docs and training by role or lifecycle.', route: '/hr/compliance-rules' },
+    { label: 'Training Catalogue', hint: 'Reusable training templates for staff assignments.', route: '/hr/training-catalogue' },
+    { label: 'Client Pipeline', hint: 'Lifecycle stages and risk signals across client accounts.', route: '/client-pipeline' },
+  ]
 
   useEffect(() => {
     setPersonalisePrefs(mergePortalPreferences(preferences))
@@ -1323,6 +1356,26 @@ export default function Dashboard() {
           </div>
         </div>
       ) : null}
+
+      <div className="card" style={{ overflow: 'hidden', marginBottom: dashboardDensity === 'compact' ? 16 : 22 }}>
+        <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Phase 9 tools</div>
+            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>New operations spaces for support, compliance, training, knowledge, and client risk.</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reports')}>Reports <ArrowRight size={12} /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          {phase9Tools.map((tool, index) => (
+            <ToolShortcutRow
+              key={tool.route}
+              label={tool.label}
+              hint={tool.hint}
+              onClick={() => navigate(tool.route)}
+            />
+          ))}
+        </div>
+      </div>
 
       {dashboardSections.stats !== false ? (
       <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: dashboardDensity === 'compact' ? 12 : 16, marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
