@@ -66,6 +66,7 @@ const HRPayslips = lazyRetry(() => import('./pages/hr/HRPayslips'), 'hr-payslips
 const HRPolicies = lazyRetry(() => import('./pages/hr/HRPolicies'), 'hr-policies')
 const HRDocuments = lazyRetry(() => import('./pages/hr/HRDocuments'), 'hr-documents')
 const HRComplianceRules = lazyRetry(() => import('./pages/hr/HRComplianceRules'), 'hr-compliance-rules')
+const HRTrainingCatalogue = lazyRetry(() => import('./pages/hr/HRTrainingCatalogue'), 'hr-training-catalogue')
 const HROnboarding = lazyRetry(() => import('./pages/hr/HROnboarding'), 'hr-onboarding')
 const Appointments = lazyRetry(() => import('./pages/Appointments'), 'appointments')
 const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list')
@@ -228,6 +229,7 @@ function PortalLayout() {
               <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
               <Route path="/hr/documents"    element={<PermissionGate permKey="hr_documents"><HRDocuments /></PermissionGate>} />
               <Route path="/hr/compliance-rules" element={<PermissionGate permKey="hr_documents"><HRComplianceRules /></PermissionGate>} />
+              <Route path="/hr/training-catalogue" element={<PermissionGate permKey="hr_documents"><HRTrainingCatalogue /></PermissionGate>} />
               <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
               <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
               <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />

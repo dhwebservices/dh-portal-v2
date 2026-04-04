@@ -155,6 +155,7 @@ export function createDepartmentAnnouncement(record = {}) {
 export function createTrainingRecord(record = {}) {
   return {
     id: record.id || fallbackId('training'),
+    template_id: String(record.template_id || record.templateId || '').trim(),
     staff_email: normalizeEmail(record.staff_email || ''),
     staff_name: String(record.staff_name || '').trim(),
     department: String(record.department || '').trim(),

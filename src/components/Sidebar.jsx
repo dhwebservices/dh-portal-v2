@@ -52,6 +52,7 @@ const SECTIONS = [
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
       { to: '/hr/documents',  icon: 'doc',    label: 'Documents',     desc: 'Coverage & risks',  key: 'hr_documents'  },
       { to: '/hr/compliance-rules', icon: 'shield', label: 'Compliance Rules', desc: 'Required docs & training', key: 'hr_documents' },
+      { to: '/hr/training-catalogue', icon: 'star', label: 'Training Catalogue', desc: 'Reusable training templates', key: 'hr_documents' },
       { to: '/hr/onboarding', icon: 'star',   label: 'Onboarding',    desc: 'New starters',      key: 'hr_onboarding' },
       { to: '/contract-queue', icon: 'doc', label: 'Contract Queue', desc: 'Issued and signed contracts', key: 'contract_queue' },
       { to: '/contract-templates', icon: 'doc', label: 'Contract Templates', desc: 'HR signable templates', key: 'contract_templates' },

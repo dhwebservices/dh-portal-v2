@@ -49,6 +49,7 @@ import {
   mergeComplianceRecord,
   resolveRightToWorkRecord,
 } from '../utils/complianceRecords'
+import { createTrainingTemplate } from '../utils/trainingCatalogue'
 import {
   buildManagerCheckInKey,
   buildProbationReviewKey,
@@ -214,6 +215,7 @@ export default function StaffProfile() {
   const [checkIns, setCheckIns] = useState([])
   const [goals, setGoals] = useState([])
   const [trainingRecords, setTrainingRecords] = useState([])
+  const [trainingTemplates, setTrainingTemplates] = useState([])
   const [complianceRecord, setComplianceRecord] = useState(() => mergeComplianceRecord())
   const [complianceSaving, setComplianceSaving] = useState(false)
   const [contractTemplates, setContractTemplates] = useState([])
@@ -253,6 +255,7 @@ export default function StaffProfile() {
     status: 'active',
   })
   const [trainingForm, setTrainingForm] = useState({
+    templateId: '',
     title: '',
     category: 'induction',
     mandatory: true,
@@ -403,6 +406,10 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('key,value')
         .like('key', 'training_record:%')
+      const { data: trainingTemplateRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'training_template:%')
 
       const p = pickBestProfileRow(profileRows || [])
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
@@ -487,10 +494,18 @@ export default function StaffProfile() {
           if (a.status !== 'completed' && b.status === 'completed') return -1
           return new Date(a.due_date || a.created_at || 0).getTime() - new Date(b.due_date || b.created_at || 0).getTime()
         })
+      const nextTrainingTemplates = (trainingTemplateRows || [])
+        .map((row) => createTrainingTemplate({
+          id: String(row.key || '').replace('training_template:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.active !== false)
+        .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')))
       setReviews(nextReviews)
       setCheckIns(nextCheckIns)
       setGoals(nextGoals)
       setTrainingRecords(nextTraining)
+      setTrainingTemplates(nextTrainingTemplates)
       setContractForm((current) => ({
         ...current,
         templateId: current.templateId || nextTemplates[0]?.id || '',
@@ -1044,6 +1059,7 @@ export default function StaffProfile() {
   })
 
   const resetTrainingForm = () => setTrainingForm({
+    templateId: '',
     title: '',
     category: 'induction',
     mandatory: true,
@@ -1054,6 +1070,31 @@ export default function StaffProfile() {
     certificate_url: '',
     notes: '',
   })
+
+  const applyTrainingTemplate = (templateId) => {
+    const template = trainingTemplates.find((item) => item.id === templateId)
+    if (!template) {
+      setTrainingForm((current) => ({ ...current, templateId: '' }))
+      return
+    }
+    const dueDate = template.default_due_days
+      ? new Date(Date.now() + Number(template.default_due_days) * 86400000).toISOString().slice(0, 10)
+      : ''
+    const expiryDate = template.default_expiry_days
+      ? new Date(Date.now() + Number(template.default_expiry_days) * 86400000).toISOString().slice(0, 10)
+      : ''
+    setTrainingForm((current) => ({
+      ...current,
+      templateId: template.id,
+      title: template.title || current.title,
+      category: template.category || current.category,
+      mandatory: template.mandatory === true,
+      due_date: dueDate,
+      expires_at: expiryDate,
+      certificate_name: template.certificate_name || '',
+      notes: template.notes || '',
+    }))
+  }
 
   const savePeopleOpsRecord = async ({ key, value, onSuccess }) => {
     const { error } = await supabase
@@ -2550,9 +2591,21 @@ export default function StaffProfile() {
                       Assign induction, compliance, systems, sales, or certification items. Staff get the assignment by portal notification and email.
                     </div>
                   </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => navigate('/hr/training-catalogue')}>Open training catalogue</button>
+                  </div>
                 </div>
 
                 <div className="fg" style={{ marginTop:18 }}>
+                  <div>
+                    <label className="lbl">Template</label>
+                    <select className="inp" value={trainingForm.templateId || ''} onChange={(e) => applyTrainingTemplate(e.target.value)}>
+                      <option value="">Custom assignment</option>
+                      {trainingTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>{template.title}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="fc">
                     <label className="lbl">Training title</label>
                     <input className="inp" value={trainingForm.title || ''} onChange={(e) => setTrainingForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Microsoft Company Portal setup" />
