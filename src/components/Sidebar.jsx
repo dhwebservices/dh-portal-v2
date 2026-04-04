@@ -23,6 +23,7 @@ const SECTIONS = [
       { to: '/outreach',    icon: 'phone',  label: 'Clients Contacted', desc: 'Outreach log',       key: 'outreach'    },
       { to: '/clients',     icon: 'people', label: 'Onboarded Clients', desc: 'Client list',        key: 'clients'     },
       { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  },
+      { to: '/web-manager', icon: 'globe',  label: 'Web Manager',       desc: 'Websites & public site', key: 'website_editor' },
       { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     },
       { to: '/competitor',  icon: 'search', label: 'Competitor Lookup', desc: 'Research & compare', key: 'competitor'  },
       { to: '/domains',     icon: 'link',   label: 'Domain Checker',    desc: 'Check domains',      key: 'domains'     },

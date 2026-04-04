@@ -160,6 +160,27 @@ function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
   )
 }
 
+function WebManagerGate({ children }) {
+  const { can, loading, isOnboarding, isAdmin } = useAuth()
+
+  if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (isOnboarding) return <HROnboarding />
+  if (isAdmin || can('website_editor') || can('clientmgmt')) return children
+
+  return (
+    <div className="fade-in">
+      <div className="card card-pad" style={{ maxWidth: 560 }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize: 24, fontWeight: 400, marginBottom: 8, color: 'var(--text)' }}>
+          Access disabled
+        </div>
+        <div style={{ fontSize: 14, color: 'var(--sub)', lineHeight: 1.6 }}>
+          This page is disabled for this staff profile. Re-enable it from the permissions tab in My Staff if access is needed.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PortalLayout() {
   return (
     <div className="app-layout">
@@ -244,7 +265,7 @@ function AuthenticatedApp() {
         <Routes>
           <Route path="/"              element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
           <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
-          <Route path="/web-manager/*" element={<MaintenanceWall><OnboardingWall><PermissionGate permKey="website_editor"><WebManager /></PermissionGate></OnboardingWall></MaintenanceWall>} />
+          <Route path="/web-manager/*" element={<MaintenanceWall><WebManagerGate><WebManager /></WebManagerGate></MaintenanceWall>} />
           <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />
         </Routes>
       </Suspense>
