@@ -7,6 +7,7 @@ import { PaymentsHub } from '../components/PaymentsHub'
 import { setupMandate, getBillingRequest, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, mandateStatusColor, paymentStatusColor } from '../utils/gocardless'
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
+import { deleteClientAccountByEmail, logClientActivity, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
 const STATUSES = ['active','inactive','pending']
@@ -189,7 +190,15 @@ export default function ClientProfile() {
 
   const save = async () => {
     setSaving(true)
-    await supabase.from('clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', id)
+    const previousEmail = client?.email || ''
+    const nextEmail = form.email || previousEmail
+    const updatedClient = { ...client, ...form, updated_at: new Date().toISOString() }
+    await supabase.from('clients').update(updatedClient).eq('id', id)
+    await upsertClientAccount(updatedClient)
+    await syncClientLinkedRecords({ oldEmail: previousEmail || nextEmail, newEmail: nextEmail, clientName: form.name || client?.name })
+    if (previousEmail && previousEmail.toLowerCase() !== String(nextEmail || '').toLowerCase()) {
+      await deleteClientAccountByEmail(previousEmail)
+    }
     await logAction(user?.email, user?.name, 'client_updated', form.name, id, {})
     setClient(p => ({ ...p, ...form }))
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000)
@@ -349,6 +358,14 @@ export default function ClientProfile() {
       // Send invoice email
       try { await sendEmail('invoice_issued', { clientEmail: client.email, clientName: client.name, ...invForm }) } catch {}
 
+      await logClientActivity({
+        clientEmail: client.email,
+        eventType: 'invoice_issued',
+        title: invForm.description || 'Invoice issued',
+        description: invForm.invoice_number ? `Invoice #${invForm.invoice_number} was issued.` : 'A new invoice was issued to your account.',
+        amount: Number(invForm.amount || 0) || null,
+      })
+
       // If DD mandate active + one_off, collect via GoCardless
       if (gcStatus?.mandate_id && invForm.payment_type === 'one_off' && invForm.amount) {
         try { await createPayment(gcStatus.mandate_id, Number(invForm.amount), invForm.description) } catch {}
@@ -377,6 +394,14 @@ export default function ClientProfile() {
       method: 'PATCH',
       headers: { 'apikey': SB_KEY2, 'Authorization': 'Bearer ' + SB_KEY2, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() })
+    })
+    const invoice = invoices.find((item) => item.id === invId)
+    await logClientActivity({
+      clientEmail: client.email,
+      eventType: 'invoice_paid',
+      title: invoice?.description || 'Invoice paid',
+      description: invoice?.invoice_number ? `Invoice #${invoice.invoice_number} was marked as paid.` : 'A payment was recorded on your account.',
+      amount: Number(invoice?.amount || 0) || null,
     })
     setInvoices(p => p.map(i => i.id === invId ? { ...i, status:'paid' } : i))
   }

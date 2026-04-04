@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { logAction } from '../utils/audit'
+import { deleteClientAccountByEmail, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
 const STATUSES = ['active','inactive','pending']
@@ -29,6 +30,9 @@ export default function Clients() {
     setLoading(true)
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending:false })
     setRows(data || [])
+    if (data?.length) {
+      Promise.all(data.filter((row) => row.email).map((row) => upsertClientAccount(row))).catch(() => {})
+    }
     setLoading(false)
   }
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setModal(true) }
@@ -55,6 +59,8 @@ export default function Clients() {
         website_url: form.website_url || null,
         notes: form.notes || null,
       }
+      const previousEmail = editing?.email || ''
+      const createdAt = editing?.created_at || new Date().toISOString()
       if (editing) {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/clients?id=eq.${editing.id}`, {
           method: 'PATCH',
@@ -70,6 +76,11 @@ export default function Clients() {
         })
         if (!res.ok) { const e = await res.text(); throw new Error(e) }
       }
+      await upsertClientAccount({ ...payload, created_at: createdAt, deployment_status: editing?.deployment_status || 'accepted' })
+      await syncClientLinkedRecords({ oldEmail: previousEmail || payload.email, newEmail: payload.email, clientName: payload.name })
+      if (editing && previousEmail && previousEmail.toLowerCase() !== String(payload.email || '').toLowerCase()) {
+        await deleteClientAccountByEmail(previousEmail)
+      }
       await logAction(user?.email, user?.name, editing ? 'client_updated' : 'client_added', form.name, editing?.id, {}).catch(() => {})
       close()
       load()
@@ -81,10 +92,13 @@ export default function Clients() {
     }
   }
 
-  const del = async (e, id, name) => {
+  const del = async (e, row) => {
     e.stopPropagation()
-    if (!confirm('Delete ' + name + '?')) return
-    await supabase.from('clients').delete().eq('id', id)
+    if (!confirm('Delete ' + row.name + '?')) return
+    await Promise.all([
+      supabase.from('clients').delete().eq('id', row.id),
+      deleteClientAccountByEmail(row.email),
+    ])
     load()
   }
 
@@ -142,7 +156,7 @@ export default function Clients() {
                 {/* Edit/Delete */}
                 <div style={{ position:'absolute', top:12, right:12, display:'flex', gap:4 }} onClick={e => e.stopPropagation()}>
                   <button className="btn btn-ghost btn-sm btn-icon" onClick={e => openEdit(e, r)} style={{ width:26, height:26, padding:0 }}>✎</button>
-                  <button className="btn btn-ghost btn-sm btn-icon" onClick={e => del(e, r.id, r.name)} style={{ width:26, height:26, padding:0, color:'var(--red)' }}>✕</button>
+                  <button className="btn btn-ghost btn-sm btn-icon" onClick={e => del(e, r)} style={{ width:26, height:26, padding:0, color:'var(--red)' }}>✕</button>
                 </div>
 
                 {/* Avatar */}

@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { sendEmail } from '../utils/email'
+import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
 
 const STAGES = [{key:'accepted',label:'Order Accepted'},{key:'building',label:'Being Built'},{key:'nearly_there',label:'Nearly There'},{key:'ready',label:'Ready to Launch'}]
 const EMPTY_INV = { invoice_number:'', description:'', amount:'', due_date:'', status:'unpaid' }
@@ -56,14 +57,26 @@ export default function ClientMgmt() {
       supabase.from('deployment_updates').select('id,client_email,title,created_at').order('created_at', { ascending: false }),
     ])
     setClients(clientRows || [])
+    if (clientRows?.length) {
+      Promise.all(clientRows.filter((row) => row.email).map((row) => upsertClientAccount(row))).catch(() => {})
+    }
     setInvoiceRows(invRows || [])
     setUpdateRows(depRows || [])
     setLoading(false)
   }
 
   const updateStage = async (client, stage) => {
-    await supabase.from('clients').update({ deployment_status: stage }).eq('id', client.id)
-    await supabase.from('client_activity').insert([{ client_email: client.email, event_type:'status_updated', description:`Status: ${STAGES.find(s=>s.key===stage)?.label}` }])
+    const label = STAGES.find((s) => s.key === stage)?.label || 'Status updated'
+    await Promise.all([
+      supabase.from('clients').update({ deployment_status: stage }).eq('id', client.id),
+      upsertClientAccount(client, { deployment_status: stage }),
+      logClientActivity({
+        clientEmail: client.email,
+        eventType: 'status_updated',
+        title: 'Website status updated',
+        description: `Status changed to ${label}`,
+      }),
+    ])
     setClients(prev => prev.map(c => c.id===client.id ? {...c, deployment_status: stage} : c))
   }
 
@@ -83,12 +96,25 @@ export default function ClientMgmt() {
     setSaving(true)
     await supabase.from('client_invoices').insert([{ ...invoiceForm, client_email: activeClient.email, client_name: activeClient.name, created_at: new Date().toISOString() }])
     await sendEmail('invoice_issued', { clientEmail: activeClient.email, clientName: activeClient.name, ...invoiceForm })
+    await logClientActivity({
+      clientEmail: activeClient.email,
+      eventType: 'invoice_issued',
+      title: invoiceForm.description || 'Invoice issued',
+      description: invoiceForm.invoice_number ? `Invoice #${invoiceForm.invoice_number} was issued.` : 'A new invoice was issued to your account.',
+      amount: Number(invoiceForm.amount || 0) || null,
+    })
     setSaving(false); setInvForm(EMPTY_INV); close(); load()
   }
 
   const addDocument = async () => {
     setSaving(true)
     await supabase.from('client_documents').insert([{ ...docForm, client_email: activeClient.email }])
+    await logClientActivity({
+      clientEmail: activeClient.email,
+      eventType: 'document_uploaded',
+      title: docForm.name || 'Document uploaded',
+      description: `${docForm.type || 'Document'} added to your client portal.`,
+    })
     setSaving(false); setDocForm(EMPTY_DOC); close()
   }
 
@@ -96,12 +122,27 @@ export default function ClientMgmt() {
     setSaving(true)
     await supabase.from('deployment_updates').insert([{ ...updateForm, client_email: activeClient.email, staff_name: user?.name }])
     await supabase.from('notifications').insert([{ user_email: activeClient.email, title: updateForm.title, message: updateForm.message, type:'info', link:'/website' }])
+    await logClientActivity({
+      clientEmail: activeClient.email,
+      eventType: 'update_posted',
+      title: updateForm.title || 'Project update',
+      description: updateForm.message || 'A new delivery update was posted to your portal.',
+    })
     setSaving(false); setUpdForm(EMPTY_UPD); close()
   }
 
   const replyTicket = async () => {
     setSaving(true)
     await supabase.from('support_tickets').update({ staff_reply: replyForm, status:'resolved', replied_by: user?.name, replied_at: new Date().toISOString() }).eq('id', activeTicket.id)
+    await Promise.all([
+      supabase.from('notifications').insert([{ user_email: activeClient.email, title: `Reply to: ${activeTicket.subject}`, message: 'Your support query has been updated by the team.', type:'info', link:'/support' }]),
+      logClientActivity({
+        clientEmail: activeClient.email,
+        eventType: 'support_replied',
+        title: activeTicket.subject || 'Support reply',
+        description: 'The team has replied to your support query.',
+      }),
+    ])
     setSaving(false); setReplyForm(''); close()
     if (activeClient) { const { data } = await supabase.from('support_tickets').select('*').eq('client_email', activeClient.email).order('created_at',{ascending:false}); setTickets(data||[]) }
   }

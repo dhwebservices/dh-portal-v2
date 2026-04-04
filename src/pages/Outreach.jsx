@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { logAction } from '../utils/audit'
+import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
@@ -845,6 +846,16 @@ export default function Outreach() {
       alert('Could not convert lead: ' + error.message)
       return
     }
+
+    await Promise.all([
+      upsertClientAccount(payload),
+      logClientActivity({
+        clientEmail: payload.email,
+        eventType: 'account_created',
+        title: 'Client portal account created',
+        description: `${payload.name} was added to the client portal and is ready for onboarding.`,
+      }),
+    ])
 
     const meta = {
       outcome: 'converted',
