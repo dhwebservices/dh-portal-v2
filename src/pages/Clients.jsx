@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { logAction } from '../utils/audit'
 import { deleteClientAccountByEmail, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
+import { buildClientLifecycleKey, createClientLifecycle, deriveClientLifecycleSignals, CLIENT_LIFECYCLE_STAGES } from '../utils/clientLifecycle'
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
 const STATUSES = ['active','inactive','pending']
@@ -17,6 +18,7 @@ export default function Clients() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [rows, setRows]       = useState([])
+  const [lifecycleMap, setLifecycleMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
   const [filter, setFilter]   = useState('all')
@@ -28,11 +30,60 @@ export default function Clients() {
   useEffect(() => { load() }, [])
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase.from('clients').select('*').order('created_at', { ascending:false })
-    setRows(data || [])
-    if (data?.length) {
-      Promise.all(data.filter((row) => row.email).map((row) => upsertClientAccount(row))).catch(() => {})
+    const [{ data }, { data: lifecycleRows }, { data: outreachRows }, { data: invoiceRows }, { data: ticketRows }, { data: paymentRows }] = await Promise.all([
+      supabase.from('clients').select('*').order('created_at', { ascending:false }),
+      supabase.from('portal_settings').select('key,value').like('key', 'client_lifecycle:%'),
+      supabase.from('outreach').select('id,email,status,updated_at,created_at').order('updated_at', { ascending: false }),
+      supabase.from('client_invoices').select('client_email,status,due_date'),
+      supabase.from('support_tickets').select('client_email,status'),
+      supabase.from('client_payments').select('client_email,status'),
+    ])
+    const nextRows = data || []
+    setRows(nextRows)
+    if (nextRows.length) {
+      Promise.all(nextRows.filter((row) => row.email).map((row) => upsertClientAccount(row))).catch(() => {})
     }
+
+    const storedLifecycle = Object.fromEntries((lifecycleRows || []).map((row) => {
+      const clientId = String(row.key || '').replace('client_lifecycle:', '')
+      return [clientId, createClientLifecycle(row?.value?.value ?? row?.value ?? {})]
+    }))
+
+    const invoiceMap = (invoiceRows || []).reduce((acc, row) => {
+      const key = String(row.client_email || '').toLowerCase()
+      acc[key] = acc[key] || []
+      acc[key].push(row)
+      return acc
+    }, {})
+    const ticketMap = (ticketRows || []).reduce((acc, row) => {
+      const key = String(row.client_email || '').toLowerCase()
+      acc[key] = acc[key] || []
+      acc[key].push(row)
+      return acc
+    }, {})
+    const paymentMap = (paymentRows || []).reduce((acc, row) => {
+      const key = String(row.client_email || '').toLowerCase()
+      acc[key] = acc[key] || []
+      acc[key].push(row)
+      return acc
+    }, {})
+
+    const derivedLifecycle = Object.fromEntries(nextRows.map((client) => {
+      const derived = deriveClientLifecycleSignals({
+        client,
+        outreachRows: outreachRows || [],
+        invoices: invoiceMap[String(client.email || '').toLowerCase()] || [],
+        tickets: ticketMap[String(client.email || '').toLowerCase()] || [],
+        payments: paymentMap[String(client.email || '').toLowerCase()] || [],
+      })
+      const stored = storedLifecycle[String(client.id)] || {}
+      return [String(client.id), createClientLifecycle({
+        client_id: client.id,
+        ...derived,
+        ...stored,
+      })]
+    }))
+    setLifecycleMap(derivedLifecycle)
     setLoading(false)
   }
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setModal(true) }
@@ -104,7 +155,8 @@ export default function Clients() {
 
   const filtered = rows.filter(r => {
     const q = search.toLowerCase()
-    const matchQ = !q || r.name?.toLowerCase().includes(q) || r.email?.toLowerCase().includes(q)
+    const lifecycle = lifecycleMap[String(r.id)] || {}
+    const matchQ = !q || r.name?.toLowerCase().includes(q) || r.email?.toLowerCase().includes(q) || lifecycle.stage?.includes(q) || lifecycle.summary?.toLowerCase().includes(q)
     const matchF = filter === 'all' || r.status === filter
     return matchQ && matchF
   })
@@ -116,7 +168,10 @@ export default function Clients() {
           <h1 className="page-title">Onboarded Clients</h1>
           <p className="page-sub">{rows.filter(r => r.status === 'active').length} active · {rows.length} total</p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add Client</button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button className="btn btn-outline" onClick={() => navigate('/client-pipeline')}>Open pipeline</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ Add Client</button>
+        </div>
       </div>
 
       <div className="legacy-toolbar" style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
@@ -145,6 +200,8 @@ export default function Clients() {
         <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
           {filtered.map(r => {
             const colour = colourFor(r.email || r.name)
+            const lifecycle = lifecycleMap[String(r.id)] || createClientLifecycle({ client_id: r.id })
+            const stageLabel = CLIENT_LIFECYCLE_STAGES.find(([key]) => key === lifecycle.stage)?.[1] || lifecycle.stage
             return (
               <button
                 key={r.id}
@@ -173,7 +230,12 @@ export default function Clients() {
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   <span className="badge badge-blue">{r.plan}</span>
                   <span className={`badge badge-${r.status==='active'?'green':r.status==='pending'?'amber':'grey'}`}>{r.status}</span>
+                  <span className={`badge badge-${lifecycle.health === 'high_risk' ? 'red' : lifecycle.health === 'watch' ? 'amber' : 'green'}`}>{stageLabel}</span>
                   {r.value && <span style={{ fontSize:11, color:'var(--sub)', fontFamily:'var(--font-mono)' }}>£{Number(r.value).toLocaleString()}</span>}
+                </div>
+
+                <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5, minHeight:34 }}>
+                  {lifecycle.summary || 'No lifecycle summary yet.'}
                 </div>
 
                 <div style={{ borderTop:'1px solid var(--border)', paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
