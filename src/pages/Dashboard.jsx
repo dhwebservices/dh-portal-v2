@@ -324,6 +324,7 @@ export default function Dashboard() {
     { label: 'Compliance Rules', hint: 'Auto-check required docs and training by role or lifecycle.', route: '/hr/compliance-rules' },
     { label: 'Training Catalogue', hint: 'Reusable training templates for staff assignments.', route: '/hr/training-catalogue' },
     { label: 'Client Pipeline', hint: 'Lifecycle stages and risk signals across client accounts.', route: '/client-pipeline' },
+    { label: 'Workflow Automation', hint: 'Trigger notifications and escalations from live portal signals.', route: '/workflow-automation' },
   ]
 
   useEffect(() => {
@@ -1360,7 +1361,7 @@ export default function Dashboard() {
       <div className="card" style={{ overflow: 'hidden', marginBottom: dashboardDensity === 'compact' ? 16 : 22 }}>
         <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Phase 9 tools</div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Operations tools</div>
             <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>New operations spaces for support, compliance, training, knowledge, and client risk.</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reports')}>Reports <ArrowRight size={12} /></button>

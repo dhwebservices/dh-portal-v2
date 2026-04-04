@@ -65,6 +65,7 @@ const SECTIONS = [
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
       { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
+      { to: '/workflow-automation', icon: 'zap', label: 'Workflow Automation', desc: 'Rules, triggers, and escalations', key: 'reports' },
       { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'manager_board' },
       { to: '/departments', icon: 'people', label: 'Departments', desc: 'Org structure & approvals', key: 'departments' },
       { to: '/admin-safeguards', icon: 'shield', label: 'Safeguards', desc: 'Data integrity checks', key: 'safeguards' },
@@ -115,6 +116,7 @@ const ICONS = {
   menu:     <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
   x:        <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
   chevL:    <polyline points="15 18 9 12 15 6"/>,
+  zap:      <><polygon points="13 2 4 14 11 14 9 22 20 9 13 9 13 2"/></>,
 }
 
 function Ico({ name, size = 16 }) {
