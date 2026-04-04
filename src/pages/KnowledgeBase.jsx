@@ -46,6 +46,7 @@ export default function KnowledgeBase() {
   const [audience, setAudience] = useState('all')
   const [selected, setSelected] = useState(null)
   const [editing, setEditing] = useState(null)
+  const [editorOpen, setEditorOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
 
@@ -66,6 +67,7 @@ export default function KnowledgeBase() {
   const openCreate = () => {
     setEditing(null)
     setForm(EMPTY_FORM)
+    setEditorOpen(true)
   }
 
   const openEdit = (article) => {
@@ -79,10 +81,12 @@ export default function KnowledgeBase() {
       tags: (article.tags || []).join(', '),
       published: article.published !== false,
     })
+    setEditorOpen(true)
   }
 
   const closeEditor = () => {
     setEditing(null)
+    setEditorOpen(false)
     setForm(EMPTY_FORM)
   }
 
@@ -249,7 +253,7 @@ export default function KnowledgeBase() {
         </div>
       </div>
 
-      {(editing || form.title || form.summary || form.body) ? (
+      {editorOpen ? (
         <Modal
           title={editing ? `Edit Article${editing?.title ? ` — ${editing.title}` : ''}` : 'New Article'}
           onClose={closeEditor}

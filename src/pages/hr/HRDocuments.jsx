@@ -250,6 +250,9 @@ export default function HRDocuments() {
           <h1 className="page-title">HR Documents</h1>
           <p className="page-sub">Document coverage, right-to-work risk, and payroll file health across the team.</p>
         </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={() => navigate('/hr/compliance-rules')}>Open compliance rules</button>
+        </div>
       </div>
 
       <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
