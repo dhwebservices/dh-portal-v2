@@ -19,8 +19,6 @@ const EXTRAS = [
   { id:'e3', name:'SEO Audit',                      price:149, group:'Marketing' },
   { id:'e4', name:'Google Ads Setup',               price:299, group:'Marketing' },
   { id:'e5', name:'Social Media Setup',             price:99,  group:'Marketing' },
-  { id:'e6', name:'Photography Session',            price:349, group:'Creative' },
-  { id:'e7', name:'Video Production',               price:599, group:'Creative' },
   { id:'e8', name:'Maintenance Plan',               price:49,  group:'Support' },
   { id:'blog', name:'Blog / News section',          price:0,   group:'Content', note:'Included in Growth+' },
   { id:'gallery', name:'Photo gallery',             price:99,  group:'Content' },
