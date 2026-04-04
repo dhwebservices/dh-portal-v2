@@ -35,6 +35,7 @@ const Outreach = lazyRetry(() => import('./pages/Outreach'), 'outreach')
 const Clients = lazyRetry(() => import('./pages/Clients'), 'clients')
 const ClientMgmt = lazyRetry(() => import('./pages/ClientMgmt'), 'client-mgmt')
 const Support = lazyRetry(() => import('./pages/Support'), 'support')
+const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'), 'knowledge-base')
 const Tasks = lazyRetry(() => import('./pages/Tasks'), 'tasks')
 const MyTasks = lazyRetry(() => import('./pages/MyTasks'), 'my-tasks')
 const MyProfile = lazyRetry(() => import('./pages/MyProfile'), 'my-profile')
@@ -200,6 +201,7 @@ function PortalLayout() {
               <Route path="/clients/:id"     element={<PermissionGate permKey="clients"><ClientProfile /></PermissionGate>} />
               <Route path="/client-mgmt"     element={<PermissionGate permKey="clientmgmt"><ClientMgmt /></PermissionGate>} />
               <Route path="/support"         element={<PermissionGate permKey="support"><Support /></PermissionGate>} />
+              <Route path="/knowledge-base"  element={<PermissionGate permKey="support"><KnowledgeBase /></PermissionGate>} />
               <Route path="/tasks"           element={<PermissionGate permKey="tasks"><Tasks /></PermissionGate>} />
               <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
               <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />

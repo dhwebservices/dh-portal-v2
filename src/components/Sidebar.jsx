@@ -25,6 +25,7 @@ const SECTIONS = [
       { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  },
       { to: '/web-manager', icon: 'globe',  label: 'Web Manager',       desc: 'Websites & public site', key: 'website_editor' },
       { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     },
+      { to: '/knowledge-base', icon: 'doc', label: 'Knowledge Base',    desc: 'Help articles & playbooks', key: 'support' },
       { to: '/competitor',  icon: 'search', label: 'Competitor Lookup', desc: 'Research & compare', key: 'competitor'  },
       { to: '/domains',     icon: 'link',   label: 'Domain Checker',    desc: 'Check domains',      key: 'domains'     },
       { to: '/proposals',   icon: 'doc',    label: 'Proposal Builder',  desc: 'Build proposals',    key: 'proposals'   },
