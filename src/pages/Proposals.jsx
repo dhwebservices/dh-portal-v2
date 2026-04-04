@@ -14,15 +14,33 @@ const HOSTING = [
   { id:'h3', name:'Business Hosting',     price:109, features:['Everything in Pro','Dedicated resources','Phone support','Custom domain emails'] },
 ]
 const EXTRAS = [
-  { id:'e1', name:'Logo Design',          price:199 },
-  { id:'e2', name:'Copywriting (per page)',price:49 },
-  { id:'e3', name:'SEO Audit',            price:149 },
-  { id:'e4', name:'Google Ads Setup',     price:299 },
-  { id:'e5', name:'Social Media Setup',   price:99  },
-  { id:'e6', name:'Photography Session',  price:349 },
-  { id:'e7', name:'Video Production',     price:599 },
-  { id:'e8', name:'Maintenance Plan',     price:49  },
+  { id:'e1', name:'Logo Design',                    price:199, group:'Creative' },
+  { id:'e2', name:'Copywriting (per page)',         price:49,  group:'Creative' },
+  { id:'e3', name:'SEO Audit',                      price:149, group:'Marketing' },
+  { id:'e4', name:'Google Ads Setup',               price:299, group:'Marketing' },
+  { id:'e5', name:'Social Media Setup',             price:99,  group:'Marketing' },
+  { id:'e6', name:'Photography Session',            price:349, group:'Creative' },
+  { id:'e7', name:'Video Production',               price:599, group:'Creative' },
+  { id:'e8', name:'Maintenance Plan',               price:49,  group:'Support' },
+  { id:'blog', name:'Blog / News section',          price:0,   group:'Content', note:'Included in Growth+' },
+  { id:'gallery', name:'Photo gallery',             price:99,  group:'Content' },
+  { id:'video', name:'Video embed / hero video',    price:99,  group:'Content' },
+  { id:'booking', name:'Booking / appointment system', price:350, group:'Business' },
+  { id:'ecommerce', name:'E-commerce store',        price:500, group:'Business', note:'Included in Pro+' },
+  { id:'payments', name:'Online payments (Stripe)', price:199, group:'Business' },
+  { id:'members', name:'Members / login area',      price:299, group:'Business' },
+  { id:'livechat', name:'Live chat integration',    price:79,  group:'Business' },
+  { id:'seo', name:'Full SEO setup',                price:0,   group:'Marketing', note:'Included in Growth+' },
+  { id:'analytics', name:'Google Analytics setup',  price:0,   group:'Marketing', note:'Included in Growth+' },
+  { id:'mailchimp', name:'Email marketing integration', price:149, group:'Marketing' },
+  { id:'social-feeds', name:'Social media links / feeds', price:79, group:'Marketing' },
+  { id:'multilang', name:'Multi-language support',  price:399, group:'Technical' },
+  { id:'hr', name:'HR portal integration',          price:0,   group:'Technical', note:'Included in Enterprise' },
+  { id:'crm', name:'CRM integration',               price:299, group:'Technical' },
+  { id:'api', name:'Custom API integration',        price:399, group:'Technical' },
 ]
+
+const EXTRA_GROUPS = ['Creative', 'Content', 'Business', 'Marketing', 'Technical', 'Support']
 
 export default function Proposals() {
   const { user } = useAuth()
@@ -51,6 +69,9 @@ export default function Proposals() {
   const build = BUILDS.find(b => b.id === selectedBuild)
   const hosting = HOSTING.find(h => h.id === selectedHosting)
   const extras = EXTRAS.filter(e => selectedExtras.includes(e.id))
+  const extrasByGroup = EXTRA_GROUPS
+    .map((group) => ({ group, items: EXTRAS.filter((extra) => extra.group === group) }))
+    .filter((section) => section.items.length)
   const extrasTotal = extras.reduce((s, e) => s + e.price, 0)
   const buildPrice = build ? (payMonthly ? 0 : build.price) : 0
   const monthlyTotal = (hosting?.price || 0) + (payMonthly && build ? build.monthly : 0)
@@ -115,7 +136,7 @@ ${hosting ? `<div class="section"><div class="section-title">Hosting Plan</div>
   <div class="feature-list">${hosting.features.map(f => `<div class="feature">${f}</div>`).join('')}</div>
 </div></div>` : ''}
 ${extras.length > 0 ? `<div class="section"><div class="section-title">Additional Services</div>
-<table style="width:100%;border-collapse:collapse">${extras.map(e => `<tr><td style="padding:8px 0;font-size:14px;border-bottom:1px solid #e2ddd5">${e.name}</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #e2ddd5">£${e.price}</td></tr>`).join('')}</table></div>` : ''}
+<table style="width:100%;border-collapse:collapse">${extras.map(e => `<tr><td style="padding:8px 0;font-size:14px;border-bottom:1px solid #e2ddd5">${e.name}${e.note ? `<div style="font-size:11px;color:#a8a096;margin-top:2px">${e.note}</div>` : ''}</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #e2ddd5">${e.price > 0 ? `£${e.price}` : 'Included'}</td></tr>`).join('')}</table></div>` : ''}
 <div class="total">
   ${oneOffTotal > 0 ? `<div class="total-row"><span>One-off payment</span><span>£${oneOffTotal.toLocaleString()}</span></div>` : ''}
   ${monthlyTotal > 0 ? `<div class="total-row"><span>Monthly (hosting${payMonthly?' + build':''} )</span><span>£${monthlyTotal}/mo</span></div>` : ''}
@@ -216,12 +237,26 @@ ${extras.length > 0 ? `<div class="section"><div class="section-title">Additiona
 
       {step === 3 && (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12, marginBottom:20 }}>
-            {EXTRAS.map(e => (
-              <button key={e.id} onClick={() => toggleExtra(e.id)} style={{ textAlign:'left', padding:'16px', borderRadius:10, border:`2px solid ${selectedExtras.includes(e.id)?'var(--green)':'var(--border)'}`, background: selectedExtras.includes(e.id) ? 'var(--green-bg)' : 'var(--card)', cursor:'pointer', transition:'all 0.15s' }}>
-                <div style={{ fontSize:13, fontWeight:600 }}>{e.name}</div>
-                <div style={{ fontSize:16, fontWeight:700, color:'var(--green)', marginTop:4 }}>£{e.price}</div>
-              </button>
+          <div style={{ display:'grid', gap:20, marginBottom:20 }}>
+            {extrasByGroup.map(({ group, items }) => (
+              <div key={group}>
+                <div className="section-label" style={{ marginBottom:10 }}>{group}</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
+                  {items.map(e => (
+                    <button key={e.id} onClick={() => toggleExtra(e.id)} style={{ textAlign:'left', padding:'16px', borderRadius:10, border:`2px solid ${selectedExtras.includes(e.id)?'var(--green)':'var(--border)'}`, background: selectedExtras.includes(e.id) ? 'var(--green-bg)' : 'var(--card)', cursor:'pointer', transition:'all 0.15s' }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{e.name}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:'var(--green)', marginTop:4 }}>
+                        {e.price > 0 ? `£${e.price}` : 'Included'}
+                      </div>
+                      {e.note ? (
+                        <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:4, lineHeight:1.4 }}>
+                          {e.note}
+                        </div>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
           <div style={{ display:'flex', gap:10 }}>
@@ -251,7 +286,7 @@ ${extras.length > 0 ? `<div class="section"><div class="section-title">Additiona
               </div>}
               {extras.length > 0 && <div style={{ padding:'14px', background:'var(--green-bg)', border:'1px solid var(--green)', borderRadius:8 }}>
                 <div className="lbl" style={{ marginBottom:6 }}>Extras</div>
-                {extras.map(e => <div key={e.id} style={{ fontSize:13, display:'flex', justifyContent:'space-between', marginBottom:3 }}><span>{e.name}</span><span style={{ fontWeight:600 }}>£{e.price}</span></div>)}
+                {extras.map(e => <div key={e.id} style={{ fontSize:13, display:'flex', justifyContent:'space-between', marginBottom:3, gap:12 }}><span>{e.name}</span><span style={{ fontWeight:600, whiteSpace:'nowrap' }}>{e.price > 0 ? `£${e.price}` : 'Included'}</span></div>)}
               </div>}
             </div>
           </div>
