@@ -1,3 +1,4 @@
+import { supabase } from './supabase'
 import { createClientLifecycle, deriveClientLifecycleSignals } from './clientLifecycle'
 import { evaluateComplianceRulesForStaff, normalizeComplianceRule } from './complianceRules'
 import { createTrainingRecord, getTrainingCategoryLabel } from './peopleOps'
@@ -310,5 +311,196 @@ export function createWorkflowRunRecord(record = {}) {
     preview_only: record.preview_only === true,
     totals: record.totals || { matches: 0, sent: 0, skipped: 0, failed: 0 },
     incidents: Array.isArray(record.incidents) ? record.incidents : [],
+  }
+}
+
+export async function loadWorkflowAutomationData() {
+  const [
+    ruleRes,
+    noticeRes,
+    runRes,
+    supportRes,
+    supportMetaRes,
+    staffRes,
+    docsRes,
+    trainingRes,
+    lifecycleRes,
+    complianceRes,
+    clientsRes,
+    clientLifecycleRes,
+    outreachRes,
+    invoiceRes,
+    ticketRes,
+    paymentRes,
+  ] = await Promise.all([
+    supabase.from('portal_settings').select('key,value').like('key', 'workflow_rule:%'),
+    supabase.from('portal_settings').select('key,value').like('key', 'workflow_notice:%'),
+    supabase.from('portal_settings').select('key,value').like('key', 'workflow_run:%'),
+    supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
+    supabase.from('portal_settings').select('key,value').like('key', 'support_ticket_meta:%'),
+    supabase.from('hr_profiles').select('user_email,full_name,role,department,manager_email,manager_name').order('full_name'),
+    supabase.from('staff_documents').select('staff_email,name,type,file_path,file_url'),
+    supabase.from('portal_settings').select('key,value').like('key', 'training_record:%'),
+    supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
+    supabase.from('portal_settings').select('key,value').like('key', 'compliance_rule:%'),
+    supabase.from('clients').select('*').order('name'),
+    supabase.from('portal_settings').select('key,value').like('key', 'client_lifecycle:%'),
+    supabase.from('outreach').select('id,email,status,updated_at,created_at').order('updated_at', { ascending: false }),
+    supabase.from('client_invoices').select('client_email,status,due_date'),
+    supabase.from('support_tickets').select('client_email,status'),
+    supabase.from('client_payments').select('client_email,status'),
+  ])
+
+  return {
+    rules: (ruleRes.data || []).map((row) => normalizeWorkflowRule(row?.value?.value ?? row?.value ?? {})).sort((a, b) => a.title.localeCompare(b.title)),
+    noticeMap: Object.fromEntries((noticeRes.data || []).map((row) => [row.key, row?.value?.value ?? row?.value ?? {}])),
+    runs: (runRes.data || []).map((row) => createWorkflowRunRecord(row?.value?.value ?? row?.value ?? {})).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    context: buildAutomationContext({
+      supportTickets: supportRes.data || [],
+      supportMetaRows: supportMetaRes.data || [],
+      staff: staffRes.data || [],
+      documents: docsRes.data || [],
+      trainingRows: trainingRes.data || [],
+      lifecycleRows: lifecycleRes.data || [],
+      complianceRules: complianceRes.data || [],
+      clients: clientsRes.data || [],
+      clientLifecycleRows: clientLifecycleRes.data || [],
+      outreachRows: outreachRes.data || [],
+      invoiceRows: invoiceRes.data || [],
+      ticketRows: ticketRes.data || [],
+      paymentRows: paymentRes.data || [],
+    }),
+  }
+}
+
+export function buildWorkflowPreviewRows(rules = [], context = null, noticeMap = {}) {
+  if (!context) return []
+
+  return (rules || [])
+    .filter((rule) => rule.active !== false)
+    .flatMap((rule) => evaluateWorkflowRule(rule, context).map((incident) => {
+      const recipient = resolveWorkflowRecipient(rule, incident)
+      const notice = noticeMap[buildWorkflowNoticeKey(rule.id, incident.id)] || {}
+      const cooldownUntil = notice.sent_at
+        ? new Date(new Date(notice.sent_at).getTime() + Number(rule.cooldown_hours || 24) * 60 * 60 * 1000)
+        : null
+      const coolingDown = cooldownUntil ? cooldownUntil.getTime() > Date.now() : false
+      return {
+        rule,
+        incident,
+        recipient,
+        lastSentAt: notice.sent_at || '',
+        coolingDown,
+      }
+    }))
+    .sort((a, b) => {
+      if (a.coolingDown !== b.coolingDown) return a.coolingDown ? 1 : -1
+      return a.rule.title.localeCompare(b.rule.title)
+    })
+}
+
+export async function executeWorkflowRun({
+  previewRows = [],
+  previewOnly = false,
+  user = {},
+  sendNotification,
+}) {
+  const incidents = []
+  const upserts = []
+  let sent = 0
+  let skipped = 0
+  let failed = 0
+  const nextNoticeMap = {}
+
+  for (const row of previewRows) {
+    const { rule, incident, recipient, coolingDown, lastSentAt } = row
+    let status = 'ready'
+    let reason = ''
+
+    if (!recipient.email) {
+      status = 'skipped'
+      reason = 'No recipient resolved for this rule.'
+      skipped += 1
+    } else if (coolingDown) {
+      status = 'skipped'
+      reason = `Cooling down from ${lastSentAt ? new Date(lastSentAt).toLocaleString('en-GB') : 'a recent run'}.`
+      skipped += 1
+    } else if (!previewOnly) {
+      try {
+        await sendNotification({
+          userEmail: recipient.email,
+          userName: recipient.name || recipient.email,
+          title: `${rule.title || incident.subject || 'Workflow alert'}`,
+          message: incident.message,
+          type: rule.notification_category === 'urgent' ? 'urgent' : 'info',
+          link: incident.link,
+          category: rule.notification_category,
+          forceDelivery: rule.notify_by_email === false ? 'portal' : '',
+          sentBy: user?.email || '',
+        })
+        const sentAt = new Date().toISOString()
+        const noticeKey = buildWorkflowNoticeKey(rule.id, incident.id)
+        const noticeValue = {
+          rule_id: rule.id,
+          incident_id: incident.id,
+          sent_at: sentAt,
+          recipient_email: recipient.email,
+          recipient_name: recipient.name || '',
+          title: incident.title,
+        }
+        upserts.push({
+          key: noticeKey,
+          value: { value: noticeValue },
+        })
+        nextNoticeMap[noticeKey] = noticeValue
+        status = 'sent'
+        sent += 1
+      } catch (error) {
+        status = 'failed'
+        reason = error?.message || 'Notification send failed'
+        failed += 1
+      }
+    }
+
+    incidents.push({
+      rule_id: rule.id,
+      rule_title: rule.title,
+      incident_id: incident.id,
+      title: incident.title,
+      message: incident.message,
+      recipient_email: recipient.email || '',
+      recipient_name: recipient.name || '',
+      status: previewOnly && status === 'ready' ? 'preview' : status,
+      reason,
+      link: incident.link,
+    })
+  }
+
+  const runRecord = createWorkflowRunRecord({
+    created_by_email: user?.email || '',
+    created_by_name: user?.name || '',
+    preview_only: previewOnly,
+    totals: {
+      matches: previewRows.length,
+      sent,
+      skipped,
+      failed,
+    },
+    incidents,
+  })
+
+  if (!previewOnly) {
+    upserts.push({
+      key: buildWorkflowRunKey(runRecord.id),
+      value: { value: runRecord },
+    })
+    if (upserts.length) {
+      await supabase.from('portal_settings').upsert(upserts, { onConflict: 'key' })
+    }
+  }
+
+  return {
+    runRecord,
+    nextNoticeMap,
   }
 }

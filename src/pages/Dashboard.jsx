@@ -20,6 +20,7 @@ import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { createTrainingRecord } from '../utils/peopleOps'
+import { executeWorkflowRun, buildWorkflowPreviewRows, loadWorkflowAutomationData } from '../utils/workflowAutomation'
 import {
   ACCENT_SCHEMES,
   CONTRAST_OPTIONS,
@@ -39,6 +40,9 @@ import {
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
+const WORKFLOW_AUTO_RUN_KEY = 'dh-portal:workflow-auto-run-at'
+const WORKFLOW_AUTO_RUN_INTERVAL_MS = 60 * 60 * 1000
+const WORKFLOW_AUTO_RUN_POLL_MS = 5 * 60 * 1000
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
@@ -330,6 +334,52 @@ export default function Dashboard() {
   useEffect(() => {
     setPersonalisePrefs(mergePortalPreferences(preferences))
   }, [preferences])
+
+  useEffect(() => {
+    if (!isAdmin || !user?.email) return undefined
+
+    let cancelled = false
+    let running = false
+
+    const maybeRunWorkflowAutomation = async () => {
+      if (running || cancelled) return
+
+      const lastRunAt = Number(window.localStorage.getItem(WORKFLOW_AUTO_RUN_KEY) || 0)
+      if (lastRunAt && (Date.now() - lastRunAt) < WORKFLOW_AUTO_RUN_INTERVAL_MS) return
+
+      running = true
+      try {
+        const data = await loadWorkflowAutomationData()
+        if (cancelled) return
+
+        const previewRows = buildWorkflowPreviewRows(data.rules, data.context, data.noticeMap)
+        const readyRows = previewRows.filter((row) => row.recipient.email && !row.coolingDown)
+
+        if (readyRows.length) {
+          await executeWorkflowRun({
+            previewRows,
+            previewOnly: false,
+            user,
+            sendNotification: sendManagedNotification,
+          })
+        }
+
+        window.localStorage.setItem(WORKFLOW_AUTO_RUN_KEY, String(Date.now()))
+      } catch (error) {
+        console.error('Workflow auto-run failed', error)
+      } finally {
+        running = false
+      }
+    }
+
+    maybeRunWorkflowAutomation()
+    const intervalId = window.setInterval(maybeRunWorkflowAutomation, WORKFLOW_AUTO_RUN_POLL_MS)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [isAdmin, user])
 
   useEffect(() => {
     async function load() {
