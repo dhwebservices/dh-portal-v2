@@ -3,10 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom'
 import ApplicantCvViewer from '../components/ApplicantCvViewer'
 import ApplicantTimeline from '../components/ApplicantTimeline'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
-import { addApplicationNote, getApplication, listApplicationHistory, listApplicationNotes, updateApplicationStatus } from '../utils/recruiting'
+import { addApplicationNote, getApplication, listApplicationHistory, listApplicationNotes, listHiringUsers, saveApplicationProfileMeta, updateApplicationStatus } from '../utils/recruiting'
 import { sendEmail } from '../utils/email'
-import { sendRecruitingStatusEmail } from '../utils/recruitingEmails'
+import { sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
+
+function toDateTimeInputValue(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
+}
 
 export default function RecruitingApplicationProfile() {
   const navigate = useNavigate()
@@ -15,21 +23,33 @@ export default function RecruitingApplicationProfile() {
   const [application, setApplication] = useState(null)
   const [history, setHistory] = useState([])
   const [notes, setNotes] = useState([])
+  const [hiringUsers, setHiringUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusBusy, setStatusBusy] = useState('')
   const [emailNote, setEmailNote] = useState('')
   const [noteDraft, setNoteDraft] = useState('')
+  const [assignmentEmail, setAssignmentEmail] = useState('')
+  const [assignmentBusy, setAssignmentBusy] = useState(false)
+  const [assignmentFeedback, setAssignmentFeedback] = useState('')
+  const [interviewAt, setInterviewAt] = useState('')
+  const [interviewMode, setInterviewMode] = useState('video')
+  const [interviewLocation, setInterviewLocation] = useState('')
+  const [interviewNotesDraft, setInterviewNotesDraft] = useState('')
+  const [sendInterviewInvite, setSendInterviewInvite] = useState(true)
+  const [interviewBusy, setInterviewBusy] = useState(false)
+  const [interviewFeedback, setInterviewFeedback] = useState('')
   const [manualEmailSubject, setManualEmailSubject] = useState('')
   const [manualEmailBody, setManualEmailBody] = useState('')
   const [manualEmailBusy, setManualEmailBusy] = useState(false)
   const [manualEmailFeedback, setManualEmailFeedback] = useState('')
 
   useEffect(() => {
-    Promise.all([getApplication(id), listApplicationHistory(id), listApplicationNotes(id)])
-      .then(([applicationRow, historyRows, noteRows]) => {
+    Promise.all([getApplication(id), listApplicationHistory(id), listApplicationNotes(id), listHiringUsers()])
+      .then(([applicationRow, historyRows, noteRows, hiringUserRows]) => {
         setApplication(applicationRow)
         setHistory(historyRows)
         setNotes(noteRows)
+        setHiringUsers(hiringUserRows)
       })
       .finally(() => setLoading(false))
   }, [id])
@@ -47,7 +67,14 @@ We wanted to get in touch regarding your application.
 Kind regards,
 DH Website Services HR`)
     setManualEmailFeedback('')
-  }, [application?.id])
+    setAssignmentEmail(application.assigned_recruiter_email || '')
+    setInterviewAt(toDateTimeInputValue(application.interview_at))
+    setInterviewMode(application.interview_mode || 'video')
+    setInterviewLocation(application.interview_location || '')
+    setInterviewNotesDraft(application.interview_notes || '')
+    setAssignmentFeedback('')
+    setInterviewFeedback('')
+  }, [application?.id, application?.assigned_recruiter_email, application?.interview_at, application?.interview_mode, application?.interview_location, application?.interview_notes])
 
   const changeStatus = async (nextStatus) => {
     if (!application) return
@@ -70,6 +97,80 @@ DH Website Services HR`)
     const saved = await addApplicationNote(id, noteDraft, user)
     setNotes((current) => [saved, ...current])
     setNoteDraft('')
+  }
+
+  const saveAssignment = async () => {
+    if (!application) return
+    setAssignmentBusy(true)
+    setAssignmentFeedback('')
+    try {
+      const assignedUser = hiringUsers.find((item) => item.email === assignmentEmail)
+      const meta = await saveApplicationProfileMeta(application.id, {
+        assigned_recruiter_email: assignmentEmail,
+        assigned_recruiter_name: assignedUser?.name || '',
+      })
+      setApplication((current) => current ? { ...current, ...meta } : current)
+      const note = await addApplicationNote(
+        id,
+        assignmentEmail ? `Recruiter assigned: ${assignedUser?.name || assignmentEmail}` : 'Recruiter assignment cleared',
+        user
+      )
+      setNotes((current) => [note, ...current])
+      setAssignmentFeedback('Assignment saved.')
+    } catch (error) {
+      setAssignmentFeedback(error.message || 'Could not save assignment.')
+    } finally {
+      setAssignmentBusy(false)
+    }
+  }
+
+  const scheduleInterview = async () => {
+    if (!application || !interviewAt) {
+      setInterviewFeedback('Please choose an interview date and time.')
+      return
+    }
+
+    setInterviewBusy(true)
+    setInterviewFeedback('')
+    try {
+      const assignedUser = hiringUsers.find((item) => item.email === assignmentEmail)
+      const meta = await saveApplicationProfileMeta(application.id, {
+        assigned_recruiter_email: assignmentEmail,
+        assigned_recruiter_name: assignedUser?.name || '',
+        interview_at: new Date(interviewAt).toISOString(),
+        interview_mode: interviewMode,
+        interview_location: interviewLocation,
+        interview_notes: interviewNotesDraft,
+        interview_contact_email: assignedUser?.email || '',
+        interview_contact_name: assignedUser?.name || '',
+        interview_last_emailed_at: sendInterviewInvite ? new Date().toISOString() : application.interview_last_emailed_at,
+      })
+
+      let updatedApplication = { ...application, ...meta }
+      if (updatedApplication.status !== 'interview') {
+        updatedApplication = await updateApplicationStatus(updatedApplication, 'interview', user, { reason: 'Interview scheduled' })
+      }
+
+      if (sendInterviewInvite) {
+        const emailResult = await sendInterviewScheduleEmail(updatedApplication)
+        if (!emailResult?.ok) throw new Error(emailResult?.error || 'Interview invite email failed')
+      }
+
+      const note = await addApplicationNote(
+        id,
+        `Interview scheduled for ${new Date(meta.interview_at).toLocaleString('en-GB')}${meta.interview_mode ? ` · ${meta.interview_mode}` : ''}${meta.assigned_recruiter_name ? ` · Owner: ${meta.assigned_recruiter_name}` : ''}${sendInterviewInvite ? ' · Invite emailed' : ''}`,
+        user
+      )
+      const [historyRows, noteRows] = await Promise.all([listApplicationHistory(id), listApplicationNotes(id)])
+      setApplication(updatedApplication)
+      setHistory(historyRows)
+      setNotes([note, ...noteRows.filter((row) => row.id !== note.id)])
+      setInterviewFeedback(sendInterviewInvite ? 'Interview saved and invite sent.' : 'Interview saved.')
+    } catch (error) {
+      setInterviewFeedback(error.message || 'Could not schedule interview.')
+    } finally {
+      setInterviewBusy(false)
+    }
   }
 
   const sendManualEmail = async () => {
@@ -143,6 +244,8 @@ DH Website Services HR`)
               <div><label className="lbl">Current role</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.current_job_title || '—'}</div></div>
               <div><label className="lbl">Years experience</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.years_experience || '—'}</div></div>
               <div><label className="lbl">Commission acknowledgement</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.commission_acknowledged ? 'Confirmed' : 'Missing'}</div></div>
+              <div><label className="lbl">Assigned recruiter</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.assigned_recruiter_name || application.assigned_recruiter_email || 'Unassigned'}</div></div>
+              <div><label className="lbl">Interview</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.interview_at ? new Date(application.interview_at).toLocaleString('en-GB') : 'Not scheduled'}</div></div>
             </div>
             <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
               <div>
@@ -202,6 +305,63 @@ DH Website Services HR`)
                   {statusBusy === status ? 'Updating...' : `Mark ${status}`}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Assignment</div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label className="lbl">Recruiter owner</label>
+                <select className="inp" value={assignmentEmail} onChange={(e) => setAssignmentEmail(e.target.value)}>
+                  <option value="">Unassigned</option>
+                  {hiringUsers.map((item) => (
+                    <option key={item.email} value={item.email}>{item.name} ({item.email})</option>
+                  ))}
+                </select>
+              </div>
+              {assignmentFeedback ? (
+                <div style={{ fontSize: 12.5, color: assignmentFeedback.includes('saved') ? '#1E8E5A' : '#C23B22' }}>{assignmentFeedback}</div>
+              ) : null}
+              <button className="btn btn-outline" disabled={assignmentBusy} onClick={saveAssignment}>
+                {assignmentBusy ? 'Saving...' : 'Save assignment'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Interview schedule</div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label className="lbl">Date and time</label>
+                <input className="inp" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
+              </div>
+              <div>
+                <label className="lbl">Format</label>
+                <select className="inp" value={interviewMode} onChange={(e) => setInterviewMode(e.target.value)}>
+                  <option value="video">Video call</option>
+                  <option value="phone">Phone call</option>
+                  <option value="in_person">In person</option>
+                </select>
+              </div>
+              <div>
+                <label className="lbl">Meeting link / location</label>
+                <input className="inp" value={interviewLocation} onChange={(e) => setInterviewLocation(e.target.value)} placeholder="Teams link, phone number, or office address" />
+              </div>
+              <div>
+                <label className="lbl">Candidate note</label>
+                <textarea className="inp" rows={4} value={interviewNotesDraft} onChange={(e) => setInterviewNotesDraft(e.target.value)} style={{ resize: 'vertical' }} placeholder="Add prep notes, arrival instructions, or who they will meet..." />
+              </div>
+              <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--sub)' }}>
+                <input type="checkbox" checked={sendInterviewInvite} onChange={(e) => setSendInterviewInvite(e.target.checked)} style={{ marginTop: 2 }} />
+                <span>Email the interview details to the applicant from HR when saving.</span>
+              </label>
+              {interviewFeedback ? (
+                <div style={{ fontSize: 12.5, color: interviewFeedback.includes('saved') || interviewFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{interviewFeedback}</div>
+              ) : null}
+              <button className="btn btn-primary" disabled={interviewBusy} onClick={scheduleInterview}>
+                {interviewBusy ? 'Saving...' : 'Schedule interview'}
+              </button>
             </div>
           </div>
 

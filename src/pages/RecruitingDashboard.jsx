@@ -39,10 +39,15 @@ export default function RecruitingDashboard() {
     newApplicants: applications.filter((item) => item.status === 'new').length,
     shortlisted: applications.filter((item) => item.status === 'shortlisted').length,
     hired: applications.filter((item) => item.status === 'hired').length,
+    upcomingInterviews: applications.filter((item) => item.interview_at && new Date(item.interview_at) >= new Date()).length,
   }), [jobs, applications])
 
   const recentApplications = applications.slice(0, 8)
   const staleJobs = jobs.filter((job) => job.status === 'draft' || job.status === 'archived').slice(0, 6)
+  const upcomingInterviews = applications
+    .filter((item) => item.interview_at && new Date(item.interview_at) >= new Date())
+    .sort((a, b) => new Date(a.interview_at) - new Date(b.interview_at))
+    .slice(0, 5)
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
@@ -59,10 +64,11 @@ export default function RecruitingDashboard() {
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
         <StatCard icon={BriefcaseBusiness} label="Open roles" value={stats.openJobs} hint={`${jobs.length} total roles`} />
         <StatCard icon={Users} label="New applicants" value={stats.newApplicants} hint="Fresh applications waiting for first review" tone="var(--amber)" />
         <StatCard icon={Clock3} label="Shortlisted" value={stats.shortlisted} hint="Candidates in the active pipeline" tone="var(--accent)" />
+        <StatCard icon={Clock3} label="Upcoming interviews" value={stats.upcomingInterviews} hint="Scheduled candidate interviews" tone="var(--blue)" />
         <StatCard icon={Trophy} label="Hired" value={stats.hired} hint="Applications moved into hire status" tone="var(--green)" />
       </div>
 
@@ -110,6 +116,20 @@ export default function RecruitingDashboard() {
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Workflow</div>
             <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, lineHeight: 1.65 }}>
               The new Hiring workspace now separates pre-hire applicants from employee HR records. Marking someone as hired can be used later to push them into onboarding and then into the staff HCM record.
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Upcoming interviews</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, marginBottom: 12 }}>The next scheduled candidate interviews across the hiring pipeline.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {upcomingInterviews.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No interviews scheduled yet.</div> : null}
+              {upcomingInterviews.map((application) => (
+                <button key={application.id} className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => navigate(`/recruiting/applications/${application.id}`)}>
+                  <span>{application.full_name || application.email}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--sub)' }}>{new Date(application.interview_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -57,14 +57,15 @@ export default function RecruitingApplications() {
           <div className="empty"><p>No applications match these filters.</p></div>
         ) : (
           <table className="tbl">
-            <thead><tr><th>Applicant</th><th>Role</th><th>Status</th><th>Reference</th><th>Submitted</th></tr></thead>
+            <thead><tr><th>Applicant</th><th>Role</th><th>Owner</th><th>Status</th><th>Interview</th><th>Submitted</th></tr></thead>
             <tbody>
               {filtered.map((application) => (
                 <tr key={application.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/recruiting/applications/${application.id}`)}>
                   <td className="t-main">{application.full_name || application.email}</td>
                   <td>{application.job_posts?.title || 'General application'}</td>
+                  <td>{application.assigned_recruiter_name || application.assigned_recruiter_email || '—'}</td>
                   <td><RecruitingStatusBadge status={application.status} /></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{application.application_ref || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{application.interview_at ? new Date(application.interview_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{application.submitted_at ? new Date(application.submitted_at).toLocaleDateString('en-GB') : '—'}</td>
                 </tr>
               ))}

@@ -1,5 +1,13 @@
 import { supabase } from './supabase'
 
+const HIRING_PERMISSION_KEYS = [
+  'recruiting_dashboard',
+  'recruiting_jobs',
+  'recruiting_applications',
+  'recruiting_board',
+  'recruiting_settings',
+]
+
 export const RECRUITING_STATUSES = [
   ['new', 'New'],
   ['reviewing', 'Reviewing'],
@@ -113,8 +121,67 @@ export function normalizeApplication(row = {}) {
     submitted_at: row.submitted_at || row.created_at || null,
     created_at: row.created_at || '',
     updated_at: row.updated_at || '',
+    assigned_recruiter_email: row.assigned_recruiter_email || '',
+    assigned_recruiter_name: row.assigned_recruiter_name || '',
+    interview_at: row.interview_at || null,
+    interview_mode: row.interview_mode || '',
+    interview_location: row.interview_location || '',
+    interview_notes: row.interview_notes || '',
+    interview_contact_email: row.interview_contact_email || '',
+    interview_contact_name: row.interview_contact_name || '',
+    interview_last_emailed_at: row.interview_last_emailed_at || null,
     job_posts: row.job_posts ? normalizeJobPost(row.job_posts) : null,
   }
+}
+
+function buildApplicationProfileSettingKey(applicationId = '') {
+  return `recruiting:application_profile:${applicationId}`
+}
+
+function hasHiringAccess(permissions = {}) {
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) return false
+  return HIRING_PERMISSION_KEYS.some((key) => permissions[key] === true)
+}
+
+export function normalizeApplicationProfileMeta(raw = {}) {
+  return {
+    assigned_recruiter_email: String(raw.assigned_recruiter_email || '').trim().toLowerCase(),
+    assigned_recruiter_name: String(raw.assigned_recruiter_name || '').trim(),
+    interview_at: raw.interview_at || null,
+    interview_mode: String(raw.interview_mode || '').trim(),
+    interview_location: String(raw.interview_location || '').trim(),
+    interview_notes: String(raw.interview_notes || '').trim(),
+    interview_contact_email: String(raw.interview_contact_email || '').trim().toLowerCase(),
+    interview_contact_name: String(raw.interview_contact_name || '').trim(),
+    interview_last_emailed_at: raw.interview_last_emailed_at || null,
+  }
+}
+
+function mergeApplicationProfileMeta(application, meta = {}) {
+  return normalizeApplication({
+    ...application,
+    ...normalizeApplicationProfileMeta(meta),
+  })
+}
+
+async function listApplicationProfileMetaMap(applicationIds = []) {
+  if (!applicationIds.length) return {}
+
+  const { data, error } = await supabase
+    .from('portal_settings')
+    .select('key,value')
+    .like('key', 'recruiting:application_profile:%')
+
+  if (error) throw error
+
+  const idSet = new Set(applicationIds)
+  return (data || []).reduce((acc, row) => {
+    const key = String(row.key || '')
+    const applicationId = key.split(':').pop()
+    if (!idSet.has(applicationId)) return acc
+    acc[applicationId] = normalizeApplicationProfileMeta(row.value?.value ?? row.value ?? {})
+    return acc
+  }, {})
 }
 
 export function buildJobPostPayload(job = {}, actor = '') {
@@ -190,7 +257,9 @@ export async function listApplications() {
     .select('*, job_posts(*)')
     .order('submitted_at', { ascending: false })
   if (error) throw error
-  return (data || []).map(normalizeApplication)
+  const applications = (data || []).map(normalizeApplication)
+  const metaMap = await listApplicationProfileMetaMap(applications.map((application) => application.id))
+  return applications.map((application) => mergeApplicationProfileMeta(application, metaMap[application.id]))
 }
 
 export async function getApplication(id) {
@@ -200,7 +269,10 @@ export async function getApplication(id) {
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
-  return data ? normalizeApplication(data) : null
+  if (!data) return null
+  const application = normalizeApplication(data)
+  const metaMap = await listApplicationProfileMetaMap([id])
+  return mergeApplicationProfileMeta(application, metaMap[id])
 }
 
 export async function listApplicationHistory(applicationId) {
@@ -269,7 +341,58 @@ export async function updateApplicationStatus(application, nextStatus, actor = {
 
   if (error) throw error
   if (historyResult.error) throw historyResult.error
-  return normalizeApplication(data || {})
+  return await getApplication(application.id) || normalizeApplication(data || {})
+}
+
+export async function saveApplicationProfileMeta(applicationId, patch = {}) {
+  const key = buildApplicationProfileSettingKey(applicationId)
+  const { data: existing, error: existingError } = await supabase
+    .from('portal_settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+
+  const current = normalizeApplicationProfileMeta(existing?.value?.value ?? existing?.value ?? {})
+  const nextValue = normalizeApplicationProfileMeta({ ...current, ...patch })
+  const { error } = await supabase
+    .from('portal_settings')
+    .upsert({
+      key,
+      value: { value: nextValue },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' })
+
+  if (error) throw error
+  return nextValue
+}
+
+export async function listHiringUsers() {
+  const [{ data: permissionRows, error: permissionError }, { data: profileRows, error: profileError }] = await Promise.all([
+    supabase.from('user_permissions').select('user_email,permissions'),
+    supabase.from('hr_profiles').select('user_email,full_name'),
+  ])
+
+  if (permissionError) throw permissionError
+  if (profileError) throw profileError
+
+  const nameByEmail = new Map((profileRows || []).map((row) => [
+    String(row.user_email || '').trim().toLowerCase(),
+    row.full_name || '',
+  ]))
+
+  return (permissionRows || [])
+    .filter((row) => hasHiringAccess(row.permissions))
+    .map((row) => {
+      const email = String(row.user_email || '').trim().toLowerCase()
+      return {
+        email,
+        name: nameByEmail.get(email) || email,
+      }
+    })
+    .filter((row) => row.email)
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'))
 }
 
 export async function upsertRecruitingSetting(key, value) {
