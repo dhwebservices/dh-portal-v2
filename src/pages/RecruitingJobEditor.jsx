@@ -8,6 +8,8 @@ const EMPTY_JOB = {
   title: '',
   slug: '',
   department: '',
+  hiring_manager_name: '',
+  hiring_manager_email: '',
   location_type: 'remote',
   location_text: '',
   employment_type: 'full_time',

@@ -87,6 +87,8 @@ export function normalizeJobPost(row = {}) {
     updated_by: row.updated_by || '',
     created_at: row.created_at || '',
     updated_at: row.updated_at || '',
+    hiring_manager_name: row.hiring_manager_name || '',
+    hiring_manager_email: row.hiring_manager_email || '',
   }
 }
 
@@ -138,6 +140,10 @@ function buildApplicationProfileSettingKey(applicationId = '') {
   return `recruiting:application_profile:${applicationId}`
 }
 
+function buildJobProfileSettingKey(jobId = '') {
+  return `recruiting:job_profile:${jobId}`
+}
+
 function hasHiringAccess(permissions = {}) {
   if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) return false
   return HIRING_PERMISSION_KEYS.some((key) => permissions[key] === true)
@@ -182,6 +188,40 @@ function mergeApplicationProfileMeta(application, meta = {}) {
     ...application,
     ...normalizeApplicationProfileMeta(meta),
   })
+}
+
+function normalizeJobProfileMeta(raw = {}) {
+  return {
+    hiring_manager_name: String(raw.hiring_manager_name || '').trim(),
+    hiring_manager_email: String(raw.hiring_manager_email || '').trim().toLowerCase(),
+  }
+}
+
+function mergeJobProfileMeta(job, meta = {}) {
+  return normalizeJobPost({
+    ...job,
+    ...normalizeJobProfileMeta(meta),
+  })
+}
+
+async function listJobProfileMetaMap(jobIds = []) {
+  if (!jobIds.length) return {}
+
+  const { data, error } = await supabase
+    .from('portal_settings')
+    .select('key,value')
+    .like('key', 'recruiting:job_profile:%')
+
+  if (error) throw error
+
+  const idSet = new Set(jobIds)
+  return (data || []).reduce((acc, row) => {
+    const key = String(row.key || '')
+    const jobId = key.split(':').pop()
+    if (!idSet.has(jobId)) return acc
+    acc[jobId] = normalizeJobProfileMeta(row.value?.value ?? row.value ?? {})
+    return acc
+  }, {})
 }
 
 async function listApplicationProfileMetaMap(applicationIds = []) {
@@ -247,13 +287,18 @@ export function buildApplicationStatusPatch(status = '') {
 export async function listJobPosts() {
   const { data, error } = await supabase.from('job_posts').select('*').order('updated_at', { ascending: false })
   if (error) throw error
-  return (data || []).map(normalizeJobPost)
+  const jobs = (data || []).map(normalizeJobPost)
+  const metaMap = await listJobProfileMetaMap(jobs.map((job) => job.id))
+  return jobs.map((job) => mergeJobProfileMeta(job, metaMap[job.id]))
 }
 
 export async function getJobPost(id) {
   const { data, error } = await supabase.from('job_posts').select('*').eq('id', id).maybeSingle()
   if (error) throw error
-  return data ? normalizeJobPost(data) : null
+  if (!data) return null
+  const job = normalizeJobPost(data)
+  const metaMap = await listJobProfileMetaMap([id])
+  return mergeJobProfileMeta(job, metaMap[id])
 }
 
 export async function saveJobPost(job = {}, actor = '') {
@@ -263,7 +308,21 @@ export async function saveJobPost(job = {}, actor = '') {
     ? await query.update(payload).eq('id', job.id).select().maybeSingle()
     : await query.insert([{ ...payload, created_by: actor, created_at: new Date().toISOString() }]).select().maybeSingle()
   if (result.error) throw result.error
-  return normalizeJobPost(result.data || {})
+  const savedJob = normalizeJobPost(result.data || {})
+  const { error: metaError } = await supabase
+    .from('portal_settings')
+    .upsert({
+      key: buildJobProfileSettingKey(savedJob.id),
+      value: {
+        value: normalizeJobProfileMeta({
+          hiring_manager_name: job.hiring_manager_name,
+          hiring_manager_email: job.hiring_manager_email,
+        }),
+      },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' })
+  if (metaError) throw metaError
+  return getJobPost(savedJob.id) || savedJob
 }
 
 export async function deleteJobPost(id) {
