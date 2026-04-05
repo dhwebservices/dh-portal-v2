@@ -1,18 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { deleteJobPost, listJobPosts } from '../utils/recruiting'
 
 export default function RecruitingJobs() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [jobs, setJobs] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const departmentFilter = new URLSearchParams(location.search).get('department') || ''
 
   useEffect(() => {
     listJobPosts().then(setJobs).finally(() => setLoading(false))
   }, [])
 
-  const filtered = useMemo(() => jobs.filter((job) => filter === 'all' ? true : job.status === filter), [jobs, filter])
+  const filtered = useMemo(() => {
+    return jobs.filter((job) => {
+      const matchesStatus = filter === 'all' ? true : job.status === filter
+      const matchesDepartment = departmentFilter ? job.department === departmentFilter : true
+      return matchesStatus && matchesDepartment
+    })
+  }, [departmentFilter, jobs, filter])
 
   const remove = async (job) => {
     if (!confirm(`Delete "${job.title}"?`)) return
@@ -27,9 +35,18 @@ export default function RecruitingJobs() {
       <div className="page-hd">
         <div>
           <h1 className="page-title">Job posts</h1>
-          <p className="page-sub">{jobs.length} roles across draft, published, and archived states.</p>
+          <p className="page-sub">
+            {departmentFilter
+              ? `${filtered.length} roles linked to ${departmentFilter}.`
+              : `${jobs.length} roles across draft, published, and archived states.`}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/recruiting/jobs/new')}>New role</button>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate(`/recruiting/jobs/new${departmentFilter ? `?department=${encodeURIComponent(departmentFilter)}` : ''}`)}
+        >
+          New role
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -38,6 +55,11 @@ export default function RecruitingJobs() {
             {item === 'all' ? 'All roles' : item.charAt(0).toUpperCase() + item.slice(1)}
           </button>
         ))}
+        {departmentFilter ? (
+          <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>
+            Clear department
+          </button>
+        ) : null}
       </div>
 
       <div className="card" style={{ overflow: 'hidden' }}>

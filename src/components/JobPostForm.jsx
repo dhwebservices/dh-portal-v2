@@ -6,6 +6,10 @@ function parseOptions(value = '') {
 
 export default function JobPostForm({ value, onChange }) {
   const questions = useMemo(() => Array.isArray(value.screening_questions) ? value.screening_questions : [], [value.screening_questions])
+  const departmentOptions = useMemo(
+    () => Array.isArray(value.department_options) ? value.department_options.filter(Boolean) : [],
+    [value.department_options]
+  )
   const update = (key, next) => onChange({ ...value, [key]: next })
 
   const updateQuestion = (index, patch) => {
@@ -19,7 +23,14 @@ export default function JobPostForm({ value, onChange }) {
       <div className="fg">
         <div><label className="lbl">Title</label><input className="inp" value={value.title || ''} onChange={(e) => update('title', e.target.value)} /></div>
         <div><label className="lbl">Slug</label><input className="inp" value={value.slug || ''} onChange={(e) => update('slug', e.target.value)} placeholder="leave blank to auto-generate" /></div>
-        <div><label className="lbl">Department</label><input className="inp" value={value.department || ''} onChange={(e) => update('department', e.target.value)} /></div>
+        <div><label className="lbl">Department</label>
+          <select className="inp" value={value.department || ''} onChange={(e) => update('department', e.target.value)}>
+            <option value="">{departmentOptions.length ? 'Choose department' : 'No departments available'}</option>
+            {departmentOptions.map((department) => (
+              <option key={department} value={department}>{department}</option>
+            ))}
+          </select>
+        </div>
         <div><label className="lbl">Hiring Manager Full Name</label><input className="inp" value={value.hiring_manager_name || ''} onChange={(e) => update('hiring_manager_name', e.target.value)} placeholder="e.g. David Hooper" /></div>
         <div><label className="lbl">Hiring Manager Email</label><input className="inp" type="email" value={value.hiring_manager_email || ''} onChange={(e) => update('hiring_manager_email', e.target.value)} placeholder="e.g. HR@dhwebsiteservices.co.uk" /></div>
         <div><label className="lbl">Employment Type</label>

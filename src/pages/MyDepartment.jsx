@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
-import { Bell, Building2, FolderPlus, ShieldCheck, Users } from 'lucide-react'
+import { Bell, BriefcaseBusiness, Building2, FolderPlus, ShieldCheck, Users } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
@@ -20,6 +20,7 @@ import { sendManagedNotification } from '../utils/notificationPreferences'
 import { enrichTask } from '../utils/taskMetadata'
 import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
 import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
+import { listJobPosts } from '../utils/recruiting'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -156,6 +157,7 @@ export default function MyDepartment() {
   const [activityRows, setActivityRows] = useState([])
   const [leaveRows, setLeaveRows] = useState([])
   const [docRows, setDocRows] = useState([])
+  const [jobRows, setJobRows] = useState([])
   const [complianceMap, setComplianceMap] = useState({})
   const [contractRows, setContractRows] = useState([])
   const [trainingRecords, setTrainingRecords] = useState([])
@@ -190,7 +192,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }, jobData] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -207,6 +209,7 @@ export default function MyDepartment() {
       supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'training_record:%'),
+      listJobPosts().catch(() => []),
     ])
 
     const onboardingMap = Object.fromEntries((onboarding || []).map((row) => [String(row.user_email || '').toLowerCase(), row]))
@@ -257,6 +260,7 @@ export default function MyDepartment() {
     setActivityRows(auditRows || [])
     setLeaveRows(leaveData || [])
     setDocRows(docsData || [])
+    setJobRows(jobData || [])
     setComplianceMap(Object.fromEntries((complianceSettings || []).map((row) => [
       String(row.key || '').replace('staff_compliance:', '').toLowerCase(),
       mergeComplianceRecord(row.value?.value ?? row.value ?? {}),
@@ -368,6 +372,8 @@ export default function MyDepartment() {
     return teamMembers.some((member) => String(member.full_name || '').toLowerCase() === actor)
   }).slice(0, 8)
   const departmentAnnouncements = announcements.filter((item) => item.department === currentDepartment).slice(0, 6)
+  const departmentJobs = jobRows.filter((job) => job.department === currentDepartment)
+  const openDepartmentJobs = departmentJobs.filter((job) => job.status === 'published')
 
   async function postAnnouncement() {
     if (!currentDepartment || !announcementForm.title.trim() || !announcementForm.message.trim()) {
@@ -722,6 +728,12 @@ export default function MyDepartment() {
           <p className="page-sub">Team workspace for scoped managers and Director oversight.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>
+            Department hiring
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>
+            Post job
+          </button>
           {visibleDepartments.map((item) => (
             <button key={item.id} className={currentDepartment === item.name ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'} onClick={() => setSelectedDepartment(item.name)}>
               {item.name}
@@ -746,6 +758,7 @@ export default function MyDepartment() {
         <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--red)" />
         <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
         <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
+        <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--blue)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,0.8fr)', gap: 18 }} className="staff-profile-main-grid">
@@ -795,6 +808,28 @@ export default function MyDepartment() {
                   {upcomingLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No upcoming approved leave booked.</div> : null}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department hiring</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Job posts for {currentDepartment || 'this department'}</div>
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>Open jobs</button>
+                <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>Create role</button>
+              </div>
+            </div>
+            <div style={{ display:'grid', gap:10 }}>
+              {departmentJobs.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No job posts linked to this department yet.</div> : null}
+              {departmentJobs.slice(0, 6).map((job) => (
+                <button key={job.id} className="btn btn-outline" style={{ justifyContent:'space-between' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
+                  <span>{job.title}</span>
+                  <span style={{ fontSize:11.5, color:'var(--sub)' }}>{job.status}</span>
+                </button>
+              ))}
             </div>
           </div>
 

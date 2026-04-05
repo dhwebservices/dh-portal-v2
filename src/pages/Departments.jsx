@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { Building2, CheckCircle2, FolderPlus, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding } from '../utils/hrProfileSync'
@@ -134,6 +135,7 @@ async function writeOrgRecord(email = '', value = {}, department = '') {
 }
 
 export default function Departments() {
+  const navigate = useNavigate()
   const { isDirector, user } = useAuth()
   const { instance, accounts } = useMsal()
   const [loading, setLoading] = useState(true)
@@ -596,6 +598,10 @@ export default function Departments() {
           <h1 className="page-title">Departments</h1>
           <p className="page-sub">Director control centre for departments, manager assignments, and approval requests.</p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline" onClick={() => navigate('/recruiting/jobs')}>Open Hiring</button>
+          <button className="btn btn-primary" onClick={() => navigate('/recruiting/jobs/new')}>Post job</button>
+        </div>
       </div>
 
       {error && (
@@ -668,6 +674,18 @@ export default function Departments() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => navigate(`/recruiting/jobs?department=${encodeURIComponent(department.name)}`)}
+                    >
+                      View jobs
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(department.name)}`)}
+                    >
+                      Post job
+                    </button>
                     <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { active: !department.active })} disabled={savingKey === department.id}>
                       {department.active !== false ? 'Archive' : 'Restore'}
                     </button>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import JobPostForm from '../components/JobPostForm'
 import { getJobPost, saveJobPost } from '../utils/recruiting'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../utils/supabase'
+import { buildDepartmentCatalogKey, mergeDepartmentCatalog } from '../utils/orgStructure'
 
 const EMPTY_JOB = {
   title: '',
@@ -28,16 +30,37 @@ const EMPTY_JOB = {
 
 export default function RecruitingJobEditor() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const { user } = useAuth()
   const [job, setJob] = useState(EMPTY_JOB)
+  const [departmentOptions, setDepartmentOptions] = useState([])
   const [loading, setLoading] = useState(id !== 'new')
   const [saving, setSaving] = useState(false)
+  const requestedDepartment = new URLSearchParams(location.search).get('department') || ''
+
+  useEffect(() => {
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildDepartmentCatalogKey())
+      .maybeSingle()
+      .then(({ data }) => {
+        const catalog = mergeDepartmentCatalog(data?.value?.value ?? data?.value ?? [])
+        setDepartmentOptions(catalog.filter((item) => item.active !== false).map((item) => item.name))
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!id || id === 'new') return
     getJobPost(id).then((row) => row && setJob({ ...EMPTY_JOB, ...row })).finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (id !== 'new' || !requestedDepartment) return
+    setJob((current) => current.department ? current : { ...current, department: requestedDepartment })
+  }, [id, requestedDepartment])
 
   const submit = async (nextStatus = job.status || 'draft') => {
     setSaving(true)
@@ -66,7 +89,7 @@ export default function RecruitingJobEditor() {
       </div>
 
       <div className="card card-pad">
-        <JobPostForm value={job} onChange={setJob} />
+        <JobPostForm value={{ ...job, department_options: departmentOptions }} onChange={setJob} />
       </div>
     </div>
   )
