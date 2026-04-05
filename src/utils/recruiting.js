@@ -251,6 +251,8 @@ export function buildJobPostPayload(job = {}, actor = '') {
     slug: slugifyJobTitle(job.slug || job.title),
     title: String(job.title || '').trim(),
     department: String(job.department || '').trim(),
+    hiring_manager_name: String(job.hiring_manager_name || '').trim(),
+    hiring_manager_email: String(job.hiring_manager_email || '').trim().toLowerCase(),
     location_type: job.location_type || 'remote',
     location_text: String(job.location_text || '').trim(),
     employment_type: job.employment_type || 'full_time',

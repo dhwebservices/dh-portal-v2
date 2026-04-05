@@ -475,6 +475,8 @@ create table if not exists job_posts (
   slug text unique,
   title text,
   department text,
+  hiring_manager_name text,
+  hiring_manager_email text,
   location_type text,
   location_text text,
   employment_type text,
