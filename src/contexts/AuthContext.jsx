@@ -34,6 +34,11 @@ const BASE_PERMISSIONS = {
   notifications: true,
   my_profile: true,
   search: true,
+  recruiting_dashboard: false,
+  recruiting_jobs: false,
+  recruiting_applications: false,
+  recruiting_board: false,
+  recruiting_settings: false,
 }
 
 function sanitizePermissions(raw) {
@@ -331,6 +336,13 @@ export function AuthProvider({ children }) {
     if (key === 'staff' || key === 'manager_board' || key === 'contract_queue') {
       if (isDirector) return !isExplicitlyDenied
       if (isDepartmentManager) return isExplicitlyAllowed
+    }
+    if (key === 'recruiting_dashboard' || key === 'recruiting_jobs' || key === 'recruiting_applications' || key === 'recruiting_board') {
+      if (isDirector) return !isExplicitlyDenied
+      if (isDepartmentManager) return isExplicitlyAllowed
+    }
+    if (key === 'recruiting_settings') {
+      if (isDirector) return !isExplicitlyDenied
     }
     if (effectiveIsAdmin) return true
     if (effectivePerms === null) return false

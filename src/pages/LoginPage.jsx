@@ -62,6 +62,7 @@ export default function LoginPage() {
                 {[
                   ['Outreach workspace', 'Follow-ups, appointments, proposals, and conversions.'],
                   ['HR & staff tools', 'Onboarding, documents, leave, and permissions.'],
+                  ['Recruiting workspace', 'Hiring pipeline, job posts, applicant review, and status updates.'],
                   ['Daily operations', 'Dashboard, notifications, schedules, and support.'],
                 ].map(([title, body]) => (
                   <div key={title} className="login-feature-card" style={{ padding:'16px 16px 14px', border:'1px solid var(--border)', borderRadius:18, background:'rgba(255,255,255,0.6)' }}>
@@ -139,7 +140,7 @@ export default function LoginPage() {
               <div className="login-note-card" style={{ padding:'14px 16px', borderRadius:16, background:'var(--bg2)', border:'1px solid var(--border)' }}>
                 <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Access note</div>
                 <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
-                  Sign in with your `@dhwebsiteservices.co.uk` Microsoft account. Staff permissions and onboarding access are handled automatically once you log in.
+                  Sign in with your `@dhwebsiteservices.co.uk` Microsoft account. Staff, recruiting, web-manager permissions, and onboarding access are handled automatically once you log in.
                 </div>
               </div>
               <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'var(--faint)' }}>

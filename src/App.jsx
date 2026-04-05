@@ -70,6 +70,13 @@ const HRDocuments = lazyRetry(() => import('./pages/hr/HRDocuments'), 'hr-docume
 const HRComplianceRules = lazyRetry(() => import('./pages/hr/HRComplianceRules'), 'hr-compliance-rules')
 const HRTrainingCatalogue = lazyRetry(() => import('./pages/hr/HRTrainingCatalogue'), 'hr-training-catalogue')
 const HROnboarding = lazyRetry(() => import('./pages/hr/HROnboarding'), 'hr-onboarding')
+const RecruitingDashboard = lazyRetry(() => import('./pages/RecruitingDashboard'), 'recruiting-dashboard')
+const RecruitingJobs = lazyRetry(() => import('./pages/RecruitingJobs'), 'recruiting-jobs')
+const RecruitingJobEditor = lazyRetry(() => import('./pages/RecruitingJobEditor'), 'recruiting-job-editor')
+const RecruitingApplications = lazyRetry(() => import('./pages/RecruitingApplications'), 'recruiting-applications')
+const RecruitingApplicationProfile = lazyRetry(() => import('./pages/RecruitingApplicationProfile'), 'recruiting-application-profile')
+const RecruitingBoard = lazyRetry(() => import('./pages/RecruitingBoard'), 'recruiting-board')
+const RecruitingSettings = lazyRetry(() => import('./pages/RecruitingSettings'), 'recruiting-settings')
 const Appointments = lazyRetry(() => import('./pages/Appointments'), 'appointments')
 const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list')
 const AuditLog = lazyRetry(() => import('./pages/AuditLog'), 'audit-log')
@@ -235,6 +242,13 @@ function PortalLayout() {
               <Route path="/hr/compliance-rules" element={<PermissionGate permKey="hr_documents"><HRComplianceRules /></PermissionGate>} />
               <Route path="/hr/training-catalogue" element={<PermissionGate permKey="hr_documents"><HRTrainingCatalogue /></PermissionGate>} />
               <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
+              <Route path="/recruiting"     element={<PermissionGate permKey="recruiting_dashboard"><RecruitingDashboard /></PermissionGate>} />
+              <Route path="/recruiting/jobs" element={<PermissionGate permKey="recruiting_jobs"><RecruitingJobs /></PermissionGate>} />
+              <Route path="/recruiting/jobs/:id" element={<PermissionGate permKey="recruiting_jobs"><RecruitingJobEditor /></PermissionGate>} />
+              <Route path="/recruiting/applications" element={<PermissionGate permKey="recruiting_applications"><RecruitingApplications /></PermissionGate>} />
+              <Route path="/recruiting/applications/:id" element={<PermissionGate permKey="recruiting_applications"><RecruitingApplicationProfile /></PermissionGate>} />
+              <Route path="/recruiting/board" element={<PermissionGate permKey="recruiting_board"><RecruitingBoard /></PermissionGate>} />
+              <Route path="/recruiting/settings" element={<PermissionGate permKey="recruiting_settings"><RecruitingSettings /></PermissionGate>} />
               <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
               <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />
               <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />

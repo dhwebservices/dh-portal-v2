@@ -45,13 +45,18 @@ const ALL_PAGES = [
   {key:'hr_documents',label:'HR Documents'},{key:'hr_timesheet',label:'HR Timesheets'},{key:'hr_onboarding',label:'HR Onboarding'},
   {key:'contract_queue',label:'Contract Queue'},
   {key:'contract_templates',label:'Contract Templates'},
+  {key:'recruiting_dashboard',label:'Recruiting Dashboard'},
+  {key:'recruiting_jobs',label:'Recruiting Jobs'},
+  {key:'recruiting_applications',label:'Recruiting Applications'},
+  {key:'recruiting_board',label:'Recruiting Board'},
+  {key:'recruiting_settings',label:'Recruiting Settings'},
   {key:'website_editor',label:'Web Manager'},
 ]
 
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 

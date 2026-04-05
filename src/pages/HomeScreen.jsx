@@ -107,6 +107,28 @@ export default function HomeScreen() {
                 ))}
               </div>
             </button>
+
+            <button
+              onClick={() => navigate('/recruiting')}
+              style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:16, padding:'36px 32px', textAlign:'left', cursor:'pointer', transition:'all 0.25s cubic-bezier(0.16,1,0.3,1)', display:'flex', flexDirection:'column', gap:18 }}
+              onMouseOver={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow='0 16px 48px rgba(0,113,227,0.1)' }}
+              onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
+            >
+              <div style={{ width:52, height:52, borderRadius:12, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>
+                💼
+              </div>
+              <div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:400, letterSpacing:'-0.01em', marginBottom:8, color:'var(--text)' }}>Recruiting</div>
+                <div style={{ fontSize:13.5, color:'var(--sub)', lineHeight:1.6 }}>
+                  Run the hiring pipeline, manage live job posts, review CVs in full screen, and progress candidates through the recruitment process.
+                </div>
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {['Roles','Applicants','CVs','Pipeline','Status Emails'].map(t => (
+                  <span key={t} style={{ padding:'3px 10px', borderRadius:100, background:'var(--bg2)', border:'1px solid var(--border)', fontSize:11, color:'var(--sub)', fontFamily:'var(--font-mono)' }}>{t}</span>
+                ))}
+              </div>
+            </button>
           </div>
         </div>
       </div>

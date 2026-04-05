@@ -117,6 +117,11 @@ const ALL_PAGES = [
   {key:'contract_templates', label:'Contract Templates', group:'HR', category:'Records', desc:'HR contract template library'},
   {key:'contract_queue', label:'Contract Queue', group:'HR', category:'Records', desc:'Issued contracts and signing progress'},
   {key:'org_chart',     label:'Org Chart',          group:'HR', category:'Structure', desc:'Live reporting lines'},
+  {key:'recruiting_dashboard', label:'Recruiting Dashboard', group:'Hiring', category:'Pipeline', desc:'Hiring overview and live applicant activity'},
+  {key:'recruiting_jobs', label:'Recruiting Jobs', group:'Hiring', category:'Pipeline', desc:'Manage published roles and drafts'},
+  {key:'recruiting_applications', label:'Recruiting Applications', group:'Hiring', category:'Pipeline', desc:'Full applicant inbox and review surface'},
+  {key:'recruiting_board', label:'Recruiting Board', group:'Hiring', category:'Pipeline', desc:'Kanban hiring pipeline'},
+  {key:'recruiting_settings', label:'Recruiting Settings', group:'Hiring', category:'Control', desc:'Question bank and default hiring copy'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
   {key:'manager_board', label:'Manager Board',      group:'Admin', category:'Control', desc:'Department and workload queue'},
@@ -134,12 +139,12 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
-const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Admin']
+const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Admin']
 
 function countEnabledPermissions(perms) {
   return ALL_PAGES.filter((page) => perms?.[page.key]).length

@@ -62,6 +62,16 @@ const SECTIONS = [
     ]
   },
   {
+    id: 'hiring', label: 'Hiring', icon: 'briefcase',
+    items: [
+      { to: '/recruiting', icon: 'briefcase', label: 'Recruiting Overview', desc: 'Hiring activity', key: 'recruiting_dashboard' },
+      { to: '/recruiting/jobs', icon: 'doc', label: 'Job Posts', desc: 'Publish and manage roles', key: 'recruiting_jobs' },
+      { to: '/recruiting/applications', icon: 'people', label: 'Applications', desc: 'Applicant inbox', key: 'recruiting_applications' },
+      { to: '/recruiting/board', icon: 'chart', label: 'Hiring Board', desc: 'Pipeline stages', key: 'recruiting_board' },
+      { to: '/recruiting/settings', icon: 'gear', label: 'Recruiting Settings', desc: 'Question bank & defaults', key: 'recruiting_settings' },
+    ]
+  },
+  {
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
       { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
@@ -134,6 +144,7 @@ const SECTION_COLORS = {
   business: { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   tasks:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   hr:       { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  hiring:   { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   admin:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   account:  { bg: 'var(--accent-soft)', color: 'var(--accent)' },
 }

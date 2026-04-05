@@ -447,6 +447,13 @@ on conflict (id) do nothing;
 create policy "allow_all" on storage.objects
   for all using (bucket_id = 'hr-documents') with check (bucket_id = 'hr-documents');
 
+insert into storage.buckets (id, name, public)
+values ('recruiting-documents', 'recruiting-documents', true)
+on conflict (id) do nothing;
+
+create policy "allow_all_recruiting" on storage.objects
+  for all using (bucket_id = 'recruiting-documents') with check (bucket_id = 'recruiting-documents');
+
 
 -- Staff documents (uploaded by admins, visible to staff in My Profile)
 create table if not exists staff_documents (
@@ -462,6 +469,94 @@ create table if not exists staff_documents (
 );
 alter table staff_documents enable row level security;
 create policy "allow_all" on staff_documents for all using (true) with check (true);
+
+create table if not exists job_posts (
+  id uuid default gen_random_uuid() primary key,
+  slug text unique,
+  title text,
+  department text,
+  location_type text,
+  location_text text,
+  employment_type text,
+  compensation_model text,
+  salary_text text,
+  commission_only boolean default false,
+  summary text,
+  description text,
+  responsibilities text,
+  requirements text,
+  benefits text,
+  screening_questions jsonb default '[]',
+  status text default 'draft',
+  published_at timestamptz,
+  closing_at timestamptz,
+  created_by text,
+  updated_by text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table job_posts enable row level security;
+create policy "allow_all" on job_posts for all using (true) with check (true);
+
+create table if not exists job_applications (
+  id uuid default gen_random_uuid() primary key,
+  job_post_id uuid references job_posts(id) on delete cascade,
+  application_ref text unique,
+  status text default 'new',
+  first_name text,
+  last_name text,
+  full_name text,
+  email text,
+  phone text,
+  location text,
+  linkedin_url text,
+  portfolio_url text,
+  cv_file_url text,
+  cv_file_path text,
+  cover_note text,
+  experience_summary text,
+  current_job_title text,
+  years_experience text,
+  screening_answers jsonb default '{}',
+  commission_acknowledged boolean default false,
+  privacy_acknowledged boolean default false,
+  source text,
+  internal_notes text,
+  shortlisted_at timestamptz,
+  rejected_at timestamptz,
+  hired_at timestamptz,
+  submitted_at timestamptz default now(),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table job_applications enable row level security;
+create policy "allow_all" on job_applications for all using (true) with check (true);
+
+create table if not exists job_application_status_history (
+  id uuid default gen_random_uuid() primary key,
+  application_id uuid references job_applications(id) on delete cascade,
+  from_status text,
+  to_status text,
+  changed_by_email text,
+  changed_by_name text,
+  reason text,
+  email_sent boolean default false,
+  created_at timestamptz default now()
+);
+alter table job_application_status_history enable row level security;
+create policy "allow_all" on job_application_status_history for all using (true) with check (true);
+
+create table if not exists job_application_notes (
+  id uuid default gen_random_uuid() primary key,
+  application_id uuid references job_applications(id) on delete cascade,
+  note text,
+  visibility text default 'internal',
+  created_by_email text,
+  created_by_name text,
+  created_at timestamptz default now()
+);
+alter table job_application_notes enable row level security;
+create policy "allow_all" on job_application_notes for all using (true) with check (true);
 
 -- GoCardless webhook events (written by Cloudflare Worker)
 create table if not exists gc_events (
