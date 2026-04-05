@@ -66,16 +66,27 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const bellRef                   = useRef()
 
-  useEffect(() => {
-    if (!user?.email) return
-    supabase.from('notifications')
+  const loadUnreadNotifications = async () => {
+    if (!user?.email) {
+      setNotifs([])
+      setUnread(0)
+      return
+    }
+
+    const { data } = await supabase.from('notifications')
       .select('*')
       .ilike('user_email', user.email)
       .eq('read', false)
       .order('created_at', { ascending: false })
       .limit(8)
-      .then(({ data }) => { setNotifs(data || []); setUnread((data||[]).length) })
-      .catch(() => {})
+
+    setNotifs(data || [])
+    setUnread((data || []).length)
+  }
+
+  useEffect(() => {
+    if (!user?.email) return
+    loadUnreadNotifications().catch(() => {})
 
     supabase.from('banners')
       .select('*')
@@ -105,15 +116,40 @@ export default function Header() {
     setMobileMenuOpen(false)
   }, [pathname])
 
+  const openNotificationsInbox = () => {
+    setBellOpen(false)
+    setMobileMenuOpen(false)
+    navigate('/notifications')
+  }
+
   const markAllRead = async () => {
-    await supabase.from('notifications').update({ read: true }).ilike('user_email', user.email).eq('read', false)
-    setNotifs([]); setUnread(0)
+    const unreadIds = notifs.map((notification) => notification.id).filter(Boolean)
+    if (!user?.email || unreadIds.length === 0) return
+
+    const { error } = await supabase.from('notifications')
+      .update({ read: true })
+      .in('id', unreadIds)
+
+    if (!error) {
+      setNotifs([])
+      setUnread(0)
+      return
+    }
+
+    await loadUnreadNotifications().catch(() => {})
   }
 
   const markRead = async (id) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id)
-    setNotifs(p => p.filter(n => n.id !== id))
-    setUnread(p => Math.max(0, p - 1))
+    if (!id) return
+
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id)
+    if (!error) {
+      setNotifs(p => p.filter(n => n.id !== id))
+      setUnread(p => Math.max(0, p - 1))
+      return
+    }
+
+    await loadUnreadNotifications().catch(() => {})
   }
 
   const typeIcon = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
@@ -178,7 +214,7 @@ export default function Header() {
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
                 <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                  <button onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+                  <button onClick={openNotificationsInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
                   {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
                 </div>
               </div>
@@ -188,7 +224,7 @@ export default function Header() {
                     <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
                     <div style={{ display:'grid', gap:8 }}>
                       {pinnedAlerts.map((banner) => (
-                        <button key={banner.id} onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                        <button key={banner.id} onClick={openNotificationsInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
                             <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
                             <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
@@ -243,7 +279,7 @@ export default function Header() {
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
                 <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                  <button onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+                  <button onClick={openNotificationsInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
                   {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
                 </div>
               </div>
@@ -253,7 +289,7 @@ export default function Header() {
                     <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
                     <div style={{ display:'grid', gap:8 }}>
                       {pinnedAlerts.map((banner) => (
-                        <button key={banner.id} onClick={() => { setBellOpen(false); navigate('/notifications') }} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                        <button key={banner.id} onClick={openNotificationsInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
                             <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
                             <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
