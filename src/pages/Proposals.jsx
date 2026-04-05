@@ -3,10 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const BUILDS = [
-  { id:'starter',  name:'Starter',    price:449,  monthly:37,  features:['Up to 5 pages','Mobile responsive','Contact form','Basic SEO','1 revision round'] },
-  { id:'growth',   name:'Growth',     price:999,  monthly:83,  features:['Up to 10 pages','Advanced SEO','Blog/news section','Google Analytics','3 revision rounds','Social media integration'] },
-  { id:'pro',      name:'Pro',        price:1499, monthly:125, features:['Unlimited pages','E-commerce ready','Custom animations','Priority support','Unlimited revisions','Full CMS'] },
-  { id:'enterprise',name:'Enterprise',price:2499, monthly:208, features:['Everything in Pro','HR portal integration','Custom integrations','Dedicated account manager','SLA guarantee'] },
+  { id:'starter',  name:'Starter',    price:449,  monthly:113,  features:['Up to 5 pages','Mobile responsive','Contact form','Basic SEO','1 revision round'] },
+  { id:'growth',   name:'Growth',     price:999,  monthly:250,  features:['Up to 10 pages','Advanced SEO','Blog/news section','Google Analytics','3 revision rounds','Social media integration'] },
+  { id:'pro',      name:'Pro',        price:1499, monthly:375, features:['Unlimited pages','E-commerce ready','Custom animations','Priority support','Unlimited revisions','Full CMS'] },
+  { id:'enterprise',name:'Enterprise',price:2499, monthly:625, features:['Everything in Pro','HR portal integration','Custom integrations','Dedicated account manager','SLA guarantee'] },
 ]
 const HOSTING = [
   { id:'h1', name:'Starter Hosting',      price:35,  features:['99.9% uptime','SSL certificate','Daily backups','Email support'] },
@@ -74,7 +74,7 @@ export default function Proposals() {
   const buildPrice = build ? (payMonthly ? 0 : build.price) : 0
   const monthlyTotal = (hosting?.price || 0) + (payMonthly && build ? build.monthly : 0)
   const oneOffTotal = buildPrice + extrasTotal
-  const firstYearTotal = oneOffTotal + (monthlyTotal * 12)
+  const firstYearTotal = oneOffTotal + (monthlyTotal * 4)
 
   const download = () => {
     setDownloading(true)
@@ -124,7 +124,7 @@ ${form.requirements ? `<div class="section"><div class="section-title">Project O
 ${build ? `<div class="section"><div class="section-title">Website Package</div>
 <div class="package">
   <div class="package-name">${build.name} Website</div>
-  <div style="font-size:22px;font-weight:700;margin:6px 0">${payMonthly ? `£${build.monthly}/mo` : `£${build.price.toLocaleString()}`}${payMonthly ? ' <span style="font-size:13px;opacity:0.6">over 12 months</span>' : ''}</div>
+  <div style="font-size:22px;font-weight:700;margin:6px 0">${payMonthly ? `£${build.monthly}/mo` : `£${build.price.toLocaleString()}`}${payMonthly ? ' <span style="font-size:13px;opacity:0.6">over 4 months</span>' : ''}</div>
   <div class="feature-list">${build.features.map(f => `<div class="feature">${f}</div>`).join('')}</div>
 </div></div>` : ''}
 ${hosting ? `<div class="section"><div class="section-title">Hosting Plan</div>
