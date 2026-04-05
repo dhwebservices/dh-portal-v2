@@ -3175,7 +3175,7 @@ export default function StaffProfile() {
               </div>
             </div>
 
-            {['Home','Business','Tasks','HR','Admin'].map(group => {
+            {PERMISSION_GROUPS.map(group => {
               const items = ALL_PAGES.filter((page) => page.group === group)
               const enabledCount = items.filter(({ key }) => editPerms[key]).length
               return (
