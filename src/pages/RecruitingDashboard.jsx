@@ -40,6 +40,7 @@ export default function RecruitingDashboard() {
     shortlisted: applications.filter((item) => item.status === 'shortlisted').length,
     hired: applications.filter((item) => item.status === 'hired').length,
     upcomingInterviews: applications.filter((item) => item.interview_at && new Date(item.interview_at) >= new Date()).length,
+    scoredApplicants: applications.filter((item) => item.overall_rating > 0).length,
   }), [jobs, applications])
 
   const recentApplications = applications.slice(0, 8)
@@ -47,6 +48,10 @@ export default function RecruitingDashboard() {
   const upcomingInterviews = applications
     .filter((item) => item.interview_at && new Date(item.interview_at) >= new Date())
     .sort((a, b) => new Date(a.interview_at) - new Date(b.interview_at))
+    .slice(0, 5)
+  const strongestCandidates = applications
+    .filter((item) => item.overall_rating > 0)
+    .sort((a, b) => (b.overall_rating || 0) - (a.overall_rating || 0))
     .slice(0, 5)
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
@@ -64,11 +69,12 @@ export default function RecruitingDashboard() {
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
         <StatCard icon={BriefcaseBusiness} label="Open roles" value={stats.openJobs} hint={`${jobs.length} total roles`} />
         <StatCard icon={Users} label="New applicants" value={stats.newApplicants} hint="Fresh applications waiting for first review" tone="var(--amber)" />
         <StatCard icon={Clock3} label="Shortlisted" value={stats.shortlisted} hint="Candidates in the active pipeline" tone="var(--accent)" />
         <StatCard icon={Clock3} label="Upcoming interviews" value={stats.upcomingInterviews} hint="Scheduled candidate interviews" tone="var(--blue)" />
+        <StatCard icon={Users} label="Scored candidates" value={stats.scoredApplicants} hint="Applicants with hiring feedback logged" tone="var(--purple)" />
         <StatCard icon={Trophy} label="Hired" value={stats.hired} hint="Applications moved into hire status" tone="var(--green)" />
       </div>
 
@@ -128,6 +134,20 @@ export default function RecruitingDashboard() {
                 <button key={application.id} className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => navigate(`/recruiting/applications/${application.id}`)}>
                   <span>{application.full_name || application.email}</span>
                   <span style={{ fontSize: 11.5, color: 'var(--sub)' }}>{new Date(application.interview_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Top rated candidates</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, marginBottom: 12 }}>Applicants with the strongest saved scorecards so far.</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {strongestCandidates.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No candidates have been scored yet.</div> : null}
+              {strongestCandidates.map((application) => (
+                <button key={application.id} className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => navigate(`/recruiting/applications/${application.id}`)}>
+                  <span>{application.full_name || application.email}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--sub)' }}>{application.overall_rating}/5</span>
                 </button>
               ))}
             </div>

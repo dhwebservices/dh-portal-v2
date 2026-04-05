@@ -57,13 +57,23 @@ export default function RecruitingApplications() {
           <div className="empty"><p>No applications match these filters.</p></div>
         ) : (
           <table className="tbl">
-            <thead><tr><th>Applicant</th><th>Role</th><th>Owner</th><th>Status</th><th>Interview</th><th>Submitted</th></tr></thead>
+            <thead><tr><th>Applicant</th><th>Role</th><th>Owner</th><th>Rating</th><th>Status</th><th>Interview</th><th>Submitted</th></tr></thead>
             <tbody>
               {filtered.map((application) => (
                 <tr key={application.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/recruiting/applications/${application.id}`)}>
-                  <td className="t-main">{application.full_name || application.email}</td>
+                  <td className="t-main">
+                    <div>{application.full_name || application.email}</div>
+                    {application.tags?.length ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                        {application.tags.slice(0, 2).map((tag) => (
+                          <span key={tag} className="badge badge-grey">{tag}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </td>
                   <td>{application.job_posts?.title || 'General application'}</td>
                   <td>{application.assigned_recruiter_name || application.assigned_recruiter_email || '—'}</td>
+                  <td>{application.overall_rating ? `${application.overall_rating}/5` : '—'}</td>
                   <td><RecruitingStatusBadge status={application.status} /></td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{application.interview_at ? new Date(application.interview_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{application.submitted_at ? new Date(application.submitted_at).toLocaleDateString('en-GB') : '—'}</td>

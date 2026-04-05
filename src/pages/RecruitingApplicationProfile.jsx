@@ -16,6 +16,18 @@ function toDateTimeInputValue(value) {
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
 }
 
+const SCORECARD_FIELDS = [
+  ['communication', 'Communication'],
+  ['experience', 'Relevant experience'],
+  ['culture', 'Culture fit'],
+  ['sales', 'Commercial fit'],
+]
+
+function renderStars(value) {
+  const safe = Math.max(0, Math.min(5, Number(value || 0)))
+  return '★'.repeat(safe) + '☆'.repeat(5 - safe)
+}
+
 export default function RecruitingApplicationProfile() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -38,6 +50,15 @@ export default function RecruitingApplicationProfile() {
   const [sendInterviewInvite, setSendInterviewInvite] = useState(true)
   const [interviewBusy, setInterviewBusy] = useState(false)
   const [interviewFeedback, setInterviewFeedback] = useState('')
+  const [overallRating, setOverallRating] = useState(0)
+  const [scorecardRatings, setScorecardRatings] = useState({})
+  const [strengthsDraft, setStrengthsDraft] = useState('')
+  const [risksDraft, setRisksDraft] = useState('')
+  const [recommendation, setRecommendation] = useState('hold')
+  const [tagInput, setTagInput] = useState('')
+  const [scoreTags, setScoreTags] = useState([])
+  const [scorecardBusy, setScorecardBusy] = useState(false)
+  const [scorecardFeedback, setScorecardFeedback] = useState('')
   const [manualEmailSubject, setManualEmailSubject] = useState('')
   const [manualEmailBody, setManualEmailBody] = useState('')
   const [manualEmailBusy, setManualEmailBusy] = useState(false)
@@ -74,6 +95,14 @@ DH Website Services HR`)
     setInterviewNotesDraft(application.interview_notes || '')
     setAssignmentFeedback('')
     setInterviewFeedback('')
+    setOverallRating(application.overall_rating || 0)
+    setScorecardRatings(application.scorecard_ratings || {})
+    setStrengthsDraft(application.strengths || '')
+    setRisksDraft(application.risks || '')
+    setRecommendation(application.recommendation || 'hold')
+    setScoreTags(application.tags || [])
+    setTagInput('')
+    setScorecardFeedback('')
   }, [application?.id, application?.assigned_recruiter_email, application?.interview_at, application?.interview_mode, application?.interview_location, application?.interview_notes])
 
   const changeStatus = async (nextStatus) => {
@@ -173,6 +202,45 @@ DH Website Services HR`)
     }
   }
 
+  const saveScorecard = async () => {
+    if (!application) return
+    setScorecardBusy(true)
+    setScorecardFeedback('')
+    try {
+      const meta = await saveApplicationProfileMeta(application.id, {
+        overall_rating: overallRating,
+        scorecard_ratings: scorecardRatings,
+        strengths: strengthsDraft,
+        risks: risksDraft,
+        recommendation,
+        tags: scoreTags,
+      })
+      setApplication((current) => current ? { ...current, ...meta } : current)
+      const note = await addApplicationNote(
+        id,
+        `Scorecard updated · ${overallRating}/5 overall · ${recommendation}${scoreTags.length ? ` · Tags: ${scoreTags.join(', ')}` : ''}`,
+        user
+      )
+      setNotes((current) => [note, ...current])
+      setScorecardFeedback('Scorecard saved.')
+    } catch (error) {
+      setScorecardFeedback(error.message || 'Could not save scorecard.')
+    } finally {
+      setScorecardBusy(false)
+    }
+  }
+
+  const addTag = () => {
+    const clean = tagInput.trim()
+    if (!clean) return
+    setScoreTags((current) => current.includes(clean) ? current : [...current, clean])
+    setTagInput('')
+  }
+
+  const removeTag = (tag) => {
+    setScoreTags((current) => current.filter((item) => item !== tag))
+  }
+
   const sendManualEmail = async () => {
     if (!application?.email || !manualEmailSubject.trim() || !manualEmailBody.trim()) {
       setManualEmailFeedback('Please complete the subject and message before sending.')
@@ -246,6 +314,8 @@ DH Website Services HR`)
               <div><label className="lbl">Commission acknowledgement</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.commission_acknowledged ? 'Confirmed' : 'Missing'}</div></div>
               <div><label className="lbl">Assigned recruiter</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.assigned_recruiter_name || application.assigned_recruiter_email || 'Unassigned'}</div></div>
               <div><label className="lbl">Interview</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.interview_at ? new Date(application.interview_at).toLocaleString('en-GB') : 'Not scheduled'}</div></div>
+              <div><label className="lbl">Overall rating</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.overall_rating ? `${renderStars(application.overall_rating)} (${application.overall_rating}/5)` : 'Not scored'}</div></div>
+              <div><label className="lbl">Recommendation</label><div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.recommendation || 'Not set'}</div></div>
             </div>
             <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
               <div>
@@ -286,6 +356,74 @@ DH Website Services HR`)
                   <div style={{ fontSize: 11.5, color: 'var(--faint)', marginTop: 8 }}>{note.created_by_name || note.created_by_email || 'Unknown'} · {note.created_at ? new Date(note.created_at).toLocaleString('en-GB') : '—'}</div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>Scorecard</div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label className="lbl">Overall rating</label>
+                <select className="inp" value={overallRating} onChange={(e) => setOverallRating(Number(e.target.value))}>
+                  {[0, 1, 2, 3, 4, 5].map((value) => (
+                    <option key={value} value={value}>{value === 0 ? 'Not scored' : `${value}/5`}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                {SCORECARD_FIELDS.map(([key, label]) => (
+                  <div key={key}>
+                    <label className="lbl">{label}</label>
+                    <select className="inp" value={scorecardRatings[key] || 0} onChange={(e) => setScorecardRatings((current) => ({ ...current, [key]: Number(e.target.value) }))}>
+                      {[0, 1, 2, 3, 4, 5].map((value) => (
+                        <option key={value} value={value}>{value === 0 ? 'Not scored' : `${value}/5`}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="lbl">Recommendation</label>
+                <select className="inp" value={recommendation} onChange={(e) => setRecommendation(e.target.value)}>
+                  <option value="strong_yes">Strong yes</option>
+                  <option value="yes">Yes</option>
+                  <option value="hold">Hold</option>
+                  <option value="concern">Concern</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div>
+                <label className="lbl">Strengths</label>
+                <textarea className="inp" rows={4} value={strengthsDraft} onChange={(e) => setStrengthsDraft(e.target.value)} style={{ resize: 'vertical' }} placeholder="What stands out positively about this candidate?" />
+              </div>
+              <div>
+                <label className="lbl">Risks / concerns</label>
+                <textarea className="inp" rows={4} value={risksDraft} onChange={(e) => setRisksDraft(e.target.value)} style={{ resize: 'vertical' }} placeholder="What needs caution, checking, or follow-up?" />
+              </div>
+              <div>
+                <label className="lbl">Tags</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="inp" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add tag and save it" onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addTag()
+                    }
+                  }} />
+                  <button className="btn btn-outline" onClick={addTag}>Add</button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  {scoreTags.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No tags yet.</div> : null}
+                  {scoreTags.map((tag) => (
+                    <button key={tag} className="btn btn-outline btn-sm" onClick={() => removeTag(tag)}>{tag} ×</button>
+                  ))}
+                </div>
+              </div>
+              {scorecardFeedback ? (
+                <div style={{ fontSize: 12.5, color: scorecardFeedback.includes('saved') ? '#1E8E5A' : '#C23B22' }}>{scorecardFeedback}</div>
+              ) : null}
+              <button className="btn btn-primary" disabled={scorecardBusy} onClick={saveScorecard}>
+                {scorecardBusy ? 'Saving...' : 'Save scorecard'}
+              </button>
             </div>
           </div>
         </div>

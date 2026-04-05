@@ -144,6 +144,20 @@ function hasHiringAccess(permissions = {}) {
 }
 
 export function normalizeApplicationProfileMeta(raw = {}) {
+  const overallRating = Number(raw.overall_rating || 0)
+  const scorecardRatingsRaw = raw.scorecard_ratings && typeof raw.scorecard_ratings === 'object' && !Array.isArray(raw.scorecard_ratings)
+    ? raw.scorecard_ratings
+    : {}
+  const scorecardRatings = Object.fromEntries(
+    Object.entries(scorecardRatingsRaw).map(([key, value]) => {
+      const numeric = Number(value || 0)
+      return [key, Number.isFinite(numeric) ? Math.max(0, Math.min(5, numeric)) : 0]
+    })
+  )
+  const tags = Array.isArray(raw.tags)
+    ? [...new Set(raw.tags.map((item) => String(item || '').trim()).filter(Boolean))]
+    : []
+
   return {
     assigned_recruiter_email: String(raw.assigned_recruiter_email || '').trim().toLowerCase(),
     assigned_recruiter_name: String(raw.assigned_recruiter_name || '').trim(),
@@ -154,6 +168,12 @@ export function normalizeApplicationProfileMeta(raw = {}) {
     interview_contact_email: String(raw.interview_contact_email || '').trim().toLowerCase(),
     interview_contact_name: String(raw.interview_contact_name || '').trim(),
     interview_last_emailed_at: raw.interview_last_emailed_at || null,
+    overall_rating: Number.isFinite(overallRating) ? Math.max(0, Math.min(5, overallRating)) : 0,
+    scorecard_ratings: scorecardRatings,
+    strengths: String(raw.strengths || '').trim(),
+    risks: String(raw.risks || '').trim(),
+    recommendation: String(raw.recommendation || '').trim(),
+    tags,
   }
 }
 
