@@ -4,6 +4,7 @@ import ApplicantCvViewer from '../components/ApplicantCvViewer'
 import ApplicantTimeline from '../components/ApplicantTimeline'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
 import { addApplicationNote, getApplication, listApplicationHistory, listApplicationNotes, updateApplicationStatus } from '../utils/recruiting'
+import { sendEmail } from '../utils/email'
 import { sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -18,6 +19,10 @@ export default function RecruitingApplicationProfile() {
   const [statusBusy, setStatusBusy] = useState('')
   const [emailNote, setEmailNote] = useState('')
   const [noteDraft, setNoteDraft] = useState('')
+  const [manualEmailSubject, setManualEmailSubject] = useState('')
+  const [manualEmailBody, setManualEmailBody] = useState('')
+  const [manualEmailBusy, setManualEmailBusy] = useState(false)
+  const [manualEmailFeedback, setManualEmailFeedback] = useState('')
 
   useEffect(() => {
     Promise.all([getApplication(id), listApplicationHistory(id), listApplicationNotes(id)])
@@ -28,6 +33,21 @@ export default function RecruitingApplicationProfile() {
       })
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!application) return
+    const firstName = (application.first_name || application.full_name || application.email || 'there').split(' ')[0]
+    setManualEmailSubject(`Regarding your application for ${application.job_posts?.title || 'DH Website Services'}`)
+    setManualEmailBody(`Hi ${firstName},
+
+Thank you for your application for ${application.job_posts?.title || 'the role'}.
+
+We wanted to get in touch regarding your application.
+
+Kind regards,
+DH Website Services HR`)
+    setManualEmailFeedback('')
+  }, [application?.id])
 
   const changeStatus = async (nextStatus) => {
     if (!application) return
@@ -50,6 +70,50 @@ export default function RecruitingApplicationProfile() {
     const saved = await addApplicationNote(id, noteDraft, user)
     setNotes((current) => [saved, ...current])
     setNoteDraft('')
+  }
+
+  const sendManualEmail = async () => {
+    if (!application?.email || !manualEmailSubject.trim() || !manualEmailBody.trim()) {
+      setManualEmailFeedback('Please complete the subject and message before sending.')
+      return
+    }
+
+    setManualEmailBusy(true)
+    setManualEmailFeedback('')
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:620px;padding:32px;background:#ffffff;color:#1D1D1F">
+        ${manualEmailBody
+          .trim()
+          .split('\n')
+          .map((line) => `<p style="font-size:14px;line-height:1.7;margin:0 0 14px;color:#424245">${line || '&nbsp;'}</p>`)
+          .join('')}
+      </div>
+    `
+
+    try {
+      const result = await sendEmail('custom_email', {
+        to: application.email,
+        subject: manualEmailSubject.trim(),
+        html,
+        from: 'DH Website Services HR <HR@dhwebsiteservices.co.uk>',
+      })
+
+      if (!result?.ok) {
+        throw new Error(result?.error || 'Unable to send email')
+      }
+
+      const sentNote = await addApplicationNote(
+        id,
+        `Manual applicant email sent\nSubject: ${manualEmailSubject.trim()}\nTo: ${application.email}`,
+        user
+      )
+      setNotes((current) => [sentNote, ...current])
+      setManualEmailFeedback('Email sent successfully.')
+    } catch (error) {
+      setManualEmailFeedback(error.message || 'Failed to send email.')
+    } finally {
+      setManualEmailBusy(false)
+    }
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
@@ -138,6 +202,36 @@ export default function RecruitingApplicationProfile() {
                   {statusBusy === status ? 'Updating...' : `Mark ${status}`}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Email applicant</div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label className="lbl">To</label>
+                <div className="inp" style={{ display: 'flex', alignItems: 'center' }}>{application.email || '—'}</div>
+              </div>
+              <div>
+                <label className="lbl">From</label>
+                <div className="inp" style={{ display: 'flex', alignItems: 'center' }}>HR@dhwebsiteservices.co.uk</div>
+              </div>
+              <div>
+                <label className="lbl">Subject</label>
+                <input className="inp" value={manualEmailSubject} onChange={(e) => setManualEmailSubject(e.target.value)} placeholder="Email subject" />
+              </div>
+              <div>
+                <label className="lbl">Message</label>
+                <textarea className="inp" rows={8} value={manualEmailBody} onChange={(e) => setManualEmailBody(e.target.value)} style={{ resize: 'vertical' }} placeholder="Write your email to the applicant..." />
+              </div>
+              {manualEmailFeedback ? (
+                <div style={{ fontSize: 12.5, color: manualEmailFeedback.includes('successfully') ? '#1E8E5A' : '#C23B22' }}>
+                  {manualEmailFeedback}
+                </div>
+              ) : null}
+              <button className="btn btn-primary" disabled={manualEmailBusy} onClick={sendManualEmail}>
+                {manualEmailBusy ? 'Sending...' : 'Send email'}
+              </button>
             </div>
           </div>
 
