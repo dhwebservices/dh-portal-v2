@@ -36,6 +36,8 @@ export default function RecruitingDashboard() {
 
   const stats = useMemo(() => ({
     openJobs: jobs.filter((job) => job.status === 'published').length,
+    pendingApprovals: jobs.filter((job) => job.requisition_status === 'pending_approval').length,
+    approvedRequisitions: jobs.filter((job) => job.requisition_status === 'approved').length,
     newApplicants: applications.filter((item) => item.status === 'new').length,
     shortlisted: applications.filter((item) => item.status === 'shortlisted').length,
     hired: applications.filter((item) => item.status === 'hired').length,
@@ -44,7 +46,14 @@ export default function RecruitingDashboard() {
   }), [jobs, applications])
 
   const recentApplications = applications.slice(0, 8)
-  const staleJobs = jobs.filter((job) => job.status === 'draft' || job.status === 'archived').slice(0, 6)
+  const staleJobs = jobs
+    .filter((job) => job.requisition_status === 'pending_approval' || job.status === 'draft' || job.status === 'archived')
+    .sort((a, b) => {
+      if (a.requisition_status === 'pending_approval' && b.requisition_status !== 'pending_approval') return -1
+      if (a.requisition_status !== 'pending_approval' && b.requisition_status === 'pending_approval') return 1
+      return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+    })
+    .slice(0, 6)
   const upcomingInterviews = applications
     .filter((item) => item.interview_at && new Date(item.interview_at) >= new Date())
     .sort((a, b) => new Date(a.interview_at) - new Date(b.interview_at))
@@ -69,8 +78,10 @@ export default function RecruitingDashboard() {
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
         <StatCard icon={BriefcaseBusiness} label="Open roles" value={stats.openJobs} hint={`${jobs.length} total roles`} />
+        <StatCard icon={Clock3} label="Pending approvals" value={stats.pendingApprovals} hint="Requisitions waiting for director sign-off" tone="var(--red)" />
+        <StatCard icon={BriefcaseBusiness} label="Approved reqs" value={stats.approvedRequisitions} hint="Roles cleared to go live" tone="var(--green)" />
         <StatCard icon={Users} label="New applicants" value={stats.newApplicants} hint="Fresh applications waiting for first review" tone="var(--amber)" />
         <StatCard icon={Clock3} label="Shortlisted" value={stats.shortlisted} hint="Candidates in the active pipeline" tone="var(--accent)" />
         <StatCard icon={Clock3} label="Upcoming interviews" value={stats.upcomingInterviews} hint="Scheduled candidate interviews" tone="var(--blue)" />
@@ -112,7 +123,7 @@ export default function RecruitingDashboard() {
               {staleJobs.map((job) => (
                 <button key={job.id} className="btn btn-outline" style={{ justifyContent: 'space-between' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
                   <span>{job.title}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--sub)' }}>{job.status}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--sub)' }}>{job.requisition_status === 'pending_approval' ? 'pending approval' : job.status}</span>
                 </button>
               ))}
             </div>

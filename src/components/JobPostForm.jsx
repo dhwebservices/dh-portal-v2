@@ -20,6 +20,72 @@ export default function JobPostForm({ value, onChange }) {
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
+      <div className="card card-pad">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Requisition</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>Approval details for opening and funding this role before it goes live.</div>
+          </div>
+          <span className={`badge badge-${value.requisition_status === 'approved' ? 'green' : value.requisition_status === 'pending_approval' ? 'amber' : value.requisition_status === 'rejected' ? 'red' : 'grey'}`}>
+            {(value.requisition_status || 'draft').replace(/_/g, ' ')}
+          </span>
+        </div>
+
+        <div className="fg">
+          <div>
+            <label className="lbl">Headcount requested</label>
+            <input
+              className="inp"
+              type="number"
+              min="1"
+              value={value.headcount_requested || 1}
+              onChange={(e) => update('headcount_requested', Math.max(1, Number(e.target.value || 1)))}
+            />
+          </div>
+          <div>
+            <label className="lbl">Priority</label>
+            <select className="inp" value={value.requisition_priority || 'standard'} onChange={(e) => update('requisition_priority', e.target.value)}>
+              <option value="low">Low</option>
+              <option value="standard">Standard</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label className="lbl">Planned start date</label>
+            <input className="inp" type="date" value={value.planned_start_date || ''} onChange={(e) => update('planned_start_date', e.target.value)} />
+          </div>
+          <div>
+            <label className="lbl">Budget owner</label>
+            <input className="inp" value={value.budget_owner || ''} onChange={(e) => update('budget_owner', e.target.value)} placeholder="Who owns the hiring budget?" />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="lbl">Vacancy reason</label>
+          <textarea
+            className="inp"
+            rows={3}
+            value={value.vacancy_reason || ''}
+            onChange={(e) => update('vacancy_reason', e.target.value)}
+            style={{ resize: 'vertical' }}
+            placeholder="Why is this role needed? New headcount, replacement, growth, delivery pressure, etc."
+          />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="lbl">Approval notes</label>
+          <textarea
+            className="inp"
+            rows={3}
+            value={value.approval_notes || ''}
+            onChange={(e) => update('approval_notes', e.target.value)}
+            style={{ resize: 'vertical' }}
+            placeholder="Any context the approver should see before signing this role off."
+          />
+        </div>
+      </div>
+
       <div className="fg">
         <div><label className="lbl">Title</label><input className="inp" value={value.title || ''} onChange={(e) => update('title', e.target.value)} /></div>
         <div><label className="lbl">Slug</label><input className="inp" value={value.slug || ''} onChange={(e) => update('slug', e.target.value)} placeholder="leave blank to auto-generate" /></div>

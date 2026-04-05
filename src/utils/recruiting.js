@@ -19,6 +19,13 @@ export const RECRUITING_STATUSES = [
   ['withdrawn', 'Withdrawn'],
 ]
 
+export const REQUISITION_STATUSES = [
+  ['draft', 'Draft'],
+  ['pending_approval', 'Pending approval'],
+  ['approved', 'Approved'],
+  ['rejected', 'Rejected'],
+]
+
 export function getRecruitingStatusLabel(status = '') {
   return RECRUITING_STATUSES.find(([key]) => key === status)?.[1] || 'Unknown'
 }
@@ -28,6 +35,17 @@ export function getRecruitingStatusTone(status = '') {
   if (status === 'offered' || status === 'interview') return 'blue'
   if (status === 'shortlisted' || status === 'reviewing') return 'amber'
   if (status === 'rejected' || status === 'withdrawn') return 'red'
+  return 'grey'
+}
+
+export function getRequisitionStatusLabel(status = '') {
+  return REQUISITION_STATUSES.find(([key]) => key === status)?.[1] || 'Unknown'
+}
+
+export function getRequisitionStatusTone(status = '') {
+  if (status === 'approved') return 'green'
+  if (status === 'pending_approval') return 'amber'
+  if (status === 'rejected') return 'red'
   return 'grey'
 }
 
@@ -61,6 +79,7 @@ export function normalizeRecruitingQuestion(raw = {}, index = 0) {
 }
 
 export function normalizeJobPost(row = {}) {
+  const headcountRequested = Number(row.headcount_requested || 1)
   return {
     id: row.id || '',
     slug: row.slug || '',
@@ -89,6 +108,20 @@ export function normalizeJobPost(row = {}) {
     updated_at: row.updated_at || '',
     hiring_manager_name: row.hiring_manager_name || '',
     hiring_manager_email: row.hiring_manager_email || '',
+    requisition_status: row.requisition_status || 'draft',
+    headcount_requested: Number.isFinite(headcountRequested) && headcountRequested > 0 ? headcountRequested : 1,
+    vacancy_reason: row.vacancy_reason || '',
+    requisition_priority: row.requisition_priority || 'standard',
+    planned_start_date: row.planned_start_date || '',
+    budget_owner: row.budget_owner || '',
+    approval_notes: row.approval_notes || '',
+    requested_by_email: row.requested_by_email || '',
+    requested_by_name: row.requested_by_name || '',
+    requested_at: row.requested_at || null,
+    decision_by_email: row.decision_by_email || '',
+    decision_by_name: row.decision_by_name || '',
+    decision_at: row.decision_at || null,
+    decision_notes: row.decision_notes || '',
   }
 }
 
@@ -247,12 +280,27 @@ async function listApplicationProfileMetaMap(applicationIds = []) {
 export function buildJobPostPayload(job = {}, actor = '') {
   const now = new Date().toISOString()
   const status = job.status || 'draft'
+  const requestedCount = Number(job.headcount_requested || 1)
   return {
     slug: slugifyJobTitle(job.slug || job.title),
     title: String(job.title || '').trim(),
     department: String(job.department || '').trim(),
     hiring_manager_name: String(job.hiring_manager_name || '').trim(),
     hiring_manager_email: String(job.hiring_manager_email || '').trim().toLowerCase(),
+    requisition_status: job.requisition_status || (status === 'published' ? 'approved' : 'draft'),
+    headcount_requested: Number.isFinite(requestedCount) && requestedCount > 0 ? requestedCount : 1,
+    vacancy_reason: String(job.vacancy_reason || '').trim(),
+    requisition_priority: String(job.requisition_priority || 'standard').trim(),
+    planned_start_date: job.planned_start_date || null,
+    budget_owner: String(job.budget_owner || '').trim(),
+    approval_notes: String(job.approval_notes || '').trim(),
+    requested_by_email: String(job.requested_by_email || '').trim().toLowerCase(),
+    requested_by_name: String(job.requested_by_name || '').trim(),
+    requested_at: job.requested_at || null,
+    decision_by_email: String(job.decision_by_email || '').trim().toLowerCase(),
+    decision_by_name: String(job.decision_by_name || '').trim(),
+    decision_at: job.decision_at || null,
+    decision_notes: String(job.decision_notes || '').trim(),
     location_type: job.location_type || 'remote',
     location_text: String(job.location_text || '').trim(),
     employment_type: job.employment_type || 'full_time',
@@ -272,6 +320,20 @@ export function buildJobPostPayload(job = {}, actor = '') {
     closing_at: job.closing_at || null,
     updated_by: actor,
     updated_at: now,
+  }
+}
+
+export function buildRequisitionPatch(nextStatus = '', actor = {}, notes = '') {
+  const now = new Date().toISOString()
+  return {
+    requisition_status: nextStatus || 'draft',
+    requested_by_email: nextStatus === 'pending_approval' ? String(actor.email || '').trim().toLowerCase() : undefined,
+    requested_by_name: nextStatus === 'pending_approval' ? String(actor.name || actor.email || '').trim() : undefined,
+    requested_at: nextStatus === 'pending_approval' ? now : undefined,
+    decision_by_email: ['approved', 'rejected'].includes(nextStatus) ? String(actor.email || '').trim().toLowerCase() : undefined,
+    decision_by_name: ['approved', 'rejected'].includes(nextStatus) ? String(actor.name || actor.email || '').trim() : undefined,
+    decision_at: ['approved', 'rejected'].includes(nextStatus) ? now : undefined,
+    decision_notes: ['approved', 'rejected'].includes(nextStatus) ? String(notes || '').trim() : undefined,
   }
 }
 
