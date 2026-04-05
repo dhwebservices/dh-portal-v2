@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
+import ProfileTimeline from '../components/ProfileTimeline'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
@@ -86,6 +87,7 @@ import {
   renderContractHtml,
 } from '../utils/contracts'
 import { sendEmail } from '../utils/email'
+import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
 
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
@@ -147,17 +149,6 @@ function detectPreset(perms) {
   return Object.entries(ROLE_DEFAULTS).find(([, preset]) =>
     ALL_PAGES.every((page) => !!perms?.[page.key] === !!preset[page.key])
   )?.[0] || 'Custom'
-}
-
-function formatTimelineDate(value) {
-  if (!value) return 'Unknown time'
-  return new Date(value).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 function mergeManagedDepartmentScope(orgRecord = {}, departmentCatalog = [], email = '') {
@@ -1757,38 +1748,6 @@ export default function StaffProfile() {
   const dueGoals = openGoals.filter((goal) => goal.due_date && new Date(`${goal.due_date}T23:59:59`).getTime() <= Date.now())
   const openTraining = trainingRecords.filter((record) => record.status !== 'completed')
   const dueTraining = openTraining.filter((record) => record.due_date && new Date(`${record.due_date}T23:59:59`).getTime() <= Date.now())
-  const reviewHistory = [
-    ...reviews.map((review) => ({
-      id: `review-${review.id}`,
-      date: review.completed_at || review.meeting_date || review.due_date || review.updated_at || review.created_at,
-      title: getReviewTypeLabel(review.review_type),
-      subtitle: review.outcome
-        ? `Outcome: ${review.outcome}${review.manager_notes ? ` · ${review.manager_notes}` : ''}`
-        : `${review.status === 'meeting_booked' ? `Meeting ${review.meeting_date}${review.meeting_method ? ` via ${review.meeting_method}` : ''}` : review.status}`,
-      tone: review.outcome === 'fail' ? 'red' : review.outcome === 'pass' ? 'green' : review.status === 'meeting_booked' ? 'blue' : 'amber',
-    })),
-    ...checkIns.map((checkIn) => ({
-      id: `checkin-${checkIn.id}`,
-      date: checkIn.check_in_date || checkIn.updated_at || checkIn.created_at,
-      title: 'Manager check-in',
-      subtitle: checkIn.notes || getCheckInStatusLabel(checkIn.status),
-      tone: checkIn.status === 'completed' ? 'green' : 'blue',
-    })),
-    ...goals.map((goal) => ({
-      id: `goal-${goal.id}`,
-      date: goal.completed_at || goal.due_date || goal.updated_at || goal.created_at,
-      title: goal.title,
-      subtitle: `${Math.round(goal.progress || 0)}% · ${getGoalStatusLabel(goal.status)}`,
-      tone: goal.status === 'completed' ? 'green' : goal.status === 'at_risk' ? 'red' : 'amber',
-    })),
-    ...trainingRecords.map((record) => ({
-      id: `training-${record.id}`,
-      date: record.completed_at || record.due_date || record.updated_at || record.created_at,
-      title: record.title,
-      subtitle: `${getTrainingCategoryLabel(record.category)} · ${getTrainingStatusLabel(record.status)}${record.expires_at ? ` · expires ${record.expires_at}` : ''}`,
-      tone: record.status === 'completed' ? 'green' : record.mandatory ? 'red' : 'blue',
-    })),
-  ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
   const rtwRecord = resolveRightToWorkRecord(profile, docs, complianceRecord)
   const rtwRemaining = rtwRecord.expiry ? Math.ceil((new Date(rtwRecord.expiry).getTime() - Date.now()) / 86400000) : null
   const rtwStatus = !rtwRecord.hasDocument && !rtwRecord.rtw_override
@@ -1803,28 +1762,53 @@ export default function StaffProfile() {
   const contractStatus = contractDoc
     ? { label: 'On file', tone: 'green', hint: contractDoc.name }
     : { label: 'Missing', tone: 'amber', hint: 'No contract document uploaded yet.' }
-  const documentTimeline = [
-    ...docs.map((doc) => ({
-      id: `doc-${doc.id}`,
-      date: doc.created_at,
-      title: doc.name,
-      subtitle: `${doc.type || 'Document'} · uploaded by ${doc.uploaded_by || 'Unknown'}`,
-      tone: String(doc.type || '').toLowerCase().includes('contract') ? 'green' : 'blue',
-      action: doc.file_url,
-      actionLabel: 'Open file',
-    })),
-    ...(rtwRecord.documentUrl ? [{
-      id: 'rtw-record',
-      date: profile.updated_at || profile.created_at || null,
-      title: rtwRecord.rtw_override ? 'Right-to-work marked compliant' : 'Right-to-work document linked',
-      subtitle: rtwRecord.expiry ? `Expiry: ${new Date(rtwRecord.expiry).toLocaleDateString('en-GB')}` : 'No expiry date recorded',
+  const staffTimeline = buildStaff360Timeline({
+    profile,
+    lifecycle: lifecycleRecord,
+    rtwRecord,
+    rtwStatus,
+    docs,
+    contracts,
+    reviews,
+    checkIns,
+    goals,
+    trainingRecords,
+  })
+  const peopleOpsTimeline = staffTimeline.filter((item) => ['performance', 'training'].includes(item.category))
+  const documentTimeline = staffTimeline.filter((item) => item.category === 'documents')
+  const profileCompleteness = buildStaffProfileCompleteness(profile, {
+    managerAssigned: !!String(profile.manager_email || '').trim(),
+    hasContractDocument: !!contractDoc,
+    hasAnyDocument: docs.length > 0,
+    hasTraining: trainingRecords.length > 0,
+  })
+  const staff360Signals = [
+    {
+      label: 'Profile completeness',
+      value: `${profileCompleteness.percent}%`,
+      hint: `${profileCompleteness.completed}/${profileCompleteness.total} key profile checks complete`,
+      tone: profileCompleteness.percent >= 85 ? 'green' : profileCompleteness.percent >= 60 ? 'amber' : 'red',
+    },
+    {
+      label: 'Compliance status',
+      value: rtwStatus.label,
+      hint: rtwStatus.hint,
       tone: rtwStatus.tone,
-      action: rtwRecord.documentUrl,
-      actionLabel: 'Open RTW file',
-    }] : []),
+    },
+    {
+      label: 'Contract coverage',
+      value: contractStatus.label,
+      hint: pendingSignatureContracts.length ? `${pendingSignatureContracts.length} awaiting signature` : contractStatus.hint,
+      tone: pendingSignatureContracts.length ? 'amber' : contractStatus.tone,
+    },
+    {
+      label: 'People ops pressure',
+      value: `${openReviews.length + dueTraining.length + dueGoals.length}`,
+      hint: `${overdueReviews.length} overdue reviews · ${dueTraining.length} training due · ${dueGoals.length} goals due`,
+      tone: overdueReviews.length || dueTraining.length ? 'red' : openReviews.length || dueGoals.length ? 'amber' : 'green',
+    },
   ]
-    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
-    .slice(0, 10)
+  const missingProfileItems = profileCompleteness.missing.slice(0, 4)
 
   const scopedAccessAllowed = isDirector || canViewScopedStaff(profile, orgRecord)
 
@@ -1992,97 +1976,158 @@ export default function StaffProfile() {
       <div style={{ maxWidth:tab === 'profile' ? 'none' : 760, width:'100%' }} className="staff-profile-content">
         {tab === 'profile' && (
           <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
-            <div className="card card-pad staff-profile-form-card">
-              <div className="fg">
-                <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
-                <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
-                <div>
-                  <label className="lbl">Department</label>
-                  <select className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}>
-                    <option value="">— No department assigned —</option>
-                    {departmentCatalog.map((department) => (
-                      <option key={department.id} value={department.name}>{department.name}</option>
-                    ))}
-                    {profile.department && !departmentCatalog.some((department) => department.name === profile.department) ? (
-                      <option value={profile.department}>{profile.department}</option>
-                    ) : null}
-                  </select>
-                </div>
-                <div>
-                  <label className="lbl">Access Role</label>
-                  <select
-                    className="inp"
-                    value={orgRecord.role_scope}
-                    onChange={e => setOrgRecord((current) => mergeOrgRecord({
-                      ...current,
-                      role_scope: e.target.value,
-                      department: profile.department,
-                      managed_departments: e.target.value === 'department_manager'
-                        ? mergeManagedDepartmentScope({
-                            ...current,
-                            role_scope: 'department_manager',
-                            department: profile.department,
-                          }, departmentCatalog, email)
-                        : [],
-                    }, { email, department: profile.department }))}
-                    disabled={!isDirector && isDepartmentManager}
-                  >
-                    {ORG_ROLE_SCOPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                  </select>
-                  {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
-                </div>
-                {orgRecord.role_scope === 'department_manager' ? (
-                  <div className="fc">
-                    <label className="lbl">Managed Departments</label>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:8 }}>
-                      {departmentCatalog.filter((department) => department.active !== false).map((department) => {
-                        const enabled = (orgRecord.managed_departments || []).includes(department.name)
-                        return (
-                          <label key={department.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 12px', borderRadius:10, border:'1px solid var(--border)', background: enabled ? 'var(--accent-soft)' : 'var(--card)', cursor:'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={enabled}
-                              onChange={() => setOrgRecord((current) => {
-                                const nextManaged = new Set(current.managed_departments || [])
-                                if (nextManaged.has(department.name)) nextManaged.delete(department.name)
-                                else nextManaged.add(department.name)
-                                return mergeOrgRecord({
-                                  ...current,
-                                  managed_departments: [...nextManaged],
-                                }, { email, department: profile.department })
-                              })}
-                            />
-                            <div style={{ minWidth:0 }}>
-                              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{department.name}</div>
-                              <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>
-                                {department.manager_email && department.manager_email !== email ? `Catalogue manager: ${department.manager_name || department.manager_email}` : 'Department manager scope'}
-                              </div>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                    <div style={{ fontSize:11, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>
-                      Department Managers can manage more than one department. This list now syncs with the live department catalogue and can include multiple departments.
+            <div style={{ display:'grid', gap:18 }}>
+              <div className="card card-pad" style={{ background:'color-mix(in srgb, var(--card) 82%, var(--accent-soft) 18%)', border:'1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Staff 360</div>
+                    <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:4 }}>Employee record snapshot</div>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
+                      A joined-up view of profile completeness, compliance, contracts, and current people-ops pressure.
                     </div>
                   </div>
-                ) : null}
-                <div>
-                  <label className="lbl">Manager</label>
-                  <select className="inp" value={profile.manager_email || ''} onChange={e => {
-                    const u = msUsers.find(u => u.email === e.target.value)
-                    pf('manager_email', e.target.value)
-                    pf('manager_name', u?.name || '')
-                  }}>
-                    <option value="">— No manager assigned —</option>
-                    {msUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
-                  </select>
-                  {profile.manager_email && <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>{profile.manager_email}</div>}
+                  <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
                 </div>
-                <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
-                <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
-                <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={profile.address || ''} onChange={e=>pf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:10, marginTop:16 }}>
+                  {staff360Signals.map((item) => (
+                    <div key={item.label} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                      <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{item.label}</div>
+                      <div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>{item.value}</div>
+                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>{item.hint}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(240px,0.9fr)', gap:14, marginTop:16 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Latest record movement</div>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {staffTimeline.slice(0, 3).map((item) => (
+                        <div key={item.id} style={{ paddingBottom:10, borderBottom:'1px solid var(--border)' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
+                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4, lineHeight:1.5 }}>{item.subtitle}</div>
+                          <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{formatProfileTimelineDate(item.date)}</div>
+                        </div>
+                      ))}
+                      {staffTimeline.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No staff profile timeline activity yet.</div> : null}
+                    </div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Missing profile items</div>
+                    <div style={{ display:'grid', gap:8 }}>
+                      {missingProfileItems.map((item) => (
+                        <div key={item.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, fontSize:12.5 }}>
+                          <span style={{ color:'var(--sub)' }}>{item.label}</span>
+                          <span className="badge badge-amber">missing</span>
+                        </div>
+                      ))}
+                      {!missingProfileItems.length ? <div style={{ fontSize:12.5, color:'var(--green)' }}>Key profile data is in good shape.</div> : null}
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              <div className="card card-pad staff-profile-form-card">
+                  <div className="fg">
+                    <div><label className="lbl">Full Name</label><input className="inp" value={profile.full_name || ''} onChange={e=>pf('full_name',e.target.value)}/></div>
+                    <div><label className="lbl">Role / Job Title</label><input className="inp" value={profile.role || ''} onChange={e=>pf('role',e.target.value)}/></div>
+                    <div>
+                      <label className="lbl">Department</label>
+                      <select className="inp" value={profile.department || ''} onChange={e=>pf('department',e.target.value)}>
+                        <option value="">— No department assigned —</option>
+                        {departmentCatalog.map((department) => (
+                          <option key={department.id} value={department.name}>{department.name}</option>
+                        ))}
+                        {profile.department && !departmentCatalog.some((department) => department.name === profile.department) ? (
+                          <option value={profile.department}>{profile.department}</option>
+                        ) : null}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="lbl">Access Role</label>
+                      <select
+                        className="inp"
+                        value={orgRecord.role_scope}
+                        onChange={e => setOrgRecord((current) => mergeOrgRecord({
+                          ...current,
+                          role_scope: e.target.value,
+                          department: profile.department,
+                          managed_departments: e.target.value === 'department_manager'
+                            ? mergeManagedDepartmentScope({
+                                ...current,
+                                role_scope: 'department_manager',
+                                department: profile.department,
+                              }, departmentCatalog, email)
+                            : [],
+                        }, { email, department: profile.department }))}
+                        disabled={!isDirector && isDepartmentManager}
+                      >
+                        {ORG_ROLE_SCOPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                      {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
+                    </div>
+                    {orgRecord.role_scope === 'department_manager' ? (
+                      <div className="fc">
+                        <label className="lbl">Managed Departments</label>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:8 }}>
+                          {departmentCatalog.filter((department) => department.active !== false).map((department) => {
+                            const enabled = (orgRecord.managed_departments || []).includes(department.name)
+                            return (
+                              <label key={department.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 12px', borderRadius:10, border:'1px solid var(--border)', background: enabled ? 'var(--accent-soft)' : 'var(--card)', cursor:'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  onChange={() => setOrgRecord((current) => {
+                                    const nextManaged = new Set(current.managed_departments || [])
+                                    if (nextManaged.has(department.name)) nextManaged.delete(department.name)
+                                    else nextManaged.add(department.name)
+                                    return mergeOrgRecord({
+                                      ...current,
+                                      managed_departments: [...nextManaged],
+                                    }, { email, department: profile.department })
+                                  })}
+                                />
+                                <div style={{ minWidth:0 }}>
+                                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{department.name}</div>
+                                  <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>
+                                    {department.manager_email && department.manager_email !== email ? `Catalogue manager: ${department.manager_name || department.manager_email}` : 'Department manager scope'}
+                                  </div>
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
+                        <div style={{ fontSize:11, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>
+                          Department Managers can manage more than one department. This list now syncs with the live department catalogue and can include multiple departments.
+                        </div>
+                      </div>
+                    ) : null}
+                    <div>
+                      <label className="lbl">Manager</label>
+                      <select className="inp" value={profile.manager_email || ''} onChange={e => {
+                        const u = msUsers.find(u => u.email === e.target.value)
+                        pf('manager_email', e.target.value)
+                        pf('manager_name', u?.name || '')
+                      }}>
+                        <option value="">— No manager assigned —</option>
+                        {msUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+                      </select>
+                      {profile.manager_email && <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:4 }}>{profile.manager_email}</div>}
+                    </div>
+                    <div><label className="lbl">Phone</label><input className="inp" value={profile.phone || ''} onChange={e=>pf('phone',e.target.value)}/></div>
+                    <div><label className="lbl">Personal Email</label><input className="inp" value={profile.personal_email || ''} onChange={e=>pf('personal_email',e.target.value)}/></div>
+                    <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={profile.address || ''} onChange={e=>pf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
+                  </div>
+              </div>
+
+              <ProfileTimeline
+                title="Staff history"
+                subtitle="Cross-profile timeline"
+                items={staffTimeline}
+                emptyMessage="No staff record history has been captured yet."
+                limit={10}
+              />
             </div>
 
             <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
@@ -2540,22 +2585,13 @@ export default function StaffProfile() {
                   </div>
                 </div>
 
-                <div className="card card-pad">
-                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Review history</div>
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>Recent people ops timeline</div>
-                  <div style={{ display:'grid', gap:10, marginTop:14 }}>
-                    {reviewHistory.slice(0, 8).map((item) => (
-                      <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
-                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
-                          <span className={`badge badge-${item.tone}`}>{item.date ? formatTimelineDate(item.date) : 'No date'}</span>
-                        </div>
-                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.subtitle}</div>
-                      </div>
-                    ))}
-                    {reviewHistory.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No people-ops history has been recorded yet.</div> : null}
-                  </div>
-                </div>
+                <ProfileTimeline
+                  title="Review history"
+                  subtitle="Recent people ops timeline"
+                  items={peopleOpsTimeline}
+                  emptyMessage="No people-ops history has been recorded yet."
+                  limit={8}
+                />
               </div>
             </div>
           </div>
@@ -3760,25 +3796,12 @@ export default function StaffProfile() {
             )}
             <div style={{ borderTop:'1px solid var(--border)', padding:'14px 20px' }}>
               <div style={{ fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Timeline</div>
-              {documentTimeline.length ? (
-                <div style={{ display:'grid', gap:10 }}>
-                  {documentTimeline.map((item) => (
-                    <div key={item.id} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-                      <div style={{ minWidth:0, flex:1 }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                          <span className={`badge badge-${item.tone}`}>{item.tone === 'green' ? 'Compliant' : item.tone === 'amber' ? 'Review' : item.tone === 'red' ? 'Risk' : 'File'}</span>
-                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
-                        </div>
-                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:5 }}>{item.subtitle}</div>
-                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:6 }}>{formatTimelineDate(item.date)}</div>
-                      </div>
-                      {item.action ? <a href={item.action} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">{item.actionLabel || 'Open'}</a> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ fontSize:12.5, color:'var(--sub)' }}>No document timeline entries yet for this staff member.</div>
-              )}
+              <ProfileTimeline
+                title="Timeline"
+                items={documentTimeline}
+                emptyMessage="No document timeline entries yet for this staff member."
+                limit={10}
+              />
             </div>
           </div>
         )}
