@@ -28,6 +28,33 @@ const TITLES = {
   '/notifications':'Notifications',
 }
 
+const PAGE_NOTES = {
+  '/dashboard': { section: 'Home', note: 'Overview, priorities, and live portal activity' },
+  '/my-profile': { section: 'Account', note: 'Personal details, preferences, and portal setup' },
+  '/search': { section: 'Home', note: 'Search pages, staff, and client records' },
+  '/my-department': { section: 'Home', note: 'Department operations, staffing, and requests' },
+  '/my-team': { section: 'Home', note: 'Manager view of direct reports and workload' },
+  '/outreach': { section: 'Business', note: 'Leads, contact activity, and conversion follow-up' },
+  '/clients': { section: 'Business', note: 'Client relationships, records, and account health' },
+  '/client-mgmt': { section: 'Business', note: 'Client portal, contracts, invoices, and support' },
+  '/support': { section: 'Business', note: 'Support queue and client issue handling' },
+  '/tasks': { section: 'Tasks', note: 'Task assignment, progress, and ownership' },
+  '/my-tasks': { section: 'Tasks', note: 'Your assigned work and due items' },
+  '/schedule': { section: 'Tasks', note: 'Availability, bookings, and calendar planning' },
+  '/my-staff': { section: 'HR', note: 'Staff records, permissions, and lifecycle controls' },
+  '/contract-queue': { section: 'HR', note: 'Issued contracts and signing progress' },
+  '/contract-templates': { section: 'HR', note: 'Template library for staff contracts' },
+  '/recruiting': { section: 'Hiring', note: 'Live hiring pipeline, jobs, and applicants' },
+  '/recruiting/jobs': { section: 'Hiring', note: 'Role publishing and requisition management' },
+  '/recruiting/applications': { section: 'Hiring', note: 'Application inbox and candidate review' },
+  '/recruiting/board': { section: 'Hiring', note: 'Pipeline movement across hiring stages' },
+  '/recruiting/settings': { section: 'Hiring', note: 'Questions, stages, and recruiting defaults' },
+  '/reports': { section: 'Admin', note: 'Operational reporting and portal analytics' },
+  '/departments': { section: 'Admin', note: 'Organisation structure and department setup' },
+  '/settings': { section: 'Account', note: 'Workspace, notifications, and personal preferences' },
+  '/notifications': { section: 'Home', note: 'Unread alerts, approvals, and updates' },
+}
+
 function BellIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -52,6 +79,83 @@ function MoreIcon() {
       <circle cx="12" cy="12" r="1.8"/>
       <circle cx="19" cy="12" r="1.8"/>
     </svg>
+  )
+}
+
+function sectionAccent(section = '') {
+  const safe = String(section || '').toLowerCase()
+  if (safe === 'hiring') return { bg: 'rgba(26,86,219,0.1)', color: 'var(--accent)' }
+  if (safe === 'hr') return { bg: 'rgba(14,165,233,0.1)', color: 'var(--accent)' }
+  if (safe === 'admin') return { bg: 'rgba(15,23,42,0.08)', color: 'var(--text)' }
+  return { bg: 'rgba(26,86,219,0.08)', color: 'var(--accent)' }
+}
+
+function resolvePageMeta(pathname = '') {
+  if (pathname.startsWith('/my-staff/')) {
+    return { title: 'Staff Profile', section: 'HR', note: 'Employee record, lifecycle, contracts, and permissions' }
+  }
+  if (pathname.startsWith('/clients/')) {
+    return { title: 'Client Profile', section: 'Business', note: 'Client account, billing, and delivery view' }
+  }
+  if (pathname.startsWith('/recruiting/jobs/')) {
+    return { title: 'Job Post', section: 'Hiring', note: 'Role setup, publishing, and requisition details' }
+  }
+  if (pathname.startsWith('/recruiting/applications/')) {
+    return { title: 'Applicant Profile', section: 'Hiring', note: 'Candidate review, interview scheduling, and decisions' }
+  }
+  return {
+    title: TITLES[pathname] || 'Portal',
+    section: PAGE_NOTES[pathname]?.section || 'Portal',
+    note: PAGE_NOTES[pathname]?.note || 'Operational workspace',
+  }
+}
+
+function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAllRead, markReadAndOpen, markReadOnly }) {
+  return (
+    <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, zIndex:200, overflow:'hidden' }}>
+      <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Notifications</div>
+          <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>{unread ? `${unread} unread` : 'Inbox is clear'}</div>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          <button onClick={openInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+          {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Read all</button>}
+        </div>
+      </div>
+      <div style={{ maxHeight:320, overflowY:'auto' }}>
+        {pinnedAlerts.length > 0 && (
+          <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.05em', color:'var(--faint)', marginBottom:8 }}>Pinned</div>
+            <div style={{ display:'grid', gap:8 }}>
+              {pinnedAlerts.map((banner) => (
+                <button key={banner.id} onClick={openInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
+                    <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
+                    <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
+                  </div>
+                  <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5 }}>{banner.message}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {notifs.length === 0 ? (
+          <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--faint)', fontSize:13 }}>No new notifications</div>
+        ) : notifs.map((n) => (
+          <div key={n.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start', background:'var(--accent-soft)' }}>
+            <span style={{ width:8, height:8, marginTop:6, borderRadius:'50%', background: n.type === 'urgent' ? 'var(--red)' : n.type === 'warning' ? 'var(--amber)' : n.type === 'success' ? 'var(--green)' : 'var(--accent)', flexShrink:0 }} />
+            <div style={{ flex:1, minWidth:0 }}>
+              {n.title && <div style={{ fontSize:13, fontWeight:600, marginBottom:3, color:'var(--text)' }}>{n.title}</div>}
+              <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
+              <div style={{ fontSize:10, color:'var(--faint)', marginTop:5, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+            </div>
+            {n.link ? <button onClick={() => markReadAndOpen(n)} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11.5, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
+            <button onClick={() => markReadOnly(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:15, flexShrink:0, lineHeight:1 }}>×</button>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -152,27 +256,37 @@ export default function Header() {
     await loadUnreadNotifications().catch(() => {})
   }
 
-  const typeIcon = { info:'ℹ️', success:'✅', warning:'⚠️', urgent:'🚨' }
-  const pageTitle = TITLES[pathname] || (pathname.startsWith('/my-staff/') ? 'Staff Profile' : 'Portal')
+  const pageMeta = resolvePageMeta(pathname)
+  const pageTitle = pageMeta.title
+  const sectionTone = sectionAccent(pageMeta.section)
   const openMenuRoute = (route) => {
     setMobileMenuOpen(false)
     navigate(route)
+  }
+  const openNotificationItem = async (notification) => {
+    await markRead(notification.id)
+    setBellOpen(false)
+    if (notification.link) navigate(notification.link)
   }
 
   return (
     <>
     <header className="main-header">
-      <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0, flex:1 }}>
-        <div className="header-crumbs">
-          <button className="header-crumb-home" onClick={() => navigate('/')} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--faint)', flexShrink:0, fontSize:14 }}>⌂</button>
-          <span className="header-crumb-sep" style={{ color:'var(--border2)', fontSize:14 }}>/</span>
-          <span className="header-page-title" style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)', letterSpacing:'0.05em' }}>
-            {pageTitle}
-          </span>
+      <div className="header-shell" style={{ display:'flex', alignItems:'center', gap:18, minWidth:0, flex:1 }}>
+        <div className="header-page-meta" style={{ minWidth:0, flex:1 }}>
+          <div className="header-page-topline" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flexWrap:'wrap' }}>
+            <span className="header-page-section" style={{ background:sectionTone.bg, color:sectionTone.color }}>
+              {pageMeta.section}
+            </span>
+            <span className="header-page-heading">{pageTitle}</span>
+          </div>
+          <div className="header-page-note">
+            {pageMeta.note}
+          </div>
         </div>
         {isPreviewing && previewTarget ? (
-          <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'6px 10px', borderRadius:999, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
-            <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap' }}>Impersonating</span>
+          <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'7px 10px', borderRadius:12, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
+            <span style={{ fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>Previewing</span>
             <span style={{ fontSize:12.5, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:220 }}>
               {previewTarget.name || previewTarget.email}
             </span>
@@ -190,16 +304,19 @@ export default function Header() {
       </div>
 
       <div className="header-actions hide-mob">
-        {/* Search */}
-        <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
+        <button className="header-icon-btn" onClick={() => navigate('/dashboard')} title="Dashboard" style={{ height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s', padding:'0 12px', fontSize:12.5, fontWeight:600 }}
+          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
+          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
+          Dashboard
+        </button>
+        <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
           onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
           <SearchIcon/>
         </button>
 
-        {/* Notification bell */}
         <div ref={bellRef} style={{ position:'relative' }}>
-          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:32, height:32, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
+          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
             onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
             onMouseOut={e => { if (!bellOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
             <BellIcon/>
@@ -208,61 +325,27 @@ export default function Header() {
             )}
           </button>
 
-          {/* Dropdown */}
           {bellOpen && (
-            <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
-                <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                  <button onClick={openNotificationsInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
-                  {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
-                </div>
-              </div>
-              <div style={{ maxHeight:320, overflowY:'auto' }}>
-                {pinnedAlerts.length > 0 && (
-                  <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
-                    <div style={{ display:'grid', gap:8 }}>
-                      {pinnedAlerts.map((banner) => (
-                        <button key={banner.id} onClick={openNotificationsInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
-                            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
-                            <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
-                          </div>
-                          <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5 }}>{banner.message}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {notifs.length === 0 ? (
-                  <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--faint)', fontSize:13 }}>No new notifications</div>
-                ) : notifs.map(n => (
-                  <div key={n.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start', background:'var(--accent-soft)' }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>{typeIcon[n.type] || 'ℹ️'}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      {n.title && <div style={{ fontSize:13, fontWeight:500, marginBottom:2 }}>{n.title}</div>}
-                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
-                      <div style={{ fontSize:10, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
-                    </div>
-                    {n.link ? <button onClick={async () => { await markRead(n.id); setBellOpen(false); navigate(n.link) }} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
-                    <button onClick={() => markRead(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:16, flexShrink:0, lineHeight:1 }}>×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <NotificationDropdown
+              notifs={notifs}
+              pinnedAlerts={pinnedAlerts}
+              unread={unread}
+              openInbox={openNotificationsInbox}
+              markAllRead={markAllRead}
+              markReadAndOpen={openNotificationItem}
+              markReadOnly={markRead}
+            />
           )}
         </div>
 
-        {/* Username */}
-        <span className="hide-mob header-user-name" style={{ fontSize:13, color:'var(--faint)', paddingLeft:4 }}>{user?.name}</span>
-
-        {/* Avatar */}
         <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
-          style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background='var(--accent)'; e.currentTarget.style.color='#fff' }}
+          style={{ height:36, borderRadius:999, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', gap:10, padding:'0 8px 0 6px', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
           onMouseOut={e => { e.currentTarget.style.background='var(--accent-soft)'; e.currentTarget.style.color='var(--accent)' }}>
-          <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
+          <span style={{ width:24, height:24, borderRadius:'50%', background:'rgba(255,255,255,0.78)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:14, height:14, objectFit:'contain' }} />
+          </span>
+          <span style={{ maxWidth:120, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', color:'inherit' }}>{user?.name || 'My profile'}</span>
         </button>
       </div>
 
@@ -275,47 +358,15 @@ export default function Header() {
             )}
           </button>
           {bellOpen && (
-            <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:200, overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontWeight:600, fontSize:14 }}>Notifications</span>
-                <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                  <button onClick={openNotificationsInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
-                  {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Mark all read</button>}
-                </div>
-              </div>
-              <div style={{ maxHeight:320, overflowY:'auto' }}>
-                {pinnedAlerts.length > 0 && (
-                  <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Pinned alerts</div>
-                    <div style={{ display:'grid', gap:8 }}>
-                      {pinnedAlerts.map((banner) => (
-                        <button key={banner.id} onClick={openNotificationsInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
-                            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
-                            <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
-                          </div>
-                          <div style={{ fontSize:11.5, color:'var(--sub)', lineHeight:1.5 }}>{banner.message}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {notifs.length === 0 ? (
-                  <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--faint)', fontSize:13 }}>No new notifications</div>
-                ) : notifs.map(n => (
-                  <div key={n.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start', background:'var(--accent-soft)' }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>{typeIcon[n.type] || 'ℹ️'}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      {n.title && <div style={{ fontSize:13, fontWeight:500, marginBottom:2 }}>{n.title}</div>}
-                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
-                      <div style={{ fontSize:10, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
-                    </div>
-                    {n.link ? <button onClick={async () => { await markRead(n.id); setBellOpen(false); navigate(n.link) }} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
-                    <button onClick={() => markRead(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:16, flexShrink:0, lineHeight:1 }}>×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <NotificationDropdown
+              notifs={notifs}
+              pinnedAlerts={pinnedAlerts}
+              unread={unread}
+              openInbox={openNotificationsInbox}
+              markAllRead={markAllRead}
+              markReadAndOpen={openNotificationItem}
+              markReadOnly={markRead}
+            />
           )}
         </div>
 

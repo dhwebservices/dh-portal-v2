@@ -210,22 +210,23 @@ const css = `
 }
 .dh-panel.dh-open { transform: translateX(0); }
 .dh-panel-head {
-  padding: 20px 16px 14px; border-bottom: 1px solid var(--border);
+  padding: 18px 16px 14px; border-bottom: 1px solid var(--border);
   flex-shrink: 0; display: flex; align-items: center; gap: 10px;
 }
 .dh-panel-icon {
-  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.dh-panel-title { font-family: var(--font-display); font-size: 18px; font-weight: 400; color: var(--text); }
+.dh-panel-title { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text); }
 
-/* Tile grid */
+/* Section list */
 .dh-tiles { flex: 1; overflow-y: auto; padding: 12px; scrollbar-width: none; }
 .dh-tiles::-webkit-scrollbar { display: none; }
-.dh-tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dh-tile-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .dh-tile {
-  display: flex; flex-direction: column; align-items: flex-start;
-  padding: 12px 12px 10px; border-radius: 10px; cursor: pointer;
+  display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center;
+  column-gap: 12px; row-gap: 2px;
+  padding: 11px 12px; border-radius: 10px; cursor: pointer;
   background: color-mix(in srgb, var(--card) 78%, var(--page-tint-strong) 22%);
   border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
   text-decoration: none; color: var(--text);
@@ -250,11 +251,12 @@ const css = `
   color: var(--accent-contrast);
 }
 .dh-tile-icon {
-  width: 32px; height: 32px; border-radius: 8px; margin-bottom: 8px;
+  width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  grid-row: 1 / span 2;
 }
-.dh-tile-name { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.3; margin-bottom: 2px; }
-.dh-tile-desc { font-size: 10.5px; color: var(--faint); line-height: 1.3; font-family: var(--font-mono); }
+.dh-tile-name { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.dh-tile-desc { font-size: 10.5px; color: var(--faint); line-height: 1.35; font-family: var(--font-mono); }
 .dh-tile-badge {
   position: absolute; top: 8px; right: 8px;
   background: var(--red); color: #fff; font-size: 9px; font-weight: 600;
