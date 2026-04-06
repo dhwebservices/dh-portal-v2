@@ -196,65 +196,76 @@ const css = `
 .dh-panel {
   position: fixed; left: var(--sw); top: 0; height: 100vh; width: var(--sidebar-panel-w);
   background:
-    linear-gradient(180deg, var(--panel-tint), transparent 18%),
-    color-mix(in srgb, var(--bg2) 88%, var(--page-tint-strong) 12%);
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), color-mix(in srgb, var(--bg2) 92%, white 8%));
   border-right: 1px solid var(--border);
   transform: translateX(-102%);
   transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);
   z-index: 99; display: flex; flex-direction: column;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.08);
+  box-shadow: 12px 0 40px rgba(20, 34, 66, 0.08);
 }
 .dh-panel.dh-open { transform: translateX(0); }
 .dh-panel-head {
-  padding: 18px 16px 14px; border-bottom: 1px solid var(--border);
+  padding: 18px 16px 12px; border-bottom: 1px solid var(--border);
   flex-shrink: 0; display: flex; align-items: center; gap: 10px;
 }
 .dh-panel-icon {
   width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.dh-panel-title { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text); }
+.dh-panel-title { font-family: var(--font-body); font-size: 18px; font-weight: 600; color: var(--text); }
 
 /* Section list */
 .dh-tiles { flex: 1; overflow-y: auto; padding: 12px; scrollbar-width: none; }
 .dh-tiles::-webkit-scrollbar { display: none; }
-.dh-tile-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.dh-tile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card) 86%, var(--bg2) 14%);
+  border: 1px solid var(--border);
+}
 .dh-tile {
-  display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center;
+  display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center;
   column-gap: 12px; row-gap: 2px;
-  padding: 11px 12px; border-radius: 10px; cursor: pointer;
-  background: color-mix(in srgb, var(--card) 78%, var(--page-tint-strong) 22%);
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
   text-decoration: none; color: var(--text);
   transition: background 0.12s, border-color 0.12s, transform 0.1s;
   position: relative; overflow: hidden;
 }
-.dh-tile:hover { background: color-mix(in srgb, var(--card) 60%, var(--page-tint-strong) 40%); border-color: var(--accent-border); transform: translateY(-1px); }
+.dh-tile::after {
+  content: '›';
+  color: var(--faint);
+  font-size: 16px;
+  line-height: 1;
+  align-self: center;
+}
+.dh-tile:hover { background: var(--bg2); border-color: var(--border); }
 .dh-tile.dh-tile-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
+  background: color-mix(in srgb, var(--accent-soft) 74%, white 26%);
+  border-color: var(--accent-border);
+  color: var(--text);
 }
 .dh-tile-icon {
-  background: color-mix(in srgb, var(--accent-soft) 72%, var(--card) 28%);
+  background: color-mix(in srgb, var(--accent-soft) 76%, white 24%);
   color: var(--accent);
 }
-.dh-tile.dh-tile-active .dh-tile-name,
-.dh-tile.dh-tile-active .dh-tile-desc { color: var(--accent-contrast); }
-.dh-tile.dh-tile-active .dh-tile-desc { opacity: 0.78; }
 .dh-tile.dh-tile-active .dh-tile-icon {
-  background: rgba(255,255,255,0.14);
-  color: var(--accent-contrast);
+  background: color-mix(in srgb, var(--accent-soft) 88%, white 12%);
+  color: var(--accent);
 }
 .dh-tile-icon {
   width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   grid-row: 1 / span 2;
 }
-.dh-tile-name { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.3; }
-.dh-tile-desc { font-size: 10.5px; color: var(--faint); line-height: 1.35; font-family: var(--font-mono); }
+.dh-tile-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.dh-tile-desc { font-size: 11px; color: var(--sub); line-height: 1.35; }
 .dh-tile-badge {
-  position: absolute; top: 8px; right: 8px;
+  position: absolute; top: 12px; right: 30px;
   background: var(--red); color: #fff; font-size: 9px; font-weight: 600;
   min-width: 16px; height: 16px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center; padding: 0 4px;
