@@ -16,6 +16,13 @@ export const LIFECYCLE_STATES = [
   ['archived', 'Archived'],
 ]
 
+export const OFFBOARDING_ITEMS = [
+  ['equipment_returned', 'Equipment returned'],
+  ['access_revoked', 'Access revoked'],
+  ['final_payslip_sent', 'Final payslip sent'],
+  ['handover_completed', 'Handover completed'],
+]
+
 export const TERMINATED_STATES = new Set([
   'termination_approved',
   'terminated',
@@ -59,6 +66,21 @@ export function createDefaultLifecycleRecord({ onboarding = false, startDate = '
       rejected_by_name: '',
       rejection_reason: '',
     },
+    offboarding: {
+      equipment_returned: false,
+      equipment_returned_at: '',
+      access_revoked: false,
+      access_revoked_at: '',
+      final_payslip_sent: false,
+      final_payslip_sent_at: '',
+      handover_completed: false,
+      handover_completed_at: '',
+      notes: '',
+      completed_at: '',
+      updated_by_email: '',
+      updated_by_name: '',
+      updated_at: '',
+    },
   }
 }
 
@@ -71,6 +93,10 @@ export function mergeLifecycleRecord(raw = {}, defaults = {}) {
     termination: {
       ...base.termination,
       ...(raw?.termination || {}),
+    },
+    offboarding: {
+      ...base.offboarding,
+      ...(raw?.offboarding || {}),
     },
   }
 }

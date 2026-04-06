@@ -32,6 +32,7 @@ import {
   getLifecycleLabel,
   getLifecycleMeta,
   LIFECYCLE_STATES,
+  OFFBOARDING_ITEMS,
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
 import {
@@ -313,6 +314,34 @@ export default function StaffProfile() {
   const nf = (k, v) => setCustomNotification((current) => ({ ...current, [k]: v }))
   const gp = (k, v) => setPortalPrefs((current) => mergePortalPreferences(current, { workspacePreset: 'custom', [k]: v }))
   const applyPortalPreset = (presetKey) => setPortalPrefs((current) => applyWorkspacePreset(current, presetKey))
+  const setOffboardingField = (key, value) => setLifecycleRecord((current) => ({
+    ...current,
+    offboarding: {
+      ...current.offboarding,
+      [key]: value,
+      updated_by_email: user?.email || current.offboarding?.updated_by_email || '',
+      updated_by_name: user?.name || user?.email || current.offboarding?.updated_by_name || '',
+      updated_at: new Date().toISOString(),
+    },
+  }))
+  const toggleOffboardingItem = (key) => setLifecycleRecord((current) => {
+    const enabled = !current.offboarding?.[key]
+    const atKey = `${key}_at`
+    const nextOffboarding = {
+      ...current.offboarding,
+      [key]: enabled,
+      [atKey]: enabled ? new Date().toISOString() : '',
+      updated_by_email: user?.email || current.offboarding?.updated_by_email || '',
+      updated_by_name: user?.name || user?.email || current.offboarding?.updated_by_name || '',
+      updated_at: new Date().toISOString(),
+    }
+    const completed = OFFBOARDING_ITEMS.every(([itemKey]) => nextOffboarding[itemKey])
+    nextOffboarding.completed_at = completed ? (nextOffboarding.completed_at || new Date().toISOString()) : ''
+    return {
+      ...current,
+      offboarding: nextOffboarding,
+    }
+  })
   const togglePortalSection = (key) => setPortalPrefs((current) => mergePortalPreferences(current, {
     workspacePreset: 'custom',
     dashboardSections: {
@@ -1037,6 +1066,16 @@ export default function StaffProfile() {
         rejected_by_name: approved ? '' : (user?.name || ''),
         rejected_at: approved ? '' : new Date().toISOString(),
       },
+      offboarding: approved ? {
+        ...lifecycleRecord.offboarding,
+        access_revoked: lifecycleRecord.termination.immediate_access_removal ? true : lifecycleRecord.offboarding?.access_revoked,
+        access_revoked_at: lifecycleRecord.termination.immediate_access_removal
+          ? (lifecycleRecord.offboarding?.access_revoked_at || new Date().toISOString())
+          : (lifecycleRecord.offboarding?.access_revoked_at || ''),
+        updated_by_email: user?.email || lifecycleRecord.offboarding?.updated_by_email || '',
+        updated_by_name: user?.name || user?.email || lifecycleRecord.offboarding?.updated_by_name || '',
+        updated_at: new Date().toISOString(),
+      } : lifecycleRecord.offboarding,
     }, {
       onboarding,
       startDate: profile.start_date,
@@ -1862,6 +1901,9 @@ export default function StaffProfile() {
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
   const lifecycle = getLifecycleMeta(lifecycleRecord, { onboarding, startDate: profile.start_date, contractType: profile.contract_type })
+  const offboardingCompletedCount = OFFBOARDING_ITEMS.filter(([key]) => lifecycleRecord.offboarding?.[key]).length
+  const offboardingTotalCount = OFFBOARDING_ITEMS.length
+  const offboardingComplete = offboardingCompletedCount === offboardingTotalCount
   const enabledPermissionCount = countEnabledPermissions(editPerms)
   const managerOption = msUsers.find((u) => u.email === (profile.manager_email || ''))
   const roleScopeLabel = getRoleScopeLabel(orgRecord.role_scope)
@@ -2491,6 +2533,62 @@ export default function StaffProfile() {
                   Requested by: {lifecycleRecord.termination.requested_by_name || '—'}{lifecycleRecord.termination.requested_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.requested_at)}` : ''}
                   <br />
                   Approved by: {lifecycleRecord.termination.approved_by_name || '—'}{lifecycleRecord.termination.approved_at ? ` · ${formatTimelineDate(lifecycleRecord.termination.approved_at)}` : ''}
+                </div>
+              </div>
+
+              <div style={{ padding:'16px 18px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:14 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Offboarding checklist</div>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                      Track the practical exit steps once termination is approved or when someone is leaving the business.
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                    <span className={`badge badge-${offboardingComplete ? 'green' : offboardingCompletedCount > 0 ? 'amber' : 'grey'}`}>
+                      {offboardingCompletedCount}/{offboardingTotalCount} complete
+                    </span>
+                    {lifecycleRecord.offboarding?.completed_at ? (
+                      <span style={{ fontSize:12, color:'var(--sub)' }}>
+                        Completed {formatTimelineDate(lifecycleRecord.offboarding.completed_at)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div style={{ display:'grid', gap:10, marginTop:16 }}>
+                  {OFFBOARDING_ITEMS.map(([key, label]) => (
+                    <div key={key} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', padding:'12px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        <div style={{ fontSize:11, color:'var(--sub)', marginTop:4 }}>
+                          {lifecycleRecord.offboarding?.[`${key}_at`]
+                            ? `Completed ${formatTimelineDate(lifecycleRecord.offboarding[`${key}_at`])}`
+                            : 'Not completed yet'}
+                        </div>
+                      </div>
+                      <button onClick={() => toggleOffboardingItem(key)} style={{ width:44, height:24, borderRadius:12, background: lifecycleRecord.offboarding?.[key] ? 'var(--green)' : 'var(--bg3)', border:'none', position:'relative', flexShrink:0 }}>
+                        <div style={{ position:'absolute', top:3, left: lifecycleRecord.offboarding?.[key] ? 23 : 3, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="fc" style={{ marginTop:16 }}>
+                  <label className="lbl">Offboarding Notes</label>
+                  <textarea
+                    className="inp"
+                    rows={4}
+                    value={lifecycleRecord.offboarding?.notes || ''}
+                    onChange={(e) => setOffboardingField('notes', e.target.value)}
+                    style={{ resize:'vertical' }}
+                    placeholder="Add equipment references, payroll notes, exit interview notes, or handover details..."
+                  />
+                </div>
+
+                <div style={{ marginTop:14, fontSize:12, color:'var(--faint)', lineHeight:1.7 }}>
+                  Last updated by: {lifecycleRecord.offboarding?.updated_by_name || '—'}
+                  {lifecycleRecord.offboarding?.updated_at ? ` · ${formatTimelineDate(lifecycleRecord.offboarding.updated_at)}` : ''}
                 </div>
               </div>
             </div>
