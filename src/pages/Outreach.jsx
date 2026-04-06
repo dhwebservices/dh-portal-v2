@@ -1185,7 +1185,7 @@ export default function Outreach() {
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <>
               <div className="tbl-wrap desktop-only">
-                <table className="tbl">
+                <table className="tbl" style={{ minWidth: 1320 }}>
                   <thead>
                     <tr>
                       <th>Lead</th>
@@ -1247,7 +1247,7 @@ export default function Outreach() {
                             ) : '—'}
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <div className="table-action-row">
                               {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
                               {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
                               <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
@@ -1353,7 +1353,7 @@ export default function Outreach() {
         <div className="desk-table-shell">
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <div className="tbl-wrap desktop-only">
-              <table className="tbl">
+              <table className="tbl" style={{ minWidth: 960 }}>
                 <thead>
                   <tr>
                     <th>Sent To</th><th>Subject</th><th>From</th><th>Sent By</th><th>Date</th><th></th>
