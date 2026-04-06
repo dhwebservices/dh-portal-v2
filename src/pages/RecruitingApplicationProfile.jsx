@@ -7,6 +7,7 @@ import { addApplicationNote, getApplication, listApplicationHistory, listApplica
 import { sendEmail } from '../utils/email'
 import { sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
+import { sendManagedNotification } from '../utils/notificationPreferences'
 
 function toDateTimeInputValue(value) {
   if (!value) return ''
@@ -157,6 +158,7 @@ DH Website Services HR`)
     setAssignmentBusy(true)
     setAssignmentFeedback('')
     try {
+      const previousAssignmentEmail = String(application.assigned_recruiter_email || '').trim().toLowerCase()
       const assignedUser = assignmentOptions.find((item) => item.email === assignmentEmail)
       const meta = await saveApplicationProfileMeta(application.id, {
         assigned_recruiter_email: assignmentEmail,
@@ -168,6 +170,21 @@ DH Website Services HR`)
         assignmentEmail ? `Recruiter assigned: ${assignedUser?.name || assignmentEmail}` : 'Recruiter assignment cleared',
         user
       )
+      if (assignmentEmail && assignmentEmail !== previousAssignmentEmail) {
+        await sendManagedNotification({
+          userEmail: assignmentEmail,
+          userName: assignedUser?.name || assignmentEmail,
+          category: 'urgent',
+          type: 'info',
+          title: 'New job application assigned to you',
+          message: `${application.full_name || application.email || 'An applicant'} has been assigned to you for ${application.job_posts?.title || 'a live role'}. Please review and respond in the recruiting workspace.`,
+          link: `/recruiting/applications/${application.id}`,
+          emailSubject: `New recruiting assignment — ${application.job_posts?.title || 'Job application'}`,
+          sentBy: user?.name || user?.email || 'DH Website Services HR',
+          fromEmail: 'DH Website Services HR <HR@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        }).catch(() => {})
+      }
       setNotes((current) => [note, ...current])
       setAssignmentFeedback('Assignment saved.')
     } catch (error) {
