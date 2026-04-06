@@ -728,7 +728,7 @@ export default function MyDepartment() {
           <p className="page-sub">Team workspace for scoped managers and Director oversight.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>
+          <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>
             Department hiring
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>
@@ -818,7 +818,7 @@ export default function MyDepartment() {
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Job posts for {currentDepartment || 'this department'}</div>
               </div>
               <div style={{ display:'flex', gap:8 }}>
-                <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>Open jobs</button>
+                <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>Open jobs</button>
                 <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>Create role</button>
               </div>
             </div>

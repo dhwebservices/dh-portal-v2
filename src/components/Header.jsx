@@ -44,7 +44,7 @@ const PAGE_NOTES = {
   '/my-staff': { section: 'HR', note: 'Staff records, permissions, and lifecycle controls' },
   '/contract-queue': { section: 'HR', note: 'Issued contracts and signing progress' },
   '/contract-templates': { section: 'HR', note: 'Template library for staff contracts' },
-  '/recruiting': { section: 'Hiring', note: 'Live hiring pipeline, jobs, and applicants' },
+  '/recruiting': { section: 'Hiring', note: 'Roles, job overviews, and candidate pipelines' },
   '/recruiting/jobs': { section: 'Hiring', note: 'Role publishing and requisition management' },
   '/recruiting/applications': { section: 'Hiring', note: 'Application inbox and candidate review' },
   '/recruiting/board': { section: 'Hiring', note: 'Pipeline movement across hiring stages' },
@@ -98,7 +98,7 @@ function resolvePageMeta(pathname = '') {
     return { title: 'Client Profile', section: 'Business', note: 'Client account, billing, and delivery view' }
   }
   if (pathname.startsWith('/recruiting/jobs/')) {
-    return { title: 'Job Post', section: 'Hiring', note: 'Role setup, publishing, and requisition details' }
+    return { title: 'Recruitment', section: 'Hiring', note: 'Role overview, pipeline, and requisition details' }
   }
   if (pathname.startsWith('/recruiting/applications/')) {
     return { title: 'Applicant Profile', section: 'Hiring', note: 'Candidate review, interview scheduling, and decisions' }
