@@ -136,18 +136,23 @@ function StatCard({ icon: Icon, label, value, accent, link, loading, hint }) {
     <div
       onClick={() => link && nav(link)}
       className="stat-card"
-      style={{ cursor: link ? 'pointer' : 'default', minHeight: 148, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+      style={{ cursor: link ? 'pointer' : 'default', minHeight: 164, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px 18px 16px' }}
     >
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-        <Icon size={18} color={accent} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon size={18} color={accent} />
+        </div>
+        {link ? <ArrowRight size={14} style={{ color: 'var(--faint)', flexShrink: 0, marginTop: 2 }} /> : null}
       </div>
-      {loading ? (
-        <div className="skeleton" style={{ height: 36, width: 72, marginBottom: 8, borderRadius: 4 }} />
-      ) : (
-        <div className="stat-val">{value}</div>
-      )}
-      <div>
-        <div className="stat-lbl">{label}</div>
+      <div style={{ marginBottom: 14 }}>
+        <div className="stat-lbl" style={{ marginTop: 0, marginBottom: 8 }}>{label}</div>
+        {loading ? (
+          <div className="skeleton" style={{ height: 36, width: 72, borderRadius: 4 }} />
+        ) : (
+          <div className="stat-val">{value}</div>
+        )}
+      </div>
+      <div style={{ paddingTop: 10, borderTop: '1px solid var(--border)' }}>
         {hint ? <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div> : null}
       </div>
     </div>
@@ -156,8 +161,8 @@ function StatCard({ icon: Icon, label, value, accent, link, loading, hint }) {
 
 function Panel({ title, actionLabel, onAction, children, tone }) {
   return (
-    <div className="card" style={{ overflow: 'hidden', borderColor: tone || 'var(--border)' }}>
-      <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <div className="card" style={{ overflow: 'hidden', borderColor: tone || 'var(--border)', borderRadius: 18, background: 'color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%)' }}>
+      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>{title}</div>
         {actionLabel ? (
           <button className="btn btn-ghost btn-sm" onClick={onAction}>
@@ -222,6 +227,66 @@ function ToolShortcutRow({ label, hint, onClick }) {
         <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
       </div>
       <ArrowRight size={13} style={{ alignSelf: 'center', color: 'var(--faint)' }} />
+    </button>
+  )
+}
+
+function QuickActionCard({ icon: Icon, label, hint, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="dashboard-quick-action"
+      style={{
+        textAlign: 'left',
+        padding: '12px 14px',
+        borderRadius: 14,
+        border: '1px solid var(--border)',
+        background: 'transparent',
+        display: 'grid',
+        gridTemplateColumns: '32px minmax(0, 1fr) auto',
+        gap: 10,
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+        <Icon size={15} />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 3, lineHeight: 1.45 }}>{hint}</div>
+      </div>
+      <ArrowRight size={14} style={{ color: 'var(--faint)' }} />
+    </button>
+  )
+}
+
+function ToolCard({ icon: Icon, label, hint, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        padding: '14px 0',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        background: 'transparent',
+        display: 'grid',
+        gap: 10,
+      }}
+    >
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginLeft: 14 }}>
+        <Icon size={16} />
+      </div>
+      <div style={{ padding: '0 14px' }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.55 }}>{hint}</div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 14px' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--faint)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          Open <ArrowRight size={12} />
+        </span>
+      </div>
     </button>
   )
 }
@@ -323,12 +388,32 @@ export default function Dashboard() {
   const quickActions = preferences?.quickActions || []
   const dashboardOrder = preferences?.dashboardOrder || DASHBOARD_SECTIONS.map(([key]) => key)
   const phase9Tools = [
-    { label: 'Support Desk', hint: 'Queue-driven ticket handling with SLA and ownership.', route: '/support' },
-    { label: 'Knowledge Base', hint: 'Shared answers and internal playbooks for repeated issues.', route: '/knowledge-base' },
-    { label: 'Compliance Rules', hint: 'Auto-check required docs and training by role or lifecycle.', route: '/hr/compliance-rules' },
-    { label: 'Training Catalogue', hint: 'Reusable training templates for staff assignments.', route: '/hr/training-catalogue' },
-    { label: 'Client Pipeline', hint: 'Lifecycle stages and risk signals across client accounts.', route: '/client-pipeline' },
-    { label: 'Workflow Automation', hint: 'Trigger notifications and escalations from live portal signals.', route: '/workflow-automation' },
+    { label: 'Support Desk', hint: 'Queue-driven ticket handling with SLA and ownership.', route: '/support', icon: HeadphonesIcon },
+    { label: 'Knowledge Base', hint: 'Shared answers and internal playbooks for repeated issues.', route: '/knowledge-base', icon: Bell },
+    { label: 'Compliance Rules', hint: 'Auto-check required docs and training by role or lifecycle.', route: '/hr/compliance-rules', icon: CircleAlert },
+    { label: 'Training Catalogue', hint: 'Reusable training templates for staff assignments.', route: '/hr/training-catalogue', icon: UserCheck },
+    { label: 'Client Pipeline', hint: 'Lifecycle stages and risk signals across client accounts.', route: '/client-pipeline', icon: Users },
+    { label: 'Workflow Automation', hint: 'Trigger notifications and escalations from live portal signals.', route: '/workflow-automation', icon: SlidersHorizontal },
+  ]
+  const dashboardFocusItems = [
+    {
+      label: 'Today',
+      value: `${stats.todaysShifts} shifts`,
+      hint: `${stats.todayHours} scheduled hours across submitted timesheets`,
+      tone: 'blue',
+    },
+    {
+      label: 'Follow-up queue',
+      value: outreachFollowUps.length,
+      hint: outreachFollowUps.length ? `${outreachFollowUps.filter((item) => item.overdue).length} overdue outreach items` : 'Nothing waiting right now',
+      tone: outreachFollowUps.some((item) => item.overdue) ? 'red' : 'amber',
+    },
+    {
+      label: 'Notifications',
+      value: stats.unreadNotifications,
+      hint: stats.unreadNotifications ? 'Unread alerts are waiting in the bell inbox' : 'Inbox is currently clear',
+      tone: stats.unreadNotifications ? 'blue' : 'green',
+    },
   ]
 
   useEffect(() => {
@@ -893,6 +978,17 @@ export default function Dashboard() {
   }
 
   const quickActionMeta = Object.fromEntries(QUICK_ACTION_OPTIONS.map(([key, label, route]) => [key, { label, route }]))
+  const quickActionIcons = {
+    my_tasks: CheckSquare,
+    notifications: Bell,
+    clients: Users,
+    support: HeadphonesIcon,
+    my_department: UserCheck,
+    my_profile: UserCheck,
+    schedule: CalendarDays,
+    search: SlidersHorizontal,
+    outreach: PhoneCall,
+  }
 
   const renderDashboardSection = (key) => {
     switch (key) {
@@ -1355,71 +1451,84 @@ export default function Dashboard() {
 
       {showSystemBanners ? <ActiveBanners /> : null}
 
-      <div style={{ marginBottom: dashboardDensity === 'compact' ? 20 : 28, display:'flex', justifyContent:'space-between', alignItems: dashboardHeader === 'minimal' ? 'center' : 'flex-end', gap:16, flexWrap:'wrap' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: dashboardHeader === 'minimal' ? 'clamp(24px,2.3vw,34px)' : 'clamp(26px,3vw,42px)', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>
-            {dashboardHeader === 'minimal' ? `${firstName} dashboard` : <>{greeting}, <em style={{ color: 'var(--sub)', fontStyle: 'italic' }}>{firstName}</em></>}
-          </h1>
-          {dashboardHeader === 'minimal' ? (
-            <p style={{ fontSize: 13, color: 'var(--sub)', marginTop: 8 }}>Live overview of your workspace, activity, and priorities.</p>
-          ) : (
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--faint)', marginTop: 8 }}>{dateStr}</p>
-          )}
+      <div style={{ marginBottom: dashboardDensity === 'compact' ? 18 : 24 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-end', flexWrap:'wrap', marginBottom:14 }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>
+              {dashboardHeader === 'minimal' ? 'Workspace overview' : dateStr}
+            </div>
+            <h1 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(30px,3.3vw,44px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:0.96, color:'var(--text)' }}>
+              {dashboardHeader === 'minimal' ? `${firstName} dashboard` : `${greeting}, ${firstName}`}
+            </h1>
+            <p style={{ fontSize:14, color:'var(--sub)', marginTop:12, lineHeight:1.65, maxWidth:560 }}>
+              A lighter overview of your workspace, priorities, and live portal activity.
+            </p>
+          </div>
+          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+            <button className="btn btn-outline" onClick={() => setShowFeedback(true)}>
+              <Bell size={14} />
+              Feedback
+            </button>
+            <button className="btn btn-outline" onClick={() => setShowPersonalise(true)}>
+              <SlidersHorizontal size={14} />
+              Personalise
+            </button>
+            <button className="btn btn-ghost" onClick={() => navigate('/my-profile')}>Portal settings</button>
+          </div>
         </div>
-        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-          <button className="btn btn-outline" onClick={() => setShowFeedback(true)}>
-            <Bell size={14} />
-            Feedback / request a feature
-          </button>
-          <button className="btn btn-outline" onClick={() => setShowPersonalise(true)}>
-            <SlidersHorizontal size={14} />
-            Personalise dashboard
-          </button>
-          <button className="btn btn-ghost" onClick={() => navigate('/my-profile')}>Portal settings</button>
+
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          {dashboardFocusItems.map((item) => (
+            <div key={item.label} style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:999, border:'1px solid var(--border)', background:'var(--card)' }}>
+              <span className={`badge badge-${item.tone}`}>{item.label}</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.value}</span>
+              <span style={{ fontSize:12, color:'var(--sub)' }}>{item.hint}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       {quickActions.length ? (
-        <div className="card card-pad" style={{ marginBottom: dashboardDensity === 'compact' ? 16 : 22 }}>
+        <div className="card card-pad" style={{ marginBottom: dashboardDensity === 'compact' ? 16 : 22, borderRadius: 18 }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
             <div>
               <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Pinned actions</div>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Your most-used shortcuts, right where you need them.</div>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Fast routes into the places you open most often.</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => setShowPersonalise(true)}>Edit</button>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
             {quickActions.map((key) => {
               const item = quickActionMeta[key]
               if (!item) return null
+              const Icon = quickActionIcons[key] || ArrowRight
               return (
-                <button
+                <QuickActionCard
                   key={key}
-                  className="btn btn-outline"
+                  icon={Icon}
+                  label={item.label}
+                  hint={`Open ${item.label.toLowerCase()} quickly`}
                   onClick={() => navigate(item.route)}
-                  style={{ justifyContent:'space-between', padding:'12px 14px', borderRadius:12 }}
-                >
-                  <span>{item.label}</span>
-                  <ArrowRight size={13} />
-                </button>
+                />
               )
             })}
           </div>
         </div>
       ) : null}
 
-      <div className="card" style={{ overflow: 'hidden', marginBottom: dashboardDensity === 'compact' ? 16 : 22 }}>
+      <div className="card" style={{ overflow: 'hidden', marginBottom: dashboardDensity === 'compact' ? 16 : 22, borderRadius: 18 }}>
         <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Operations tools</div>
-            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>New operations spaces for support, compliance, training, knowledge, and client risk.</div>
+            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Core working areas for support, compliance, training, knowledge, and client risk.</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reports')}>Reports <ArrowRight size={12} /></button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+        <div className="dashboard-tools-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, padding: 14 }}>
           {phase9Tools.map((tool, index) => (
-            <ToolShortcutRow
+            <ToolCard
               key={tool.route}
+              icon={tool.icon}
               label={tool.label}
               hint={tool.hint}
               onClick={() => navigate(tool.route)}
@@ -1429,14 +1538,22 @@ export default function Dashboard() {
       </div>
 
       {dashboardSections.stats !== false ? (
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: dashboardDensity === 'compact' ? 12 : 16, marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
-        <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
-        <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
-        <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
-        <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
-        <StatCard icon={TrendingUp} label="Commission Paid" value={`£${stats.revenue.toLocaleString()}`} accent="var(--accent)" loading={loading} hint="Paid commission recorded in the portal" />
-        <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
-        <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
+      <div className="card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28, borderRadius: 18 }}>
+        <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Snapshot</div>
+            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Key operating numbers across outreach, clients, support, tasks, and alerts.</div>
+          </div>
+        </div>
+        <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>
+          <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
+          <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
+          <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
+          <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
+          <StatCard icon={TrendingUp} label="Commission Paid" value={`£${stats.revenue.toLocaleString()}`} accent="var(--accent)" loading={loading} hint="Paid commission recorded in the portal" />
+          <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
+          <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
+        </div>
       </div>
       ) : null}
 
