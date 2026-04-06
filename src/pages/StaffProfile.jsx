@@ -1988,6 +1988,30 @@ export default function StaffProfile() {
     },
   ]
   const missingProfileItems = profileCompleteness.missing.slice(0, 4)
+  const staffProfileTabs = [
+    ['profile','Profile'],
+    ['lifecycle','Lifecycle'],
+    ['performance','Performance'],
+    ['training','Training'],
+    ['portal','Portal'],
+    ['alerts','Alerts'],
+    ['hr','HR Details'],
+    ['bank','Bank'],
+    ['permissions','Permissions'],
+    ['notify','Notify'],
+    ['commissions','Commissions'],
+    ['contracts','Contracts'],
+    ['docs','Documents'],
+  ]
+  const roleSummary = [profile.role, profile.department, roleScopeLabel].filter(Boolean)
+  const managerDisplay = profile.manager_name || profile.manager_email || 'No manager assigned'
+  const heroSignals = [
+    { label: 'Lifecycle', value: lifecycle.label, tone: lifecycle.tone, hint: lifecycle.hint || 'Current employment stage' },
+    { label: 'Profile', value: `${profileCompleteness.percent}%`, tone: staff360Signals[0]?.tone || 'blue', hint: `${profileCompleteness.completed}/${profileCompleteness.total} checks complete` },
+    { label: 'Compliance', value: rtwStatus.label, tone: rtwStatus.tone, hint: rtwStatus.hint },
+    { label: 'People ops', value: `${openReviews.length + dueTraining.length + dueGoals.length}`, tone: staff360Signals[3]?.tone || 'blue', hint: `${overdueReviews.length} overdue reviews · ${dueTraining.length} training due` },
+    { label: 'Reporting', value: managerDisplay, tone: 'grey', hint: missingProfileItems.length ? `Missing: ${missingProfileItems.join(', ')}` : 'Core profile items are in place.' },
+  ]
 
   const scopedAccessAllowed = isDirector || canViewScopedStaff(profile, orgRecord)
 
@@ -2096,63 +2120,100 @@ export default function StaffProfile() {
 
   return (
     <div className="fade-in">
-      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:28 }}>
-        <button onClick={() => navigate('/my-staff')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'6px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
+        <button onClick={() => navigate('/my-staff')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'7px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13 }}>
           ← My Staff
         </button>
       </div>
 
-      {/* Hero */}
-      <div className="staff-profile-hero" style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
-        <div style={{ width:72, height:72, borderRadius:'50%', background:'var(--accent-soft)', border:'2px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:600, fontFamily:'var(--font-display)', color:'var(--accent)', flexShrink:0 }}>
-          {getInitials(displayName)}
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1, color:'var(--text)' }}>{displayName}</h1>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
-            {profile.role && <span style={{ fontSize:13, color:'var(--sub)' }}>{profile.role}</span>}
-            {profile.department && <><span style={{ color:'var(--border2)' }}>·</span><span style={{ fontSize:13, color:'var(--sub)' }}>{profile.department}</span></>}
-            {roleScopeLabel && <><span style={{ color:'var(--border2)' }}>·</span><span style={{ fontSize:13, color:'var(--sub)' }}>{roleScopeLabel}</span></>}
-            <span style={{ color:'var(--border2)' }}>·</span>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)' }}>{email}</span>
+      <div className="staff-profile-hero">
+        <div className="staff-profile-hero-main">
+          <div className="staff-profile-avatar">
+            {getInitials(displayName)}
           </div>
-        </div>
-        <div className="staff-profile-actions" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:12, color: onboarding ? 'var(--amber)' : 'var(--green)', fontWeight:500 }}>
-              {onboarding ? '⏳ Onboarding' : '✅ Active'}
-            </span>
-            <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
-              <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
-            </button>
-          </div>
-          <div className="staff-profile-toggle-card" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>📅 Bookable for Calls</div>
-              <div style={{ fontSize:11, color:'var(--faint)' }}>Shows in public booking calendar</div>
+          <div className="staff-profile-hero-copy">
+            <div className="staff-profile-kicker">Staff 360</div>
+            <h1 className="staff-profile-name">{displayName}</h1>
+            <div className="staff-profile-subline">
+              {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:16 }}>
-              <span style={{ fontSize:12, color: bookable ? 'var(--accent)' : 'var(--faint)', fontWeight:500 }}>{bookable ? '✓ Bookable' : 'Not bookable'}</span>
-              <button onClick={() => setBookable(b => !b)} style={{ width:40, height:22, borderRadius:11, background: bookable ? 'var(--accent)' : 'var(--bg3)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
-                <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
-              </button>
+            <div className="staff-profile-meta-row">
+              <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+              {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
+              {bookable ? <span className="badge badge-blue">Bookable</span> : null}
+              <span className="badge badge-grey">{email}</span>
             </div>
           </div>
-          <div style={{ display:'flex', gap:8 }}>
-            {saved && <span style={{ fontSize:13, color:'var(--green)', alignSelf:'center' }}>✓ Saved</span>}
-            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+        </div>
+        <div className="staff-profile-actions">
+          <div className="staff-profile-action-panel">
+            <div className="staff-profile-action-head">
+              <div>
+                <div className="staff-profile-kicker">Quick controls</div>
+                <div className="staff-profile-action-title">Access and availability</div>
+              </div>
+              {saved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
+            </div>
+            <div className="staff-profile-toggle-card">
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{onboarding ? 'Onboarding mode' : 'Employment active'}</div>
+                <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:4 }}>Use onboarding mode while setup, documents, and first access are still in progress.</div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:16 }}>
+                <span style={{ fontSize:12, color: onboarding ? 'var(--amber)' : 'var(--green)', fontWeight:600 }}>
+                  {onboarding ? 'Onboarding' : 'Active'}
+                </span>
+                <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+                  <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                </button>
+              </div>
+            </div>
+            <div className="staff-profile-toggle-card">
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Bookable for calls</div>
+                <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:4 }}>Controls whether this person appears on the public booking calendar.</div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:16 }}>
+                <span style={{ fontSize:12, color: bookable ? 'var(--accent)' : 'var(--faint)', fontWeight:600 }}>{bookable ? 'Bookable' : 'Hidden'}</span>
+                <button onClick={() => setBookable(b => !b)} style={{ width:40, height:22, borderRadius:11, background: bookable ? 'var(--accent)' : 'var(--bg3)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+                  <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                </button>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save staff profile'}</button>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
-        {[['profile','Profile'],['lifecycle','Lifecycle'],['performance','Performance'],['training','Training'],['portal','Portal'],['alerts','Alerts'],['hr','HR Details'],['bank','Bank'],['permissions','Permissions'],['notify','Notify'],['commissions','Commissions'],['contracts','Contracts'],['docs','Documents']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+      <div className="staff-profile-summary-grid">
+        {heroSignals.map((item) => (
+          <div key={item.label} className="staff-profile-summary-card">
+            <div className="staff-profile-summary-label">{item.label}</div>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+              <div className="staff-profile-summary-value">{item.value}</div>
+              <span className={`badge badge-${item.tone}`}>{item.label === 'Reporting' ? 'manager' : item.tone}</span>
+            </div>
+            <div className="staff-profile-summary-hint">{item.hint}</div>
+          </div>
         ))}
       </div>
 
-      <div style={{ maxWidth:tab === 'profile' ? 'none' : 760, width:'100%' }} className="staff-profile-content">
+      <div className="staff-profile-tab-shell">
+        <div className="staff-profile-action-head" style={{ marginBottom: 14 }}>
+          <div>
+            <div className="staff-profile-kicker">Workspace</div>
+            <div className="staff-profile-action-title">Profile areas</div>
+          </div>
+          <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
+        </div>
+        <div className="tabs staff-profile-tabs">
+        {staffProfileTabs.map(([k,l]) => (
+          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+        ))}
+        </div>
+      </div>
+
+      <div style={{ maxWidth:tab === 'profile' ? 'none' : 860, width:'100%' }} className="staff-profile-content">
         {tab === 'profile' && (
           <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
             <div style={{ display:'grid', gap:18 }}>
