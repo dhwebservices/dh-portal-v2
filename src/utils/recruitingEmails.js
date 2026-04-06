@@ -47,7 +47,16 @@ export async function sendRecruitingStatusEmail(status, application, note = '') 
 
 export function buildInterviewScheduleEmailSubject(application) {
   const role = application?.job_posts?.title || 'your application'
-  return `Interview scheduled for ${role}`
+  const when = application?.interview_at
+    ? new Date(application.interview_at).toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    : ''
+  return when ? `Interview details: ${role} — ${when}` : `Interview details for ${role}`
 }
 
 export function buildInterviewScheduleEmailHtml(application) {
@@ -62,16 +71,51 @@ export function buildInterviewScheduleEmailHtml(application) {
       minute: '2-digit',
     })
     : 'to be confirmed'
+  const contactLine = application?.interview_contact_name || application?.interview_contact_email
+    ? `<p><strong>Contact:</strong> ${application.interview_contact_name || application.interview_contact_email}${application.interview_contact_email ? ` (${application.interview_contact_email})` : ''}</p>`
+    : ''
 
   return `
-    <p>Hi ${firstName},</p>
-    <p>We would like to invite you to interview for ${role}.</p>
-    <p><strong>Date and time:</strong> ${when}</p>
-    ${application?.interview_mode ? `<p><strong>Format:</strong> ${application.interview_mode}</p>` : ''}
-    ${application?.interview_location ? `<p><strong>Details:</strong> ${application.interview_location}</p>` : ''}
-    ${application?.interview_notes ? `<p>${String(application.interview_notes).replace(/\n/g, '<br/>')}</p>` : ''}
-    <p>Regards,<br/>DH Website Services HR</p>
+    <div style="font-family:Arial,sans-serif;color:#1d1d1f;max-width:620px;margin:0 auto;padding:24px 20px;line-height:1.6">
+      <p>Hi ${firstName},</p>
+      <p>Your interview has been scheduled for <strong>${role}</strong>.</p>
+      <p><strong>Date and time:</strong> ${when}</p>
+      ${application?.interview_mode ? `<p><strong>Format:</strong> ${application.interview_mode}</p>` : ''}
+      ${application?.interview_location ? `<p><strong>Meeting details:</strong> ${application.interview_location}</p>` : ''}
+      ${contactLine}
+      ${application?.interview_notes ? `<p><strong>Notes:</strong><br/>${String(application.interview_notes).replace(/\n/g, '<br/>')}</p>` : ''}
+      <p>Please reply to this email if you need to confirm or rearrange.</p>
+      <p>Regards,<br/>DH Website Services HR</p>
+    </div>
   `
+}
+
+export function buildInterviewScheduleEmailText(application) {
+  const role = application?.job_posts?.title || 'the role'
+  const when = application?.interview_at
+    ? new Date(application.interview_at).toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    : 'to be confirmed'
+  const lines = [
+    `Your interview has been scheduled for ${role}.`,
+    '',
+    `Date and time: ${when}`,
+  ]
+  if (application?.interview_mode) lines.push(`Format: ${application.interview_mode}`)
+  if (application?.interview_location) lines.push(`Meeting details: ${application.interview_location}`)
+  if (application?.interview_contact_name || application?.interview_contact_email) {
+    lines.push(`Contact: ${application.interview_contact_name || application.interview_contact_email}${application?.interview_contact_email ? ` (${application.interview_contact_email})` : ''}`)
+  }
+  if (application?.interview_notes) {
+    lines.push('', `Notes: ${application.interview_notes}`)
+  }
+  lines.push('', 'Please reply to this email if you need to confirm or rearrange.', '', 'DH Website Services HR')
+  return lines.join('\n')
 }
 
 export async function sendInterviewScheduleEmail(application) {
@@ -80,6 +124,8 @@ export async function sendInterviewScheduleEmail(application) {
     to: application.email,
     subject: buildInterviewScheduleEmailSubject(application),
     html: buildInterviewScheduleEmailHtml(application),
+    text: buildInterviewScheduleEmailText(application),
     from: FROM_EMAIL,
+    reply_to: application?.interview_contact_email || undefined,
   })
 }
