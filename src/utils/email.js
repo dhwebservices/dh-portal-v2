@@ -8,22 +8,16 @@ function normalizeEmailPayload(type, data = {}) {
     return { type, data, originalType: type }
   }
 
-  const message = data.html || (data.text ? data.text.replace(/\n/g, '<br/>') : '')
-
   return {
-    type: 'outreach_contact',
+    type: 'custom_email',
     originalType: type,
     data: {
-      to_email: data.to || data.to_email,
-      contact_name: data.contact_name || data.to_name || '',
+      to: data.to || data.to_email,
+      from: data.from_email,
       subject: data.subject,
-      message,
-      from_email: data.from_email,
-      sent_by: data.sent_by,
-      business_name: data.business_name,
-      website: data.website,
-      portal_url: data.portal_url || PORTAL_URL,
-      log_outreach: data.log_outreach === true,
+      html: data.html || (data.text ? data.text.replace(/\n/g, '<br/>') : ''),
+      text: data.text || '',
+      reply_to: data.reply_to || data.from_email || undefined,
     },
   }
 }
@@ -46,12 +40,7 @@ export async function sendEmail(type, data) {
       throw new Error(result?.error || 'Worker request failed')
     }
 
-    // Auto-log only explicit outreach sends, not every portal email adapted through send_email.
-    if (
-      payload.type === 'outreach_contact' &&
-      payload.originalType === 'outreach_contact' &&
-      payload.data.to_email
-    ) {
+    if (payload.type === 'outreach_contact' && payload.data.to_email) {
       try {
         await supabase.from('outreach').insert([{
           business_name: payload.data.business_name || payload.data.to_email,
