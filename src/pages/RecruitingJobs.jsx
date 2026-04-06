@@ -74,14 +74,11 @@ export default function RecruitingJobs() {
         <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--border)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
             <div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>
-                Recruiting / Job requisitions
-              </div>
               <h1 style={{ fontSize:'clamp(28px,3vw,36px)', fontWeight:600, letterSpacing:'-0.03em', lineHeight:1, color:'var(--text)' }}>
-                Job requisitions
+                Recruitment
               </h1>
               <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
-                {departmentFilter ? `${filtered.length} roles linked to ${departmentFilter}.` : `${jobs.length} roles across draft, approval, and live publishing states.`}
+                {departmentFilter ? `${filtered.length} roles linked to ${departmentFilter}.` : `${jobs.length} roles across draft, approval, and live publishing states. Open any role to view its overview and applications.`}
               </div>
             </div>
             <button
@@ -119,7 +116,7 @@ export default function RecruitingJobs() {
               </button>
             ))}
             {departmentFilter ? (
-              <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting/jobs')}>
+              <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>
                 Clear department
               </button>
             ) : null}
@@ -144,7 +141,7 @@ export default function RecruitingJobs() {
                 </thead>
                 <tbody>
                   {filtered.map((job) => (
-                    <tr key={job.id}>
+                    <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
                       <td className="t-main">
                         <div>{job.title}</div>
                         <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>
@@ -156,15 +153,15 @@ export default function RecruitingJobs() {
                       <td><span className={`badge badge-${job.status === 'published' ? 'green' : job.status === 'draft' ? 'amber' : 'grey'}`}>{job.status}</span></td>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{job.updated_at ? new Date(job.updated_at).toLocaleDateString('en-GB') : '—'}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }} onClick={(event) => event.stopPropagation()}>
                           {isDirector && job.requisition_status === 'pending_approval' ? (
                             <>
                               <button className="btn btn-outline btn-sm" disabled={savingId === job.id} onClick={() => decideRequisition(job, 'rejected')}>Reject</button>
                               <button className="btn btn-outline btn-sm" disabled={savingId === job.id} onClick={() => decideRequisition(job, 'approved')}>Approve</button>
                             </>
                           ) : null}
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>Edit</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/applications?job=${job.id}`)}>Applications</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>Open</button>
+                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/jobs/${job.id}?mode=edit`)}>Edit</button>
                           <button className="btn btn-danger btn-sm" onClick={() => remove(job)}>Delete</button>
                         </div>
                       </td>

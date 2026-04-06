@@ -5,6 +5,7 @@ import { buildRequisitionPatch, getJobPost, getRequisitionStatusLabel, saveJobPo
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase'
 import { buildDepartmentCatalogKey, mergeDepartmentCatalog } from '../utils/orgStructure'
+import RecruitmentCandidateWorkspace from '../components/RecruitmentCandidateWorkspace'
 
 const EMPTY_JOB = {
   title: '',
@@ -52,6 +53,9 @@ export default function RecruitingJobEditor() {
   const [loading, setLoading] = useState(id !== 'new')
   const [saving, setSaving] = useState(false)
   const requestedDepartment = new URLSearchParams(location.search).get('department') || ''
+  const mode = new URLSearchParams(location.search).get('mode') || 'overview'
+  const isNew = id === 'new'
+  const isEditMode = isNew || mode === 'edit'
 
   useEffect(() => {
     supabase
@@ -67,14 +71,14 @@ export default function RecruitingJobEditor() {
   }, [])
 
   useEffect(() => {
-    if (!id || id === 'new') return
+    if (!id || isNew) return
     getJobPost(id).then((row) => row && setJob({ ...EMPTY_JOB, ...row })).finally(() => setLoading(false))
-  }, [id])
+  }, [id, isNew])
 
   useEffect(() => {
-    if (id !== 'new' || !requestedDepartment) return
+    if (!isNew || !requestedDepartment) return
     setJob((current) => current.department ? current : { ...current, department: requestedDepartment })
-  }, [id, requestedDepartment])
+  }, [isNew, requestedDepartment])
 
   const actor = {
     email: user?.email || '',
@@ -119,15 +123,81 @@ export default function RecruitingJobEditor() {
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
+  const publishedApplicationsLink = job?.id ? `/recruiting/applications?job=${job.id}` : '/recruiting/applications'
+
+  if (!isEditMode) {
+    return (
+      <div className="fade-in">
+        <div className="page-hd">
+          <div>
+            <h1 className="page-title">{job.title || 'Role overview'}</h1>
+            <p className="page-sub">Overview, requisition health, and the live candidate pipeline for this role.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button className="btn btn-outline" onClick={() => navigate('/recruiting')}>Back</button>
+            <button className="btn btn-outline" onClick={() => navigate(publishedApplicationsLink)}>Open standalone applications</button>
+            <button className="btn btn-primary" onClick={() => navigate(`/recruiting/jobs/${id}?mode=edit`)}>Edit role</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginBottom: 18 }}>
+          <div className="card card-pad">
+            <div style={{ fontSize: 11.5, color: 'var(--sub)', marginBottom: 8 }}>Status</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span className={`badge badge-${job.status === 'published' ? 'green' : job.status === 'draft' ? 'amber' : 'grey'}`}>{job.status || 'draft'}</span>
+              <span className={`badge badge-${job.requisition_status === 'approved' ? 'green' : job.requisition_status === 'pending_approval' ? 'amber' : job.requisition_status === 'rejected' ? 'red' : 'grey'}`}>
+                {getRequisitionStatusLabel(job.requisition_status)}
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginTop: 10 }}>
+              {job.requested_at ? `Requested ${new Date(job.requested_at).toLocaleString('en-GB')}.` : 'Not yet submitted for approval.'}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 11.5, color: 'var(--sub)', marginBottom: 8 }}>Hiring manager</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{job.hiring_manager_name || 'Not set'}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginTop: 10 }}>
+              {job.hiring_manager_email || 'Add an owner in edit mode.'}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 11.5, color: 'var(--sub)', marginBottom: 8 }}>Role setup</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{job.department || 'No department'}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginTop: 10 }}>
+              {job.headcount_requested || 1} opening{Number(job.headcount_requested || 1) === 1 ? '' : 's'} · {String(job.employment_type || 'full_time').replace(/_/g, ' ')}
+            </div>
+          </div>
+
+          <div className="card card-pad">
+            <div style={{ fontSize: 11.5, color: 'var(--sub)', marginBottom: 8 }}>Notes</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
+              {job.decision_notes || job.approval_notes || job.summary || 'No notes added yet.'}
+            </div>
+          </div>
+        </div>
+
+        {!isDirector && job.requisition_status !== 'approved' ? (
+          <div className="card card-pad" style={{ marginBottom: 18, borderColor: 'var(--amber)', background: 'var(--amber-bg)', color: 'var(--amber)' }}>
+            Director approval is still required before this role can be published publicly.
+          </div>
+        ) : null}
+
+        <RecruitmentCandidateWorkspace initialJobId={id} embedded showHeader={false} />
+      </div>
+    )
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd">
         <div>
-          <h1 className="page-title">{id === 'new' ? 'Create role' : 'Edit role'}</h1>
+          <h1 className="page-title">{isNew ? 'Create role' : 'Edit role'}</h1>
           <p className="page-sub">Build a full public job post and control how the careers site accepts applications.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <button className="btn btn-outline" onClick={() => navigate('/recruiting/jobs')}>Back</button>
+          <button className="btn btn-outline" onClick={() => navigate(isNew ? '/recruiting' : `/recruiting/jobs/${id}`)}>Back</button>
           <button className="btn btn-outline" disabled={saving} onClick={() => submit({ status: 'draft' })}>{saving ? 'Saving...' : 'Save draft'}</button>
           {job.requisition_status !== 'pending_approval' ? (
             <button className="btn btn-outline" disabled={saving} onClick={submitForApproval}>Submit for approval</button>

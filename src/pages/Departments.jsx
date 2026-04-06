@@ -599,7 +599,7 @@ export default function Departments() {
           <p className="page-sub">Director control centre for departments, manager assignments, and approval requests.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-outline" onClick={() => navigate('/recruiting/jobs')}>Open Hiring</button>
+          <button className="btn btn-outline" onClick={() => navigate('/recruiting')}>Open Hiring</button>
           <button className="btn btn-primary" onClick={() => navigate('/recruiting/jobs/new')}>Post job</button>
         </div>
       </div>
@@ -676,7 +676,7 @@ export default function Departments() {
                   <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
                     <button
                       className="btn btn-outline btn-sm"
-                      onClick={() => navigate(`/recruiting/jobs?department=${encodeURIComponent(department.name)}`)}
+                      onClick={() => navigate(`/recruiting?department=${encodeURIComponent(department.name)}`)}
                     >
                       View jobs
                     </button>

@@ -397,7 +397,9 @@ DH Website Services HR`)
             </div>
             <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
               <RecruitingStatusBadge status={application.status} />
-              <button className="btn btn-outline" onClick={() => navigate('/recruiting/applications')}>Back</button>
+              <button className="btn btn-outline" onClick={() => navigate(application.job_post_id ? `/recruiting/jobs/${application.job_post_id}` : '/recruiting')}>
+                Back
+              </button>
             </div>
           </div>
 

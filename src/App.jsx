@@ -242,7 +242,7 @@ function PortalLayout() {
               <Route path="/hr/compliance-rules" element={<PermissionGate permKey="hr_documents"><HRComplianceRules /></PermissionGate>} />
               <Route path="/hr/training-catalogue" element={<PermissionGate permKey="hr_documents"><HRTrainingCatalogue /></PermissionGate>} />
               <Route path="/hr/onboarding"   element={<PermissionGate permKey="hr_onboarding" allowDuringOnboarding><HROnboarding /></PermissionGate>} />
-              <Route path="/recruiting"     element={<PermissionGate permKey="recruiting_dashboard"><RecruitingDashboard /></PermissionGate>} />
+              <Route path="/recruiting"     element={<PermissionGate permKey="recruiting_jobs"><RecruitingJobs /></PermissionGate>} />
               <Route path="/recruiting/jobs" element={<PermissionGate permKey="recruiting_jobs"><RecruitingJobs /></PermissionGate>} />
               <Route path="/recruiting/jobs/:id" element={<PermissionGate permKey="recruiting_jobs"><RecruitingJobEditor /></PermissionGate>} />
               <Route path="/recruiting/applications" element={<PermissionGate permKey="recruiting_applications"><RecruitingApplications /></PermissionGate>} />
