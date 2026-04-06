@@ -43,7 +43,7 @@ const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 const WORKFLOW_AUTO_RUN_KEY = 'dh-portal:workflow-auto-run-at'
 const WORKFLOW_AUTO_RUN_INTERVAL_MS = 60 * 60 * 1000
 const WORKFLOW_AUTO_RUN_POLL_MS = 5 * 60 * 1000
-const REMOVED_DASHBOARD_SECTIONS = new Set(['today', 'appointments', 'priority', 'insight', 'activity'])
+const REMOVED_DASHBOARD_SECTIONS = new Set(['today', 'appointments', 'priority', 'insight', 'activity', 'notifications', 'schedule', 'followups', 'manager_board'])
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
