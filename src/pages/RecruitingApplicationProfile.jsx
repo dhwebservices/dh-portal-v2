@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ApplicantCvViewer from '../components/ApplicantCvViewer'
 import ApplicantTimeline from '../components/ApplicantTimeline'
@@ -63,6 +63,7 @@ export default function RecruitingApplicationProfile() {
   const [manualEmailBody, setManualEmailBody] = useState('')
   const [manualEmailBusy, setManualEmailBusy] = useState(false)
   const [manualEmailFeedback, setManualEmailFeedback] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     Promise.all([getApplication(id), listApplicationHistory(id), listApplicationNotes(id), listHiringUsers()])
@@ -72,8 +73,31 @@ export default function RecruitingApplicationProfile() {
         setNotes(noteRows)
         setHiringUsers(hiringUserRows)
       })
+      .catch((error) => setLoadError(error?.message || 'Could not load the application profile.'))
       .finally(() => setLoading(false))
   }, [id])
+
+  const assignmentOptions = useMemo(() => {
+    const currentUserOption = user?.email
+      ? [{
+          email: String(user.email).trim().toLowerCase(),
+          name: user.name || user.email,
+        }]
+      : []
+
+    return [...hiringUsers, ...currentUserOption]
+      .filter((item) => item?.email)
+      .reduce((acc, item) => {
+        const email = String(item.email).trim().toLowerCase()
+        if (acc.some((existing) => existing.email === email)) return acc
+        acc.push({
+          email,
+          name: item.name || email,
+        })
+        return acc
+      }, [])
+      .sort((a, b) => a.name.localeCompare(b.name, 'en'))
+  }, [hiringUsers, user?.email, user?.name])
 
   useEffect(() => {
     if (!application) return
@@ -133,7 +157,7 @@ DH Website Services HR`)
     setAssignmentBusy(true)
     setAssignmentFeedback('')
     try {
-      const assignedUser = hiringUsers.find((item) => item.email === assignmentEmail)
+      const assignedUser = assignmentOptions.find((item) => item.email === assignmentEmail)
       const meta = await saveApplicationProfileMeta(application.id, {
         assigned_recruiter_email: assignmentEmail,
         assigned_recruiter_name: assignedUser?.name || '',
@@ -162,7 +186,7 @@ DH Website Services HR`)
     setInterviewBusy(true)
     setInterviewFeedback('')
     try {
-      const assignedUser = hiringUsers.find((item) => item.email === assignmentEmail)
+      const assignedUser = assignmentOptions.find((item) => item.email === assignmentEmail)
       const meta = await saveApplicationProfileMeta(application.id, {
         assigned_recruiter_email: assignmentEmail,
         assigned_recruiter_name: assignedUser?.name || '',
@@ -286,6 +310,7 @@ DH Website Services HR`)
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
+  if (loadError) return <div className="card card-pad" style={{ maxWidth: 720, color: 'var(--red)' }}>{loadError}</div>
   if (!application) return <div className="empty"><p>Application not found.</p></div>
 
   return (
@@ -453,7 +478,7 @@ DH Website Services HR`)
                 <label className="lbl">Recruiter owner</label>
                 <select className="inp" value={assignmentEmail} onChange={(e) => setAssignmentEmail(e.target.value)}>
                   <option value="">Unassigned</option>
-                  {hiringUsers.map((item) => (
+                  {assignmentOptions.map((item) => (
                     <option key={item.email} value={item.email}>{item.name} ({item.email})</option>
                   ))}
                 </select>

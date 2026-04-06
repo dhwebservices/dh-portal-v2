@@ -394,13 +394,33 @@ export async function deleteJobPost(id) {
   if (error) throw error
 }
 
+async function listJobsByIds(jobIds = []) {
+  const uniqueIds = [...new Set(jobIds.filter(Boolean))]
+  if (!uniqueIds.length) return {}
+  const { data, error } = await supabase
+    .from('job_posts')
+    .select('*')
+    .in('id', uniqueIds)
+  if (error) throw error
+  const jobs = (data || []).map(normalizeJobPost)
+  const metaMap = await listJobProfileMetaMap(jobs.map((job) => job.id))
+  return jobs.reduce((acc, job) => {
+    acc[job.id] = mergeJobProfileMeta(job, metaMap[job.id])
+    return acc
+  }, {})
+}
+
 export async function listApplications() {
   const { data, error } = await supabase
     .from('job_applications')
-    .select('*, job_posts(*)')
+    .select('*')
     .order('submitted_at', { ascending: false })
   if (error) throw error
-  const applications = (data || []).map(normalizeApplication)
+  const jobMap = await listJobsByIds((data || []).map((application) => application.job_post_id))
+  const applications = (data || []).map((row) => normalizeApplication({
+    ...row,
+    job_posts: row.job_post_id ? jobMap[row.job_post_id] || null : null,
+  }))
   const metaMap = await listApplicationProfileMetaMap(applications.map((application) => application.id))
   return applications.map((application) => mergeApplicationProfileMeta(application, metaMap[application.id]))
 }
@@ -408,12 +428,16 @@ export async function listApplications() {
 export async function getApplication(id) {
   const { data, error } = await supabase
     .from('job_applications')
-    .select('*, job_posts(*)')
+    .select('*')
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
   if (!data) return null
-  const application = normalizeApplication(data)
+  const jobMap = await listJobsByIds([data.job_post_id])
+  const application = normalizeApplication({
+    ...data,
+    job_posts: data.job_post_id ? jobMap[data.job_post_id] || null : null,
+  })
   const metaMap = await listApplicationProfileMetaMap([id])
   return mergeApplicationProfileMeta(application, metaMap[id])
 }
@@ -456,9 +480,10 @@ export async function addApplicationNote(applicationId, note, actor = {}) {
 
 export async function updateApplicationStatus(application, nextStatus, actor = {}, extra = {}) {
   const patch = buildApplicationStatusPatch(nextStatus)
+  const { reason, ...extraPatch } = extra
   const cleanPatch = Object.fromEntries(Object.entries({
     ...patch,
-    ...extra,
+    ...extraPatch,
   }).filter(([, value]) => value !== undefined))
 
   const [{ data, error }, historyResult] = await Promise.all([
@@ -466,7 +491,7 @@ export async function updateApplicationStatus(application, nextStatus, actor = {
       .from('job_applications')
       .update(cleanPatch)
       .eq('id', application.id)
-      .select('*, job_posts(*)')
+      .select('*')
       .maybeSingle(),
     supabase
       .from('job_application_status_history')
@@ -476,7 +501,7 @@ export async function updateApplicationStatus(application, nextStatus, actor = {
         to_status: nextStatus,
         changed_by_email: actor.email || '',
         changed_by_name: actor.name || actor.email || '',
-        reason: extra.reason || '',
+        reason: reason || '',
         email_sent: false,
         created_at: new Date().toISOString(),
       }]),
