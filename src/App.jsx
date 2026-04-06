@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -195,8 +195,9 @@ function WebManagerGate({ children }) {
 
 function DesktopCursor() {
   const [enabled, setEnabled] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const cursorRef = useRef(null)
+  const frameRef = useRef(0)
+  const pointerRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined
@@ -204,7 +205,9 @@ function DesktopCursor() {
     const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1025px)')
     const updateEnabled = () => {
       setEnabled(mediaQuery.matches)
-      if (!mediaQuery.matches) setVisible(false)
+      if (!mediaQuery.matches && cursorRef.current) {
+        cursorRef.current.style.opacity = '0'
+      }
     }
 
     updateEnabled()
@@ -220,19 +223,45 @@ function DesktopCursor() {
   useEffect(() => {
     if (!enabled) return undefined
 
-    const handleMove = (event) => {
-      setPosition({ x: event.clientX, y: event.clientY })
-      setVisible(true)
+    const renderCursor = () => {
+      frameRef.current = 0
+      if (!cursorRef.current) return
+      cursorRef.current.style.transform = `translate3d(${pointerRef.current.x}px, ${pointerRef.current.y}px, 0)`
     }
 
-    const handleLeave = () => setVisible(false)
-    const handleEnter = () => setVisible(true)
+    const handleMove = (event) => {
+      pointerRef.current = { x: event.clientX, y: event.clientY }
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = '1'
+      }
+      if (!frameRef.current) {
+        frameRef.current = window.requestAnimationFrame(renderCursor)
+      }
+    }
+
+    const handleLeave = () => {
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = '0'
+      }
+    }
+
+    const handleEnter = (event) => {
+      pointerRef.current = { x: event.clientX, y: event.clientY }
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = '1'
+        cursorRef.current.style.transform = `translate3d(${pointerRef.current.x}px, ${pointerRef.current.y}px, 0)`
+      }
+    }
 
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseleave', handleLeave)
     window.addEventListener('mouseenter', handleEnter)
 
     return () => {
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current)
+        frameRef.current = 0
+      }
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseleave', handleLeave)
       window.removeEventListener('mouseenter', handleEnter)
@@ -243,11 +272,10 @@ function DesktopCursor() {
 
   return (
     <div
+      ref={cursorRef}
       className="desktop-cursor"
       style={{
-        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
-        opacity: visible ? 1 : 0,
-        transition: 'transform 80ms linear, opacity 160ms ease',
+        opacity: 0,
       }}
       aria-hidden="true"
     >
