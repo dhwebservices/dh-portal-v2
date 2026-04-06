@@ -43,6 +43,7 @@ const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 const WORKFLOW_AUTO_RUN_KEY = 'dh-portal:workflow-auto-run-at'
 const WORKFLOW_AUTO_RUN_INTERVAL_MS = 60 * 60 * 1000
 const WORKFLOW_AUTO_RUN_POLL_MS = 5 * 60 * 1000
+const REMOVED_DASHBOARD_SECTIONS = new Set(['today', 'appointments', 'priority', 'insight', 'activity'])
 
 function getWeekStart(d = new Date()) {
   const dt = new Date(d)
@@ -970,7 +971,7 @@ export default function Dashboard() {
     }
   }
 
-  const visibleOrderedSections = dashboardOrder.filter((key) => dashboardSections[key] !== false)
+  const visibleOrderedSections = dashboardOrder.filter((key) => dashboardSections[key] !== false && !REMOVED_DASHBOARD_SECTIONS.has(key))
   const nonStatsSections = visibleOrderedSections.filter((key) => key !== 'stats')
   const sectionPairs = []
   for (let i = 0; i < nonStatsSections.length; i += 2) {
@@ -1515,27 +1516,6 @@ export default function Dashboard() {
           </div>
         </div>
       ) : null}
-
-      <div className="card" style={{ overflow: 'hidden', marginBottom: dashboardDensity === 'compact' ? 16 : 22, borderRadius: 18 }}>
-        <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Operations tools</div>
-            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Core working areas for support, compliance, training, knowledge, and client risk.</div>
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reports')}>Reports <ArrowRight size={12} /></button>
-        </div>
-        <div className="dashboard-tools-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, padding: 14 }}>
-          {phase9Tools.map((tool, index) => (
-            <ToolCard
-              key={tool.route}
-              icon={tool.icon}
-              label={tool.label}
-              hint={tool.hint}
-              onClick={() => navigate(tool.route)}
-            />
-          ))}
-        </div>
-      </div>
 
       {dashboardSections.stats !== false ? (
       <div className="card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28, borderRadius: 18 }}>
