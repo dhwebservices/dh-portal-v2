@@ -1,14 +1,46 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { sendEmail } from '../utils/email'
 import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
+import {
+  buildClientContractKey,
+  buildClientContractMergeFields,
+  buildClientContractTemplateKey,
+  CLIENT_CONTRACT_PLACEHOLDERS,
+  createClientContract,
+  createClientContractTemplate,
+  createPortalSignature,
+  formatCurrencyAmount,
+  getClientContractStatusLabel,
+  renderClientContractHtml,
+} from '../utils/clientContracts'
 
 const STAGES = [{key:'accepted',label:'Order Accepted'},{key:'building',label:'Being Built'},{key:'nearly_there',label:'Nearly There'},{key:'ready',label:'Ready to Launch'}]
 const EMPTY_INV = { invoice_number:'', description:'', amount:'', due_date:'', status:'unpaid' }
 const EMPTY_DOC = { name:'', type:'Contract', file_url:'' }
 const EMPTY_UPD = { title:'', message:'' }
+const DEFAULT_CLIENT_TEMPLATE_HTML = `
+<p>This Service Agreement is made between <strong>DH Website Services</strong> and <strong>{{company_name}}</strong>.</p>
+<p>DH Website Services will deliver <strong>{{service_name}}</strong> for <strong>{{price_amount}}</strong>.</p>
+<p>Payment terms: <strong>{{payment_terms}}</strong>. Payment status: <strong>{{payment_status}}</strong>.</p>
+<p>Deposit agreed: <strong>{{deposit_amount}}</strong>.</p>
+<p>Your account manager for this agreement is <strong>{{account_manager_name}}</strong> (<strong>{{account_manager_email}}</strong>).</p>
+<p>Issue date: <strong>{{issue_date}}</strong></p>
+`
+const EMPTY_CONTRACT_FORM = {
+  template_id: '',
+  service_name: '',
+  price_amount: '',
+  currency: 'GBP',
+  payment_terms: '',
+  payment_status: 'Due on agreed terms',
+  deposit_amount: '',
+  paid_in_full: false,
+  notes: '',
+}
 
 const STAGE_TONES = {
   accepted: 'grey',
@@ -30,10 +62,13 @@ function timeAgo(dateString) {
 }
 
 export default function ClientMgmt() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [clients, setClients]         = useState([])
   const [invoiceRows, setInvoiceRows] = useState([])
   const [updateRows, setUpdateRows]   = useState([])
+  const [clientContractTemplates, setClientContractTemplates] = useState([])
+  const [clientContracts, setClientContracts] = useState([])
   const [loading, setLoading]         = useState(true)
   const [search, setSearch]           = useState('')
   const [filter, setFilter]           = useState('all')
@@ -45,16 +80,31 @@ export default function ClientMgmt() {
   const [invoiceForm, setInvForm]     = useState(EMPTY_INV)
   const [docForm, setDocForm]         = useState(EMPTY_DOC)
   const [updateForm, setUpdForm]      = useState(EMPTY_UPD)
+  const [contractForm, setContractForm] = useState(EMPTY_CONTRACT_FORM)
+  const [contractTemplateForm, setContractTemplateForm] = useState(() => createClientContractTemplate({
+    name: '',
+    description: '',
+    contract_type: 'Service Agreement',
+    subject: 'Your agreement with DH Website Services',
+    content_html: DEFAULT_CLIENT_TEMPLATE_HTML,
+  }))
+  const [editingContractTemplate, setEditingContractTemplate] = useState(null)
+  const [contractError, setContractError] = useState('')
+  const [templateError, setTemplateError] = useState('')
   const [replyForm, setReplyForm]     = useState('')
   const [activeTicket, setActiveTicket] = useState(null)
+  const [referenceFile, setReferenceFile] = useState(null)
+  const referenceFileRef = useRef(null)
 
   useEffect(() => { load() }, [])
   const load = async () => {
     setLoading(true)
-    const [{ data: clientRows }, { data: invRows }, { data: depRows }] = await Promise.all([
+    const [{ data: clientRows }, { data: invRows }, { data: depRows }, { data: templateRows }, { data: contractRows }] = await Promise.all([
       supabase.from('clients').select('*').order('name'),
       supabase.from('client_invoices').select('id,client_email,status,amount,created_at,due_date').order('created_at', { ascending: false }),
       supabase.from('deployment_updates').select('id,client_email,title,created_at').order('created_at', { ascending: false }),
+      supabase.from('portal_settings').select('key,value').like('key', 'client_contract_template:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'client_contract:%'),
     ])
     setClients(clientRows || [])
     if (clientRows?.length) {
@@ -62,6 +112,22 @@ export default function ClientMgmt() {
     }
     setInvoiceRows(invRows || [])
     setUpdateRows(depRows || [])
+    setClientContractTemplates(
+      (templateRows || [])
+        .map((row) => createClientContractTemplate({
+          id: String(row.key || '').replace('client_contract_template:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()),
+    )
+    setClientContracts(
+      (contractRows || [])
+        .map((row) => createClientContract({
+          id: String(row.key || '').replace('client_contract:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()),
+    )
     setLoading(false)
   }
 
@@ -89,8 +155,70 @@ export default function ClientMgmt() {
     setTickets(data||[])
   }
 
-  const openModal = (type, client) => { setActiveClient(client); setModal(type) }
-  const close = () => { setModal(null); setActiveClient(null); setActiveTicket(null) }
+  const openModal = (type, client) => {
+    setActiveClient(client || null)
+    setModal(type)
+    setContractError('')
+    setTemplateError('')
+    if (type === 'contract') {
+      setContractForm({
+        ...EMPTY_CONTRACT_FORM,
+        template_id: clientContractTemplates.find((template) => template.active !== false)?.id || '',
+        account_manager_name: user?.name || '',
+        account_manager_email: user?.email || '',
+      })
+    }
+    if (type === 'contractTemplates') {
+      setReferenceFile(null)
+      setEditingContractTemplate(null)
+      setContractTemplateForm(createClientContractTemplate({
+        name: '',
+        description: '',
+        contract_type: 'Service Agreement',
+        subject: 'Your agreement with DH Website Services',
+        content_html: DEFAULT_CLIENT_TEMPLATE_HTML,
+      }))
+    }
+  }
+  const close = () => {
+    setModal(null)
+    setActiveClient(null)
+    setActiveTicket(null)
+    setReferenceFile(null)
+    setEditingContractTemplate(null)
+    setContractError('')
+    setTemplateError('')
+  }
+
+  const activeContractTemplates = useMemo(
+    () => clientContractTemplates.filter((template) => template.active !== false),
+    [clientContractTemplates],
+  )
+
+  const contractsForActiveClient = useMemo(() => {
+    if (!activeClient?.email) return []
+    return clientContracts.filter((contract) => contract.client_email === String(activeClient.email || '').toLowerCase())
+  }, [clientContracts, activeClient?.email])
+
+  const contractPreview = useMemo(() => {
+    if (!activeClient) return ''
+    const template = activeContractTemplates.find((row) => row.id === contractForm.template_id) || activeContractTemplates[0]
+    if (!template) return ''
+    const mergeFields = buildClientContractMergeFields({
+      client: activeClient,
+      template,
+      serviceName: contractForm.service_name,
+      priceAmount: contractForm.price_amount,
+      currency: contractForm.currency,
+      paymentTerms: contractForm.payment_terms,
+      paymentStatus: contractForm.payment_status,
+      depositAmount: contractForm.deposit_amount,
+      paidInFull: contractForm.paid_in_full,
+      accountManagerName: contractForm.account_manager_name || user?.name || '',
+      accountManagerEmail: contractForm.account_manager_email || user?.email || '',
+    })
+    return renderClientContractHtml(template.content_html, mergeFields)
+  }, [activeClient, activeContractTemplates, contractForm, user?.email, user?.name])
 
   const addInvoice = async () => {
     setSaving(true)
@@ -147,6 +275,195 @@ export default function ClientMgmt() {
     if (activeClient) { const { data } = await supabase.from('support_tickets').select('*').eq('client_email', activeClient.email).order('created_at',{ascending:false}); setTickets(data||[]) }
   }
 
+  const startEditContractTemplate = (template) => {
+    setEditingContractTemplate(template)
+    setReferenceFile(null)
+    setTemplateError('')
+    setContractTemplateForm(createClientContractTemplate(template))
+    setModal('contractTemplates')
+  }
+
+  const saveContractTemplate = async () => {
+    if (!contractTemplateForm.name.trim() || !contractTemplateForm.content_html.trim()) {
+      setTemplateError('Add a template name and contract body before saving.')
+      return
+    }
+    setSaving(true)
+    setTemplateError('')
+    try {
+      let nextTemplate = createClientContractTemplate({
+        ...contractTemplateForm,
+        id: editingContractTemplate?.id || contractTemplateForm.id,
+        updated_at: new Date().toISOString(),
+      })
+
+      if (referenceFile) {
+        const filePath = `client-contract-templates/${nextTemplate.id}/${Date.now()}-${referenceFile.name}`
+        const { error: uploadError } = await supabase.storage.from('hr-documents').upload(filePath, referenceFile)
+        if (uploadError) throw uploadError
+        const { data: publicUrlData } = supabase.storage.from('hr-documents').getPublicUrl(filePath)
+        nextTemplate = {
+          ...nextTemplate,
+          reference_file_url: publicUrlData.publicUrl,
+          reference_file_path: filePath,
+          reference_file_name: referenceFile.name,
+        }
+      }
+
+      const { error } = await supabase.from('portal_settings').upsert({
+        key: buildClientContractTemplateKey(nextTemplate.id),
+        value: { value: nextTemplate },
+      }, { onConflict: 'key' })
+      if (error) throw error
+
+      setReferenceFile(null)
+      setEditingContractTemplate(null)
+      setContractTemplateForm(createClientContractTemplate({
+        name: '',
+        description: '',
+        contract_type: 'Service Agreement',
+        subject: 'Your agreement with DH Website Services',
+        content_html: DEFAULT_CLIENT_TEMPLATE_HTML,
+      }))
+      await load()
+    } catch (error) {
+      setTemplateError(error.message || 'Could not save the client contract template.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleContractTemplateArchive = async (template) => {
+    const nextTemplate = createClientContractTemplate({
+      ...template,
+      active: !template.active,
+      updated_at: new Date().toISOString(),
+    })
+    await supabase.from('portal_settings').upsert({
+      key: buildClientContractTemplateKey(nextTemplate.id),
+      value: { value: nextTemplate },
+    }, { onConflict: 'key' })
+    await load()
+  }
+
+  const issueClientContract = async () => {
+    const template = activeContractTemplates.find((row) => row.id === contractForm.template_id) || activeContractTemplates[0]
+    if (!activeClient?.email || !template) {
+      setContractError('Choose a client and template before issuing the contract.')
+      return
+    }
+    if (!contractForm.service_name.trim()) {
+      setContractError('Add the service name before issuing the contract.')
+      return
+    }
+
+    setSaving(true)
+    setContractError('')
+    try {
+      const mergeFields = buildClientContractMergeFields({
+        client: activeClient,
+        template,
+        serviceName: contractForm.service_name,
+        priceAmount: contractForm.price_amount,
+        currency: contractForm.currency,
+        paymentTerms: contractForm.payment_terms,
+        paymentStatus: contractForm.payment_status,
+        depositAmount: contractForm.deposit_amount,
+        paidInFull: contractForm.paid_in_full,
+        accountManagerName: contractForm.account_manager_name || user?.name || '',
+        accountManagerEmail: contractForm.account_manager_email || user?.email || '',
+      })
+
+      const staffSignature = createPortalSignature({
+        name: user?.name || 'DH Website Services',
+        title: 'Issued by DH Website Services',
+        email: user?.email || '',
+      })
+
+      const contract = createClientContract({
+        template_id: template.id,
+        template_name: template.name,
+        contract_type: template.contract_type,
+        subject: template.subject,
+        client_email: activeClient.email,
+        client_name: activeClient.contact || activeClient.name,
+        company_name: activeClient.name,
+        service_name: contractForm.service_name,
+        status: 'awaiting_client_signature',
+        notes: contractForm.notes,
+        merge_fields: mergeFields,
+        template_html: template.content_html,
+        template_reference_file_url: template.reference_file_url,
+        template_reference_file_path: template.reference_file_path,
+        template_reference_file_name: template.reference_file_name,
+        price_amount: contractForm.price_amount,
+        currency: contractForm.currency,
+        payment_terms: contractForm.paid_in_full ? 'Paid in full' : contractForm.payment_terms,
+        payment_status: contractForm.paid_in_full ? 'Paid in full' : contractForm.payment_status,
+        deposit_amount: contractForm.deposit_amount,
+        paid_in_full: contractForm.paid_in_full,
+        issued_by_email: user?.email || '',
+        issued_by_name: user?.name || '',
+        account_manager_name: contractForm.account_manager_name || user?.name || '',
+        account_manager_email: contractForm.account_manager_email || user?.email || '',
+        staff_signature: staffSignature,
+        issued_at: staffSignature.signed_at,
+        staff_signed_at: staffSignature.signed_at,
+      })
+
+      const { error } = await supabase.from('portal_settings').upsert({
+        key: buildClientContractKey(contract.id),
+        value: { value: contract },
+      }, { onConflict: 'key' })
+      if (error) throw error
+
+      await Promise.allSettled([
+        supabase.from('notifications').insert([{
+          user_email: activeClient.email,
+          title: 'Contract ready to sign',
+          message: `${template.name} is ready for your review and signature.`,
+          type: 'info',
+          link: '/contracts',
+          created_at: new Date().toISOString(),
+        }]),
+        logClientActivity({
+          clientEmail: activeClient.email,
+          eventType: 'contract_issued',
+          title: template.name || 'Contract ready to sign',
+          description: `${contractForm.service_name} has been issued in your client portal.`,
+        }),
+        sendEmail('custom_email', {
+          from_email: 'HR@dhwebsiteservices.co.uk',
+          to: activeClient.email,
+          subject: template.subject || `Contract ready to sign — ${contractForm.service_name}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.7;">
+              <p>Hi ${activeClient.contact || activeClient.name},</p>
+              <p>Your contract for <strong>${contractForm.service_name}</strong> is now ready to review and sign in the client portal.</p>
+              <p><strong>Amount:</strong> ${formatCurrencyAmount(contractForm.price_amount, contractForm.currency) || contractForm.price_amount || 'Not listed'}<br/>
+              <strong>Payment terms:</strong> ${contractForm.paid_in_full ? 'Paid in full' : (contractForm.payment_terms || 'As agreed')}</p>
+              <p><a href="https://clients.dhwebsiteservices.co.uk/contracts" style="display:inline-block;padding:10px 18px;background:#1A56DB;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;">Open contracts</a></p>
+              <p>Thanks,<br/>${user?.name || 'DH Website Services'}</p>
+            </div>
+          `,
+          text: `Hi ${activeClient.contact || activeClient.name},\n\nYour contract for ${contractForm.service_name} is ready to review and sign in the client portal.\n\nAmount: ${formatCurrencyAmount(contractForm.price_amount, contractForm.currency) || contractForm.price_amount || 'Not listed'}\nPayment terms: ${contractForm.paid_in_full ? 'Paid in full' : (contractForm.payment_terms || 'As agreed')}\n\nOpen contracts: https://clients.dhwebsiteservices.co.uk/contracts`,
+        }),
+      ])
+
+      setContractForm({
+        ...EMPTY_CONTRACT_FORM,
+        template_id: activeContractTemplates.find((row) => row.active !== false)?.id || '',
+        account_manager_name: user?.name || '',
+        account_manager_email: user?.email || '',
+      })
+      await load()
+    } catch (error) {
+      setContractError(error.message || 'Could not issue the client contract.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const clientSignals = useMemo(() => {
     const invoiceMap = invoiceRows.reduce((acc, row) => {
       const key = row.client_email
@@ -179,15 +496,27 @@ export default function ClientMgmt() {
       return acc
     }, {})
 
-    return { invoiceMap, updateMap, ticketMap }
-  }, [invoiceRows, updateRows, tickets])
+    const contractMap = clientContracts.reduce((acc, row) => {
+      const key = row.client_email
+      acc[key] = acc[key] || { total: 0, awaiting: 0, completed: 0, latestAt: null }
+      acc[key].total += 1
+      if (row.status === 'awaiting_client_signature') acc[key].awaiting += 1
+      if (row.status === 'completed') acc[key].completed += 1
+      const stamp = row.updated_at || row.issued_at || row.created_at
+      if (!acc[key].latestAt || new Date(stamp) > new Date(acc[key].latestAt)) acc[key].latestAt = stamp
+      return acc
+    }, {})
+
+    return { invoiceMap, updateMap, ticketMap, contractMap }
+  }, [invoiceRows, updateRows, tickets, clientContracts])
 
   const stats = useMemo(() => {
     const active = clients.filter((c) => c.status === 'active').length
     const openTickets = Object.values(clientSignals.ticketMap).reduce((sum, row) => sum + row.open, 0)
     const unpaidInvoices = Object.values(clientSignals.invoiceMap).reduce((sum, row) => sum + row.unpaid, 0)
     const ready = clients.filter((c) => c.deployment_status === 'ready').length
-    return { active, openTickets, unpaidInvoices, ready }
+    const awaitingContracts = Object.values(clientSignals.contractMap).reduce((sum, row) => sum + row.awaiting, 0)
+    return { active, openTickets, unpaidInvoices, ready, awaitingContracts }
   }, [clients, clientSignals])
 
   const filtered = clients.filter(c => {
@@ -220,19 +549,20 @@ export default function ClientMgmt() {
       <div className="page-hd">
         <div><h1 className="page-title">Client Portal Management</h1><p className="page-sub">Live delivery, billing, and support view across {clients.length} client accounts.</p></div>
       </div>
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0,1fr))', gap:14, marginBottom:20 }}>
         <div className="stat-card"><div className="stat-val">{stats.active}</div><div className="stat-lbl">Active clients</div></div>
         <div className="stat-card"><div className="stat-val">{stats.openTickets}</div><div className="stat-lbl">Open tickets</div></div>
         <div className="stat-card"><div className="stat-val">{stats.unpaidInvoices}</div><div className="stat-lbl">Unpaid invoices</div></div>
         <div className="stat-card"><div className="stat-val">{stats.ready}</div><div className="stat-lbl">Ready to launch</div></div>
+        <div className="stat-card"><div className="stat-val">{stats.awaitingContracts}</div><div className="stat-lbl">Contracts awaiting signature</div></div>
       </div>
 
       <div className="card card-pad" style={{ marginBottom:20 }}>
-        <div className="legacy-toolbar" style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'center' }}>
-          <div style={{ position:'relative', flex:1, minWidth:220 }}>
-            <input className="inp" style={{ paddingLeft:34 }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
-            <svg style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--faint)', pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
+          <div className="legacy-toolbar" style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'center' }}>
+            <div style={{ position:'relative', flex:1, minWidth:220 }}>
+              <input className="inp" style={{ paddingLeft:34 }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
+              <svg style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--faint)', pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
           <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6 }}>
             {[
               ['all', 'All clients'],
@@ -243,6 +573,7 @@ export default function ClientMgmt() {
               <button key={key} onClick={() => setFilter(key)} className={'pill'+(filter===key?' on':'')}>{label}</button>
             ))}
           </div>
+          <button className="btn btn-outline" onClick={() => openModal('contractTemplates', null)}>Client contract templates</button>
         </div>
       </div>
 
@@ -250,6 +581,7 @@ export default function ClientMgmt() {
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : filtered.map((client) => {
           const invoiceSignal = clientSignals.invoiceMap[client.email] || { total: 0, unpaid: 0, overdue: 0, latestAt: null }
           const updateSignal = clientSignals.updateMap[client.email] || { total: 0, latestTitle: '', latestAt: null }
+          const contractSignal = clientSignals.contractMap[client.email] || { total: 0, awaiting: 0, completed: 0, latestAt: null }
           const active = expanded === client.id
           return (
             <div key={client.id} className="card" style={{ overflow:'hidden' }}>
@@ -273,7 +605,7 @@ export default function ClientMgmt() {
                     </select>
                   </div>
 
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:10, marginTop:16 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0, 1fr))', gap:10, marginTop:16 }}>
                     <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
                       <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{invoiceSignal.unpaid}</div>
                       <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Unpaid invoices</div>
@@ -289,6 +621,10 @@ export default function ClientMgmt() {
                     <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
                       <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{Number(client.value || 0) ? `£${Number(client.value).toLocaleString()}` : '—'}</div>
                       <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Account value</div>
+                    </div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{contractSignal.awaiting}</div>
+                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Contracts pending</div>
                     </div>
                   </div>
                 </div>
@@ -306,6 +642,7 @@ export default function ClientMgmt() {
                     <button className="btn btn-outline btn-sm" onClick={()=>openModal('invoice',client)}>Invoice</button>
                     <button className="btn btn-outline btn-sm" onClick={()=>openModal('update',client)}>Update</button>
                     <button className="btn btn-outline btn-sm" onClick={()=>openModal('doc',client)}>Doc</button>
+                    <button className="btn btn-outline btn-sm" onClick={()=>openModal('contract',client)}>Contracts</button>
                     <button className="btn btn-ghost btn-sm" onClick={()=>toggleExpand(client.id, client.email)}>{active ? 'Hide details' : 'Show details'}</button>
                   </div>
                 </div>
@@ -313,7 +650,7 @@ export default function ClientMgmt() {
 
               {active && (
                 <div style={{ padding:'18px 20px', background:'var(--bg2)', borderTop:'1px solid var(--border)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:12, marginBottom:16 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:12, marginBottom:16 }}>
                     <div className="card" style={{ padding:'14px 16px' }}>
                       <div className="lbl" style={{ marginBottom:8 }}>Support</div>
                       <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>{activeClient?.id === client.id ? activeSignals?.tickets.open : 0}</div>
@@ -327,6 +664,11 @@ export default function ClientMgmt() {
                     <div className="card" style={{ padding:'14px 16px' }}>
                       <div className="lbl" style={{ marginBottom:8 }}>Account notes</div>
                       <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>{client.notes || 'No client notes added yet.'}</div>
+                    </div>
+                    <div className="card" style={{ padding:'14px 16px' }}>
+                      <div className="lbl" style={{ marginBottom:8 }}>Contracts</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>{contractSignal.total}</div>
+                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>{contractSignal.awaiting} awaiting signature.</div>
                     </div>
                   </div>
 
@@ -383,6 +725,167 @@ export default function ClientMgmt() {
           <p style={{ fontSize:13.5, color:'var(--sub)', lineHeight:1.7 }}>{activeTicket.message}</p>
         </div>
         <div><label className="lbl">Your Reply</label><textarea className="inp" rows={5} value={replyForm} onChange={e=>setReplyForm(e.target.value)} style={{ resize:'vertical' }}/></div>
+      </Modal>}
+
+      {modal==='contractTemplates' && <Modal title="Client contract templates" onClose={close} width={980} footer={<><button className="btn btn-outline" onClick={close}>Close</button><button className="btn btn-primary" onClick={saveContractTemplate} disabled={saving}>{saving ? 'Saving...' : (editingContractTemplate ? 'Save changes' : 'Save template')}</button></>}>
+        <div style={{ display:'grid', gridTemplateColumns:'minmax(280px,0.9fr) minmax(0,1.4fr)', gap:18 }}>
+          <div style={{ display:'grid', gap:12, alignContent:'start' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Saved templates</div>
+                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Reuse a base client agreement and swap pricing/payment details at issue time.</div>
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={() => {
+                setEditingContractTemplate(null)
+                setReferenceFile(null)
+                setTemplateError('')
+                setContractTemplateForm(createClientContractTemplate({
+                  name: '',
+                  description: '',
+                  contract_type: 'Service Agreement',
+                  subject: 'Your agreement with DH Website Services',
+                  content_html: DEFAULT_CLIENT_TEMPLATE_HTML,
+                }))
+              }}>New</button>
+            </div>
+            <div style={{ display:'grid', gap:10, maxHeight:420, overflowY:'auto', paddingRight:4 }}>
+              {clientContractTemplates.length ? clientContractTemplates.map((template) => (
+                <div key={template.id} className="card" style={{ padding:'14px 16px', display:'grid', gap:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600 }}>{template.name}</div>
+                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{template.contract_type || 'Service Agreement'}</div>
+                    </div>
+                    <span className={`badge badge-${template.active ? 'green' : 'grey'}`}>{template.active ? 'Active' : 'Archived'}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.6 }}>{template.description || 'No description yet.'}</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => startEditContractTemplate(template)}>Edit</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => toggleContractTemplateArchive(template)}>{template.active ? 'Archive' : 'Restore'}</button>
+                    {template.reference_file_url ? <a className="btn btn-outline btn-sm" href={template.reference_file_url} target="_blank" rel="noreferrer">Reference file</a> : null}
+                  </div>
+                </div>
+              )) : <div className="empty"><p>No client contract templates yet.</p></div>}
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gap:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label className="lbl">Template name</label><input className="inp" value={contractTemplateForm.name} onChange={(e) => setContractTemplateForm((current) => ({ ...current, name: e.target.value }))} /></div>
+              <div><label className="lbl">Contract type</label><input className="inp" value={contractTemplateForm.contract_type} onChange={(e) => setContractTemplateForm((current) => ({ ...current, contract_type: e.target.value }))} /></div>
+              <div><label className="lbl">Email subject</label><input className="inp" value={contractTemplateForm.subject} onChange={(e) => setContractTemplateForm((current) => ({ ...current, subject: e.target.value }))} /></div>
+              <div>
+                <label className="lbl">Status</label>
+                <select className="inp" value={contractTemplateForm.active ? 'active' : 'archived'} onChange={(e) => setContractTemplateForm((current) => ({ ...current, active: e.target.value === 'active' }))}>
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+            <div><label className="lbl">Description</label><textarea className="inp" rows={3} value={contractTemplateForm.description} onChange={(e) => setContractTemplateForm((current) => ({ ...current, description: e.target.value }))} style={{ resize:'vertical' }} /></div>
+            <div>
+              <div className="lbl" style={{ marginBottom:6 }}>Template body</div>
+              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Use placeholders like {CLIENT_CONTRACT_PLACEHOLDERS.map(([key]) => `{{${key}}}`).join(', ')}.</div>
+              <textarea className="inp" rows={14} value={contractTemplateForm.content_html} onChange={(e) => setContractTemplateForm((current) => ({ ...current, content_html: e.target.value }))} style={{ resize:'vertical', fontFamily:'var(--font-mono)', fontSize:12 }} />
+            </div>
+            <div className="card card-pad" style={{ display:'grid', gap:10 }}>
+              <div className="lbl">Attach default contract file</div>
+              <div style={{ fontSize:12, color:'var(--sub)' }}>Optional. Keep the original PDF or source document attached to the template for internal reference.</div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                <input ref={referenceFileRef} type="file" style={{ display:'none' }} accept=".pdf,.doc,.docx,.html" onChange={(e) => setReferenceFile(e.target.files?.[0] || null)} />
+                <button className="btn btn-outline btn-sm" onClick={() => referenceFileRef.current?.click()}>{referenceFile ? 'Change file' : 'Choose file'}</button>
+                <span style={{ fontSize:12, color: referenceFile ? 'var(--text)' : 'var(--sub)' }}>{referenceFile ? referenceFile.name : (contractTemplateForm.reference_file_name || 'No file attached')}</span>
+              </div>
+            </div>
+            {templateError ? <div className="badge badge-red" style={{ justifySelf:'flex-start' }}>{templateError}</div> : null}
+          </div>
+        </div>
+      </Modal>}
+
+      {modal==='contract' && activeClient && <Modal title={`Client contracts — ${activeClient.name}`} onClose={close} width={1080} footer={<><button className="btn btn-outline" onClick={close}>Close</button><button className="btn btn-primary" onClick={issueClientContract} disabled={saving}>{saving ? 'Issuing...' : 'Issue contract'}</button></>}>
+        <div style={{ display:'grid', gridTemplateColumns:'minmax(320px,0.95fr) minmax(0,1.35fr)', gap:18 }}>
+          <div style={{ display:'grid', gap:14, alignContent:'start' }}>
+            <div className="card card-pad" style={{ display:'grid', gap:12 }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Issue new contract</div>
+                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Set the amount due, payment terms, and push a sign-ready agreement into the client portal.</div>
+              </div>
+              <div><label className="lbl">Template</label><select className="inp" value={contractForm.template_id} onChange={(e) => setContractForm((current) => ({ ...current, template_id: e.target.value }))}>{activeContractTemplates.length ? activeContractTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>) : <option value="">No active templates</option>}</select></div>
+              <div><label className="lbl">Service name</label><input className="inp" value={contractForm.service_name} onChange={(e) => setContractForm((current) => ({ ...current, service_name: e.target.value }))} placeholder="Website build and onboarding" /></div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 140px', gap:12 }}>
+                <div><label className="lbl">Amount due</label><input className="inp" type="number" value={contractForm.price_amount} onChange={(e) => setContractForm((current) => ({ ...current, price_amount: e.target.value }))} placeholder="1499" /></div>
+                <div><label className="lbl">Currency</label><select className="inp" value={contractForm.currency} onChange={(e) => setContractForm((current) => ({ ...current, currency: e.target.value }))}><option value="GBP">GBP</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+              </div>
+              <div><label className="lbl">Payment terms</label><input className="inp" value={contractForm.payment_terms} onChange={(e) => setContractForm((current) => ({ ...current, payment_terms: e.target.value }))} placeholder="50% upfront, balance due on launch" disabled={contractForm.paid_in_full} /></div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div><label className="lbl">Payment status</label><input className="inp" value={contractForm.payment_status} onChange={(e) => setContractForm((current) => ({ ...current, payment_status: e.target.value }))} placeholder="Due on agreed terms" disabled={contractForm.paid_in_full} /></div>
+                <div><label className="lbl">Deposit amount</label><input className="inp" type="number" value={contractForm.deposit_amount} onChange={(e) => setContractForm((current) => ({ ...current, deposit_amount: e.target.value }))} placeholder="500" disabled={contractForm.paid_in_full} /></div>
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:12.5, color:'var(--sub)' }}>
+                <input type="checkbox" checked={contractForm.paid_in_full} onChange={(e) => setContractForm((current) => ({ ...current, paid_in_full: e.target.checked, payment_terms: e.target.checked ? 'Paid in full' : current.payment_terms, payment_status: e.target.checked ? 'Paid in full' : current.payment_status }))} />
+                Client has paid in full
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div><label className="lbl">Account manager name</label><input className="inp" value={contractForm.account_manager_name || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_name: e.target.value }))} /></div>
+                <div><label className="lbl">Account manager email</label><input className="inp" value={contractForm.account_manager_email || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_email: e.target.value }))} /></div>
+              </div>
+              <div><label className="lbl">Internal notes</label><textarea className="inp" rows={3} value={contractForm.notes} onChange={(e) => setContractForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} /></div>
+              {contractError ? <div className="badge badge-red" style={{ justifySelf:'flex-start' }}>{contractError}</div> : null}
+            </div>
+
+            <div className="card card-pad" style={{ display:'grid', gap:12 }}>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Existing contracts</div>
+                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Signed agreements and contracts currently waiting on the client.</div>
+              </div>
+              <div style={{ display:'grid', gap:10, maxHeight:280, overflowY:'auto', paddingRight:4 }}>
+                {contractsForActiveClient.length ? contractsForActiveClient.map((contract) => {
+                  const [statusLabel, tone] = getClientContractStatusLabel(contract.status)
+                  return (
+                    <div key={contract.id} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', display:'grid', gap:8 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                        <div>
+                          <div style={{ fontSize:13.5, fontWeight:600 }}>{contract.template_name || 'Client contract'}</div>
+                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{contract.service_name || 'Service agreement'}</div>
+                        </div>
+                        <span className={`badge badge-${tone}`}>{statusLabel}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--sub)' }}>
+                        {formatCurrencyAmount(contract.price_amount, contract.currency) || contract.price_amount || 'No amount listed'}
+                        {contract.payment_terms ? ` · ${contract.payment_terms}` : ''}
+                      </div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Signed PDF</a> : null}
+                        {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Reference file</a> : null}
+                      </div>
+                    </div>
+                  )
+                }) : <div className="empty"><p>No contracts issued for this client yet.</p></div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="card card-pad" style={{ display:'grid', gap:14, alignContent:'start' }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Live preview</div>
+              <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>This is what the client will review and sign in their portal.</div>
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {contractForm.price_amount ? <span className="badge badge-blue">{formatCurrencyAmount(contractForm.price_amount, contractForm.currency) || contractForm.price_amount}</span> : null}
+              {contractForm.paid_in_full ? <span className="badge badge-green">Paid in full</span> : null}
+              {contractForm.payment_terms ? <span className="badge badge-grey">{contractForm.payment_terms}</span> : null}
+            </div>
+            <div style={{ background:'#f8f6f1', border:'1px solid #e7e1d8', borderRadius:18, padding:22, minHeight:420, maxHeight:680, overflowY:'auto' }}>
+              {contractPreview ? (
+                <div style={{ maxWidth:760, margin:'0 auto', background:'#fff', border:'1px solid #e7e1d8', borderRadius:18, padding:'28px 30px', boxShadow:'0 18px 48px rgba(15, 23, 42, 0.08)' }}>
+                  <div style={{ fontFamily:'Georgia, Times New Roman, serif', fontSize:15, lineHeight:1.8, color:'#111' }} dangerouslySetInnerHTML={{ __html: contractPreview }} />
+                </div>
+              ) : (
+                <div style={{ fontSize:13, color:'var(--sub)' }}>Choose an active template to preview the contract.</div>
+              )}
+            </div>
+          </div>
+        </div>
       </Modal>}
     </div>
   )
