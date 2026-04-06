@@ -293,11 +293,6 @@ export default function Header() {
     <header className="main-header">
       <div className="header-shell" style={{ display:'flex', alignItems:'center', gap:18, minWidth:0, flex:1 }}>
         <div className="header-page-meta" style={{ minWidth:0, flex:1 }}>
-          <div className="header-top-crumbs hide-mob">
-            <span className="header-top-crumb-link"><HomeIcon /> Home</span>
-            <span style={{ color:'var(--faint)' }}>›</span>
-            <span style={{ color:'var(--text)', fontWeight:600 }}>{pageTitle}</span>
-          </div>
           <div className="header-page-topline" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flexWrap:'wrap' }}>
             <span className="header-page-section" style={{ background:sectionTone.bg, color:sectionTone.color }}>
               {pageMeta.section}
