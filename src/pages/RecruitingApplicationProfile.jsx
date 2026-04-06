@@ -29,6 +29,46 @@ function renderStars(value) {
   return '★'.repeat(safe) + '☆'.repeat(5 - safe)
 }
 
+function buildAssignmentEmailHtml({ application, assignedUser, actor }) {
+  return `
+    <div style="margin:0;padding:28px 16px;background:#F4F7FB;font-family:Arial,sans-serif;color:#182033">
+      <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border:1px solid #DEE6F3;border-radius:24px;overflow:hidden;box-shadow:0 12px 34px rgba(19,35,79,0.08)">
+        <div style="padding:24px 28px;background:linear-gradient(135deg,#2F6FED 0%,#101827 100%);color:#FFFFFF">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;opacity:0.72">Recruiting assignment</div>
+          <div style="font-size:28px;font-weight:700;line-height:1.12;letter-spacing:-0.03em;margin-top:10px">A job application has been assigned to you</div>
+          <div style="font-size:14px;line-height:1.75;opacity:0.9;margin-top:12px">Please review this applicant in the recruiting workspace and follow up on the next action.</div>
+        </div>
+        <div style="padding:28px">
+          <div style="padding:18px;border:1px solid #D9E1F2;border-radius:18px;background:#F7F9FC">
+            <div style="padding-bottom:14px;border-bottom:1px solid #E7ECF5;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A8499;margin-bottom:6px">Applicant</div>
+              <div style="font-size:14px;line-height:1.65;color:#182033">${application.full_name || application.email || 'Applicant'}</div>
+            </div>
+            <div style="padding-bottom:14px;border-bottom:1px solid #E7ECF5;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A8499;margin-bottom:6px">Role</div>
+              <div style="font-size:14px;line-height:1.65;color:#182033">${application.job_posts?.title || 'Open role'}</div>
+            </div>
+            <div style="padding-bottom:14px;border-bottom:1px solid #E7ECF5;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A8499;margin-bottom:6px">Application reference</div>
+              <div style="font-size:14px;line-height:1.65;color:#182033">${application.application_ref || '—'}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7A8499;margin-bottom:6px">Assigned by</div>
+              <div style="font-size:14px;line-height:1.65;color:#182033">${actor?.name || actor?.email || 'DH Website Services HR'}</div>
+            </div>
+          </div>
+          <div style="margin-top:20px">
+            <a href="https://staff.dhwebsiteservices.co.uk/recruiting/applications/${application.id}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#2F6FED;color:#FFFFFF;text-decoration:none;font-weight:700">Open application</a>
+          </div>
+          <div style="margin-top:24px;font-size:14px;line-height:1.75;color:#44506A">
+            Regards,<br/><strong style="color:#182033">DH Website Services HR</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
 export default function RecruitingApplicationProfile() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -171,19 +211,28 @@ DH Website Services HR`)
         user
       )
       if (assignmentEmail && assignmentEmail !== previousAssignmentEmail) {
-        await sendManagedNotification({
-          userEmail: assignmentEmail,
-          userName: assignedUser?.name || assignmentEmail,
-          category: 'urgent',
-          type: 'info',
-          title: 'New job application assigned to you',
-          message: `${application.full_name || application.email || 'An applicant'} has been assigned to you for ${application.job_posts?.title || 'a live role'}. Please review and respond in the recruiting workspace.`,
-          link: `/recruiting/applications/${application.id}`,
-          emailSubject: `New recruiting assignment — ${application.job_posts?.title || 'Job application'}`,
-          sentBy: user?.name || user?.email || 'DH Website Services HR',
-          fromEmail: 'DH Website Services HR <HR@dhwebsiteservices.co.uk>',
-          forceImportant: true,
-        }).catch(() => {})
+        await Promise.allSettled([
+          sendManagedNotification({
+            userEmail: assignmentEmail,
+            userName: assignedUser?.name || assignmentEmail,
+            category: 'urgent',
+            type: 'info',
+            title: 'New job application assigned to you',
+            message: `${application.full_name || application.email || 'An applicant'} has been assigned to you for ${application.job_posts?.title || 'a live role'}. Please review and respond in the recruiting workspace.`,
+            link: `/recruiting/applications/${application.id}`,
+            emailSubject: `New recruiting assignment — ${application.job_posts?.title || 'Job application'}`,
+            sentBy: user?.name || user?.email || 'DH Website Services HR',
+            fromEmail: 'DH Website Services HR <HR@dhwebsiteservices.co.uk>',
+            forceImportant: true,
+          }),
+          sendEmail('custom_email', {
+            to: assignmentEmail,
+            subject: `Application assigned to you — ${application.job_posts?.title || 'Job application'}`,
+            html: buildAssignmentEmailHtml({ application, assignedUser, actor: user }),
+            from: 'DH Website Services HR <HR@dhwebsiteservices.co.uk>',
+            reply_to: user?.email || undefined,
+          }),
+        ])
       }
       setNotes((current) => [note, ...current])
       setAssignmentFeedback('Assignment saved.')
