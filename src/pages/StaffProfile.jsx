@@ -89,6 +89,17 @@ import {
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
 
+function formatTimelineDate(value) {
+  if (!value) return 'Unknown time'
+  return new Date(value).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
   {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
@@ -937,6 +948,7 @@ export default function StaffProfile() {
       emailSubject: `Termination approval required — ${displayName}`,
       sentBy: user?.name || user?.email || 'Portal admin',
       forceImportant: true,
+      forceDelivery: 'both',
       fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
     })))
 
@@ -1001,6 +1013,7 @@ export default function StaffProfile() {
         emailSubject: approved ? 'Employment termination approved' : 'Termination request update',
         sentBy: user?.name || user?.email || 'Director',
         forceImportant: true,
+        forceDelivery: 'both',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
       }),
       profile.personal_email
