@@ -13,6 +13,7 @@ import {
   PhoneCall,
   TrendingUp,
   UserCheck,
+  UserRound,
   Users,
   SlidersHorizontal,
 } from 'lucide-react'
