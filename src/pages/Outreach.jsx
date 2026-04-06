@@ -304,13 +304,13 @@ function buildLeadTimeline(row, emails, appointments, clientRecord) {
 
 function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
   return (
-    <div className="card" style={{ padding: '18px 18px 16px', minHeight: 122 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${tone}18`, marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="metric-tile">
+      <div className="metric-dot" style={{ background: `${tone}18` }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: tone, display: 'inline-block' }} />
       </div>
-      <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>{value}</div>
-      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
+      <div className="metric-value">{value}</div>
+      <div className="metric-label">{label}</div>
+      <div className="metric-hint">{hint}</div>
     </div>
   )
 }
@@ -1040,7 +1040,7 @@ export default function Outreach() {
         {tab === 'contacts' && <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>}
       </div>
 
-      <div className="dashboard-stat-grid outreach-mobile-hero" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 22 }}>
+      <div className="metric-grid outreach-mobile-hero" style={{ marginBottom: 22 }}>
         <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--accent)" />
         <StatCard label="Follow-up queue" value={stats.queue} hint="Leads that still need another touch" tone="var(--amber)" />
         <StatCard label="Overdue" value={stats.overdue} hint="Follow-ups that are now late" tone="var(--red)" />
@@ -1049,12 +1049,12 @@ export default function Outreach() {
         <StatCard label="Converted" value={stats.converted} hint="Handed over into live client work" tone="var(--blue)" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(280px,0.75fr)', gap: 18, marginBottom: 22 }} className="dashboard-panel-grid">
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="insight-grid" style={{ marginBottom: 22 }}>
+        <div className="surface-card" style={{ overflow: 'hidden' }}>
+          <div className="surface-card-header">
             <div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>Follow-up queue</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Who should outreach chase next?</div>
+              <div className="section-kicker">Follow-up queue</div>
+              <div className="section-title">Who should outreach chase next?</div>
             </div>
             <button className="btn btn-outline btn-sm" onClick={() => setFilter('follow_up_queue')}>Open queue view</button>
           </div>
@@ -1073,6 +1073,7 @@ export default function Outreach() {
                     justifyContent: 'space-between',
                     gap: 14,
                     alignItems: 'flex-start',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
@@ -1104,20 +1105,20 @@ export default function Outreach() {
           )}
         </div>
 
-        <div className="card card-pad">
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 6 }}>Focus area</div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>Work the right leads first</div>
-          <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.65, marginBottom: 14 }}>
+        <div className="surface-card surface-card-body">
+          <div className="section-kicker" style={{ marginBottom: 6 }}>Focus area</div>
+          <div className="section-title" style={{ marginTop: 0, marginBottom: 10 }}>Work the right leads first</div>
+          <div className="section-note" style={{ marginTop: 0, marginBottom: 14 }}>
             Outreach staff should spend most of their time on interested leads, follow-ups that are now overdue, and anyone recently contacted who still has momentum.
           </div>
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="insight-pile">
             {[
               ['Interested leads', `${stats.hot} ready for a stronger push`, 'green'],
               ['Overdue follow-ups', `${stats.overdue} contacts need chasing today`, 'red'],
               ['Completed today', `${stats.completedToday} follow-ups have already been cleared`, 'blue'],
               ['Recent activity', `${stats.recent} leads touched in the last 48 hours`, 'blue'],
             ].map(([title, text, tone]) => (
-              <div key={title} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+              <div key={title} className="insight-pill">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className={`badge badge-${tone}`}>{title}</span>
                 </div>
@@ -1136,13 +1137,13 @@ export default function Outreach() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }} className="legacy-toolbar">
+      <div className="toolbar-row legacy-toolbar">
         <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
           <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--faint)', pointerEvents: 'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input className="inp" style={{ paddingLeft: 34 }} placeholder={tab === 'contacts' ? 'Search leads, people, notes...' : 'Search emails...'} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {tab === 'contacts' && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} className="legacy-toolbar-actions">
+          <div className="toolbar-chips legacy-toolbar-actions">
             {FILTERS.map((value) => (
               <button
                 key={value}
@@ -1180,7 +1181,7 @@ export default function Outreach() {
       </div>
 
       {tab === 'contacts' && (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="desk-table-shell">
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <>
               <div className="tbl-wrap desktop-only">
@@ -1278,7 +1279,7 @@ export default function Outreach() {
                     const overdue = isOverdue(r)
                     const timelineItems = buildLeadTimeline(r, emails, appointments, getClientMatch(r)).slice(0, 3)
                     return (
-                      <div key={`mobile-${r.id}`} className="card outreach-mobile-card">
+                      <div key={`mobile-${r.id}`} className="soft-list-row outreach-mobile-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.business_name}</div>
@@ -1349,7 +1350,7 @@ export default function Outreach() {
       )}
 
       {tab === 'emails' && (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="desk-table-shell">
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <div className="tbl-wrap desktop-only">
               <table className="tbl">
@@ -1398,8 +1399,8 @@ export default function Outreach() {
                   <button
                     key={`mobile-email-${e.id}`}
                     onClick={() => setViewEmail(e)}
-                    className="card outreach-mobile-card"
-                    style={{ textAlign:'left', border:'1px solid var(--border)', background:'var(--card)', width:'100%' }}
+                    className="soft-list-row outreach-mobile-card"
+                    style={{ textAlign:'left', width:'100%' }}
                   >
                     <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:6, lineHeight:1.4 }}>{e.subject}</div>
                     <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, marginBottom:10 }}>

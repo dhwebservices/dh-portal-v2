@@ -48,15 +48,7 @@ function NotificationRow({ notification, onOpen, onRead }) {
 
   return (
     <div
-      className="card"
-      style={{
-        padding: 16,
-        display: 'flex',
-        gap: 14,
-        alignItems: 'flex-start',
-        borderColor: notification.read ? 'var(--border)' : 'var(--accent-border)',
-        background: notification.read ? 'var(--card)' : 'linear-gradient(180deg, var(--card), var(--accent-soft))',
-      }}
+      className={`notification-row${notification.read ? '' : ' notification-row-unread'}`}
     >
       <div
         style={{
@@ -192,27 +184,30 @@ export default function Notifications() {
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
-        <div className="stat-card">
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--blue-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+      <div className="metric-grid" style={{ marginBottom: 24 }}>
+        <div className="metric-tile">
+          <div className="metric-dot" style={{ background: 'var(--blue-bg)' }}>
             <Bell size={18} color="var(--blue)" />
           </div>
-          <div className="stat-val">{notifications.length}</div>
-          <div className="stat-lbl">Total Notifications</div>
+          <div className="metric-value">{notifications.length}</div>
+          <div className="metric-label">Total notifications</div>
+          <div className="metric-hint">All portal alerts, approvals, and updates in the inbox.</div>
         </div>
-        <div className="stat-card">
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <div className="metric-tile">
+          <div className="metric-dot" style={{ background: 'var(--accent-soft)' }}>
             <Info size={18} color="var(--accent)" />
           </div>
-          <div className="stat-val">{unreadCount}</div>
-          <div className="stat-lbl">Unread</div>
+          <div className="metric-value">{unreadCount}</div>
+          <div className="metric-label">Unread</div>
+          <div className="metric-hint">Items that still need to be opened or acknowledged.</div>
         </div>
-        <div className="stat-card">
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <div className="metric-tile">
+          <div className="metric-dot" style={{ background: 'var(--red-bg)' }}>
             <CircleAlert size={18} color="var(--red)" />
           </div>
-          <div className="stat-val">{urgentCount}</div>
-          <div className="stat-lbl">Urgent Unread</div>
+          <div className="metric-value">{urgentCount}</div>
+          <div className="metric-label">Urgent unread</div>
+          <div className="metric-hint">High-priority alerts that should be reviewed first.</div>
         </div>
       </div>
 
@@ -227,13 +222,13 @@ export default function Notifications() {
       {loading ? (
         <div className="spin-wrap"><div className="spin" /></div>
       ) : filtered.length || pinnedAlerts.length ? (
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div className="stack-list">
           {pinnedAlerts.length ? (
-            <div className="card card-pad" style={{ borderColor:'var(--accent-border)', background:'linear-gradient(180deg, var(--card), var(--accent-soft))' }}>
+            <div className="surface-card surface-card-body" style={{ borderColor:'var(--accent-border)', background:'linear-gradient(180deg, var(--card), var(--accent-soft))' }}>
               <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12 }}>
                 <div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Pinned alerts</div>
-                  <div style={{ fontSize:14, color:'var(--sub)', marginTop:4 }}>Pinned staff notices stay visible here until the banner expires or is disabled.</div>
+                  <div className="section-kicker">Pinned alerts</div>
+                  <div className="section-note">Pinned staff notices stay visible here until the banner expires or is disabled.</div>
                 </div>
                 <span className="badge badge-blue">{pinnedAlerts.length} active</span>
               </div>
@@ -265,7 +260,7 @@ export default function Notifications() {
           ))}
         </div>
       ) : (
-        <div className="card card-pad" style={{ textAlign: 'center', padding: '42px 20px' }}>
+        <div className="surface-card surface-card-body" style={{ textAlign: 'center', padding: '42px 20px' }}>
           <div style={{ fontSize: 14, color: 'var(--sub)', marginBottom: 8 }}>No notifications in this view</div>
           <div style={{ fontSize: 12, color: 'var(--faint)' }}>Try switching the filter or wait for the next portal event.</div>
         </div>

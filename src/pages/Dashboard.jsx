@@ -1476,7 +1476,7 @@ export default function Dashboard() {
       {showSystemBanners ? <ActiveBanners /> : null}
 
       <div style={{ marginBottom: dashboardDensity === 'compact' ? 20 : 26 }}>
-        <div style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(135deg, #1d56b3 0%, #2563c9 42%, #194a96 100%)', color: '#fff' }}>
+        <div className="overview-hero">
           <div style={{ padding: '22px 24px 18px', borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
               <div style={{ display:'flex', alignItems:'center', gap:16, minWidth:0 }}>
@@ -1496,13 +1496,13 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(92px,1fr))', gap:10, minWidth:'min(100%, 320px)' }}>
+              <div className="overview-meta-grid">
                 {[
                   { label: 'Tasks', value: stats.tasks, hint: 'Open' },
                   { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
                   { label: 'Clients', value: stats.clients, hint: 'Active' },
                 ].map((item) => (
-                  <div key={item.label} style={{ padding:'12px 12px 10px', borderRadius:16, background:'rgba(255,255,255,0.12)', border:'1px solid rgba(255,255,255,0.14)' }}>
+                  <div key={item.label} className="overview-meta-tile">
                     <div style={{ fontSize:11, color:'rgba(255,255,255,0.72)' }}>{item.label}</div>
                     <div style={{ fontSize:24, fontWeight:600, marginTop:8, lineHeight:1 }}>{item.value}</div>
                     <div style={{ fontSize:11, color:'rgba(255,255,255,0.74)', marginTop:4 }}>{item.hint}</div>
@@ -1513,14 +1513,14 @@ export default function Dashboard() {
           </div>
 
           <div style={{ padding:'18px 24px 22px' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:12 }}>
+            <div className="overview-shortcut-grid">
               {shortcutButtons.map((item) => {
                 const Icon = item.icon
                 return (
                   <button
                     key={item.key}
                     onClick={() => navigate(item.route)}
-                    style={{ border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.08)', borderRadius:18, padding:'16px 12px', color:'#fff', display:'grid', justifyItems:'center', gap:10, textAlign:'center' }}
+                    className="overview-shortcut-btn"
                   >
                     <div style={{ width:42, height:42, borderRadius:14, background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                       <Icon size={18} />
@@ -1535,11 +1535,11 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(320px,0.95fr)', gap:16, marginBottom: dashboardDensity === 'compact' ? 18 : 24 }} className="dashboard-top-grid">
-        <div className="card" style={{ borderRadius:20, overflow:'hidden' }}>
-          <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+        <div className="surface-card" style={{ overflow:'hidden' }}>
+          <div className="surface-card-header">
             <div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>My team</div>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>{isAdmin ? 'People active in the portal right now.' : 'Who is live across your working environment right now.'}</div>
+              <div className="section-kicker">My team</div>
+              <div className="section-note">{isAdmin ? 'People active in the portal right now.' : 'Who is live across your working environment right now.'}</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/my-team')}>Open team <ArrowRight size={12} /></button>
           </div>
@@ -1566,11 +1566,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card" style={{ borderRadius:20, overflow:'hidden' }}>
-          <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+        <div className="surface-card" style={{ overflow:'hidden' }}>
+          <div className="surface-card-header">
             <div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Pending actions</div>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>What needs your attention next across tasks, approvals, and onboarding.</div>
+              <div className="section-kicker">Pending actions</div>
+              <div className="section-note">What needs your attention next across tasks, approvals, and onboarding.</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>Open actions <ArrowRight size={12} /></button>
           </div>
@@ -1582,11 +1582,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28, borderRadius: 20 }}>
-        <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+      <div className="surface-card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
+        <div className="surface-card-header">
           <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Home snapshot</div>
-            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>The core numbers that shape your working day.</div>
+            <div className="section-kicker">Home snapshot</div>
+            <div className="section-note">The core numbers that shape your working day.</div>
           </div>
           <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
             <button className="btn btn-outline btn-sm" onClick={() => setShowFeedback(true)}>Feedback</button>

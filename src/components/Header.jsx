@@ -82,6 +82,25 @@ function MoreIcon() {
   )
 }
 
+function HomeIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 3 3 10.2V21h6v-6h6v6h6V10.2L12 3Z" />
+    </svg>
+  )
+}
+
+function GridIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="4" y="4" width="6" height="6" rx="1.5" />
+      <rect x="14" y="4" width="6" height="6" rx="1.5" />
+      <rect x="4" y="14" width="6" height="6" rx="1.5" />
+      <rect x="14" y="14" width="6" height="6" rx="1.5" />
+    </svg>
+  )
+}
+
 function sectionAccent(section = '') {
   const safe = String(section || '').toLowerCase()
   if (safe === 'hiring') return { bg: 'rgba(26,86,219,0.1)', color: 'var(--accent)' }
@@ -168,7 +187,9 @@ export default function Header() {
   const [unread, setUnread]       = useState(0)
   const [bellOpen, setBellOpen]   = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
   const bellRef                   = useRef()
+  const navRef                    = useRef()
 
   const loadUnreadNotifications = async () => {
     if (!user?.email) {
@@ -216,7 +237,14 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
+    const handler = (e) => { if (navRef.current && !navRef.current.contains(e.target)) setNavOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  useEffect(() => {
     setBellOpen(false)
+    setNavOpen(false)
     setMobileMenuOpen(false)
   }, [pathname])
 
@@ -259,6 +287,13 @@ export default function Header() {
   const pageMeta = resolvePageMeta(pathname)
   const pageTitle = pageMeta.title
   const sectionTone = sectionAccent(pageMeta.section)
+  const sectionRoutes = [
+    { label: 'Dashboard', route: '/dashboard' },
+    { label: 'Business', route: '/clients' },
+    { label: 'Tasks', route: '/tasks' },
+    { label: 'HR', route: '/my-staff' },
+    { label: 'Recruitment', route: '/recruiting' },
+  ]
   const openMenuRoute = (route) => {
     setMobileMenuOpen(false)
     navigate(route)
@@ -274,6 +309,11 @@ export default function Header() {
     <header className="main-header">
       <div className="header-shell" style={{ display:'flex', alignItems:'center', gap:18, minWidth:0, flex:1 }}>
         <div className="header-page-meta" style={{ minWidth:0, flex:1 }}>
+          <div className="header-top-crumbs hide-mob">
+            <span className="header-top-crumb-link"><HomeIcon /> Home</span>
+            <span style={{ color:'var(--faint)' }}>›</span>
+            <span style={{ color:'var(--text)', fontWeight:600 }}>{pageTitle}</span>
+          </div>
           <div className="header-page-topline" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flexWrap:'wrap' }}>
             <span className="header-page-section" style={{ background:sectionTone.bg, color:sectionTone.color }}>
               {pageMeta.section}
@@ -336,6 +376,35 @@ export default function Header() {
               markReadOnly={markRead}
             />
           )}
+        </div>
+
+        <div ref={navRef} style={{ position:'relative' }}>
+          <button className="header-icon-btn" onClick={() => setNavOpen((open) => !open)} title="Navigation" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: navOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
+            onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
+            onMouseOut={e => { if (!navOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
+            <GridIcon />
+          </button>
+
+          {navOpen ? (
+            <div className="header-popover" style={{ position:'absolute', top:'calc(100% + 10px)', right:0, zIndex:220 }}>
+              <div className="header-popover-kicker">Navigation</div>
+              <div className="header-popover-grid">
+                {sectionRoutes.map((item) => (
+                  <button
+                    key={item.label}
+                    className="header-popover-item"
+                    onClick={() => {
+                      setNavOpen(false)
+                      navigate(item.route)
+                    }}
+                  >
+                    <GridIcon />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
@@ -419,8 +488,16 @@ export default function Header() {
               <span>My profile</span>
             </button>
             <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/dashboard')}>
-              <span style={{ fontSize:14, lineHeight:1 }}>⌂</span>
+              <HomeIcon />
               <span>Dashboard</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/clients')}>
+              <GridIcon />
+              <span>Business</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/recruiting')}>
+              <GridIcon />
+              <span>Recruitment</span>
             </button>
           </div>
 
