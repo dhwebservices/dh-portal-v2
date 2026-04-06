@@ -219,31 +219,33 @@ const css = `
 .dh-tiles::-webkit-scrollbar { display: none; }
 .dh-tile-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-  padding: 6px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--card) 86%, var(--bg2) 14%);
-  border: 1px solid var(--border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 .dh-tile {
-  display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center;
-  column-gap: 12px; row-gap: 2px;
-  padding: 10px 12px; border-radius: 12px; cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
+  display: grid; grid-template-columns: 1fr; align-items: start;
+  column-gap: 0; row-gap: 8px;
+  padding: 14px 12px 12px; border-radius: 16px; cursor: pointer;
+  background: color-mix(in srgb, var(--card) 84%, var(--bg2) 16%);
+  border: 1px solid var(--border);
   text-decoration: none; color: var(--text);
   transition: background 0.12s, border-color 0.12s, transform 0.1s;
   position: relative; overflow: hidden;
+  min-height: 110px;
 }
 .dh-tile::after {
-  content: '›';
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg2) 84%, white 16%);
   color: var(--faint);
-  font-size: 16px;
-  line-height: 1;
-  align-self: center;
+  border: 1px solid var(--border);
 }
-.dh-tile:hover { background: var(--bg2); border-color: var(--border); }
+.dh-tile:hover { background: var(--bg2); border-color: var(--accent-border); transform: translateY(-1px); }
 .dh-tile.dh-tile-active {
   background: color-mix(in srgb, var(--accent-soft) 74%, white 26%);
   border-color: var(--accent-border);
@@ -260,12 +262,11 @@ const css = `
 .dh-tile-icon {
   width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  grid-row: 1 / span 2;
 }
 .dh-tile-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
-.dh-tile-desc { font-size: 11px; color: var(--sub); line-height: 1.35; }
+.dh-tile-desc { font-size: 11px; color: var(--sub); line-height: 1.45; }
 .dh-tile-badge {
-  position: absolute; top: 12px; right: 30px;
+  position: absolute; top: 12px; right: 36px;
   background: var(--red); color: #fff; font-size: 9px; font-weight: 600;
   min-width: 16px; height: 16px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center; padding: 0 4px;
@@ -477,6 +478,9 @@ const css = `
   padding: 10px 10px 9px;
   border-radius: 9px;
 }
+[data-nav-density="compact"] .dh-tile-grid {
+  gap: 8px;
+}
 [data-nav-density="compact"] .dh-tile-icon,
 [data-nav-density="compact"] .dh-mobile-tile-icon {
   width: 28px;
@@ -524,6 +528,11 @@ const css = `
   background: color-mix(in srgb, var(--bg3) 74%, var(--page-tint-strong) 26%);
 }
 @media (min-width: 769px) { .mob-btn { display: none !important; } }
+@media (max-width: 1100px) {
+  .dh-tile-grid {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 768px) { .dh-dock { display: none !important; } .dh-panel { left: 0 !important; width: 85vw !important; } }
 `
 
