@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -193,9 +193,73 @@ function WebManagerGate({ children }) {
   )
 }
 
+function DesktopCursor() {
+  const [enabled, setEnabled] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1025px)')
+    const updateEnabled = () => {
+      setEnabled(mediaQuery.matches)
+      if (!mediaQuery.matches) setVisible(false)
+    }
+
+    updateEnabled()
+    mediaQuery.addEventListener?.('change', updateEnabled)
+    mediaQuery.addListener?.(updateEnabled)
+
+    return () => {
+      mediaQuery.removeEventListener?.('change', updateEnabled)
+      mediaQuery.removeListener?.(updateEnabled)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) return undefined
+
+    const handleMove = (event) => {
+      setPosition({ x: event.clientX, y: event.clientY })
+      setVisible(true)
+    }
+
+    const handleLeave = () => setVisible(false)
+    const handleEnter = () => setVisible(true)
+
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseleave', handleLeave)
+    window.addEventListener('mouseenter', handleEnter)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseleave', handleLeave)
+      window.removeEventListener('mouseenter', handleEnter)
+    }
+  }, [enabled])
+
+  if (!enabled) return null
+
+  return (
+    <div
+      className="desktop-cursor"
+      style={{
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        opacity: visible ? 1 : 0,
+        transition: 'transform 80ms linear, opacity 160ms ease',
+      }}
+      aria-hidden="true"
+    >
+      <img src="/dh-logo-icon.png" alt="" />
+    </div>
+  )
+}
+
 function PortalLayout() {
   return (
     <div className="app-layout">
+      <DesktopCursor />
       <Sidebar />
       <div className="main-area">
         <Header />
