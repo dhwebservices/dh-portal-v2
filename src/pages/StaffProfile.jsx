@@ -100,6 +100,19 @@ function formatTimelineDate(value) {
   })
 }
 
+function buildTerminationEmailHtml({ greeting = 'there', body = '', ctaHref = '', ctaLabel = 'Open staff portal' } = {}) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:640px;padding:32px;color:#0f172a;line-height:1.7;">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">DH Website Services</div>
+      <h2 style="margin:0 0 12px;font-size:24px;">Employment update</h2>
+      <p>Hi ${greeting},</p>
+      <p>${body}</p>
+      ${ctaHref ? `<p style="margin-top:24px;"><a href="${ctaHref}" style="display:inline-block;padding:12px 20px;background:#1A56DB;color:#fff;text-decoration:none;border-radius:999px;font-weight:700;">${ctaLabel}</a></p>` : ''}
+      <p style="margin-top:24px;">If you have any questions, please contact DH Website Services.</p>
+    </div>
+  `
+}
+
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
   {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
@@ -949,8 +962,21 @@ export default function StaffProfile() {
         emailSubject: `Termination approval required — ${displayName}`,
         sentBy: user?.name || user?.email || 'Portal admin',
         forceImportant: true,
-        forceDelivery: 'both',
+        forceDelivery: 'portal',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })),
+      ...directorEmails.map((directorEmail) => sendEmail('custom_email', {
+        to: directorEmail,
+        from: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        subject: `Termination approval required — ${displayName}`,
+        html: buildTerminationEmailHtml({
+          greeting: directorEmail.split('@')[0],
+          body: `${displayName} has a termination request awaiting director approval. Effective date: ${lifecycleRecord.termination.effective_date}.`,
+          ctaHref: `https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+          ctaLabel: 'Review termination request',
+        }),
+        text: `${displayName} has a termination request awaiting director approval. Effective date: ${lifecycleRecord.termination.effective_date}.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+        reply_to: 'HR@dhwebsiteservices.co.uk',
       })),
       user?.email
         ? sendManagedNotification({
@@ -964,8 +990,23 @@ export default function StaffProfile() {
             emailSubject: `Termination request pending — ${displayName}`,
             sentBy: user?.name || user?.email || 'Portal admin',
             forceImportant: true,
-            forceDelivery: 'both',
+            forceDelivery: 'portal',
             fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          })
+        : Promise.resolve(),
+      user?.email
+        ? sendEmail('custom_email', {
+            to: user.email,
+            from: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            subject: `Termination request pending — ${displayName}`,
+            html: buildTerminationEmailHtml({
+              greeting: (user?.name || user?.email || 'there').split(' ')[0],
+              body: `Your termination request for ${displayName} is now pending director approval.`,
+              ctaHref: `https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+              ctaLabel: 'Open staff profile',
+            }),
+            text: `Your termination request for ${displayName} is now pending director approval.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+            reply_to: 'HR@dhwebsiteservices.co.uk',
           })
         : Promise.resolve(),
     ])
@@ -1031,8 +1072,25 @@ export default function StaffProfile() {
         emailSubject: approved ? 'Employment termination approved' : 'Termination request update',
         sentBy: user?.name || user?.email || 'Director',
         forceImportant: true,
-        forceDelivery: 'both',
+        forceDelivery: 'portal',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      }),
+      sendEmail('custom_email', {
+        to: email,
+        from: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        subject: approved ? 'Employment termination approved — DH Website Services' : 'Termination request update — DH Website Services',
+        html: buildTerminationEmailHtml({
+          greeting: displayName.split(' ')[0] || 'there',
+          body: approved
+            ? `Your employment status has been updated. Effective date: ${lifecycleRecord.termination.effective_date}.`
+            : 'The termination request affecting your employment has been rejected by the director.',
+          ctaHref: 'https://staff.dhwebsiteservices.co.uk/my-profile',
+          ctaLabel: 'Open my profile',
+        }),
+        text: approved
+          ? `Your employment status has been updated. Effective date: ${lifecycleRecord.termination.effective_date}.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-profile`
+          : `The termination request affecting your employment has been rejected by the director.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-profile`,
+        reply_to: 'HR@dhwebsiteservices.co.uk',
       }),
       lifecycleRecord.termination.requested_by_email
         ? sendManagedNotification({
@@ -1048,19 +1106,44 @@ export default function StaffProfile() {
             emailSubject: approved ? `Termination approved — ${displayName}` : `Termination rejected — ${displayName}`,
             sentBy: user?.name || user?.email || 'Director',
             forceImportant: true,
-            forceDelivery: 'both',
+            forceDelivery: 'portal',
             fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
           })
         : Promise.resolve(),
+      lifecycleRecord.termination.requested_by_email
+        ? sendEmail('custom_email', {
+            to: lifecycleRecord.termination.requested_by_email,
+            from: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            subject: approved ? `Termination approved — ${displayName}` : `Termination rejected — ${displayName}`,
+            html: buildTerminationEmailHtml({
+              greeting: (lifecycleRecord.termination.requested_by_name || lifecycleRecord.termination.requested_by_email || 'there').split(' ')[0],
+              body: approved
+                ? `Your termination request for ${displayName} has been approved. Effective date: ${lifecycleRecord.termination.effective_date}.`
+                : `Your termination request for ${displayName} has been rejected by the director.`,
+              ctaHref: `https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+              ctaLabel: 'Open staff profile',
+            }),
+            text: approved
+              ? `Your termination request for ${displayName} has been approved. Effective date: ${lifecycleRecord.termination.effective_date}.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`
+              : `Your termination request for ${displayName} has been rejected by the director.\n\nOpen: https://staff.dhwebsiteservices.co.uk/my-staff/${encodeURIComponent(email)}`,
+            reply_to: 'HR@dhwebsiteservices.co.uk',
+          })
+        : Promise.resolve(),
       profile.personal_email
-        ? sendEmail('send_email', {
+        ? sendEmail('custom_email', {
             to: profile.personal_email,
-            to_name: displayName,
+            from: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
             subject: approved ? 'Employment termination approved — DH Website Services' : 'Termination request update — DH Website Services',
-            html: `<p>Hi ${displayName.split(' ')[0] || 'there'},</p><p>${approved ? `Your termination has been approved with an effective date of ${lifecycleRecord.termination.effective_date}.` : 'The termination request affecting your employment has been rejected by the director.'}</p><p>If you have any questions, please contact DH Website Services.</p>`,
-            from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-            sent_by: user?.name || user?.email || 'Director',
-            log_outreach: false,
+            html: buildTerminationEmailHtml({
+              greeting: displayName.split(' ')[0] || 'there',
+              body: approved
+                ? `Your termination has been approved with an effective date of ${lifecycleRecord.termination.effective_date}.`
+                : 'The termination request affecting your employment has been rejected by the director.',
+            }),
+            text: approved
+              ? `Your termination has been approved with an effective date of ${lifecycleRecord.termination.effective_date}.`
+              : 'The termination request affecting your employment has been rejected by the director.',
+            reply_to: 'HR@dhwebsiteservices.co.uk',
           })
         : Promise.resolve(),
     ])
