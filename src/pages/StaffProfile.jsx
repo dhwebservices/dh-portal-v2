@@ -937,20 +937,38 @@ export default function StaffProfile() {
     await saveLifecycleRecord(nextRecord, { silent: true })
 
     const directorEmails = Array.from(DIRECTOR_EMAILS)
-    await Promise.allSettled(directorEmails.map((directorEmail) => sendManagedNotification({
-      userEmail: directorEmail,
-      userName: directorEmail,
-      category: 'urgent',
-      type: 'warning',
-      title: 'Termination approval required',
-      message: `${displayName} has a termination request awaiting director approval. Effective date: ${lifecycleRecord.termination.effective_date}.`,
-      link: `/my-staff/${encodeURIComponent(email)}`,
-      emailSubject: `Termination approval required — ${displayName}`,
-      sentBy: user?.name || user?.email || 'Portal admin',
-      forceImportant: true,
-      forceDelivery: 'both',
-      fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-    })))
+    await Promise.allSettled([
+      ...directorEmails.map((directorEmail) => sendManagedNotification({
+        userEmail: directorEmail,
+        userName: directorEmail,
+        category: 'urgent',
+        type: 'warning',
+        title: 'Termination approval required',
+        message: `${displayName} has a termination request awaiting director approval. Effective date: ${lifecycleRecord.termination.effective_date}.`,
+        link: `/my-staff/${encodeURIComponent(email)}`,
+        emailSubject: `Termination approval required — ${displayName}`,
+        sentBy: user?.name || user?.email || 'Portal admin',
+        forceImportant: true,
+        forceDelivery: 'both',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      })),
+      user?.email
+        ? sendManagedNotification({
+            userEmail: user.email,
+            userName: user.name || user.email,
+            category: 'urgent',
+            type: 'info',
+            title: 'Termination request submitted',
+            message: `Your termination request for ${displayName} is now pending director approval.`,
+            link: `/my-staff/${encodeURIComponent(email)}`,
+            emailSubject: `Termination request pending — ${displayName}`,
+            sentBy: user?.name || user?.email || 'Portal admin',
+            forceImportant: true,
+            forceDelivery: 'both',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          })
+        : Promise.resolve(),
+    ])
 
     setLifecycleSaved(true)
     setTimeout(() => setLifecycleSaved(false), 3000)
@@ -1016,6 +1034,24 @@ export default function StaffProfile() {
         forceDelivery: 'both',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
       }),
+      lifecycleRecord.termination.requested_by_email
+        ? sendManagedNotification({
+            userEmail: lifecycleRecord.termination.requested_by_email,
+            userName: lifecycleRecord.termination.requested_by_name || lifecycleRecord.termination.requested_by_email,
+            category: 'urgent',
+            type: approved ? 'warning' : 'info',
+            title: approved ? 'Termination approved' : 'Termination request rejected',
+            message: approved
+              ? `Your termination request for ${displayName} has been approved. Effective date: ${lifecycleRecord.termination.effective_date}.`
+              : `Your termination request for ${displayName} has been rejected by the director.`,
+            link: `/my-staff/${encodeURIComponent(email)}`,
+            emailSubject: approved ? `Termination approved — ${displayName}` : `Termination rejected — ${displayName}`,
+            sentBy: user?.name || user?.email || 'Director',
+            forceImportant: true,
+            forceDelivery: 'both',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          })
+        : Promise.resolve(),
       profile.personal_email
         ? sendEmail('send_email', {
             to: profile.personal_email,
