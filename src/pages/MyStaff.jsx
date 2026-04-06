@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowRight, Briefcase, Building2, Eye, FileText, Search, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
@@ -75,6 +76,7 @@ export default function MyStaff() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => { load() }, [])
 
@@ -176,7 +178,23 @@ export default function MyStaff() {
 
   const filtered = visibleUsers.filter(u => {
     const q = search.toLowerCase()
-    return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+    const safeEmail = u.email?.toLowerCase()
+    const profile = profiles[safeEmail] || {}
+    const userPm = permsMap[safeEmail]
+    const isOnboarding = userPm?.onboarding || false
+    const lifecycle = lifecycleMap[safeEmail] || mergeLifecycleRecord({}, {
+      onboarding: isOnboarding,
+      startDate: profile.start_date,
+      contractType: profile.contract_type,
+    })
+    const lifecycleState = lifecycle.state || (isOnboarding ? 'onboarding' : 'active')
+    const statusMatches =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && ['active', 'probation'].includes(lifecycleState)) ||
+      (statusFilter === 'onboarding' && lifecycleState === 'onboarding') ||
+      (statusFilter === 'attention' && ['termination_requested', 'termination_pending', 'termination_approved', 'terminated', 'left', 'archived'].includes(lifecycleState)) ||
+      (statusFilter === 'active_now' && isRecentlyActive(profile.last_seen))
+    return statusMatches && (!q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || profile.department?.toLowerCase().includes(q) || profile.role?.toLowerCase().includes(q))
   })
 
   const unassignedUsers = filtered.filter((u) => {
@@ -192,6 +210,13 @@ export default function MyStaff() {
 
   const COLOURS = ['#0071E3','#30A46C','#E54D2E','#8E4EC6','#C2500D','#0197C8','#D6409F']
   const colourFor = (email) => COLOURS[(email||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0) % COLOURS.length]
+  const filterOptions = [
+    ['all', 'All staff'],
+    ['active', 'Active'],
+    ['onboarding', 'Onboarding'],
+    ['attention', 'Needs attention'],
+    ['active_now', 'Active now'],
+  ]
 
   const impersonate = async (u, profile = {}, targetOrg = {}) => {
     try {
@@ -212,22 +237,47 @@ export default function MyStaff() {
         </button>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
-        <div className="stat-card">
-          <div className="stat-val">{filtered.length}</div>
-          <div className="stat-lbl">{isDirector ? 'Total staff' : 'Visible staff'}</div>
+      <div style={{ marginBottom:20, border:'1px solid var(--border)', borderRadius:20, background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card))', padding:'20px 22px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', flexWrap:'wrap', marginBottom:16 }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>People board</div>
+            <div style={{ fontSize:24, fontWeight:600, color:'var(--text)', letterSpacing:'-0.03em', lineHeight:1 }}>Staff workspace</div>
+            <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6, maxWidth:560 }}>
+              A cleaner view of your people, with lifecycle, presence, and quick actions visible on each staff card.
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(120px,1fr))', gap:10, minWidth:'min(100%, 320px)' }}>
+            {[
+              { label: isDirector ? 'Total staff' : 'Visible staff', value: filtered.length, tone: 'var(--text)' },
+              { label: 'Active now', value: activeCount, tone: 'var(--green)' },
+              { label: 'Onboarding', value: filtered.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length, tone: 'var(--amber)' },
+              { label: 'Unassigned', value: unassignedUsers.length, tone: 'var(--accent)' },
+            ].map((item) => (
+              <div key={item.label} style={{ padding:'12px 14px', borderRadius:14, border:'1px solid var(--border)', background:'var(--card)' }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>{item.label}</div>
+                <div style={{ fontSize:24, fontWeight:600, color:item.tone, lineHeight:1 }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--green)' }}>{activeCount}</div>
-          <div className="stat-lbl">Active now</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--amber)' }}>{filtered.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length}</div>
-          <div className="stat-lbl">Onboarding</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--accent)' }}>{unassignedUsers.length}</div>
-          <div className="stat-lbl">Unassigned</div>
+
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {filterOptions.map(([key, label]) => (
+              <button
+                key={key}
+                className={`btn ${statusFilter === key ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                onClick={() => setStatusFilter(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ position:'relative', width:'min(100%, 360px)' }}>
+            <Search style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--faint)' }} size={14} />
+            <input className="inp" style={{ paddingLeft:36, borderRadius:999 }} placeholder="Search by name, role, department..." value={search} onChange={e => setSearch(e.target.value)}/>
+          </div>
         </div>
       </div>
 
@@ -242,23 +292,19 @@ export default function MyStaff() {
 
       {error && <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)', marginBottom:16 }}>{error}</div>}
 
-      <div style={{ position:'relative', maxWidth:400, marginBottom:24 }}>
-        <svg style={{ position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input className="inp" style={{ paddingLeft:34, borderRadius:100 }} placeholder="Search staff..." value={search} onChange={e => setSearch(e.target.value)}/>
-      </div>
-
       {loading ? (
-        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
           {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="card" style={{ padding:24 }}>
-              <div className="skel" style={{ width:56, height:56, borderRadius:'50%', marginBottom:12 }}/>
-              <div className="skel" style={{ width:'70%', height:14, marginBottom:8 }}/>
-              <div className="skel" style={{ width:'50%', height:12 }}/>
+            <div key={i} className="card" style={{ padding:22, borderRadius:18 }}>
+              <div className="skel" style={{ width:64, height:64, borderRadius:18, marginBottom:14 }}/>
+              <div className="skel" style={{ width:'68%', height:14, marginBottom:8 }}/>
+              <div className="skel" style={{ width:'44%', height:12, marginBottom:16 }}/>
+              <div className="skel" style={{ width:'100%', height:80, borderRadius:14 }}/>
             </div>
           ))}
         </div>
       ) : (
-        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
+        <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
           {filtered.map(u => {
             const userEmail = u.email?.toLowerCase()
             const profile = profiles[userEmail] || {}
@@ -274,20 +320,88 @@ export default function MyStaff() {
             const colour = colourFor(userEmail)
             const canImpersonate = (isDirector || isDepartmentManager) && canPreviewStaffMember(profile, targetOrg)
             const isCurrentImpersonation = isPreviewing && previewTarget?.email?.toLowerCase?.() === userEmail
+            const lifecycleState = lifecycle.state || (isOnboarding ? 'onboarding' : 'active')
+            const lifecycleTone = lifecycleState === 'terminated' || lifecycleState === 'termination_approved' || lifecycleState === 'left' || lifecycleState === 'archived'
+              ? 'red'
+              : lifecycleState === 'probation'
+                ? 'blue'
+                : lifecycleState === 'onboarding'
+                  ? 'amber'
+                  : lifecycleState.includes('termination')
+                    ? 'amber'
+                    : 'green'
             return (
               <div
                 key={u.id}
-                style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'24px 20px', textAlign:'center', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative' }}
+                style={{ background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--page-tint) 6%), var(--card))', border:'1px solid var(--border)', borderRadius:18, padding:'18px', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'grid', gap:14, position:'relative', minHeight: 330 }}
                 onMouseOver={e => { e.currentTarget.style.borderColor=colour; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${colour}22` }}
                 onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
               >
-                <div style={{ position:'absolute', top:10, right:10, display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
+                  <div style={{ width:64, height:64, borderRadius:18, background:colour+'18', border:`1px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:600, color:colour, fontFamily:'var(--font-display)', flexShrink:0 }}>
+                    {getInitials(u.name)}
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                    <span className={`badge badge-${lifecycleTone}`}>{getLifecycleLabel(lifecycleState)}</span>
+                    <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>{formatPresenceLabel(profile.last_seen)}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
+                  style={{ width:'100%', border:'none', background:'transparent', padding:0, cursor:'pointer', display:'grid', gap:12, textAlign:'left' }}
+                >
+                  <div>
+                    <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', lineHeight:1.1 }}>{profile.full_name || u.name}</div>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.55 }}>{profile.role || u.jobTitle || 'No role assigned yet'}</div>
+                  </div>
+
+                  <div style={{ display:'grid', gap:10, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
+                      <Building2 size={15} style={{ color:'var(--faint)', marginTop:1 }} />
+                      <div style={{ fontSize:12.5, color:'var(--text)' }}>{profile.department || 'No department assigned'}</div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
+                      <Briefcase size={15} style={{ color:'var(--faint)', marginTop:1 }} />
+                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{profile.contract_type || 'Contract type not set'}</div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
+                      <ShieldCheck size={15} style={{ color:'var(--faint)', marginTop:1 }} />
+                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{targetOrg.manager_name || profile.manager_name || 'No manager assigned'}</div>
+                    </div>
+                  </div>
+                </button>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, alignItems:'center', marginTop:'auto' }}>
                   <button
                     className="btn btn-outline btn-sm"
-                    onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=contracts`)}
+                    onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
+                    style={{ justifyContent:'center' }}
                   >
-                    Contracts
+                    <Eye size={14} />
+                    Open profile
                   </button>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=contracts`)}
+                    >
+                      <FileText size={14} />
+                      Contracts
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180 }}>{userEmail}</span>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=notify`)}
+                    >
+                      <Sparkles size={14} />
+                      Notify
+                    </button>
                   {canImpersonate ? (
                     <button
                       className={isCurrentImpersonation ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
@@ -296,34 +410,8 @@ export default function MyStaff() {
                       {isCurrentImpersonation ? 'Impersonating' : 'Impersonate'}
                     </button>
                   ) : null}
+                  </div>
                 </div>
-                <button
-                  onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
-                  style={{ width:'100%', border:'none', background:'transparent', padding:0, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}
-                >
-                {/* Avatar */}
-                <div style={{ width:56, height:56, borderRadius:'50%', background:colour+'18', border:`2px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:600, color:colour, fontFamily:'var(--font-display)', flexShrink:0 }}>
-                  {getInitials(u.name)}
-                </div>
-
-                {/* Name */}
-                <div style={{ width:'100%' }}>
-                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:3, lineHeight:1.3 }}>{profile.full_name || u.name}</div>
-                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{profile.role || u.jobTitle || '—'}</div>
-                  {profile.department && <div style={{ fontSize:11, color:'var(--sub)', marginTop:2 }}>{profile.department}</div>}
-                  {profile.contract_type && <div style={{ fontSize:10, color:'var(--faint)', marginTop:2, fontFamily:'var(--font-mono)', letterSpacing:'0.04em' }}>{profile.contract_type}</div>}
-                </div>
-
-                {/* Status */}
-                <div style={{ display:'grid', gap:8, justifyItems:'center' }}>
-                  <span className={`badge badge-${lifecycle.state === 'terminated' || lifecycle.state === 'termination_approved' || lifecycle.state === 'left' || lifecycle.state === 'archived' ? 'red' : lifecycle.state === 'probation' ? 'blue' : lifecycle.state === 'onboarding' ? 'amber' : 'green'}`}>
-                    {getLifecycleLabel(lifecycle.state || (isOnboarding ? 'onboarding' : 'active'))}
-                  </span>
-                  <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>
-                    {formatPresenceLabel(profile.last_seen)}
-                  </span>
-                </div>
-                </button>
               </div>
             )
           })}
