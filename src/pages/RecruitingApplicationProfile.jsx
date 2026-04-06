@@ -381,14 +381,40 @@ DH Website Services HR`)
 
   return (
     <div className="fade-in">
-      <div className="page-hd">
-        <div>
-          <h1 className="page-title">{application.full_name || application.email}</h1>
-          <p className="page-sub">{application.job_posts?.title || 'General application'} · {application.application_ref || 'No reference'}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <RecruitingStatusBadge status={application.status} />
-          <button className="btn btn-outline" onClick={() => navigate('/recruiting/applications')}>Back</button>
+      <div style={{ border:'1px solid var(--border)', borderRadius:22, overflow:'hidden', background:'var(--card)', marginBottom:18 }}>
+        <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--border)', background:'linear-gradient(135deg, color-mix(in srgb, var(--card) 84%, var(--accent-soft) 16%), var(--card))' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>
+                Recruiting / Candidate profile
+              </div>
+              <h1 style={{ fontSize:'clamp(28px,3vw,36px)', fontWeight:600, letterSpacing:'-0.03em', lineHeight:1, color:'var(--text)' }}>
+                {application.full_name || application.email}
+              </h1>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
+                {application.job_posts?.title || 'General application'} · {application.application_ref || 'No reference'}
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+              <RecruitingStatusBadge status={application.status} />
+              <button className="btn btn-outline" onClick={() => navigate('/recruiting/applications')}>Back</button>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,minmax(0,1fr))', gap:10, marginTop:18 }}>
+            {[
+              ['Role', application.job_posts?.title || 'General application'],
+              ['Owner', application.assigned_recruiter_name || application.assigned_recruiter_email || 'Unassigned'],
+              ['Interview', application.interview_at ? new Date(application.interview_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'Not scheduled'],
+              ['Rating', application.overall_rating ? `${application.overall_rating}/5` : 'Not scored'],
+              ['Source', application.source || 'Website'],
+            ].map(([label, value]) => (
+              <div key={label} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:16, background:'var(--bg2)' }}>
+                <div style={{ fontSize:10.5, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{label}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', lineHeight:1.45 }}>{value}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
