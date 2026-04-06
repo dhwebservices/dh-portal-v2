@@ -117,13 +117,13 @@ async function notifyDepartmentRemoval({ staffRow, previousDepartment, sentBy })
 
 function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
   return (
-    <div className="stat-card">
+    <div className="stat-card department-stat-card">
       <div style={{ width: 40, height: 40, borderRadius: 12, background: `${tone}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
         <Icon size={18} color={tone} />
       </div>
       <div className="stat-val">{value}</div>
       <div className="stat-lbl">{label}</div>
-      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
+      <div className="department-stat-hint">{hint}</div>
     </div>
   )
 }
@@ -721,24 +721,19 @@ export default function MyDepartment() {
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in department-shell">
       <div className="page-hd">
         <div>
           <h1 className="page-title">My Department</h1>
           <p className="page-sub">Team workspace for scoped managers and Director oversight.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="department-top-actions">
           <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>
             Department hiring
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>
             Post job
           </button>
-          {visibleDepartments.map((item) => (
-            <button key={item.id} className={currentDepartment === item.name ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'} onClick={() => setSelectedDepartment(item.name)}>
-              {item.name}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -748,7 +743,43 @@ export default function MyDepartment() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
+      <div className="department-hero">
+        <div className="department-hero-main">
+          <div className="department-hero-copy">
+            <div className="department-hero-kicker">Department workspace</div>
+            <div className="department-hero-title">{currentDepartment || 'No department selected'}</div>
+            <div className="department-hero-note">
+              {departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager is set yet'}
+            </div>
+          </div>
+          <div className="department-hero-metrics">
+            {[
+              { label: 'Team', value: teamMembers.length, hint: `${activeCount} active` },
+              { label: 'Open tasks', value: openDepartmentTasks.length, hint: `${overdueDepartmentTasks.length} overdue` },
+              { label: 'Hiring', value: openDepartmentJobs.length, hint: 'Published roles' },
+            ].map((item) => (
+              <div key={item.label} className="department-hero-metric">
+                <span className="department-hero-metric-label">{item.label}</span>
+                <strong>{item.value}</strong>
+                <span>{item.hint}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="department-switcher" role="tablist" aria-label="Department switcher">
+          {visibleDepartments.map((item) => (
+            <button
+              key={item.id}
+              className={currentDepartment === item.name ? 'department-switch-pill is-active' : 'department-switch-pill'}
+              onClick={() => setSelectedDepartment(item.name)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="department-stats-grid">
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
         <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
         <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--accent)" />
@@ -761,12 +792,12 @@ export default function MyDepartment() {
         <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--blue)" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,0.8fr)', gap: 18 }} className="staff-profile-main-grid">
-        <div style={{ display:'grid', gap:16 }}>
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department operating layer</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:14 }}>
-              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+      <div className="department-main-grid">
+        <div className="department-column">
+          <div className="card card-pad department-panel">
+            <div className="department-panel-kicker">Department operating layer</div>
+            <div className="department-mini-grid">
+              <div className="department-info-card">
                 <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Leave today / who’s off</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {todayLeave.slice(0, 4).map((row) => (
@@ -777,7 +808,7 @@ export default function MyDepartment() {
                   {todayLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>Nobody is off today.</div> : null}
                 </div>
               </div>
-              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+              <div className="department-info-card">
                 <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>New starters in team</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {newStarters.slice(0, 4).map((row) => (
@@ -788,7 +819,7 @@ export default function MyDepartment() {
                   {newStarters.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent starters in this department.</div> : null}
                 </div>
               </div>
-              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+              <div className="department-info-card">
                 <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Department compliance</div>
                 <div style={{ marginTop:8, fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
                   Missing RTW: <strong style={{ color:'var(--text)' }}>{missingRtwCount}</strong><br/>
@@ -797,7 +828,7 @@ export default function MyDepartment() {
                   Onboarding staff: <strong style={{ color:'var(--text)' }}>{onboardingCount}</strong>
                 </div>
               </div>
-              <div style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+              <div className="department-info-card">
                 <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Upcoming leave</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {upcomingLeave.slice(0, 3).map((row) => (
@@ -811,21 +842,21 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
+          <div className="card card-pad department-panel">
+            <div className="department-panel-head">
               <div>
-                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department hiring</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Job posts for {currentDepartment || 'this department'}</div>
+                <div className="department-panel-kicker">Department hiring</div>
+                <div className="department-panel-title">Job posts for {currentDepartment || 'this department'}</div>
               </div>
-              <div style={{ display:'flex', gap:8 }}>
+              <div className="department-panel-actions">
                 <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>Open jobs</button>
                 <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>Create role</button>
               </div>
             </div>
-            <div style={{ display:'grid', gap:10 }}>
+            <div className="department-list">
               {departmentJobs.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No job posts linked to this department yet.</div> : null}
               {departmentJobs.slice(0, 6).map((job) => (
-                <button key={job.id} className="btn btn-outline" style={{ justifyContent:'space-between' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
+                <button key={job.id} className="department-row-button" onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
                   <span>{job.title}</span>
                   <span style={{ fontSize:11.5, color:'var(--sub)' }}>{job.status}</span>
                 </button>
@@ -833,11 +864,11 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+          <div className="card card-pad department-panel">
+            <div className="department-panel-head">
               <div>
-                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department announcements</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Post an update to the team</div>
+                <div className="department-panel-kicker">Department announcements</div>
+                <div className="department-panel-title">Post an update to the team</div>
               </div>
               <button className="btn btn-primary btn-sm" onClick={postAnnouncement} disabled={saving === 'announcement'}>
                 {saving === 'announcement' ? 'Posting...' : 'Post announcement'}
@@ -857,9 +888,9 @@ export default function MyDepartment() {
                 Mark as important
               </label>
             </div>
-            <div style={{ display:'grid', gap:10, marginTop:16 }}>
+            <div className="department-list" style={{ marginTop: 16 }}>
               {departmentAnnouncements.map((item) => (
-                <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div key={item.id} className="department-info-card">
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
                     <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
                     <span className={`badge badge-${item.important ? 'red' : 'blue'}`}>{item.important ? 'Important' : 'Team update'}</span>
@@ -872,17 +903,19 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card" style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team members</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>{currentDepartment || 'No department selected'}</div>
+          <div className="card department-panel" style={{ overflow: 'hidden' }}>
+            <div className="department-panel-head department-panel-head--bordered">
+              <div>
+                <div className="department-panel-kicker">Team members</div>
+                <div className="department-panel-title">{currentDepartment || 'No department selected'}</div>
+              </div>
             </div>
             {teamMembers.length === 0 ? (
               <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff currently assigned to this department.</div>
             ) : teamMembers.map((row) => (
-              <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+              <div key={row.user_email} className="department-member-card">
                 <button onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                  <div className="department-member-head">
                     <div>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
                       <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
@@ -892,7 +925,7 @@ export default function MyDepartment() {
                     </span>
                   </div>
                 </button>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto auto', gap: 8, marginTop: 12, alignItems: 'center' }}>
+                <div className="department-member-actions">
                   <select
                     className="inp"
                     value={memberActions[row.user_email]?.nextDepartment || ''}
@@ -942,13 +975,13 @@ export default function MyDepartment() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team activity feed</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Latest department actions</div>
-            <div style={{ display:'grid', gap:10, marginTop:14 }}>
+        <div className="department-column">
+          <div className="card card-pad department-panel">
+            <div className="department-panel-kicker">Team activity feed</div>
+            <div className="department-panel-title">Latest department actions</div>
+            <div className="department-list" style={{ marginTop: 14 }}>
               {teamActivity.map((row, index) => (
-                <div key={`${row.user_name}-${row.created_at}-${index}`} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div key={`${row.user_name}-${row.created_at}-${index}`} className="department-info-card">
                   <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.user_name || 'Team member'}</div>
                   <div style={{ fontSize:12, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>{row.action}{row.target ? ` · ${row.target}` : ''}</div>
                   <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{new Date(row.created_at).toLocaleString('en-GB')}</div>
@@ -958,15 +991,15 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
-            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop: 4, flexWrap:'wrap' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Task board for {currentDepartment}</div>
+          <div className="card card-pad department-panel">
+            <div className="department-panel-kicker">Department tasks</div>
+            <div className="department-panel-head">
+              <div className="department-panel-title">Task board for {currentDepartment}</div>
               <button className="btn btn-outline btn-sm" onClick={() => navigate('/tasks')}>Open full task manager</button>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop: 14 }}>
+            <div className="department-task-board">
               {departmentTaskBoard.map((column) => (
-                <div key={column.key} style={{ border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)', padding:12 }}>
+                <div key={column.key} className="department-task-column">
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:10 }}>
                     <div style={{ fontSize:12, fontWeight:700, color:column.tone, letterSpacing:'0.06em', textTransform:'uppercase' }}>{column.label}</div>
                     <span className="badge badge-grey">{column.items.length}</span>
@@ -975,7 +1008,7 @@ export default function MyDepartment() {
                     {column.items.map((task) => {
                       const isOwnedByCurrentUser = normalizePortalEmail(task.assigned_to_email) === normalizePortalEmail(user?.email)
                       return (
-                        <div key={task.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--card)' }}>
+                        <div key={task.id} className="department-task-card">
                           <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{task.title}</div>
                           <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>
                             {task.description_plain || 'No task description'}
@@ -1007,12 +1040,12 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Unassigned Microsoft users</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Ready to place into a team</div>
-            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          <div className="card card-pad department-panel">
+            <div className="department-panel-kicker">Unassigned Microsoft users</div>
+            <div className="department-panel-title">Ready to place into a team</div>
+            <div className="department-list" style={{ marginTop: 14 }}>
               {unassigned.map((row) => (
-                <div key={row.user_email} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                <div key={row.user_email} className="department-info-card">
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>{row.user_email}</div>
                   <div style={{ marginTop: 10 }}>
@@ -1032,12 +1065,12 @@ export default function MyDepartment() {
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department requests</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Requests affecting this team</div>
-            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          <div className="card card-pad department-panel">
+            <div className="department-panel-kicker">Department requests</div>
+            <div className="department-panel-title">Requests affecting this team</div>
+            <div className="department-list" style={{ marginTop: 14 }}>
               {visibleRequests.slice(0, 6).map((row) => (
-                <div key={row.id} style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                <div key={row.id} className="department-info-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.target_name || row.target_email}</div>
                     <span className={`badge badge-${row.status === 'approved' ? 'green' : row.status === 'rejected' ? 'red' : 'amber'}`}>{row.status}</span>
