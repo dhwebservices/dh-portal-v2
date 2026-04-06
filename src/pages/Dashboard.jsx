@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Bell,
+  BriefcaseBusiness,
   CalendarDays,
   CheckSquare,
   CircleAlert,
   Clock3,
   HeadphonesIcon,
+  Layers3,
   PhoneCall,
   TrendingUp,
   UserCheck,
@@ -1146,6 +1148,26 @@ export default function Dashboard() {
     }
   }
 
+  const shortcutButtons = (quickActions.length ? quickActions : ['mytasks', 'notifications', 'schedule', 'my_team', 'hr_leave', 'my_profile'])
+    .map((key) => {
+      const item = quickActionMeta[key]
+      if (!item) return null
+      return {
+        key,
+        ...item,
+        icon: quickActionIcons[key] || ArrowRight,
+      }
+    })
+    .filter(Boolean)
+    .slice(0, 6)
+
+  const teamCards = activeUsers.slice(0, 6).map((person) => ({
+    name: person.full_name || person.user_name || person.user_email,
+    role: person.role || 'Staff member',
+    email: person.user_email,
+    presence: formatPresenceTime(person.last_seen),
+  }))
+
   return (
     <div className="fade-in">
       {showPersonalise ? (
@@ -1452,40 +1474,133 @@ export default function Dashboard() {
 
       {showSystemBanners ? <ActiveBanners /> : null}
 
-      <div style={{ marginBottom: dashboardDensity === 'compact' ? 18 : 24 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-end', flexWrap:'wrap', marginBottom:14 }}>
-          <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>
-              {dashboardHeader === 'minimal' ? 'Workspace overview' : dateStr}
+      <div style={{ marginBottom: dashboardDensity === 'compact' ? 20 : 26 }}>
+        <div style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(135deg, #1d56b3 0%, #2563c9 42%, #194a96 100%)', color: '#fff' }}>
+          <div style={{ padding: '22px 24px 18px', borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:16, minWidth:0 }}>
+                <div style={{ width: 68, height: 68, borderRadius: 20, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.24)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <UserRound size={28} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.68)', marginBottom: 6 }}>
+                    {dateStr}
+                  </div>
+                  <div style={{ fontSize:'clamp(28px,3vw,40px)', fontWeight:600, lineHeight:0.96, letterSpacing:'-0.04em' }}>
+                    {greeting}, {firstName}
+                  </div>
+                  <div style={{ fontSize:14, color:'rgba(255,255,255,0.82)', marginTop:10, lineHeight:1.55 }}>
+                    {user?.name || 'Staff member'}{isAdmin ? ' · Management workspace' : ' · Staff workspace'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(92px,1fr))', gap:10, minWidth:'min(100%, 320px)' }}>
+                {[
+                  { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+                  { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+                  { label: 'Clients', value: stats.clients, hint: 'Active' },
+                ].map((item) => (
+                  <div key={item.label} style={{ padding:'12px 12px 10px', borderRadius:16, background:'rgba(255,255,255,0.12)', border:'1px solid rgba(255,255,255,0.14)' }}>
+                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.72)' }}>{item.label}</div>
+                    <div style={{ fontSize:24, fontWeight:600, marginTop:8, lineHeight:1 }}>{item.value}</div>
+                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.74)', marginTop:4 }}>{item.hint}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h1 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(30px,3.3vw,44px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:0.96, color:'var(--text)' }}>
-              {dashboardHeader === 'minimal' ? `${firstName} dashboard` : `${greeting}, ${firstName}`}
-            </h1>
-            <p style={{ fontSize:14, color:'var(--sub)', marginTop:12, lineHeight:1.65, maxWidth:560 }}>
-              A lighter overview of your workspace, priorities, and live portal activity.
-            </p>
           </div>
-          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-            <button className="btn btn-outline" onClick={() => setShowFeedback(true)}>
-              <Bell size={14} />
-              Feedback
-            </button>
-            <button className="btn btn-outline" onClick={() => setShowPersonalise(true)}>
-              <SlidersHorizontal size={14} />
-              Personalise
-            </button>
-            <button className="btn btn-ghost" onClick={() => navigate('/my-profile')}>Portal settings</button>
+
+          <div style={{ padding:'18px 24px 22px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:12 }}>
+              {shortcutButtons.map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => navigate(item.route)}
+                    style={{ border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.08)', borderRadius:18, padding:'16px 12px', color:'#fff', display:'grid', justifyItems:'center', gap:10, textAlign:'center' }}
+                  >
+                    <div style={{ width:42, height:42, borderRadius:14, background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <Icon size={18} />
+                    </div>
+                    <div style={{ fontSize:12.5, fontWeight:600 }}>{item.label}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.05fr) minmax(320px,0.95fr)', gap:16, marginBottom: dashboardDensity === 'compact' ? 18 : 24 }} className="dashboard-top-grid">
+        <div className="card" style={{ borderRadius:20, overflow:'hidden' }}>
+          <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>My team</div>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>{isAdmin ? 'People active in the portal right now.' : 'Who is live across your working environment right now.'}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/my-team')}>Open team <ArrowRight size={12} /></button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, padding:'16px' }}>
+            {teamCards.length ? teamCards.map((person) => (
+              <div key={person.email} style={{ padding:'14px', borderRadius:16, border:'1px solid var(--border)', background:'var(--card)', display:'grid', gap:10 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ width:40, height:40, borderRadius:14, background:'var(--accent-soft)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:600 }}>
+                    {(person.name || '?').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', lineHeight:1.3 }}>{person.name}</div>
+                    <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:3, lineHeight:1.45 }}>{person.role}</div>
+                  </div>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center' }}>
+                  <span className="badge badge-green">Active</span>
+                  <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{person.presence}</span>
+                </div>
+              </div>
+            )) : (
+              <div style={{ gridColumn:'1 / -1', padding:'18px 16px', color:'var(--sub)', fontSize:13 }}>No live team presence to show right now.</div>
+            )}
           </div>
         </div>
 
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-          {dashboardFocusItems.map((item) => (
-            <div key={item.label} style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:999, border:'1px solid var(--border)', background:'var(--card)' }}>
-              <span className={`badge badge-${item.tone}`}>{item.label}</span>
-              <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.value}</span>
-              <span style={{ fontSize:12, color:'var(--sub)' }}>{item.hint}</span>
+        <div className="card" style={{ borderRadius:20, overflow:'hidden' }}>
+          <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Pending actions</div>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>What needs your attention next across tasks, approvals, and onboarding.</div>
             </div>
-          ))}
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>Open actions <ArrowRight size={12} /></button>
+          </div>
+          <div style={{ display:'grid' }}>
+            {priorityItems.length ? priorityItems.slice(0, 5).map((item) => (
+              <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
+            )) : <EmptyState text="Nothing urgent is stacked up right now." />}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28, borderRadius: 20 }}>
+        <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+          <div>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Home snapshot</div>
+            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>The core numbers that shape your working day.</div>
+          </div>
+          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setShowFeedback(true)}>Feedback</button>
+            <button className="btn btn-outline btn-sm" onClick={() => setShowPersonalise(true)}>Personalise</button>
+          </div>
+        </div>
+        <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>
+          <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
+          <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
+          <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
+          <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
+          <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
+          <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
+          <StatCard icon={BriefcaseBusiness} label="Onboarding" value={stats.pendingOnboarding} accent="var(--accent)" link="/hr/onboarding" loading={loading} hint="Submitted onboarding waiting review" />
+          <StatCard icon={Layers3} label="Leave Requests" value={stats.pendingLeave} accent="var(--amber)" link="/hr/leave" loading={loading} hint="Pending approvals in HR" />
         </div>
       </div>
 
@@ -1493,8 +1608,8 @@ export default function Dashboard() {
         <div className="card card-pad" style={{ marginBottom: dashboardDensity === 'compact' ? 16 : 22, borderRadius: 18 }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
             <div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Pinned actions</div>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Fast routes into the places you open most often.</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Workspace shortcuts</div>
+              <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Fast routes into the areas you use most often.</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => setShowPersonalise(true)}>Edit</button>
           </div>
@@ -1515,26 +1630,6 @@ export default function Dashboard() {
             })}
           </div>
         </div>
-      ) : null}
-
-      {dashboardSections.stats !== false ? (
-      <div className="card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28, borderRadius: 18 }}>
-        <div style={{ padding:'16px 18px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-          <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Snapshot</div>
-            <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>Key operating numbers across outreach, clients, support, tasks, and alerts.</div>
-          </div>
-        </div>
-        <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: dashboardDensity === 'compact' ? 'repeat(auto-fit,minmax(160px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>
-          <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
-          <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
-          <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
-          <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
-          <StatCard icon={TrendingUp} label="Commission Paid" value={`£${stats.revenue.toLocaleString()}`} accent="var(--accent)" loading={loading} hint="Paid commission recorded in the portal" />
-          <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
-          <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
-        </div>
-      </div>
       ) : null}
 
       {sectionPairs.map((pair, index) => (
