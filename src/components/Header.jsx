@@ -187,9 +187,7 @@ export default function Header() {
   const [unread, setUnread]       = useState(0)
   const [bellOpen, setBellOpen]   = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [navOpen, setNavOpen] = useState(false)
   const bellRef                   = useRef()
-  const navRef                    = useRef()
 
   const loadUnreadNotifications = async () => {
     if (!user?.email) {
@@ -237,14 +235,7 @@ export default function Header() {
   }, [])
 
   useEffect(() => {
-    const handler = (e) => { if (navRef.current && !navRef.current.contains(e.target)) setNavOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  useEffect(() => {
     setBellOpen(false)
-    setNavOpen(false)
     setMobileMenuOpen(false)
   }, [pathname])
 
@@ -287,13 +278,6 @@ export default function Header() {
   const pageMeta = resolvePageMeta(pathname)
   const pageTitle = pageMeta.title
   const sectionTone = sectionAccent(pageMeta.section)
-  const sectionRoutes = [
-    { label: 'Dashboard', route: '/dashboard' },
-    { label: 'Business', route: '/clients' },
-    { label: 'Tasks', route: '/tasks' },
-    { label: 'HR', route: '/my-staff' },
-    { label: 'Recruitment', route: '/recruiting' },
-  ]
   const openMenuRoute = (route) => {
     setMobileMenuOpen(false)
     navigate(route)
@@ -376,35 +360,6 @@ export default function Header() {
               markReadOnly={markRead}
             />
           )}
-        </div>
-
-        <div ref={navRef} style={{ position:'relative' }}>
-          <button className="header-icon-btn" onClick={() => setNavOpen((open) => !open)} title="Navigation" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: navOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
-            onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
-            onMouseOut={e => { if (!navOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
-            <GridIcon />
-          </button>
-
-          {navOpen ? (
-            <div className="header-popover" style={{ position:'absolute', top:'calc(100% + 10px)', right:0, zIndex:220 }}>
-              <div className="header-popover-kicker">Navigation</div>
-              <div className="header-popover-grid">
-                {sectionRoutes.map((item) => (
-                  <button
-                    key={item.label}
-                    className="header-popover-item"
-                    onClick={() => {
-                      setNavOpen(false)
-                      navigate(item.route)
-                    }}
-                  >
-                    <GridIcon />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
