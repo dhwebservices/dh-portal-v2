@@ -2003,6 +2003,21 @@ export default function StaffProfile() {
     ['contracts','Contracts'],
     ['docs','Documents'],
   ]
+  const staffProfileTabDescriptions = {
+    profile: 'Employee record, snapshot, and current people ops view.',
+    lifecycle: 'Employment stage, offboarding, and department structure.',
+    performance: 'Reviews, goals, and manager check-ins.',
+    training: 'Assigned learning, compliance, and expiries.',
+    portal: 'Workspace preferences and profile-level portal setup.',
+    alerts: 'Notification preferences and delivery choices.',
+    hr: 'HR details, contact fields, and employment records.',
+    bank: 'Payroll and bank details.',
+    permissions: 'Access model and enabled portal areas.',
+    notify: 'Send internal updates or manager-led alerts.',
+    commissions: 'Commission records and payout context.',
+    contracts: 'Templates, issued contracts, and signatures.',
+    docs: 'Documents, uploads, and supporting files.',
+  }
   const roleSummary = [profile.role, profile.department, roleScopeLabel].filter(Boolean)
   const managerDisplay = profile.manager_name || profile.manager_email || 'No manager assigned'
   const heroSignals = [
@@ -2198,22 +2213,30 @@ export default function StaffProfile() {
         ))}
       </div>
 
-      <div className="staff-profile-tab-shell">
-        <div className="staff-profile-action-head" style={{ marginBottom: 14 }}>
-          <div>
-            <div className="staff-profile-kicker">Workspace</div>
-            <div className="staff-profile-action-title">Profile areas</div>
+      <div className="staff-profile-workspace">
+        <aside className="staff-profile-nav">
+          <div className="staff-profile-action-head" style={{ marginBottom: 0 }}>
+            <div>
+              <div className="staff-profile-kicker">Workspace</div>
+              <div className="staff-profile-action-title">Profile areas</div>
+            </div>
+            <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
           </div>
-          <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
-        </div>
-        <div className="tabs staff-profile-tabs">
-        {staffProfileTabs.map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
-        ))}
-        </div>
-      </div>
+          <div className="staff-profile-nav-list">
+            {staffProfileTabs.map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`staff-profile-nav-btn${tab === k ? ' on' : ''}`}
+              >
+                <span className="staff-profile-nav-label">{l}</span>
+                <span className="staff-profile-nav-copy">{staffProfileTabDescriptions[k]}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
 
-      <div style={{ maxWidth:tab === 'profile' ? 'none' : 860, width:'100%' }} className="staff-profile-content">
+        <div style={{ width:'100%' }} className="staff-profile-content">
         {tab === 'profile' && (
           <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
             <div style={{ display:'grid', gap:18 }}>
@@ -4145,6 +4168,7 @@ export default function StaffProfile() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   )
