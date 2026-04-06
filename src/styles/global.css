@@ -287,7 +287,7 @@ button { cursor: pointer; font-family: inherit; }
   align-items: center; justify-content: center; cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
-@media (max-width: 768px) {
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
   .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
   .sidebar.open { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,0.15); }
   .main-area { margin-left: 0; transition: margin-left 0.25s; }
@@ -309,6 +309,7 @@ button { cursor: pointer; font-family: inherit; }
   .header-page-section { padding: 4px 8px !important; font-size: 10px !important; }
   .header-page-heading { font-size: 15px !important; }
   .header-page-note { display:none !important; }
+  .header-shell { padding-right: 0; }
   .header-actions { gap: 4px; }
   .header-icon-btn { width: 28px !important; height: 28px !important; }
   .header-avatar-btn { width: 28px !important; height: 28px !important; }
@@ -316,6 +317,7 @@ button { cursor: pointer; font-family: inherit; }
   .dashboard-fourup { grid-template-columns: 1fr 1fr !important; }
   .overview-shortcut-grid { grid-template-columns: 1fr 1fr; }
   .overview-meta-grid { min-width: 100%; }
+  .overview-hero { border-radius: 20px; }
   .dashboard-stat-grid,
   .dashboard-top-grid,
   .dashboard-panel-grid,
@@ -395,20 +397,34 @@ button { cursor: pointer; font-family: inherit; }
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .main-header { align-items: center; }
   .header-actions button { width: 30px !important; height: 30px !important; }
   .page-title { font-size: clamp(18px, 7vw, 28px); line-height: 1.05; }
   .page-sub { font-size: 12px; line-height: 1.5; max-width: 36ch; }
   .tabs { margin-bottom: 16px; max-width: 100%; }
   .overview-shortcut-grid,
-  .metric-grid,
-  .overview-meta-grid { grid-template-columns: 1fr; }
+  .metric-grid { grid-template-columns: 1fr 1fr; }
+  .overview-meta-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .overview-shortcut-btn { padding: 14px 10px; min-height: 104px; }
+  .surface-card-header { padding: 14px 16px 12px; }
+  .surface-card-body { padding: 14px 16px; }
   .dashboard-fourup > div { border-right: none !important; border-bottom: 1px solid var(--border); }
   .dashboard-fourup > div:nth-last-child(-n+2) { border-bottom: none !important; }
   .stat-card { padding: 16px; min-height: auto !important; }
   .payments-hub-shell .card-pad { padding: 16px; }
   .client-profile-hero { padding: 18px !important; }
+}
+
+@media (max-width: 420px) {
+  .overview-shortcut-grid,
+  .metric-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .overview-meta-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* Login page */
