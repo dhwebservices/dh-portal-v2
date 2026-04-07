@@ -275,9 +275,9 @@ DH Website Services HR`)
     }
   }
 
-  const snapshotProfile = application.candidate_profile_snapshot?.profile || {}
-  const snapshotSkills = Array.isArray(application.candidate_profile_snapshot?.skills) ? application.candidate_profile_snapshot.skills : []
-  const snapshotExperience = Array.isArray(application.candidate_profile_snapshot?.experience) ? application.candidate_profile_snapshot.experience : []
+  const snapshotProfile = application?.candidate_profile_snapshot?.profile || {}
+  const snapshotSkills = Array.isArray(application?.candidate_profile_snapshot?.skills) ? application.candidate_profile_snapshot.skills : []
+  const snapshotExperience = Array.isArray(application?.candidate_profile_snapshot?.experience) ? application.candidate_profile_snapshot.experience : []
 
   const sendCandidatePortalInvite = async () => {
     if (!application) return
