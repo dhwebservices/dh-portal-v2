@@ -5,7 +5,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
-import { buildLifecycleSettingKey, getLifecycleLabel, mergeLifecycleRecord } from '../utils/staffLifecycle'
+import { getLifecycleLabel, mergeLifecycleRecord, TERMINATED_STATES } from '../utils/staffLifecycle'
 import { mergeOrgRecord } from '../utils/orgStructure'
 
 function isRecentlyActive(value) {
@@ -21,6 +21,8 @@ function formatPresenceLabel(value) {
   return `Seen ${diffMins} mins ago`
 }
 
+// Keep this matrix in sync with App routes, Sidebar items, and any new staff tabs/pages.
+// If we add, rename, or remove a tab/route, the permissions model must be updated too.
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},
   {key:'my_profile',label:'My Profile'},{key:'search',label:'Search'},
@@ -94,7 +96,16 @@ export default function MyStaff() {
       // Sync: remove hr_profiles rows for users no longer in Microsoft AD
       // and collapse case-variant duplicates down to one canonical row.
       const activeEmails = new Set(activeUsers.map(u => u.email.toLowerCase()))
-      const { data: allProfiles } = await supabase.from('hr_profiles').select('id,user_email')
+      const [{ data: allProfiles }, { data: lifecycleSettings }] = await Promise.all([
+        supabase.from('hr_profiles').select('id,user_email'),
+        supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
+      ])
+      const lifecycleStateMap = {}
+      ;(lifecycleSettings || []).forEach((row) => {
+        const key = String(row.key || '').replace('staff_lifecycle:', '').toLowerCase().trim()
+        if (!key) return
+        lifecycleStateMap[key] = mergeLifecycleRecord(row.value?.value ?? row.value ?? {}).state
+      })
       const duplicateGroups = {}
       ;(allProfiles || []).forEach((profile) => {
         const key = normalizeEmail(profile.user_email)
@@ -112,7 +123,8 @@ export default function MyStaff() {
       const staleDeletes = (allProfiles||[]).filter(p => {
         const em = normalizeEmail(p.user_email)
         const isSystem = ['hr@','clients@','log@','legal@','noreply@','admin@','test@'].some(s => em.startsWith(s))
-        return !isSystem && !activeEmails.has(em)
+        const isTerminated = TERMINATED_STATES.has(lifecycleStateMap[em] || '')
+        return !isSystem && !activeEmails.has(em) && !isTerminated
       })
 
       const deleteMap = new Map()
@@ -169,20 +181,48 @@ export default function MyStaff() {
     setLoading(false)
   }
 
-  const visibleUsers = msUsers.filter((u) => {
-    const safeEmail = u.email?.toLowerCase()
-    const targetProfile = profiles[safeEmail] || {}
-    const targetOrg = orgMap[safeEmail] || mergeOrgRecord({}, { email: safeEmail, department: targetProfile.department })
-    return isDirector || canViewScopedStaff(targetProfile, targetOrg)
-  })
+  const staffRecords = [...new Set([
+    ...msUsers.map((u) => normalizeEmail(u.email)),
+    ...Object.keys(profiles),
+    ...Object.keys(lifecycleMap),
+  ])]
+    .filter(Boolean)
+    .map((safeEmail) => {
+      const azureUser = msUsers.find((u) => normalizeEmail(u.email) === safeEmail)
+      const profile = profiles[safeEmail] || {}
+      const userPm = permsMap[safeEmail]
+      const isOnboarding = userPm?.onboarding || false
+      const lifecycle = lifecycleMap[safeEmail] || mergeLifecycleRecord({}, {
+        onboarding: isOnboarding,
+        startDate: profile.start_date,
+        contractType: profile.contract_type,
+      })
+      const targetOrg = orgMap[safeEmail] || mergeOrgRecord({}, { email: safeEmail, department: profile.department })
+      return {
+        id: azureUser?.id || safeEmail,
+        name: profile.full_name || azureUser?.name || safeEmail,
+        email: safeEmail,
+        jobTitle: azureUser?.jobTitle || '',
+        profile,
+        targetOrg,
+        lifecycle,
+        isOnboarding,
+        isFromAzure: !!azureUser,
+      }
+    })
+    .filter((record) => {
+      if (TERMINATED_STATES.has(record.lifecycle.state || '')) return true
+      return record.isFromAzure
+    })
+    .filter((record) => isDirector || canViewScopedStaff(record.profile, record.targetOrg))
 
-  const filtered = visibleUsers.filter(u => {
+  const filtered = staffRecords.filter((staff) => {
     const q = search.toLowerCase()
-    const safeEmail = u.email?.toLowerCase()
-    const profile = profiles[safeEmail] || {}
+    const safeEmail = staff.email?.toLowerCase()
+    const profile = staff.profile || {}
     const userPm = permsMap[safeEmail]
     const isOnboarding = userPm?.onboarding || false
-    const lifecycle = lifecycleMap[safeEmail] || mergeLifecycleRecord({}, {
+    const lifecycle = staff.lifecycle || mergeLifecycleRecord({}, {
       onboarding: isOnboarding,
       startDate: profile.start_date,
       contractType: profile.contract_type,
@@ -193,18 +233,21 @@ export default function MyStaff() {
       (statusFilter === 'active' && ['active', 'probation'].includes(lifecycleState)) ||
       (statusFilter === 'onboarding' && lifecycleState === 'onboarding') ||
       (statusFilter === 'attention' && ['termination_requested', 'termination_pending', 'termination_approved', 'terminated', 'left', 'archived'].includes(lifecycleState)) ||
+      (statusFilter === 'terminated' && TERMINATED_STATES.has(lifecycleState)) ||
       (statusFilter === 'active_now' && isRecentlyActive(profile.last_seen))
-    return statusMatches && (!q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || profile.department?.toLowerCase().includes(q) || profile.role?.toLowerCase().includes(q))
+    return statusMatches && (!q || staff.name?.toLowerCase().includes(q) || staff.email?.toLowerCase().includes(q) || profile.department?.toLowerCase().includes(q) || profile.role?.toLowerCase().includes(q))
   })
 
-  const unassignedUsers = filtered.filter((u) => {
-    const safeEmail = u.email?.toLowerCase()
-    const targetProfile = profiles[safeEmail] || {}
-    const targetOrg = orgMap[safeEmail] || {}
+  const activeStaff = filtered.filter((staff) => !TERMINATED_STATES.has(staff.lifecycle?.state || ''))
+  const terminatedStaff = filtered.filter((staff) => TERMINATED_STATES.has(staff.lifecycle?.state || ''))
+
+  const unassignedUsers = activeStaff.filter((staff) => {
+    const targetProfile = staff.profile || {}
+    const targetOrg = staff.targetOrg || {}
     return !String(targetOrg.department || targetProfile.department || '').trim()
   })
 
-  const activeCount = filtered.filter((u) => isRecentlyActive(profiles[u.email?.toLowerCase()]?.last_seen)).length
+  const activeCount = activeStaff.filter((staff) => isRecentlyActive(staff.profile?.last_seen)).length
 
   const getInitials = (name) => (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
 
@@ -215,6 +258,7 @@ export default function MyStaff() {
     ['active', 'Active'],
     ['onboarding', 'Onboarding'],
     ['attention', 'Needs attention'],
+    ['terminated', 'Terminated staff'],
     ['active_now', 'Active now'],
   ]
 
@@ -230,7 +274,7 @@ export default function MyStaff() {
   return (
     <div className="fade-in">
       <div className="page-hd">
-        <div><h1 className="page-title">My Staff</h1><p className="page-sub">{msUsers.length} team members · {activeCount} active now</p></div>
+        <div><h1 className="page-title">My Staff</h1><p className="page-sub">{activeStaff.length} active staff · {terminatedStaff.length} terminated records · {activeCount} active now</p></div>
         <button className="btn btn-outline" onClick={load} disabled={loading} style={{ display:'flex', alignItems:'center', gap:6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
           {loading ? 'Refreshing...' : 'Refresh'}
@@ -248,9 +292,10 @@ export default function MyStaff() {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(120px,1fr))', gap:10, minWidth:'min(100%, 320px)' }}>
             {[
-              { label: isDirector ? 'Total staff' : 'Visible staff', value: filtered.length, tone: 'var(--text)' },
+              { label: isDirector ? 'Active staff' : 'Visible staff', value: activeStaff.length, tone: 'var(--text)' },
               { label: 'Active now', value: activeCount, tone: 'var(--green)' },
-              { label: 'Onboarding', value: filtered.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length, tone: 'var(--amber)' },
+              { label: 'Onboarding', value: activeStaff.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length, tone: 'var(--amber)' },
+              { label: 'Terminated', value: terminatedStaff.length, tone: 'var(--red)' },
               { label: 'Unassigned', value: unassignedUsers.length, tone: 'var(--accent)' },
             ].map((item) => (
               <div key={item.label} style={{ padding:'12px 14px', borderRadius:14, border:'1px solid var(--border)', background:'var(--card)' }}>
@@ -307,15 +352,15 @@ export default function MyStaff() {
         <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
           {filtered.map(u => {
             const userEmail = u.email?.toLowerCase()
-            const profile = profiles[userEmail] || {}
+            const profile = u.profile || {}
             const userPm = permsMap[userEmail]
             const isOnboarding = userPm?.onboarding || false
-            const lifecycle = lifecycleMap[userEmail] || mergeLifecycleRecord({}, {
+            const lifecycle = u.lifecycle || mergeLifecycleRecord({}, {
               onboarding: isOnboarding,
               startDate: profile.start_date,
               contractType: profile.contract_type,
             })
-            const targetOrg = orgMap[userEmail] || mergeOrgRecord({}, { email: userEmail, department: profile.department })
+            const targetOrg = u.targetOrg || mergeOrgRecord({}, { email: userEmail, department: profile.department })
             const isActiveNow = isRecentlyActive(profile.last_seen)
             const colour = colourFor(userEmail)
             const canImpersonate = (isDirector || isDepartmentManager) && canPreviewStaffMember(profile, targetOrg)
@@ -402,7 +447,7 @@ export default function MyStaff() {
                       <Sparkles size={14} />
                       Notify
                     </button>
-                  {canImpersonate ? (
+                  {canImpersonate && !TERMINATED_STATES.has(lifecycleState) ? (
                     <button
                       className={isCurrentImpersonation ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
                       onClick={() => impersonate(u, profile, targetOrg)}

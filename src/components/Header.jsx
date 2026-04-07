@@ -44,6 +44,7 @@ const PAGE_NOTES = {
   '/my-staff': { section: 'HR', note: 'Staff records, permissions, and lifecycle controls' },
   '/contract-queue': { section: 'HR', note: 'Issued contracts and signing progress' },
   '/contract-templates': { section: 'HR', note: 'Template library for staff contracts' },
+  '/hr/profiles': { section: 'HR', note: 'Core staff records and employment details' },
   '/recruiting': { section: 'Hiring', note: 'Roles, job overviews, and candidate pipelines' },
   '/recruiting/jobs': { section: 'Hiring', note: 'Role publishing and requisition management' },
   '/recruiting/applications': { section: 'Hiring', note: 'Application inbox and candidate review' },

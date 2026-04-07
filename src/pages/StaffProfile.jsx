@@ -114,6 +114,8 @@ function buildTerminationEmailHtml({ greeting = 'there', body = '', ctaHref = ''
   `
 }
 
+// Keep this matrix in sync with App routes, Sidebar items, and any new staff tabs/pages.
+// If we add, rename, or remove a tab/route, the permissions model must be updated too.
 const ALL_PAGES = [
   {key:'dashboard',     label:'Dashboard',          group:'Home', category:'Core', desc:'Main overview and stats'},
   {key:'notifications', label:'Notifications',      group:'Home', category:'Core', desc:'Inbox and alerts'},
@@ -136,6 +138,7 @@ const ALL_PAGES = [
   {key:'hr_onboarding', label:'HR Onboarding',      group:'HR'},
   {key:'hr_leave',      label:'HR Leave',           group:'HR'},
   {key:'hr_payslips',   label:'HR Payslips',        group:'HR'},
+  {key:'hr_profiles',   label:'HR Profiles',        group:'HR', category:'Records', desc:'Core employee records and employment details'},
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
   {key:'hr_documents',  label:'HR Documents',       group:'HR', category:'Records', desc:'Document coverage and expiry checks'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
@@ -327,6 +330,7 @@ export default function StaffProfile() {
   const [peopleOpsSaved, setPeopleOpsSaved] = useState(false)
   const [lifecycleSaving, setLifecycleSaving] = useState(false)
   const [lifecycleSaved, setLifecycleSaved] = useState(false)
+  const [deletingStaff, setDeletingStaff] = useState(false)
   const [customNotification, setCustomNotification] = useState({
     title: '',
     message: '',
@@ -1231,6 +1235,54 @@ export default function StaffProfile() {
 
     setLifecycleSaved(true)
     setTimeout(() => setLifecycleSaved(false), 3000)
+  }
+
+  const deleteStaffMember = async () => {
+    const isDirector = DIRECTOR_EMAILS.has(String(user?.email || '').toLowerCase())
+    if (!isDirector) {
+      alert('Only the director account can permanently delete a staff member.')
+      return
+    }
+
+    if (!TERMINATED_STATES.has(lifecycleRecord.state)) {
+      alert('Only terminated staff records can be permanently deleted.')
+      return
+    }
+
+    const confirmed = window.confirm(`Permanently delete ${displayName}? This removes the staff record from HR and portal views.`)
+    if (!confirmed) return
+
+    setDeletingStaff(true)
+    try {
+      await Promise.allSettled([
+        fetch(`${SB_URL}/rest/v1/hr_profiles?user_email=ilike.${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        }),
+        fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        }),
+        fetch(`${SB_URL}/rest/v1/onboarding_submissions?user_email=ilike.${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        }),
+        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_lifecycle:${email}`)}`, {
+          method: 'DELETE',
+          headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        }),
+        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_org:${email}`)}`, {
+          method: 'DELETE',
+          headers: { ...sbHeaders, Prefer: 'return=minimal' },
+        }),
+      ])
+
+      navigate('/my-staff')
+    } catch (error) {
+      alert(error.message || 'Could not delete this staff member.')
+    } finally {
+      setDeletingStaff(false)
+    }
   }
 
   const resetReviewForm = () => setReviewForm({
@@ -2598,7 +2650,12 @@ export default function StaffProfile() {
                 </div>
               </div>
 
-              <div style={{ display:'flex', justifyContent:'flex-end' }}>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:10, flexWrap:'wrap' }}>
+                {TERMINATED_STATES.has(lifecycleRecord.state) ? (
+                  <button className="btn btn-danger" onClick={deleteStaffMember} disabled={deletingStaff}>
+                    {deletingStaff ? 'Deleting...' : 'Delete staff member'}
+                  </button>
+                ) : null}
                 <button className="btn btn-primary" onClick={() => saveLifecycleRecord()} disabled={lifecycleSaving}>{lifecycleSaving ? 'Saving...' : 'Save lifecycle state'}</button>
               </div>
 

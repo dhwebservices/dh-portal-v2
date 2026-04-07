@@ -13,7 +13,9 @@ import {
   XCircle,
 } from 'lucide-react'
 import RecruitingStatusBadge from './RecruitingStatusBadge'
-import { listApplications, listJobPosts } from '../utils/recruiting'
+import { createCandidatePortalInvite, listApplications, listJobPosts } from '../utils/recruiting'
+import { sendCandidatePortalInviteEmail } from '../utils/recruitingEmails'
+import { useAuth } from '../contexts/AuthContext'
 
 const STATUS_ORDER = ['new', 'reviewing', 'shortlisted', 'interview', 'offered', 'hired', 'rejected', 'withdrawn']
 const VIEW_TABS = [
@@ -105,11 +107,14 @@ export default function RecruitmentCandidateWorkspace({
   showHeader = true,
 }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [applications, setApplications] = useState([])
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({ query: '', status: 'all', jobId: initialJobId || 'all' })
   const [viewTab, setViewTab] = useState('candidates')
+  const [portalInviteBusy, setPortalInviteBusy] = useState(false)
+  const [portalInviteFeedback, setPortalInviteFeedback] = useState('')
 
   useEffect(() => {
     setFilters((current) => ({ ...current, jobId: initialJobId || 'all' }))
@@ -188,6 +193,7 @@ export default function RecruitmentCandidateWorkspace({
   }, [scopedApplications])
 
   const exportRows = viewTab === 'disqualified' ? disqualifiedRows : filtered
+  const inviteableApplications = filtered.filter((application) => application.email && application.portal_status !== 'active')
 
   const exportCandidates = () => {
     const csv = buildExportCsv(exportRows)
@@ -201,6 +207,36 @@ export default function RecruitmentCandidateWorkspace({
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  }
+
+  const sendPortalInvites = async () => {
+    if (!inviteableApplications.length) {
+      setPortalInviteFeedback('No filtered candidates currently need a portal invite.')
+      return
+    }
+
+    setPortalInviteBusy(true)
+    setPortalInviteFeedback('')
+    let sentCount = 0
+
+    try {
+      for (const application of inviteableApplications) {
+        const invite = await createCandidatePortalInvite(application, user)
+        const emailResult = await sendCandidatePortalInviteEmail(application, invite.inviteUrl)
+        if (!emailResult?.ok) {
+          throw new Error(emailResult?.error || `Portal invite email failed for ${application.email}`)
+        }
+        sentCount += 1
+      }
+
+      const applicationRows = await listApplications()
+      setApplications(applicationRows)
+      setPortalInviteFeedback(`Portal invites sent to ${sentCount} candidate${sentCount === 1 ? '' : 's'}.`)
+    } catch (error) {
+      setPortalInviteFeedback(error.message || 'Could not send the portal invites.')
+    } finally {
+      setPortalInviteBusy(false)
+    }
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
@@ -346,11 +382,23 @@ export default function RecruitmentCandidateWorkspace({
                 <div style={{ fontSize: 12, color: 'var(--sub)' }}>
                   Showing {filtered.length} of {viewTab === 'disqualified' ? disqualifiedRows.length : candidateRows.length} {viewTab === 'disqualified' ? 'disqualified applicants' : 'candidates'}
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--sub)', fontSize: 12 }}>
-                  <SlidersHorizontal size={14} />
-                  Compact ATS view
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--sub)', fontSize: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button className="btn btn-outline btn-sm" disabled={portalInviteBusy || inviteableApplications.length === 0} onClick={sendPortalInvites}>
+                    <Users size={14} />
+                    {portalInviteBusy ? 'Sending invites...' : `Invite to portal (${inviteableApplications.length})`}
+                  </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <SlidersHorizontal size={14} />
+                    Compact ATS view
+                  </div>
                 </div>
               </div>
+
+              {portalInviteFeedback ? (
+                <div style={{ marginBottom: 10, fontSize: 12.5, color: portalInviteFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>
+                  {portalInviteFeedback}
+                </div>
+              ) : null}
 
               <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
                 {filtered.length === 0 ? (
