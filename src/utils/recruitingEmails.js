@@ -2,6 +2,7 @@ import { sendEmail } from './email'
 import { getRecruitingStatusLabel } from './recruiting'
 
 const FROM_EMAIL = 'DH Website Services HR <HR@dhwebsiteservices.co.uk>'
+const CANDIDATE_PORTAL_URL = 'https://careers.dhwebsiteservices.co.uk'
 
 function formatDateTime(value) {
   if (!value) return 'To be confirmed'
@@ -243,5 +244,67 @@ export async function sendInterviewScheduleEmail(application) {
     text: buildInterviewScheduleEmailText(application),
     from: FROM_EMAIL,
     reply_to: application?.interview_contact_email || undefined,
+  })
+}
+
+export function buildCandidateInterviewBookingEmailSubject(application) {
+  const role = application?.job_posts?.title || 'your application'
+  return `Book your interview: ${role}`
+}
+
+export function buildCandidateInterviewBookingEmailHtml(application, bookingUrl, note = '') {
+  const role = application?.job_posts?.title || 'the role'
+  return buildEmailShell({
+    eyebrow: 'Interview booking',
+    title: `Choose your interview time for ${role}`,
+    intro: 'The hiring team has opened interview slots for you. Use the button below to sign in to the candidate portal and book the time that suits you.',
+    accent: '#2F6FED',
+    detailRows: [
+      { label: 'Role', value: role },
+      { label: 'Applicant', value: application?.full_name || application?.email || 'Applicant' },
+      { label: 'Booking link', value: `<a href="${bookingUrl}" style="color:#2F6FED;text-decoration:none;font-weight:700">Open candidate portal</a>`, html: true },
+    ],
+    note,
+  })
+}
+
+export async function sendCandidateInterviewBookingEmail(application, note = '', bookingUrl = `${CANDIDATE_PORTAL_URL}/interviews/${application?.id}`) {
+  if (!application?.email) throw new Error('Application email is required')
+  return sendEmail('custom_email', {
+    to: application.email,
+    subject: buildCandidateInterviewBookingEmailSubject(application),
+    html: buildCandidateInterviewBookingEmailHtml(application, bookingUrl, note),
+    from: FROM_EMAIL,
+  })
+}
+
+export function buildCandidatePortalInviteEmailSubject(application) {
+  const role = application?.job_posts?.title || 'your application'
+  return `Set up your candidate portal: ${role}`
+}
+
+export function buildCandidatePortalInviteEmailHtml(application, inviteUrl, note = '') {
+  const role = application?.job_posts?.title || 'the role'
+  return buildEmailShell({
+    eyebrow: 'Candidate portal',
+    title: `Set up your portal access for ${role}`,
+    intro: 'Create your DH Careers account with the same email address you applied with, then manage your profile, applications, and interview updates in one place.',
+    accent: '#0F9D7A',
+    detailRows: [
+      { label: 'Role', value: role },
+      { label: 'Applicant', value: application?.full_name || application?.email || 'Applicant' },
+      { label: 'Portal link', value: `<a href="${inviteUrl}" style="color:#0F9D7A;text-decoration:none;font-weight:700">Activate candidate portal</a>`, html: true },
+    ],
+    note,
+  })
+}
+
+export async function sendCandidatePortalInviteEmail(application, inviteUrl, note = '') {
+  if (!application?.email) throw new Error('Application email is required')
+  return sendEmail('custom_email', {
+    to: application.email,
+    subject: buildCandidatePortalInviteEmailSubject(application),
+    html: buildCandidatePortalInviteEmailHtml(application, inviteUrl, note),
+    from: FROM_EMAIL,
   })
 }

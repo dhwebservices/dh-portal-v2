@@ -4,9 +4,9 @@ import { CalendarDays, Mail, NotebookPen, ShieldCheck, Star, UserRound } from 'l
 import ApplicantCvViewer from '../components/ApplicantCvViewer'
 import ApplicantTimeline from '../components/ApplicantTimeline'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
-import { addApplicationNote, getApplication, listApplicationHistory, listApplicationNotes, listHiringUsers, saveApplicationProfileMeta, updateApplicationStatus } from '../utils/recruiting'
+import { addApplicationNote, createCandidatePortalInvite, getApplication, listApplicationHistory, listApplicationNotes, listHiringUsers, listInterviewSlots, replaceInterviewSlots, saveApplicationProfileMeta, updateApplicationStatus } from '../utils/recruiting'
 import { sendEmail } from '../utils/email'
-import { sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
+import { sendCandidateInterviewBookingEmail, sendCandidatePortalInviteEmail, sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
@@ -110,6 +110,14 @@ export default function RecruitingApplicationProfile() {
   const [sendInterviewInvite, setSendInterviewInvite] = useState(true)
   const [interviewBusy, setInterviewBusy] = useState(false)
   const [interviewFeedback, setInterviewFeedback] = useState('')
+  const [bookingSlots, setBookingSlots] = useState([])
+  const [bookingSlotDate, setBookingSlotDate] = useState('')
+  const [bookingSlotTime, setBookingSlotTime] = useState('')
+  const [bookingSlotDuration, setBookingSlotDuration] = useState(45)
+  const [bookingInviteFeedback, setBookingInviteFeedback] = useState('')
+  const [bookingInviteBusy, setBookingInviteBusy] = useState(false)
+  const [portalInviteBusy, setPortalInviteBusy] = useState(false)
+  const [portalInviteFeedback, setPortalInviteFeedback] = useState('')
   const [overallRating, setOverallRating] = useState(0)
   const [scorecardRatings, setScorecardRatings] = useState({})
   const [strengthsDraft, setStrengthsDraft] = useState('')
@@ -136,6 +144,10 @@ export default function RecruitingApplicationProfile() {
       })
       .catch((error) => setLoadError(error?.message || 'Could not load the application profile.'))
       .finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    listInterviewSlots(id).then(setBookingSlots).catch(() => {})
   }, [id])
 
   const assignmentOptions = useMemo(() => {
@@ -263,6 +275,40 @@ DH Website Services HR`)
     }
   }
 
+  const snapshotProfile = application.candidate_profile_snapshot?.profile || {}
+  const snapshotSkills = Array.isArray(application.candidate_profile_snapshot?.skills) ? application.candidate_profile_snapshot.skills : []
+  const snapshotExperience = Array.isArray(application.candidate_profile_snapshot?.experience) ? application.candidate_profile_snapshot.experience : []
+
+  const sendCandidatePortalInvite = async () => {
+    if (!application) return
+    setPortalInviteBusy(true)
+    setPortalInviteFeedback('')
+    try {
+      const invite = await createCandidatePortalInvite(application, user)
+      const emailResult = await sendCandidatePortalInviteEmail(application, invite.inviteUrl)
+      if (!emailResult?.ok) throw new Error(emailResult?.error || 'Portal invite email failed')
+
+      await addApplicationNote(
+        application.id,
+        `Candidate portal invite sent${user?.email ? ` by ${user.email}` : ''}.`,
+        user,
+      )
+
+      const [applicationRow, noteRows] = await Promise.all([
+        getApplication(id),
+        listApplicationNotes(id),
+      ])
+
+      setApplication(applicationRow)
+      setNotes(noteRows)
+      setPortalInviteFeedback('Candidate portal invite sent.')
+    } catch (error) {
+      setPortalInviteFeedback(error.message || 'Could not send the candidate portal invite.')
+    } finally {
+      setPortalInviteBusy(false)
+    }
+  }
+
   const scheduleInterview = async () => {
     if (!application || !interviewAt) {
       setInterviewFeedback('Please choose an interview date and time.')
@@ -309,6 +355,102 @@ DH Website Services HR`)
       setInterviewFeedback(error.message || 'Could not schedule interview.')
     } finally {
       setInterviewBusy(false)
+    }
+  }
+
+  const addBookingSlot = () => {
+    if (!bookingSlotDate || !bookingSlotTime) {
+      setBookingInviteFeedback('Choose a date and time for the interview slot.')
+      return
+    }
+
+    const start = new Date(`${bookingSlotDate}T${bookingSlotTime}`)
+    if (Number.isNaN(start.getTime())) {
+      setBookingInviteFeedback('Could not understand that slot time.')
+      return
+    }
+    const end = new Date(start.getTime() + Number(bookingSlotDuration || 45) * 60 * 1000)
+
+    setBookingSlots((current) => [
+      ...current.filter((slot) => slot.status === 'booked'),
+      ...current.filter((slot) => slot.status !== 'booked'),
+      {
+        id: `draft-${Date.now()}`,
+        application_id: id,
+        hiring_manager_email: assignmentEmail,
+        hiring_manager_name: assignmentOptions.find((item) => item.email === assignmentEmail)?.name || '',
+        start_at: start.toISOString(),
+        end_at: end.toISOString(),
+        timezone: 'Europe/London',
+        interview_mode: interviewMode,
+        location: interviewLocation,
+        notes: interviewNotesDraft,
+        status: 'open',
+      },
+    ])
+    setBookingInviteFeedback('')
+    setBookingSlotTime('')
+  }
+
+  const removeBookingSlot = (slotId) => {
+    setBookingSlots((current) => current.filter((slot) => slot.id !== slotId))
+  }
+
+  const sendInterviewBookingInvite = async () => {
+    if (!application) return
+    const openSlots = bookingSlots.filter((slot) => slot.status === 'open')
+    if (!openSlots.length) {
+      setBookingInviteFeedback('Add at least one open interview slot before sending.')
+      return
+    }
+
+    setBookingInviteBusy(true)
+    setBookingInviteFeedback('')
+    try {
+      const assignedUser = assignmentOptions.find((item) => item.email === assignmentEmail)
+      const savedSlots = await replaceInterviewSlots(application.id, openSlots.map((slot) => ({
+        ...slot,
+        hiring_manager_email: assignmentEmail,
+        hiring_manager_name: assignedUser?.name || '',
+        interview_mode: interviewMode,
+        location: interviewLocation,
+        notes: interviewNotesDraft,
+      })), user)
+
+      let updatedApplication = application
+      if (updatedApplication.status !== 'interview') {
+        updatedApplication = await updateApplicationStatus(updatedApplication, 'interview', user, { reason: 'Interview booking opened' })
+      }
+
+      await saveApplicationProfileMeta(application.id, {
+        assigned_recruiter_email: assignmentEmail,
+        assigned_recruiter_name: assignedUser?.name || '',
+        interview_mode: interviewMode,
+        interview_location: interviewLocation,
+        interview_notes: interviewNotesDraft,
+        interview_contact_email: assignedUser?.email || '',
+        interview_contact_name: assignedUser?.name || '',
+      })
+
+      const emailResult = await sendCandidateInterviewBookingEmail(updatedApplication, interviewNotesDraft)
+      if (!emailResult?.ok) throw new Error(emailResult?.error || 'Booking invite email failed')
+
+      const note = await addApplicationNote(
+        id,
+        `Interview booking invite sent with ${savedSlots.length} slot${savedSlots.length === 1 ? '' : 's'}${assignedUser?.name ? ` · Hiring manager: ${assignedUser.name}` : ''}`,
+        user
+      )
+
+      const [historyRows, noteRows] = await Promise.all([listApplicationHistory(id), listApplicationNotes(id)])
+      setApplication(updatedApplication)
+      setHistory(historyRows)
+      setNotes([note, ...noteRows.filter((row) => row.id !== note.id)])
+      setBookingSlots(savedSlots)
+      setBookingInviteFeedback('Interview booking email sent and slots published.')
+    } catch (error) {
+      setBookingInviteFeedback(error.message || 'Could not send the interview booking invite.')
+    } finally {
+      setBookingInviteBusy(false)
     }
   }
 
@@ -480,6 +622,61 @@ DH Website Services HR`)
               <div className="card card-pad">
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
                   <ShieldCheck size={16} color="var(--accent)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Candidate portal</div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
+                  <MetaCard label="Portal status" value={application.portal_status || 'unclaimed'} />
+                  <MetaCard label="Linked account" value={application.candidate_user_id ? 'Linked' : 'Not linked'} />
+                  <MetaCard label="Last invite" value={application.portal_invited_at ? new Date(application.portal_invited_at).toLocaleString('en-GB') : 'Not sent'} />
+                  <MetaCard label="Last portal activity" value={application.portal_last_viewed_at ? new Date(application.portal_last_viewed_at).toLocaleString('en-GB') : 'No activity yet'} />
+                </div>
+                <div style={{ display:'grid', gap:14, marginTop:16 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+                    <DetailRow label="NI number" value={snapshotProfile.ni_number} />
+                    <DetailRow label="DOB" value={snapshotProfile.date_of_birth} />
+                    <DetailRow label="Right to work" value={snapshotProfile.right_to_work_uk} />
+                    <DetailRow label="Address" value={[snapshotProfile.address_line_1, snapshotProfile.address_line_2, snapshotProfile.city, snapshotProfile.postcode, snapshotProfile.country].filter(Boolean).join(', ')} />
+                    <DetailRow label="LinkedIn" value={snapshotProfile.linkedin_url} />
+                    <DetailRow label="Portfolio" value={snapshotProfile.portfolio_url} />
+                  </div>
+                  <div>
+                    <label className="lbl">Professional summary</label>
+                    <div className="inp" style={{ whiteSpace:'pre-wrap', minHeight:90, alignItems:'flex-start', paddingTop:12 }}>
+                      {snapshotProfile.summary || 'No candidate profile summary has been synced into this application yet.'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="lbl">Skills</label>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {snapshotSkills.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No skills synced yet.</div> : null}
+                      {snapshotSkills.map((skill, index) => (
+                        <div key={`${skill.name || 'skill'}-${index}`} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:999, background:'var(--bg2)', fontSize:12.5, color:'var(--text)' }}>
+                          {skill.name || 'Skill'}{skill.proficiency ? ` · ${skill.proficiency}` : ''}{skill.years_experience ? ` · ${skill.years_experience}` : ''}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="lbl">Experience history</label>
+                    <div style={{ display:'grid', gap:10 }}>
+                      {snapshotExperience.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No structured experience synced yet.</div> : null}
+                      {snapshotExperience.map((row, index) => (
+                        <div key={`${row.company_name || 'exp'}-${index}`} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.job_title || 'Role'}{row.company_name ? ` · ${row.company_name}` : ''}</div>
+                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                            {[row.start_date, row.is_current ? 'Present' : row.end_date].filter(Boolean).join(' to ')}
+                          </div>
+                          {row.summary ? <div style={{ fontSize:12.5, color:'var(--text)', marginTop:8, lineHeight:1.6 }}>{row.summary}</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card card-pad">
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                  <ShieldCheck size={16} color="var(--accent)" />
                   <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Screening answers</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
@@ -608,10 +805,74 @@ DH Website Services HR`)
 
               <div className="card card-pad">
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                  <UserRound size={16} color="var(--accent)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Candidate portal access</div>
+                </div>
+                <div style={{ display:'grid', gap:12 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
+                    <MetaCard label="Current status" value={application.portal_status || 'unclaimed'} />
+                    <MetaCard label="Invite sent" value={application.portal_invited_at ? new Date(application.portal_invited_at).toLocaleString('en-GB') : 'Not yet'} />
+                    <MetaCard label="Last viewed" value={application.portal_last_viewed_at ? new Date(application.portal_last_viewed_at).toLocaleString('en-GB') : 'No portal activity'} />
+                  </div>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                    Invite existing applicants to set up their candidate portal using the email address already attached to this application. Historical applications stay intact and will be linked into the new portal account.
+                  </div>
+                  {portalInviteFeedback ? <div style={{ fontSize:12.5, color: portalInviteFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{portalInviteFeedback}</div> : null}
+                  <button className="btn btn-primary" disabled={portalInviteBusy} onClick={sendCandidatePortalInvite}>
+                    {portalInviteBusy ? 'Sending...' : application.portal_invited_at ? 'Resend portal invite' : 'Send portal invite'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="card card-pad">
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                   <CalendarDays size={16} color="var(--accent)" />
                   <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Interview</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
+                  <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:8 }}>Candidate self-booking</div>
+                    <div style={{ display:'grid', gap:12 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8 }}>
+                        <div>
+                          <label className="lbl">Date</label>
+                          <input className="inp" type="date" value={bookingSlotDate} onChange={(e) => setBookingSlotDate(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="lbl">Time</label>
+                          <input className="inp" type="time" value={bookingSlotTime} onChange={(e) => setBookingSlotTime(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="lbl">Duration</label>
+                          <select className="inp" value={bookingSlotDuration} onChange={(e) => setBookingSlotDuration(Number(e.target.value))}>
+                            <option value={30}>30 min</option>
+                            <option value={45}>45 min</option>
+                            <option value={60}>60 min</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <button className="btn btn-outline" onClick={addBookingSlot}>Add slot</button>
+                      </div>
+                      <div style={{ display:'grid', gap:8 }}>
+                        {bookingSlots.filter((slot) => slot.status === 'open' || slot.status === 'booked').length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No interview slots added yet.</div> : null}
+                        {bookingSlots.filter((slot) => slot.status === 'open' || slot.status === 'booked').map((slot) => (
+                          <div key={slot.id} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--card)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                            <div style={{ fontSize:13 }}>
+                              <div style={{ fontWeight:600, color:'var(--text)' }}>{new Date(slot.start_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+                              <div style={{ color:'var(--sub)', marginTop:4 }}>{slot.status === 'booked' ? 'Booked by candidate' : `${slot.interview_mode || interviewMode} · ${slot.location || interviewLocation || 'Details to follow'}`}</div>
+                            </div>
+                            {slot.status !== 'booked' ? <button className="btn btn-outline btn-sm" onClick={() => removeBookingSlot(slot.id)}>Remove</button> : <span className="badge badge-blue">Booked</span>}
+                          </div>
+                        ))}
+                      </div>
+                      {bookingInviteFeedback ? <div style={{ fontSize:12.5, color: bookingInviteFeedback.includes('sent') || bookingInviteFeedback.includes('published') ? '#1E8E5A' : '#C23B22' }}>{bookingInviteFeedback}</div> : null}
+                      <button className="btn btn-primary" disabled={bookingInviteBusy} onClick={sendInterviewBookingInvite}>
+                        {bookingInviteBusy ? 'Sending...' : 'Email candidate to book interview'}
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="lbl">Date and time</label>
                     <input className="inp" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />

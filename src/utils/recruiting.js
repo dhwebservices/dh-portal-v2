@@ -149,6 +149,14 @@ export function normalizeApplication(row = {}) {
     commission_acknowledged: row.commission_acknowledged === true,
     privacy_acknowledged: row.privacy_acknowledged === true,
     source: row.source || 'website',
+    candidate_user_id: row.candidate_user_id || '',
+    portal_status: row.portal_status || 'unclaimed',
+    portal_last_viewed_at: row.portal_last_viewed_at || null,
+    portal_invited_at: row.portal_invited_at || null,
+    portal_invited_by_email: row.portal_invited_by_email || '',
+    candidate_profile_snapshot: row.candidate_profile_snapshot && typeof row.candidate_profile_snapshot === 'object' && !Array.isArray(row.candidate_profile_snapshot)
+      ? row.candidate_profile_snapshot
+      : {},
     internal_notes: row.internal_notes || '',
     shortlisted_at: row.shortlisted_at || null,
     rejected_at: row.rejected_at || null,
@@ -166,6 +174,28 @@ export function normalizeApplication(row = {}) {
     interview_contact_name: row.interview_contact_name || '',
     interview_last_emailed_at: row.interview_last_emailed_at || null,
     job_posts: row.job_posts ? normalizeJobPost(row.job_posts) : null,
+  }
+}
+
+export function normalizeInterviewSlot(row = {}) {
+  return {
+    id: row.id || '',
+    application_id: row.application_id || '',
+    hiring_manager_email: row.hiring_manager_email || '',
+    hiring_manager_name: row.hiring_manager_name || '',
+    start_at: row.start_at || '',
+    end_at: row.end_at || '',
+    timezone: row.timezone || 'Europe/London',
+    interview_mode: row.interview_mode || 'video',
+    location: row.location || '',
+    notes: row.notes || '',
+    status: row.status || 'open',
+    created_by_email: row.created_by_email || '',
+    created_by_name: row.created_by_name || '',
+    booked_by_user_id: row.booked_by_user_id || '',
+    booked_at: row.booked_at || null,
+    created_at: row.created_at || '',
+    updated_at: row.updated_at || '',
   }
 }
 
@@ -235,6 +265,17 @@ function mergeJobProfileMeta(job, meta = {}) {
     ...job,
     ...normalizeJobProfileMeta(meta),
   })
+}
+
+function createPortalInviteToken() {
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function sha256Hex(value = '') {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 async function listJobProfileMetaMap(jobIds = []) {
@@ -534,6 +575,93 @@ export async function saveApplicationProfileMeta(applicationId, patch = {}) {
 
   if (error) throw error
   return nextValue
+}
+
+export async function listInterviewSlots(applicationId) {
+  const { data, error } = await supabase
+    .from('candidate_interview_slots')
+    .select('*')
+    .eq('application_id', applicationId)
+    .order('start_at', { ascending: true })
+  if (error) throw error
+  return (data || []).map(normalizeInterviewSlot)
+}
+
+export async function replaceInterviewSlots(applicationId, slots = [], actor = {}) {
+  const { error: deleteError } = await supabase
+    .from('candidate_interview_slots')
+    .delete()
+    .eq('application_id', applicationId)
+    .in('status', ['open', 'closed'])
+
+  if (deleteError) throw deleteError
+
+  if (!slots.length) return []
+
+  const payload = slots.map((slot) => ({
+    application_id: applicationId,
+    hiring_manager_email: String(slot.hiring_manager_email || '').trim().toLowerCase(),
+    hiring_manager_name: String(slot.hiring_manager_name || '').trim(),
+    start_at: slot.start_at,
+    end_at: slot.end_at,
+    timezone: slot.timezone || 'Europe/London',
+    interview_mode: slot.interview_mode || 'video',
+    location: String(slot.location || '').trim(),
+    notes: String(slot.notes || '').trim(),
+    status: slot.status || 'open',
+    created_by_email: actor.email || '',
+    created_by_name: actor.name || actor.email || '',
+    updated_at: new Date().toISOString(),
+  }))
+
+  const { data, error } = await supabase
+    .from('candidate_interview_slots')
+    .insert(payload)
+    .select('*')
+
+  if (error) throw error
+  return (data || []).map(normalizeInterviewSlot)
+}
+
+export async function createCandidatePortalInvite(application, actor = {}, options = {}) {
+  if (!application?.id || !application?.email) {
+    throw new Error('Application email is required before sending a portal invite.')
+  }
+
+  const rawToken = createPortalInviteToken()
+  const tokenHash = await sha256Hex(rawToken)
+  const expiresAt = new Date(Date.now() + (Number(options.expiresInHours || 168) * 60 * 60 * 1000)).toISOString()
+
+  const { error } = await supabase
+    .from('candidate_invites')
+    .insert({
+      email: String(application.email).trim().toLowerCase(),
+      application_id: application.id,
+      token_hash: tokenHash,
+      invited_by_email: actor?.email || '',
+      expires_at: expiresAt,
+      sent_at: new Date().toISOString(),
+    })
+
+  if (error) throw error
+
+  const { error: applicationError } = await supabase
+    .from('job_applications')
+    .update({
+      portal_status: application.candidate_user_id ? 'active' : 'invited',
+      portal_invited_at: new Date().toISOString(),
+      portal_invited_by_email: actor?.email || '',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', application.id)
+
+  if (applicationError) throw applicationError
+
+  return {
+    token: rawToken,
+    inviteUrl: `https://careers.dhwebsiteservices.co.uk/invite/${rawToken}`,
+    expiresAt,
+  }
 }
 
 export async function listHiringUsers() {
