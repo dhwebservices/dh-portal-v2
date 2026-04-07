@@ -50,6 +50,7 @@ const SECTIONS = [
       { to: '/hr/timesheets', icon: 'clock',  label: 'Timesheets',    desc: 'Time tracking',     key: 'hr_timesheet'  },
       { to: '/hr/leave',      icon: 'cal',    label: 'Leave',         desc: 'Leave requests',    key: 'hr_leave'      },
       { to: '/hr/payslips',   icon: 'wallet', label: 'Payslips',      desc: 'Payroll docs',      key: 'hr_payslips'   },
+      { to: '/hr/profiles',   icon: 'people', label: 'HR Profiles',   desc: 'Core staff records', key: 'hr_profiles'  },
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
       { to: '/hr/documents',  icon: 'doc',    label: 'Documents',     desc: 'Coverage & risks',  key: 'hr_documents'  },
       { to: '/hr/compliance-rules', icon: 'shield', label: 'Compliance Rules', desc: 'Required docs & training', key: 'hr_documents' },

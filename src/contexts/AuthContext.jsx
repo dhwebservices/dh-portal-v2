@@ -39,6 +39,7 @@ const BASE_PERMISSIONS = {
   recruiting_applications: false,
   recruiting_board: false,
   recruiting_settings: false,
+  hr_profiles: false,
 }
 
 function sanitizePermissions(raw) {

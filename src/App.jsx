@@ -65,6 +65,7 @@ const Maintenance = lazyRetry(() => import('./pages/Maintenance'), 'maintenance'
 const HRLeave = lazyRetry(() => import('./pages/hr/HRLeave'), 'hr-leave')
 const HRTimesheets = lazyRetry(() => import('./pages/hr/HRTimesheets'), 'hr-timesheets')
 const HRPayslips = lazyRetry(() => import('./pages/hr/HRPayslips'), 'hr-payslips')
+const HRProfiles = lazyRetry(() => import('./pages/hr/HRProfiles'), 'hr-profiles')
 const HRPolicies = lazyRetry(() => import('./pages/hr/HRPolicies'), 'hr-policies')
 const HRDocuments = lazyRetry(() => import('./pages/hr/HRDocuments'), 'hr-documents')
 const HRComplianceRules = lazyRetry(() => import('./pages/hr/HRComplianceRules'), 'hr-compliance-rules')
@@ -329,6 +330,7 @@ function PortalLayout() {
               <Route path="/hr/leave"        element={<PermissionGate permKey="hr_leave"><HRLeave /></PermissionGate>} />
               <Route path="/hr/timesheets"   element={<PermissionGate permKey="hr_timesheet"><HRTimesheets /></PermissionGate>} />
               <Route path="/hr/payslips"     element={<PermissionGate permKey="hr_payslips"><HRPayslips /></PermissionGate>} />
+              <Route path="/hr/profiles"     element={<PermissionGate permKey="hr_profiles"><HRProfiles /></PermissionGate>} />
               <Route path="/hr/policies"     element={<PermissionGate permKey="hr_policies"><HRPolicies /></PermissionGate>} />
               <Route path="/hr/documents"    element={<PermissionGate permKey="hr_documents"><HRDocuments /></PermissionGate>} />
               <Route path="/hr/compliance-rules" element={<PermissionGate permKey="hr_documents"><HRComplianceRules /></PermissionGate>} />

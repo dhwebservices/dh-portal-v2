@@ -136,6 +136,7 @@ const ALL_PAGES = [
   {key:'hr_onboarding', label:'HR Onboarding',      group:'HR'},
   {key:'hr_leave',      label:'HR Leave',           group:'HR'},
   {key:'hr_payslips',   label:'HR Payslips',        group:'HR'},
+  {key:'hr_profiles',   label:'HR Profiles',        group:'HR', category:'Records', desc:'Core employee records and employment details'},
   {key:'hr_policies',   label:'HR Policies',        group:'HR'},
   {key:'hr_documents',  label:'HR Documents',       group:'HR', category:'Records', desc:'Document coverage and expiry checks'},
   {key:'hr_timesheet',  label:'HR Timesheets',      group:'HR'},
