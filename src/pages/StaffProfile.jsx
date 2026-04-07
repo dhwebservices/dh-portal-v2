@@ -170,6 +170,42 @@ const ROLE_DEFAULTS = {
 }
 
 const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Admin']
+const HIRING_PERMISSION_KEYS = [
+  'recruiting_dashboard',
+  'recruiting_jobs',
+  'recruiting_applications',
+  'recruiting_board',
+  'recruiting_settings',
+]
+const HIRING_WORKSPACE_PERMISSION = {
+  key: 'recruiting_workspace',
+  label: 'Recruitment',
+  group: 'Hiring',
+  category: 'Pipeline',
+  desc: 'Roles, overview, applicants, board, and hiring settings in one workspace',
+}
+
+function getPermissionItemsForGroup(group) {
+  if (group === 'Hiring') return [HIRING_WORKSPACE_PERMISSION]
+  return ALL_PAGES.filter((page) => page.group === group)
+}
+
+function isHiringWorkspaceEnabled(perms = {}) {
+  return HIRING_PERMISSION_KEYS.some((key) => !!perms?.[key])
+}
+
+function getPermissionEnabledCount(perms = {}, group) {
+  if (group === 'Hiring') return isHiringWorkspaceEnabled(perms) ? 1 : 0
+  return getPermissionItemsForGroup(group).filter(({ key }) => perms?.[key]).length
+}
+
+function setHiringWorkspacePermission(current = {}, enabled) {
+  const next = { ...current }
+  HIRING_PERMISSION_KEYS.forEach((key) => {
+    next[key] = enabled
+  })
+  return next
+}
 
 function countEnabledPermissions(perms) {
   return ALL_PAGES.filter((page) => perms?.[page.key]).length
@@ -2496,8 +2532,8 @@ export default function StaffProfile() {
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Coverage</div>
                     <div style={{ display:'grid', gap:6 }}>
                       {PERMISSION_GROUPS.map((group) => {
-                        const groupItems = ALL_PAGES.filter((page) => page.group === group)
-                        const enabled = groupItems.filter((page) => editPerms[page.key]).length
+                        const groupItems = getPermissionItemsForGroup(group)
+                        const enabled = getPermissionEnabledCount(editPerms, group)
                         return (
                           <div key={group} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, fontSize:12.5 }}>
                             <span style={{ color:'var(--sub)' }}>{group}</span>
@@ -3490,8 +3526,8 @@ export default function StaffProfile() {
             </div>
 
             {PERMISSION_GROUPS.map(group => {
-              const items = ALL_PAGES.filter((page) => page.group === group)
-              const enabledCount = items.filter(({ key }) => editPerms[key]).length
+              const items = getPermissionItemsForGroup(group)
+              const enabledCount = getPermissionEnabledCount(editPerms, group)
               return (
                 <div key={group} style={{ marginBottom:18, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', background:'var(--bg)' }}>
                   <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
@@ -3503,11 +3539,13 @@ export default function StaffProfile() {
                     </div>
                     <div style={{ display:'flex', gap:8 }}>
                       <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        if (group === 'Hiring') return setHiringWorkspacePermission(current, true)
                         const next = { ...current }
                         items.forEach(({ key }) => { next[key] = true })
                         return next
                       })}>Enable all</button>
                       <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        if (group === 'Hiring') return setHiringWorkspacePermission(current, false)
                         const next = { ...current }
                         items.forEach(({ key }) => { next[key] = false })
                         return next
@@ -3517,11 +3555,18 @@ export default function StaffProfile() {
 
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10, padding:12 }}>
                     {items.map(({ key, label, desc }) => {
-                      const enabled = !!editPerms[key]
+                      const enabled = key === HIRING_WORKSPACE_PERMISSION.key
+                        ? isHiringWorkspaceEnabled(editPerms)
+                        : !!editPerms[key]
                       return (
                         <button
                           key={key}
-                          onClick={() => setEditPerms((current) => ({ ...current, [key]: !current[key] }))}
+                          onClick={() => setEditPerms((current) => {
+                            if (key === HIRING_WORKSPACE_PERMISSION.key) {
+                              return setHiringWorkspacePermission(current, !isHiringWorkspaceEnabled(current))
+                            }
+                            return { ...current, [key]: !current[key] }
+                          })}
                           style={{
                             display:'flex',
                             alignItems:'flex-start',
