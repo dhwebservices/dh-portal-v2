@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
+import { mergeLifecycleRecord, TERMINATED_STATES } from '../utils/staffLifecycle'
 
 const cardStyle = {
   background: 'var(--card)',
@@ -221,10 +222,11 @@ export default function OrgChart() {
 
     const load = async () => {
       setLoading(true)
-      const [{ data: profiles }, { data: permissions }, { data: onboarding }] = await Promise.all([
+      const [{ data: profiles }, { data: permissions }, { data: onboarding }, { data: lifecycleSettings }] = await Promise.all([
         supabase.from('hr_profiles').select('*'),
         supabase.from('user_permissions').select('user_email,onboarding'),
         supabase.from('onboarding_submissions').select('user_email,photo_url'),
+        supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
       ])
 
       if (!alive) return
@@ -236,6 +238,13 @@ export default function OrgChart() {
       const photoMap = new Map(
         (onboarding || []).map((row) => [normalizeEmail(row.user_email || ''), row.photo_url || null])
       )
+      const lifecycleMap = new Map(
+        (lifecycleSettings || []).map((row) => {
+          const email = normalizeEmail(String(row.key || '').replace('staff_lifecycle:', ''))
+          const record = mergeLifecycleRecord(row.value?.value ?? row.value ?? {})
+          return [email, record.state]
+        })
+      )
 
       const merged = deduped
         .map((profile) => ({
@@ -243,8 +252,10 @@ export default function OrgChart() {
           user_email: normalizeEmail(profile.user_email || ''),
           onboarding: permissionMap.get(normalizeEmail(profile.user_email || '')) || false,
           photo_url: photoMap.get(normalizeEmail(profile.user_email || '')) || null,
+          lifecycle_state: lifecycleMap.get(normalizeEmail(profile.user_email || '')) || 'active',
         }))
         .filter(isRealStaffProfile)
+        .filter((profile) => !TERMINATED_STATES.has(profile.lifecycle_state))
 
       setPeople(merged)
       setUpdatedAt(new Date().toISOString())
