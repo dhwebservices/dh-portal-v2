@@ -33,6 +33,7 @@ import {
   getLifecycleMeta,
   LIFECYCLE_STATES,
   OFFBOARDING_ITEMS,
+  TERMINATED_STATES,
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
 import {
