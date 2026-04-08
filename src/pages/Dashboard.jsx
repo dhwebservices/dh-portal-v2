@@ -1000,6 +1000,17 @@ export default function Dashboard() {
     if (showWhatsNew) setWhatsNewCardIndex(0)
   }, [showWhatsNew, whatsNew?.version])
 
+  useEffect(() => {
+    const openFeedback = () => setShowFeedback(true)
+    const openPersonalise = () => setShowPersonalise(true)
+    window.addEventListener('dh-open-feedback', openFeedback)
+    window.addEventListener('dh-open-personalise', openPersonalise)
+    return () => {
+      window.removeEventListener('dh-open-feedback', openFeedback)
+      window.removeEventListener('dh-open-personalise', openPersonalise)
+    }
+  }, [])
+
   const generatedInsight = useMemo(() => {
     if (stats.pendingLeave > 0) {
       return 'There are leave requests waiting on a decision. Approving or rejecting those first will clear a people bottleneck quickly.'
@@ -1898,10 +1909,6 @@ export default function Dashboard() {
           <div>
             <div className="section-kicker">Home snapshot</div>
             <div className="section-note">The core numbers that shape your working day.</div>
-          </div>
-          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-            <button className="btn btn-outline btn-sm" onClick={() => setShowFeedback(true)}>Feedback</button>
-            <button className="btn btn-outline btn-sm" onClick={() => setShowPersonalise(true)}>Personalise</button>
           </div>
         </div>
         <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>

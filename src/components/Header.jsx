@@ -103,6 +103,16 @@ function GridIcon() {
   )
 }
 
+function SparklesIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m12 3 1.9 4.9L19 10l-5.1 2.1L12 17l-1.9-4.9L5 10l5.1-2.1Z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+    </svg>
+  )
+}
+
 function sectionAccent(section = '') {
   const safe = String(section || '').toLowerCase()
   if (safe === 'hiring') return { bg: 'rgba(26,86,219,0.1)', color: 'var(--accent)' }
@@ -294,6 +304,9 @@ export default function Header() {
     setBellOpen(false)
     if (notification.link) navigate(notification.link)
   }
+  const openDashboardOverlay = (type) => {
+    window.dispatchEvent(new CustomEvent(`dh-open-${type}`))
+  }
 
   return (
     <>
@@ -318,6 +331,13 @@ export default function Header() {
         <button className="header-search-launch hide-mob" onClick={() => navigate('/search')} title="Search the portal">
           <SearchIcon />
           <span>Search tasks, staff, or documents...</span>
+        </button>
+        <button className="header-icon-btn hide-mob" onClick={() => openDashboardOverlay('feedback')} title="Feedback" style={{ height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', color:'var(--sub)', padding:'0 12px', fontSize:12.5, fontWeight:600 }}>
+          <span>Feedback</span>
+        </button>
+        <button className="header-icon-btn hide-mob" onClick={() => openDashboardOverlay('personalise')} title="Personalise dashboard" style={{ height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', color:'var(--sub)', padding:'0 12px', fontSize:12.5, fontWeight:600 }}>
+          <SparklesIcon />
+          <span>Personalise</span>
         </button>
         {isPreviewing && previewTarget ? (
           <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'7px 10px', borderRadius:12, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
@@ -437,6 +457,14 @@ export default function Header() {
             <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/notifications')}>
               <BellIcon />
               <span>Open notifications</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => { setMobileMenuOpen(false); openDashboardOverlay('feedback') }}>
+              <MoreIcon />
+              <span>Feedback</span>
+            </button>
+            <button className="header-mobile-menu-btn" onClick={() => { setMobileMenuOpen(false); openDashboardOverlay('personalise') }}>
+              <SparklesIcon />
+              <span>Personalise dashboard</span>
             </button>
             <button className="header-mobile-menu-btn" onClick={() => openMenuRoute('/my-profile')}>
               <img src="/dh-logo-icon.png" alt="" style={{ width:15, height:15, objectFit:'contain' }} />
