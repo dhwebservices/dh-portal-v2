@@ -411,36 +411,20 @@ export default function StaffProfile() {
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(location.search).get('tab')
-    if (requestedTab) setTab(requestedTab)
+    if (requestedTab && staffProfileTabs.some(([key]) => key === requestedTab)) {
+      setTab(requestedTab)
+    }
   }, [location.search])
-
-  const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
-  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-  const sbHeaders = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }
-
-  const sbGet = async (table, query) => {
-    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}&limit=1`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
-    if (!res.ok) return null
-    const data = await res.json()
-    return Array.isArray(data) ? (data[0] || null) : data
-  }
-
-  const sbGetMany = async (table, query) => {
-    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
-    if (!res.ok) return []
-    return await res.json()
-  }
 
   const loadAll = async () => {
     setLoading(true)
     try {
-      const enc = encodeURIComponent(email)
       const [profileRows, perm, comms, docs, onboardingSubmission] = await Promise.all([
-        sbGetMany('hr_profiles', `user_email=ilike.${enc}`),
-        sbGet('user_permissions', `user_email=ilike.${enc}`),
-        sbGetMany('commissions', `staff_email=ilike.${enc}&order=date.desc`),
-        sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
-        sbGet('onboarding_submissions', `user_email=ilike.${enc}`),
+        supabase.from('hr_profiles').select('*').ilike('user_email', email),
+        supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
+        supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending: false }),
+        supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false }),
+        supabase.from('onboarding_submissions').select('*').ilike('user_email', email).maybeSingle(),
       ])
       const { data: preferenceSetting } = await supabase
         .from('portal_settings')
@@ -500,8 +484,9 @@ export default function StaffProfile() {
         .select('key,value')
         .like('key', 'training_template:%')
 
-      const p = pickBestProfileRow(profileRows || [])
-      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
+      const p = pickBestProfileRow(profileRows?.data || [])
+      const nextOnboardingSubmission = onboardingSubmission?.data || null
+      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, nextOnboardingSubmission)
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
@@ -509,7 +494,7 @@ export default function StaffProfile() {
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
-        onboarding: !!perm?.onboarding,
+        onboarding: !!perm?.data?.onboarding,
         startDate: mergedProfile.start_date,
         contractType: mergedProfile.contract_type,
       }))
@@ -645,7 +630,7 @@ export default function StaffProfile() {
         .filter((request) => request.target_email === email)
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
 
-      if (p || onboardingSubmission) {
+      if (p || nextOnboardingSubmission) {
         setProfile(mergedProfile)
         setProfileId(p?.id || null)
         setPrevMgr(mergedProfile.manager_email || '')
@@ -655,23 +640,23 @@ export default function StaffProfile() {
         setPrevMgr('')
       }
 
-      if (onboardingSubmission) {
-        syncOnboardingSubmissionToHrProfile(onboardingSubmission).catch((err) => {
+      if (nextOnboardingSubmission) {
+        syncOnboardingSubmissionToHrProfile(nextOnboardingSubmission).catch((err) => {
           console.error('Onboarding sync error:', err)
         })
       }
 
-      if (perm) {
-        setPermId(perm.id)
-        setEditPerms(perm.permissions && Object.keys(perm.permissions).length ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
-        setOnboarding(!!perm.onboarding)
-        setBookable(perm.bookable_staff === true)
+      if (perm?.data) {
+        setPermId(perm.data.id)
+        setEditPerms(perm.data.permissions && Object.keys(perm.data.permissions).length ? perm.data.permissions : { ...ROLE_DEFAULTS.Staff })
+        setOnboarding(!!perm.data.onboarding)
+        setBookable(perm.data.bookable_staff === true)
       } else {
         setPermId(null)
       }
 
-      setComms(comms || [])
-      setDocs(docs || [])
+      setComms(comms?.data || [])
+      setDocs(docs?.data || [])
       const { data: notificationRows } = await supabase
         .from('notifications')
         .select('*')
@@ -755,50 +740,31 @@ export default function StaffProfile() {
         updated_at:     new Date().toISOString(),
       }
 
-      // Save hr_profiles via raw REST to avoid supabase-js columns= bug
       const existingProfile = profileId
         ? { id: profileId }
-        : pickBestProfileRow(await sbGetMany('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`))
+        : pickBestProfileRow((await supabase.from('hr_profiles').select('*').ilike('user_email', email)).data || [])
 
-      const hrRes = await fetch(`${SB_URL}/rest/v1/hr_profiles?on_conflict=user_email`, {
-        method: 'POST',
-        headers: {
-          ...sbHeaders,
-          'Prefer': 'resolution=merge-duplicates,return=representation',
-        },
-        body: JSON.stringify([{
+      const { data: savedProfile, error: hrError } = await supabase
+        .from('hr_profiles')
+        .upsert({
           ...(existingProfile?.created_at ? {} : { created_at: new Date().toISOString() }),
           ...hrPayload,
-        }]),
-      })
+        }, { onConflict: 'user_email' })
+        .select()
+        .single()
+      if (hrError) throw new Error('HR save failed: ' + hrError.message)
 
-      if (!hrRes.ok) {
-        const e = await hrRes.text()
-        throw new Error('HR save failed: ' + e)
-      }
-
-      const savedProfiles = await hrRes.json().catch(() => [])
-      const savedProfile = Array.isArray(savedProfiles) ? savedProfiles[0] : savedProfiles
       if (savedProfile?.id) setProfileId(savedProfile.id)
       if (!requiresDirectorApproval) setPrevMgr(profile.manager_email || '')
 
-      // Save user_permissions via raw REST
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
-      if (permId) {
-        const res = await fetch(`${SB_URL}/rest/v1/user_permissions?id=eq.${permId}`, {
-          method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify(permPayload)
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('Perms update failed: ' + e) }
-      } else {
-        const res = await fetch(`${SB_URL}/rest/v1/user_permissions`, {
-          method: 'POST', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ ...permPayload, user_email: email })
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('Perms insert failed: ' + e) }
-        const newPerm = await sbGet('user_permissions', `user_email=ilike.${encodeURIComponent(email)}`)
-        if (newPerm?.id) setPermId(newPerm.id)
-      }
+      const { data: savedPerm, error: permError } = await supabase
+        .from('user_permissions')
+        .upsert({ ...permPayload, user_email: email }, { onConflict: 'user_email' })
+        .select()
+        .single()
+      if (permError) throw new Error('Perms save failed: ' + permError.message)
+      if (savedPerm?.id) setPermId(savedPerm.id)
 
       if (requiresDirectorApproval) {
         const request = createDepartmentRequest({
@@ -1125,16 +1091,16 @@ export default function StaffProfile() {
     await saveLifecycleRecord(nextRecord, { silent: true })
 
     if (approved) {
-      await fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
-        method: 'PATCH',
-        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
+      await supabase
+        .from('user_permissions')
+        .update({
           permissions: {},
           onboarding: false,
           bookable_staff: false,
           updated_at: new Date().toISOString(),
-        }),
-      }).catch(() => {})
+        })
+        .ilike('user_email', email)
+        .catch(() => {})
     }
 
     await Promise.allSettled([
@@ -1255,26 +1221,11 @@ export default function StaffProfile() {
     setDeletingStaff(true)
     try {
       await Promise.allSettled([
-        fetch(`${SB_URL}/rest/v1/hr_profiles?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/onboarding_submissions?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_lifecycle:${email}`)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_org:${email}`)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
+        supabase.from('hr_profiles').delete().ilike('user_email', email),
+        supabase.from('user_permissions').delete().ilike('user_email', email),
+        supabase.from('onboarding_submissions').delete().ilike('user_email', email),
+        supabase.from('portal_settings').delete().eq('key', `staff_lifecycle:${email}`),
+        supabase.from('portal_settings').delete().eq('key', `staff_org:${email}`),
       ])
 
       navigate('/my-staff')

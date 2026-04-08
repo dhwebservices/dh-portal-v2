@@ -124,17 +124,6 @@ function TaskDetail({ task, user, onClose, onStatusChange }) {
   const changeStatus = async (s) => {
     setStatus(s)
     await onStatusChange(task.id, s)
-    if (task.assigned_by_email && task.assigned_by_email !== user?.email) {
-      await sendManagedNotification({
-        userEmail: task.assigned_by_email,
-        title: 'Task status updated: ' + task.title,
-        message: (user?.name || user?.email) + ' changed status to ' + s.replace('_', ' '),
-        link: '/tasks',
-        type: s === 'done' ? 'success' : 'info',
-        category: 'tasks',
-        sentBy: user?.name || user?.email,
-      }).catch(() => {})
-    }
   }
 
   const postComment = async () => {
