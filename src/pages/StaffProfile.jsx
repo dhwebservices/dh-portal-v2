@@ -2108,6 +2108,8 @@ export default function StaffProfile() {
   }
   const roleSummary = [profile.role, profile.department, roleScopeLabel].filter(Boolean)
   const managerDisplay = profile.manager_name || profile.manager_email || 'No manager assigned'
+  const activeTabLabel = staffProfileTabs.find(([key]) => key === tab)?.[1] || 'Profile'
+  const activeTabDescription = staffProfileTabDescriptions[tab] || 'Manage this employee workspace.'
   const heroSignals = [
     { label: 'Lifecycle', value: lifecycle.label, tone: lifecycle.tone, hint: lifecycle.hint || 'Current employment stage' },
     { label: 'Profile', value: `${profileCompleteness.percent}%`, tone: staff360Signals[0]?.tone || 'blue', hint: `${profileCompleteness.completed}/${profileCompleteness.total} checks complete` },
@@ -2231,20 +2233,36 @@ export default function StaffProfile() {
 
       <div className="staff-profile-hero">
         <div className="staff-profile-hero-main">
-          <div className="staff-profile-avatar">
-            {getInitials(displayName)}
-          </div>
-          <div className="staff-profile-hero-copy">
-            <div className="staff-profile-kicker">Staff 360</div>
-            <h1 className="staff-profile-name">{displayName}</h1>
-            <div className="staff-profile-subline">
-              {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
+          <div className="staff-profile-hero-identity">
+            <div className="staff-profile-avatar">
+              {getInitials(displayName)}
             </div>
-            <div className="staff-profile-meta-row">
-              <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
-              {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
-              {bookable ? <span className="badge badge-blue">Bookable</span> : null}
-              <span className="badge badge-grey">{email}</span>
+            <div className="staff-profile-hero-copy">
+              <div className="staff-profile-kicker">Staff 360</div>
+              <h1 className="staff-profile-name">{displayName}</h1>
+              <div className="staff-profile-subline">
+                {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
+              </div>
+              <div className="staff-profile-meta-row">
+                <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+                {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
+                {bookable ? <span className="badge badge-blue">Bookable</span> : null}
+                <span className="badge badge-grey">{email}</span>
+              </div>
+            </div>
+          </div>
+          <div className="staff-profile-hero-highlight-grid">
+            {heroSignals.slice(0, 3).map((item) => (
+              <div key={item.label} className="staff-profile-hero-highlight-card">
+                <div className="staff-profile-hero-highlight-label">{item.label}</div>
+                <div className="staff-profile-hero-highlight-value">{item.value}</div>
+                <div className="staff-profile-hero-highlight-hint">{item.hint}</div>
+              </div>
+            ))}
+            <div className="staff-profile-hero-highlight-card staff-profile-hero-highlight-card-wide">
+              <div className="staff-profile-hero-highlight-label">Active workspace</div>
+              <div className="staff-profile-hero-highlight-value">{activeTabLabel}</div>
+              <div className="staff-profile-hero-highlight-hint">{activeTabDescription}</div>
             </div>
           </div>
         </div>
@@ -2303,20 +2321,24 @@ export default function StaffProfile() {
 
       <div className="staff-profile-workspace">
         <aside className="staff-profile-nav">
-          <div className="staff-profile-action-head" style={{ marginBottom: 0 }}>
-            <div>
-              <div className="staff-profile-kicker">Workspace</div>
-              <div className="staff-profile-action-title">Profile areas</div>
-            </div>
+          <div className="staff-profile-nav-head">
+            <div className="staff-profile-kicker">Workspace</div>
+            <div className="staff-profile-action-title">Profile areas</div>
             <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
           </div>
+          <div className="staff-profile-nav-current">
+            <div className="staff-profile-nav-current-label">Current section</div>
+            <div className="staff-profile-nav-current-title">{activeTabLabel}</div>
+            <div className="staff-profile-nav-current-copy">{activeTabDescription}</div>
+          </div>
           <div className="staff-profile-nav-list">
-            {staffProfileTabs.map(([k, l]) => (
+            {staffProfileTabs.map(([k, l], index) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
                 className={`staff-profile-nav-btn${tab === k ? ' on' : ''}`}
               >
+                <span className="staff-profile-nav-index">{String(index + 1).padStart(2, '0')}</span>
                 <span className="staff-profile-nav-label">{l}</span>
                 <span className="staff-profile-nav-copy">{staffProfileTabDescriptions[k]}</span>
               </button>
@@ -2325,10 +2347,21 @@ export default function StaffProfile() {
         </aside>
 
         <div style={{ width:'100%' }} className="staff-profile-content">
+        <div className="staff-profile-content-head">
+          <div>
+            <div className="staff-profile-kicker">Profile workspace</div>
+            <div className="staff-profile-content-title">{activeTabLabel}</div>
+            <div className="staff-profile-content-copy">{activeTabDescription}</div>
+          </div>
+          <div className="staff-profile-content-badges">
+            <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+            {missingProfileItems.length ? <span className="badge badge-amber">{missingProfileItems.length} missing items</span> : <span className="badge badge-green">Core record healthy</span>}
+          </div>
+        </div>
         {tab === 'profile' && (
           <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
             <div style={{ display:'grid', gap:18 }}>
-              <div className="card card-pad" style={{ background:'color-mix(in srgb, var(--card) 82%, var(--accent-soft) 18%)', border:'1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%)' }}>
+              <div className="card card-pad staff-profile-overview-card">
                 <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Staff 360</div>
@@ -2340,18 +2373,18 @@ export default function StaffProfile() {
                   <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
                 </div>
 
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:10, marginTop:16 }}>
+                <div className="staff-profile-overview-signal-grid">
                   {staff360Signals.map((item) => (
-                    <div key={item.label} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
-                      <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{item.label}</div>
-                      <div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>{item.value}</div>
-                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>{item.hint}</div>
+                    <div key={item.label} className="staff-profile-overview-signal-card">
+                      <div className="staff-profile-overview-signal-label">{item.label}</div>
+                      <div className="staff-profile-overview-signal-value">{item.value}</div>
+                      <div className="staff-profile-overview-signal-hint">{item.hint}</div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(240px,0.9fr)', gap:14, marginTop:16 }}>
-                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div className="staff-profile-overview-detail-grid">
+                  <div className="staff-profile-overview-pane">
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Latest record movement</div>
                     <div style={{ display:'grid', gap:10 }}>
                       {staffTimeline.slice(0, 3).map((item) => (
@@ -2364,7 +2397,7 @@ export default function StaffProfile() {
                       {staffTimeline.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No staff profile timeline activity yet.</div> : null}
                     </div>
                   </div>
-                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div className="staff-profile-overview-pane">
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Missing profile items</div>
                     <div style={{ display:'grid', gap:8 }}>
                       {missingProfileItems.map((item) => (
@@ -2482,7 +2515,7 @@ export default function StaffProfile() {
             </div>
 
             <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
-              <div className="card card-pad staff-profile-admin-card">
+              <div className="card card-pad staff-profile-admin-card staff-profile-admin-shell">
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                   <div>
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Admin controls</div>
@@ -2562,7 +2595,7 @@ export default function StaffProfile() {
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Quick admin jumps</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                    <div className="staff-profile-jump-grid">
                       {[
                         ['Lifecycle', 'lifecycle'],
                         ['Performance', 'performance'],

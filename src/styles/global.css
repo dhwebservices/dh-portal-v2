@@ -406,7 +406,9 @@ button { cursor: pointer; font-family: inherit; }
   .legacy-side-sheet { width: 100% !important; max-width: 100% !important; }
   .mobile-only { display: block !important; }
   .staff-profile-hero { grid-template-columns: 1fr !important; gap: 14px !important; padding: 18px !important; }
-  .staff-profile-hero-main { flex-direction: column; gap: 14px !important; }
+  .staff-profile-hero-main { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .staff-profile-hero-identity { flex-direction: column; gap: 14px !important; }
+  .staff-profile-hero-highlight-grid { grid-template-columns: 1fr !important; }
   .staff-profile-avatar { width: 64px; height: 64px; border-radius: 18px; font-size: 24px; }
   .staff-profile-name { font-size: 32px !important; }
   .staff-profile-subline { font-size: 13px !important; }
@@ -421,6 +423,10 @@ button { cursor: pointer; font-family: inherit; }
   .staff-profile-main-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
   .staff-profile-workspace { grid-template-columns: 1fr !important; gap: 14px !important; }
   .staff-profile-nav { position: static; top: auto; }
+  .staff-profile-content-head { padding: 16px !important; flex-direction: column; }
+  .staff-profile-content-badges { justify-content: flex-start; }
+  .staff-profile-overview-detail-grid { grid-template-columns: 1fr !important; }
+  .staff-profile-jump-grid { grid-template-columns: 1fr !important; }
   .staff-profile-form-card,
   .staff-profile-admin-card { padding: 16px !important; }
   .staff-profile-admin-column { order: -1; }
@@ -688,20 +694,29 @@ button { cursor: pointer; font-family: inherit; }
 .card-pad { padding: 22px 24px; }
 
 .staff-profile-main-grid { width: 100%; }
-.staff-profile-content { width: 100%; }
+.staff-profile-content { width: 100%; min-width: 0; }
 .staff-profile-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 18px;
-  padding: 26px 28px;
-  margin-bottom: 18px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent-border) 22%);
+  grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.88fr);
+  gap: 20px;
+  padding: 28px 30px;
+  margin-bottom: 20px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  box-shadow: 0 18px 42px rgba(32, 52, 96, 0.08);
   background:
-    radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.1), transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%), var(--card));
+    radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.12), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(var(--accent-rgb), 0.06), transparent 26%),
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
 }
 .staff-profile-hero-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
+  align-items: stretch;
+  gap: 18px;
+  min-width: 0;
+}
+.staff-profile-hero-identity {
   display: flex;
   align-items: flex-start;
   gap: 18px;
@@ -725,6 +740,42 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-hero-copy {
   min-width: 0;
+}
+.staff-profile-hero-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.staff-profile-hero-highlight-card {
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(10px);
+  display: grid;
+  gap: 5px;
+}
+.staff-profile-hero-highlight-card-wide {
+  grid-column: 1 / -1;
+}
+.staff-profile-hero-highlight-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.staff-profile-hero-highlight-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.1;
+}
+.staff-profile-hero-highlight-hint {
+  font-size: 12px;
+  color: var(--sub);
+  line-height: 1.5;
 }
 .staff-profile-kicker {
   font-family: var(--font-mono);
@@ -766,10 +817,11 @@ button { cursor: pointer; font-family: inherit; }
   width: 100%;
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg2) 86%, var(--page-tint-strong) 14%);
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(248,250,255,0.96));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
 }
 .staff-profile-action-head {
   display: flex;
@@ -796,15 +848,16 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
 }
 .staff-profile-summary-card {
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%);
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, white 6%), color-mix(in srgb, var(--card) 88%, var(--page-tint) 12%));
+  box-shadow: 0 12px 28px rgba(30, 52, 94, 0.05);
 }
 .staff-profile-summary-label {
   font-family: var(--font-mono);
@@ -847,17 +900,49 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-workspace {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 .staff-profile-nav {
   position: sticky;
   top: 96px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--page-tint) 6%), var(--card));
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 95%, white 5%), color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%));
+  box-shadow: 0 18px 42px rgba(32, 52, 96, 0.06);
+}
+.staff-profile-nav-head {
+  display: grid;
+  gap: 6px;
+}
+.staff-profile-nav-current {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  background: color-mix(in srgb, var(--accent-soft) 72%, white 28%);
+}
+.staff-profile-nav-current-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--faint) 58%, var(--accent) 42%);
+}
+.staff-profile-nav-current-title {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.staff-profile-nav-current-copy {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--sub);
 }
 .staff-profile-nav-list {
   display: grid;
@@ -868,22 +953,39 @@ button { cursor: pointer; font-family: inherit; }
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 84%, var(--bg2) 16%);
+  background: color-mix(in srgb, var(--card) 92%, var(--bg2) 8%);
   color: var(--text);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 12px 14px;
   display: grid;
-  gap: 4px;
-  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 4px 10px;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s, box-shadow 0.18s;
 }
 .staff-profile-nav-btn:hover {
   border-color: var(--accent-border);
-  background: var(--bg2);
+  background: color-mix(in srgb, var(--bg2) 86%, white 14%);
   transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(32, 52, 96, 0.06);
 }
 .staff-profile-nav-btn.on {
   border-color: var(--accent-border);
   background: color-mix(in srgb, var(--accent-soft) 72%, white 28%);
+}
+.staff-profile-nav-index {
+  grid-row: 1 / span 2;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg2) 76%, white 24%);
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
 }
 .staff-profile-nav-label {
   font-size: 13px;
@@ -897,6 +999,94 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-nav-btn.on .staff-profile-nav-copy {
   color: color-mix(in srgb, var(--accent) 70%, var(--sub) 30%);
+}
+.staff-profile-nav-btn.on .staff-profile-nav-index {
+  background: color-mix(in srgb, var(--accent) 16%, white 84%);
+  color: var(--accent);
+}
+.staff-profile-content-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%));
+}
+.staff-profile-content-title {
+  margin-top: 5px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+.staff-profile-content-copy {
+  max-width: 620px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--sub);
+}
+.staff-profile-content-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.staff-profile-overview-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 85%, var(--accent-soft) 15%), color-mix(in srgb, var(--card) 92%, white 8%)) !important;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, var(--accent-border) 32%) !important;
+}
+.staff-profile-overview-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.staff-profile-overview-signal-card {
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+.staff-profile-overview-signal-label {
+  font-size: 11px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.staff-profile-overview-signal-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+.staff-profile-overview-signal-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sub);
+}
+.staff-profile-overview-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(240px,0.9fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+.staff-profile-overview-pane {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+.staff-profile-admin-shell {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%));
+}
+.staff-profile-jump-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 .admin-safeguards-summary-grid { width: 100%; }
 
