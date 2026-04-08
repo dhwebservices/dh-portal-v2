@@ -286,20 +286,89 @@ function DesktopCursor() {
 }
 
 function AmbientBackground() {
+  const ambientRef = useRef(null)
+  const frameRef = useRef(0)
+  const targetRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !ambientRef.current || !window.matchMedia) return undefined
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)')
+
+    const applyMotion = () => {
+      frameRef.current = 0
+      if (!ambientRef.current) return
+      ambientRef.current.style.setProperty('--ambient-shift-x', `${targetRef.current.x}px`)
+      ambientRef.current.style.setProperty('--ambient-shift-y', `${targetRef.current.y}px`)
+      ambientRef.current.style.setProperty('--ambient-tilt-x', `${targetRef.current.rotateX}deg`)
+      ambientRef.current.style.setProperty('--ambient-tilt-y', `${targetRef.current.rotateY}deg`)
+    }
+
+    const scheduleMotion = () => {
+      if (!frameRef.current) {
+        frameRef.current = window.requestAnimationFrame(applyMotion)
+      }
+    }
+
+    const handleMove = (event) => {
+      if (!mediaQuery.matches) return
+      const xRatio = event.clientX / window.innerWidth - 0.5
+      const yRatio = event.clientY / window.innerHeight - 0.5
+      targetRef.current = {
+        x: xRatio * 72,
+        y: yRatio * 48,
+        rotateX: yRatio * -3.5,
+        rotateY: xRatio * 4.5,
+      }
+      scheduleMotion()
+    }
+
+    const handleLeave = () => {
+      targetRef.current = { x: 0, y: 0, rotateX: 0, rotateY: 0 }
+      scheduleMotion()
+    }
+
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseleave', handleLeave)
+
+    return () => {
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current)
+        frameRef.current = 0
+      }
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseleave', handleLeave)
+    }
+  }, [])
+
   return (
-    <div className="portal-ambient" aria-hidden="true">
+    <div
+      ref={ambientRef}
+      className="portal-ambient"
+      style={{
+        '--ambient-shift-x': '0px',
+        '--ambient-shift-y': '0px',
+        '--ambient-tilt-x': '0deg',
+        '--ambient-tilt-y': '0deg',
+      }}
+      aria-hidden="true"
+    >
       <div className="portal-ambient-grid" />
-      <div className="portal-ambient-trail portal-ambient-trail-a" />
-      <div className="portal-ambient-trail portal-ambient-trail-b" />
-      <div className="portal-ambient-trail portal-ambient-trail-c" />
-      <div className="portal-ambient-trail portal-ambient-trail-d" />
-      <div className="portal-ambient-trail portal-ambient-trail-e" />
-      <div className="portal-ambient-trail portal-ambient-trail-f" />
-      <div className="portal-ambient-trail portal-ambient-trail-g" />
-      <div className="portal-ambient-trail portal-ambient-trail-h" />
-      <div className="portal-ambient-orb portal-ambient-orb-a" />
-      <div className="portal-ambient-orb portal-ambient-orb-b" />
-      <div className="portal-ambient-orb portal-ambient-orb-c" />
+      <div className="portal-ambient-trail-field">
+        <div className="portal-ambient-trail portal-ambient-trail-a" />
+        <div className="portal-ambient-trail portal-ambient-trail-b" />
+        <div className="portal-ambient-trail portal-ambient-trail-c" />
+        <div className="portal-ambient-trail portal-ambient-trail-d" />
+        <div className="portal-ambient-trail portal-ambient-trail-e" />
+        <div className="portal-ambient-trail portal-ambient-trail-f" />
+        <div className="portal-ambient-trail portal-ambient-trail-g" />
+        <div className="portal-ambient-trail portal-ambient-trail-h" />
+      </div>
+      <div className="portal-ambient-orb-field">
+        <div className="portal-ambient-orb portal-ambient-orb-a" />
+        <div className="portal-ambient-orb portal-ambient-orb-b" />
+        <div className="portal-ambient-orb portal-ambient-orb-c" />
+      </div>
     </div>
   )
 }
