@@ -182,7 +182,7 @@ function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAll
 
 export default function Header() {
   const { pathname } = useLocation()
-  const { user, realUser, isPreviewing, previewTarget, stopPreviewAs } = useAuth()
+  const { user, realUser, isPreviewing, previewTarget, stopPreviewAs, workspaceLabel } = useAuth()
   const navigate = useNavigate()
   const [notifs, setNotifs]       = useState([])
   const [pinnedAlerts, setPinnedAlerts] = useState([])
@@ -305,6 +305,11 @@ export default function Header() {
               {pageMeta.section}
             </span>
             <span className="header-page-heading">{pageTitle}</span>
+            {workspaceLabel ? (
+              <span style={{ padding:'4px 9px', borderRadius:999, border:'1px solid var(--border)', background:'var(--bg2)', fontSize:10.5, color:'var(--sub)', fontFamily:'var(--font-mono)', whiteSpace:'nowrap' }}>
+                {workspaceLabel}
+              </span>
+            ) : null}
           </div>
           <div className="header-page-note">
             {pageMeta.note}
