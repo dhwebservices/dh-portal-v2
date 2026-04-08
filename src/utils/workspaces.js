@@ -12,6 +12,28 @@ export const WORKSPACE_OPTIONS = [
 const WORKSPACE_SET = new Set(WORKSPACE_OPTIONS.map(([key]) => key))
 const GLOBAL_WORKSPACES = new Set(['director', 'admin'])
 
+const WORKSPACE_SECTION_ORDER = {
+  self_service: ['home', 'tasks', 'account'],
+  outreach: ['business', 'tasks', 'home', 'account'],
+  recruitment: ['hiring', 'tasks', 'home', 'hr', 'account'],
+  hr: ['hr', 'home', 'tasks', 'hiring', 'account'],
+  client_ops: ['business', 'tasks', 'home', 'account'],
+  manager: ['home', 'hiring', 'hr', 'tasks', 'business', 'account'],
+  director: ['home', 'business', 'tasks', 'hr', 'hiring', 'admin', 'account'],
+  admin: ['admin', 'home', 'business', 'tasks', 'hr', 'hiring', 'account'],
+}
+
+const WORKSPACE_SECTION_NOTES = {
+  self_service: 'Personal tools, alerts, and day-to-day self service.',
+  outreach: 'Lead movement, campaigns, and follow-up work.',
+  recruitment: 'Roles, applicants, and hiring flow in one place.',
+  hr: 'People operations, compliance, onboarding, and contracts.',
+  client_ops: 'Client delivery, support, and account operations.',
+  manager: 'Department oversight, team actions, and hiring controls.',
+  director: 'Cross-business visibility, escalations, and approvals.',
+  admin: 'Global controls, reports, safeguards, and oversight.',
+}
+
 const SHARED_ITEM_KEYS = new Set([
   'notifications',
   'my_profile',
@@ -50,6 +72,14 @@ export function normalizeWorkspace(value = '') {
 
 export function getWorkspaceLabel(workspace = '') {
   return WORKSPACE_OPTIONS.find(([key]) => key === normalizeWorkspace(workspace))?.[1] || 'Self Service'
+}
+
+export function getWorkspaceSectionOrder(workspace = '') {
+  return WORKSPACE_SECTION_ORDER[normalizeWorkspace(workspace) || 'self_service'] || WORKSPACE_SECTION_ORDER.self_service
+}
+
+export function getWorkspaceSectionNote(workspace = '') {
+  return WORKSPACE_SECTION_NOTES[normalizeWorkspace(workspace) || 'self_service'] || WORKSPACE_SECTION_NOTES.self_service
 }
 
 export function inferWorkspaceFromProfile({ explicitWorkspace = '', hrProfile = {}, org = {}, perms = {}, isAdmin = false, isDirector = false, isDepartmentManager = false } = {}) {

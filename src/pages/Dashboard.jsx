@@ -235,6 +235,19 @@ function ToolShortcutRow({ label, hint, onClick }) {
   )
 }
 
+function LeadershipSummaryCard({ label, value, hint, tone = 'var(--accent)' }) {
+  return (
+    <div style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card)', display: 'grid', gap: 6 }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>{label}</div>
+      <div style={{ fontSize: 28, lineHeight: 1, fontWeight: 650, color: 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
+      <div style={{ width: 44, height: 4, borderRadius: 999, background: `${tone}22` }}>
+        <div style={{ width: '100%', height: '100%', borderRadius: 999, background: tone }} />
+      </div>
+    </div>
+  )
+}
+
 function QuickActionCard({ icon: Icon, label, hint, onClick }) {
   return (
     <button
@@ -1313,6 +1326,73 @@ export default function Dashboard() {
     email: person.user_email,
     presence: formatPresenceTime(person.last_seen),
   }))
+  const isManagerWorkspace = workspace === 'manager'
+  const isDirectorWorkspace = workspace === 'director'
+  const leadershipSummaryCards = isManagerWorkspace ? [
+    {
+      label: 'Team online',
+      value: stats.activeUsers,
+      hint: `${teamCards.length} recent presence cards are live right now.`,
+      tone: 'var(--green)',
+    },
+    {
+      label: 'Pending leave',
+      value: stats.pendingLeave,
+      hint: 'Approvals and team requests still waiting on review.',
+      tone: 'var(--amber)',
+    },
+    {
+      label: 'Onboarding',
+      value: stats.pendingOnboarding,
+      hint: 'New starter records or submissions waiting for handling.',
+      tone: 'var(--accent)',
+    },
+    {
+      label: 'Team actions',
+      value: managerBoard.length,
+      hint: 'Escalations and follow-ups currently surfaced for your department.',
+      tone: 'var(--blue)',
+    },
+  ] : isDirectorWorkspace ? [
+    {
+      label: 'Live staff',
+      value: stats.activeUsers,
+      hint: 'People active across the portal in the last five minutes.',
+      tone: 'var(--green)',
+    },
+    {
+      label: 'Unread alerts',
+      value: stats.unreadNotifications,
+      hint: 'Leadership notifications, approvals, and urgent items waiting now.',
+      tone: 'var(--accent)',
+    },
+    {
+      label: 'Open support',
+      value: stats.tickets,
+      hint: 'Client-facing issues still unresolved across the support queue.',
+      tone: 'var(--red)',
+    },
+    {
+      label: 'Cross-team load',
+      value: managerBoard.length,
+      hint: 'Escalation signals currently surfacing from departments and workflows.',
+      tone: 'var(--amber)',
+    },
+  ] : []
+  const leadershipQueueTitle = isManagerWorkspace ? 'Department control queue' : 'Director escalation queue'
+  const leadershipQueueNote = isManagerWorkspace
+    ? 'Approvals, staffing risks, hiring actions, and department follow-ups waiting on you.'
+    : 'Cross-business escalations, approvals, and operational signals that need leadership attention.'
+  const leadershipQueueAction = isManagerWorkspace ? '/my-department' : '/reports'
+  const leadershipToolRows = isManagerWorkspace ? [
+    { label: 'Open department workspace', hint: 'Move into staffing, compliance, and requests for your team.', route: '/my-department' },
+    { label: 'Review live hiring', hint: 'Check roles, applicants, and approvals for your department.', route: '/recruiting' },
+    { label: 'Manage your staff', hint: 'Open staff records, contracts, and employee actions.', route: '/my-staff' },
+  ] : isDirectorWorkspace ? [
+    { label: 'Open reports centre', hint: 'Review the latest business, operational, and people reporting.', route: '/reports' },
+    { label: 'Open departments', hint: 'Check department shape, staffing, and approval pressure across teams.', route: '/departments' },
+    { label: 'Open manager board', hint: 'Inspect escalations, workloads, and department-level signals.', route: '/manager-board' },
+  ] : []
 
   return (
     <div className="fade-in">
@@ -1733,6 +1813,37 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {(isManagerWorkspace || isDirectorWorkspace) ? (
+        <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: dashboardDensity === 'compact' ? 14 : 18, marginBottom: dashboardDensity === 'compact' ? 18 : 24 }}>
+          <Panel title={leadershipQueueTitle} actionLabel={isManagerWorkspace ? 'Open department' : 'Open reports'} onAction={() => navigate(leadershipQueueAction)}>
+            <div style={{ padding: '16px 18px 0', fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>
+              {leadershipQueueNote}
+            </div>
+            <div style={{ display: 'grid', marginTop: 10 }}>
+              {managerBoard.length ? managerBoard.slice(0, 5).map((item) => (
+                <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
+              )) : <EmptyState text={isManagerWorkspace ? 'No department escalations are stacked up right now.' : 'No leadership escalations are stacked up right now.'} />}
+            </div>
+          </Panel>
+
+          <div style={{ display: 'grid', gap: 16 }}>
+            <Panel title={isManagerWorkspace ? 'Manager snapshot' : 'Executive snapshot'}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, padding: 16 }}>
+                {leadershipSummaryCards.map((item) => (
+                  <LeadershipSummaryCard key={item.label} label={item.label} value={item.value} hint={item.hint} tone={item.tone} />
+                ))}
+              </div>
+            </Panel>
+
+            <Panel title={isManagerWorkspace ? 'Leadership shortcuts' : 'Executive shortcuts'}>
+              {leadershipToolRows.map((item) => (
+                <ToolShortcutRow key={item.label} label={item.label} hint={item.hint} onClick={() => navigate(item.route)} />
+              ))}
+            </Panel>
+          </div>
+        </div>
+      ) : null}
 
       <div className="surface-card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
         <div className="surface-card-header">

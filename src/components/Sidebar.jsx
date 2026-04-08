@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase'
-import { getWorkspaceLabel, workspaceAllowsItem } from '../utils/workspaces'
+import { getWorkspaceLabel, getWorkspaceSectionNote, getWorkspaceSectionOrder, workspaceAllowsItem } from '../utils/workspaces'
 
 // ─── Top-level sections with tile pages ───────────────────────────────────
 const SECTIONS = [
@@ -653,9 +653,19 @@ export default function Sidebar() {
     })
   }
 
-  const visibleSections = SECTIONS.filter(s => s.items.some(i => isAllowed(i.key)))
+  const workspaceSectionOrder = getWorkspaceSectionOrder(workspace)
+  const visibleSections = SECTIONS
+    .filter(s => s.items.some(i => isAllowed(i.key)))
+    .sort((a, b) => {
+      const aIndex = workspaceSectionOrder.indexOf(a.id)
+      const bIndex = workspaceSectionOrder.indexOf(b.id)
+      const safeA = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex
+      const safeB = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex
+      return safeA - safeB
+    })
   const activeSec = visibleSections.find(s => s.id === activeSection) || visibleSections[0]
   const accentColor = SECTION_COLORS[activeSec?.id] || SECTION_COLORS.home
+  const workspaceSectionNote = getWorkspaceSectionNote(workspace)
 
   // Group results by type
   const groupedPages = pageResults.length > 0 ? { 'Pages': pageResults } : {}
@@ -732,6 +742,11 @@ export default function Sidebar() {
             {!isOnboarding ? (
               <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3, fontFamily: 'var(--font-mono)' }}>
                 {getWorkspaceLabel(workspace)}
+              </div>
+            ) : null}
+            {!isOnboarding ? (
+              <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5, maxWidth: 260 }}>
+                {workspaceSectionNote}
               </div>
             ) : null}
           </div>
