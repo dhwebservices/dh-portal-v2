@@ -115,6 +115,20 @@ function buildHistoryEntry({ action, value, actor }) {
   }
 }
 
+function buildLeadMeta(row = {}, overrides = {}) {
+  return {
+    outcome: row.outcome || 'none',
+    follow_up_date: row.follow_up_date || '',
+    assigned_to_email: row.assigned_to_email || '',
+    assigned_to_name: row.assigned_to_name || '',
+    creator_email: row.creator_email || '',
+    creator_department: row.creator_department || '',
+    reminder_notice_key: row.reminder_notice_key || '',
+    history: Array.isArray(row.history) ? row.history : [],
+    ...overrides,
+  }
+}
+
 function formatDateTime(value) {
   if (!value) return '—'
   return new Date(value).toLocaleString('en-GB', {
@@ -477,9 +491,7 @@ export default function Outreach() {
 
   const quickStatus = async (row, status) => {
     const nextStatus = normalizeStatus(status)
-    const meta = {
-      outcome: row.outcome || 'none',
-      follow_up_date: row.follow_up_date || '',
+    const meta = buildLeadMeta(row, {
       history: [
         buildHistoryEntry({
           action: 'status',
@@ -488,7 +500,7 @@ export default function Outreach() {
         }),
         ...(row.history || []),
       ].slice(0, 12),
-    }
+    })
     const { error } = await supabase.from('outreach').update({
       status: nextStatus,
       notes: buildOutreachNotes(row.plainNotes || '', meta),
@@ -509,9 +521,8 @@ export default function Outreach() {
             ? 'follow_up'
             : normalizeStatus(row.status)
 
-    const meta = {
+    const meta = buildLeadMeta(row, {
       outcome: normalizedOutcome,
-      follow_up_date: row.follow_up_date || '',
       history: [
         buildHistoryEntry({
           action: 'outcome',
@@ -520,7 +531,7 @@ export default function Outreach() {
         }),
         ...(row.history || []),
       ].slice(0, 12),
-    }
+    })
 
     const { error } = await supabase.from('outreach').update({
       status: statusFromOutcome,
@@ -533,8 +544,7 @@ export default function Outreach() {
 
   const quickFollowUpDate = async (row, daysAhead) => {
     const target = new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0]
-    const meta = {
-      outcome: row.outcome || 'none',
+    const meta = buildLeadMeta(row, {
       follow_up_date: target,
       history: [
         buildHistoryEntry({
@@ -544,7 +554,7 @@ export default function Outreach() {
         }),
         ...(row.history || []),
       ].slice(0, 12),
-    }
+    })
     const { error } = await supabase.from('outreach').update({
       status: normalizeStatus(row.status) === 'new' ? 'follow_up' : normalizeStatus(row.status),
       notes: buildOutreachNotes(row.plainNotes || '', meta),
@@ -794,7 +804,7 @@ export default function Outreach() {
       return
     }
 
-    const meta = {
+    const meta = buildLeadMeta(bookingLead, {
       outcome: 'booked_call',
       follow_up_date: bookingForm.date,
       history: [
@@ -805,7 +815,7 @@ export default function Outreach() {
         }),
         ...(bookingLead.history || []),
       ].slice(0, 12),
-    }
+    })
 
     await supabase.from('outreach').update({
       status: 'interested',
