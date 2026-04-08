@@ -287,12 +287,17 @@ function DesktopCursor() {
 
 function AmbientBackground() {
   const ambientRef = useRef(null)
-  const cursorTrailRefs = useRef([])
   const frameRef = useRef(0)
-  const pointerTrailRef = useRef(
-    Array.from({ length: 6 }, () => ({ x: -320, y: -320, angle: 0, opacity: 0 }))
-  )
-  const targetRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0, pointerX: -320, pointerY: -320, angle: 0, opacity: 0 })
+  const targetRef = useRef({
+    x: 0,
+    y: 0,
+    rotateX: 0,
+    rotateY: 0,
+    pointerX: window.innerWidth * 0.52,
+    pointerY: window.innerHeight * 0.38,
+    angle: 0,
+    opacity: 0.96,
+  })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !ambientRef.current || !window.matchMedia) return undefined
@@ -306,35 +311,10 @@ function AmbientBackground() {
       ambientRef.current.style.setProperty('--ambient-shift-y', `${targetRef.current.y}px`)
       ambientRef.current.style.setProperty('--ambient-tilt-x', `${targetRef.current.rotateX}deg`)
       ambientRef.current.style.setProperty('--ambient-tilt-y', `${targetRef.current.rotateY}deg`)
-
-      let shouldContinue = targetRef.current.opacity > 0
-      let previousPoint = {
-        x: targetRef.current.pointerX,
-        y: targetRef.current.pointerY,
-        angle: targetRef.current.angle,
-        opacity: targetRef.current.opacity,
-      }
-
-      pointerTrailRef.current.forEach((point, index) => {
-        const followStrength = Math.max(0.18, 0.44 - index * 0.05)
-        point.x += (previousPoint.x - point.x) * followStrength
-        point.y += (previousPoint.y - point.y) * followStrength
-        point.angle += (previousPoint.angle - point.angle) * Math.max(0.18, 0.34 - index * 0.03)
-        point.opacity += (previousPoint.opacity * (1 - index * 0.12) - point.opacity) * 0.22
-        const trailNode = cursorTrailRefs.current[index]
-        if (trailNode) {
-          trailNode.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) rotate(${point.angle}deg)`
-          trailNode.style.opacity = String(Math.max(0, Math.min(1, point.opacity)))
-        }
-        if (point.opacity > 0.02 || Math.abs(previousPoint.x - point.x) > 0.4 || Math.abs(previousPoint.y - point.y) > 0.4) {
-          shouldContinue = true
-        }
-        previousPoint = point
-      })
-
-      if (shouldContinue) {
-        frameRef.current = window.requestAnimationFrame(applyMotion)
-      }
+      ambientRef.current.style.setProperty('--ambient-cursor-x', `${targetRef.current.pointerX}px`)
+      ambientRef.current.style.setProperty('--ambient-cursor-y', `${targetRef.current.pointerY}px`)
+      ambientRef.current.style.setProperty('--ambient-cursor-angle', `${targetRef.current.angle}deg`)
+      ambientRef.current.style.setProperty('--ambient-cursor-opacity', `${targetRef.current.opacity}`)
     }
 
     const scheduleMotion = () => {
@@ -362,8 +342,8 @@ function AmbientBackground() {
         rotateY: xRatio * 4.5,
         pointerX: event.clientX,
         pointerY: event.clientY,
-        angle: nextAngle,
-        opacity: 1,
+        angle: nextAngle * 0.16,
+        opacity: 0.98,
       }
       scheduleMotion()
     }
@@ -374,10 +354,10 @@ function AmbientBackground() {
         y: 0,
         rotateX: 0,
         rotateY: 0,
-        pointerX: targetRef.current.pointerX,
-        pointerY: targetRef.current.pointerY,
-        angle: targetRef.current.angle,
-        opacity: 0,
+        pointerX: window.innerWidth * 0.52,
+        pointerY: window.innerHeight * 0.38,
+        angle: 0,
+        opacity: 0.62,
       }
       scheduleMotion()
     }
@@ -404,21 +384,14 @@ function AmbientBackground() {
         '--ambient-shift-y': '0px',
         '--ambient-tilt-x': '0deg',
         '--ambient-tilt-y': '0deg',
+        '--ambient-cursor-x': '52vw',
+        '--ambient-cursor-y': '38vh',
+        '--ambient-cursor-angle': '0deg',
+        '--ambient-cursor-opacity': '0.96',
       }}
       aria-hidden="true"
     >
       <div className="portal-ambient-grid" />
-      <div className="portal-ambient-cursor-trail" aria-hidden="true">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div
-            key={`ambient-cursor-streak-${index}`}
-            ref={(node) => {
-              cursorTrailRefs.current[index] = node
-            }}
-            className={`portal-ambient-cursor-streak portal-ambient-cursor-streak-${index + 1}`}
-          />
-        ))}
-      </div>
       <div className="portal-ambient-trail-field">
         <div className="portal-ambient-trail portal-ambient-trail-a" />
         <div className="portal-ambient-trail portal-ambient-trail-b" />

@@ -197,8 +197,6 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 [data-motion-mode="reduced"] .portal-ambient-grid,
-[data-motion-mode="reduced"] .portal-ambient-cursor-trail,
-[data-motion-mode="reduced"] .portal-ambient-cursor-streak,
 [data-motion-mode="reduced"] .portal-ambient-orb,
 [data-motion-mode="reduced"] .portal-ambient-trail,
 [data-motion-mode="reduced"] .portal-ambient-trail-field,
@@ -251,6 +249,10 @@ button { cursor: pointer; font-family: inherit; }
   --ambient-shift-y: 0px;
   --ambient-tilt-x: 0deg;
   --ambient-tilt-y: 0deg;
+  --ambient-cursor-x: 52vw;
+  --ambient-cursor-y: 38vh;
+  --ambient-cursor-angle: 0deg;
+  --ambient-cursor-opacity: 0.96;
 }
 .portal-ambient-grid {
   position: absolute;
@@ -265,90 +267,39 @@ button { cursor: pointer; font-family: inherit; }
   transform: translate3d(calc(var(--ambient-shift-x) * 0.12), calc(var(--ambient-shift-y) * 0.1), 0);
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.portal-ambient-cursor-trail {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.portal-ambient-cursor-streak {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 220px;
-  height: 5px;
-  margin-left: -110px;
-  margin-top: -2.5px;
-  border-radius: 999px;
-  opacity: 0;
-  transform-origin: center center;
-  will-change: transform, opacity;
-  filter: blur(0.15px);
-  box-shadow:
-    0 0 20px rgba(75, 112, 226, 0.2),
-    0 0 42px rgba(107, 214, 171, 0.14);
-}
-.portal-ambient-cursor-streak::before,
-.portal-ambient-cursor-streak::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-.portal-ambient-cursor-streak::before {
-  background: linear-gradient(90deg, transparent 0%, rgba(107, 214, 171, 0.08) 10%, rgba(107, 214, 171, 0.96) 34%, rgba(75, 112, 226, 0.98) 68%, rgba(75, 112, 226, 0.14) 88%, transparent 100%);
-}
-.portal-ambient-cursor-streak::after {
-  inset: -5px 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(75, 112, 226, 0) 10%, rgba(75, 112, 226, 0.22) 42%, rgba(107, 214, 171, 0.2) 72%, transparent 100%);
-  filter: blur(9px);
-}
-.portal-ambient-cursor-streak-1 {
-  width: 240px;
-  height: 5px;
-}
-.portal-ambient-cursor-streak-2 {
-  width: 212px;
-  height: 5px;
-}
-.portal-ambient-cursor-streak-3 {
-  width: 186px;
-  height: 4px;
-}
-.portal-ambient-cursor-streak-4 {
-  width: 162px;
-  height: 4px;
-}
-.portal-ambient-cursor-streak-5 {
-  width: 136px;
-  height: 3px;
-}
-.portal-ambient-cursor-streak-6 {
-  width: 112px;
-  height: 3px;
-}
 .portal-ambient-trail-field,
 .portal-ambient-orb-field {
   position: absolute;
-  inset: -8%;
   pointer-events: none;
   will-change: transform;
 }
 .portal-ambient-trail-field {
+  left: calc(var(--ambient-cursor-x) - 310px);
+  top: calc(var(--ambient-cursor-y) - 190px);
+  width: 620px;
+  height: 380px;
+  opacity: var(--ambient-cursor-opacity);
   transform:
-    translate3d(calc(var(--ambient-shift-x) * 0.52), calc(var(--ambient-shift-y) * 0.34), 0)
+    translate3d(calc(var(--ambient-shift-x) * 0.24), calc(var(--ambient-shift-y) * 0.18), 0)
+    rotate(var(--ambient-cursor-angle))
     rotateX(var(--ambient-tilt-x))
     rotateY(var(--ambient-tilt-y));
   transform-style: preserve-3d;
-  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    left 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease,
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .portal-ambient-orb-field {
+  inset: -8%;
   transform: translate3d(calc(var(--ambient-shift-x) * 0.24), calc(var(--ambient-shift-y) * 0.18), 0);
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .portal-ambient-trail {
   position: absolute;
-  left: -12%;
-  width: 68%;
+  left: -4%;
+  width: 82%;
   height: 3px;
   border-radius: 999px;
   opacity: 0;
@@ -380,7 +331,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 .portal-ambient-trail-b {
   top: 34%;
-  width: 82%;
+  width: 92%;
   height: 4px;
   animation: ambientTrailRunB 7.6s linear infinite;
 }
@@ -415,7 +366,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 .portal-ambient-trail-g {
   top: 48%;
-  width: 88%;
+  width: 96%;
   height: 3px;
   animation: ambientTrailRunB 10.2s linear infinite, ambientTrailPulse 4.6s ease-in-out infinite;
   animation-delay: -14s, -1.8s;
@@ -498,13 +449,19 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 @media (max-width: 900px) {
-  .portal-ambient-cursor-trail {
-    display: none;
-  }
-
   .portal-ambient-grid {
     opacity: 0.55;
     background-size: 28px 28px;
+  }
+
+  .portal-ambient-trail-field {
+    left: 50%;
+    top: 34%;
+    width: 520px;
+    height: 320px;
+    margin-left: -260px;
+    margin-top: -160px;
+    transform: none;
   }
 
   .portal-ambient-trail {
