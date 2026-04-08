@@ -524,6 +524,13 @@ export default function HROnboarding() {
           ...updatedPayload,
           full_name: updatedPayload.full_name || updatedPayload.user_name,
         }, { overwrite: true })
+        await supabase
+          .from('user_permissions')
+          .upsert({
+            user_email: normalizedEmail,
+            onboarding: false,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_email' })
       }
 
       await sendManagedNotification({

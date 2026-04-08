@@ -335,7 +335,7 @@ function ActiveBanners() {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin, preferences, updatePreferences } = useAuth()
+  const { user, isAdmin, isDirector, isDepartmentManager, workspace, workspaceLabel, preferences, updatePreferences } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState({
     outreach: 0,
@@ -391,6 +391,151 @@ export default function Dashboard() {
   const showSystemBanners = preferences?.showSystemBanners !== false
   const quickActions = preferences?.quickActions || []
   const dashboardOrder = preferences?.dashboardOrder || DASHBOARD_SECTIONS.map(([key]) => key)
+  const workspaceDashboardMeta = {
+    outreach: {
+      copy: 'Outreach workspace',
+      toolbarNote: 'Follow-ups, campaigns, and lead movement for your queue.',
+      heroStats: [
+        { label: 'Leads', value: stats.outreach, hint: 'Tracked' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+        { label: 'Calls', value: stats.upcomingAppointments, hint: 'Upcoming' },
+      ],
+      teamTitle: 'Outreach coverage',
+      teamNote: 'Who is live across outreach and follow-up work right now.',
+      actionTitle: 'Outreach queue',
+      actionNote: 'The next follow-ups, replies, and lead actions waiting on your team.',
+      actionsRoute: '/outreach?filter=follow_up_queue',
+      emptyActionText: 'No outreach items are stacked up right now.',
+      defaultActions: ['outreach', 'notifications', 'schedule', 'mailinglist', 'sendemail', 'my_profile'],
+    },
+    recruitment: {
+      copy: 'Recruitment workspace',
+      toolbarNote: 'Live roles, approvals, and candidate movement across hiring stages.',
+      heroStats: [
+        { label: 'Roles', value: stats.pendingOnboarding, hint: 'New starters' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+        { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+      ],
+      teamTitle: 'Hiring team live',
+      teamNote: 'Recruitment and hiring colleagues currently active in the portal.',
+      actionTitle: 'Hiring actions',
+      actionNote: 'The next approvals, candidate reviews, and requisition actions waiting on your team.',
+      actionsRoute: '/recruiting',
+      emptyActionText: 'Nothing urgent is stacked up in hiring right now.',
+      defaultActions: ['notifications', 'mytasks', 'my_department', 'schedule', 'my_profile'],
+    },
+    hr: {
+      copy: 'HR workspace',
+      toolbarNote: 'Onboarding, compliance, contracts, and staff operations in one place.',
+      heroStats: [
+        { label: 'Onboarding', value: stats.pendingOnboarding, hint: 'Awaiting' },
+        { label: 'Leave', value: stats.pendingLeave, hint: 'Pending' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+      ],
+      teamTitle: 'HR activity',
+      teamNote: 'People active across HR reviews, onboarding, and staff operations.',
+      actionTitle: 'HR actions',
+      actionNote: 'Approvals, onboarding steps, and people tasks that need handling next.',
+      actionsRoute: '/hr/onboarding',
+      emptyActionText: 'No HR actions are stacked up right now.',
+      defaultActions: ['notifications', 'mytasks', 'hr_leave', 'schedule', 'my_profile'],
+    },
+    client_ops: {
+      copy: 'Client operations workspace',
+      toolbarNote: 'Delivery, support, portal management, and client health signals.',
+      heroStats: [
+        { label: 'Clients', value: stats.clients, hint: 'Active' },
+        { label: 'Tickets', value: stats.tickets, hint: 'Open' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+      ],
+      teamTitle: 'Client ops live',
+      teamNote: 'Who is active across delivery, support, and client operations right now.',
+      actionTitle: 'Client actions',
+      actionNote: 'Support, delivery, and portal items waiting on your team.',
+      actionsRoute: '/client-mgmt',
+      emptyActionText: 'No client operations issues are stacked up right now.',
+      defaultActions: ['clients', 'support', 'notifications', 'mytasks', 'schedule', 'my_profile'],
+    },
+    manager: {
+      copy: 'Department manager workspace',
+      toolbarNote: 'Team oversight, approvals, hiring, and department operations.',
+      heroStats: [
+        { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+        { label: 'Leave', value: stats.pendingLeave, hint: 'Pending' },
+        { label: 'Onboarding', value: stats.pendingOnboarding, hint: 'Awaiting' },
+      ],
+      teamTitle: 'Department live',
+      teamNote: 'Your team presence and manager visibility across the department.',
+      actionTitle: 'Manager actions',
+      actionNote: 'Approvals, hiring, staffing, and department actions waiting on you.',
+      actionsRoute: '/my-department',
+      emptyActionText: 'No department actions are stacked up right now.',
+      defaultActions: ['my_department', 'mytasks', 'notifications', 'schedule', 'my_team', 'my_profile'],
+    },
+    director: {
+      copy: 'Director workspace',
+      toolbarNote: 'Global oversight across departments, approvals, and performance.',
+      heroStats: [
+        { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+        { label: 'Clients', value: stats.clients, hint: 'Active' },
+      ],
+      teamTitle: 'Portal live',
+      teamNote: 'People active across the wider business right now.',
+      actionTitle: 'Director actions',
+      actionNote: 'Cross-department approvals, escalations, and leadership tasks next in line.',
+      actionsRoute: '/reports',
+      emptyActionText: 'No escalations are stacked up right now.',
+      defaultActions: ['notifications', 'mytasks', 'my_department', 'clients', 'schedule', 'my_profile'],
+    },
+    admin: {
+      copy: 'Admin workspace',
+      toolbarNote: 'Global controls, escalations, and operational oversight.',
+      heroStats: [
+        { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+        { label: 'Clients', value: stats.clients, hint: 'Active' },
+      ],
+      teamTitle: 'Portal live',
+      teamNote: 'People active in the portal right now.',
+      actionTitle: 'Admin actions',
+      actionNote: 'Tasks, approvals, onboarding, and system operations needing attention next.',
+      actionsRoute: '/tasks',
+      emptyActionText: 'Nothing urgent is stacked up right now.',
+      defaultActions: ['notifications', 'mytasks', 'clients', 'support', 'schedule', 'my_profile'],
+    },
+    self_service: {
+      copy: 'Self-service workspace',
+      toolbarNote: 'Your tasks, alerts, schedule, and personal staff tools.',
+      heroStats: [
+        { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+        { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+        { label: 'Calls', value: stats.upcomingAppointments, hint: 'Upcoming' },
+      ],
+      teamTitle: 'Team online',
+      teamNote: 'Who is live across your working environment right now.',
+      actionTitle: 'Pending actions',
+      actionNote: 'What needs your attention next across tasks, approvals, and onboarding.',
+      actionsRoute: '/my-tasks',
+      emptyActionText: 'Nothing urgent is stacked up right now.',
+      defaultActions: ['mytasks', 'notifications', 'schedule', 'my_profile', 'hr_leave', 'appointments'],
+    },
+  }[workspace] || {
+    copy: isDirector ? 'Director workspace' : isDepartmentManager ? 'Department workspace' : isAdmin ? 'Management workspace' : 'Staff workspace',
+    toolbarNote: 'Your work, alerts, and key portal actions.',
+    heroStats: [
+      { label: 'Tasks', value: stats.tasks, hint: 'Open' },
+      { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
+      { label: 'Clients', value: stats.clients, hint: 'Active' },
+    ],
+    teamTitle: 'Team online',
+    teamNote: isAdmin ? 'People active in the portal right now.' : 'Who is live across your working environment right now.',
+    actionTitle: 'Pending actions',
+    actionNote: 'What needs your attention next across tasks, approvals, and onboarding.',
+    actionsRoute: isAdmin ? '/tasks' : '/my-tasks',
+    emptyActionText: 'Nothing urgent is stacked up right now.',
+    defaultActions: ['mytasks', 'notifications', 'schedule', 'my_team', 'hr_leave', 'my_profile'],
+  }
   const phase9Tools = [
     { label: 'Support Desk', hint: 'Queue-driven ticket handling with SLA and ownership.', route: '/support', icon: HeadphonesIcon },
     { label: 'Knowledge Base', hint: 'Shared answers and internal playbooks for repeated issues.', route: '/knowledge-base', icon: Bell },
@@ -1149,7 +1294,7 @@ export default function Dashboard() {
     }
   }
 
-  const shortcutButtons = (quickActions.length ? quickActions : ['mytasks', 'notifications', 'schedule', 'my_team', 'hr_leave', 'my_profile'])
+  const shortcutButtons = (quickActions.length ? quickActions : workspaceDashboardMeta.defaultActions)
     .map((key) => {
       const item = quickActionMeta[key]
       if (!item) return null
@@ -1491,11 +1636,12 @@ export default function Dashboard() {
                     {greeting}, {firstName}
                   </div>
                   <div className="overview-hero-copy">
-                    {user?.name || 'Staff member'}{isAdmin ? ' · Management workspace' : ' · Staff workspace'}
+                    {user?.name || 'Staff member'} · {workspaceLabel || workspaceDashboardMeta.copy}
                   </div>
                 </div>
               </div>
               <div className="overview-hero-toolbar">
+                <div style={{ width:'100%', fontSize:12, color:'var(--sub)', marginBottom:2 }}>{workspaceDashboardMeta.toolbarNote}</div>
                 {shortcutButtons.slice(0, 4).map((item) => {
                   const Icon = item.icon
                   return (
@@ -1515,9 +1661,7 @@ export default function Dashboard() {
             <div className="overview-hero-side">
               <div className="overview-meta-grid">
                 {[
-                  { label: 'Tasks', value: stats.tasks, hint: 'Open' },
-                  { label: 'Alerts', value: stats.unreadNotifications, hint: 'Unread' },
-                  { label: 'Clients', value: stats.clients, hint: 'Active' },
+                  ...workspaceDashboardMeta.heroStats,
                 ].map((item) => (
                   <div key={item.label} className="overview-meta-tile">
                     <div className="overview-meta-label">{item.label}</div>
@@ -1527,7 +1671,7 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="overview-hero-presence">
-                <div className="overview-presence-title">Team online</div>
+                <div className="overview-presence-title">{workspaceDashboardMeta.teamTitle}</div>
                 <div className="overview-presence-avatars">
                   {teamCards.slice(0, 4).map((person) => (
                     <div key={person.email} className="overview-presence-avatar" title={person.name}>
@@ -1546,8 +1690,8 @@ export default function Dashboard() {
         <div className="surface-card" style={{ overflow:'hidden' }}>
           <div className="surface-card-header">
             <div>
-              <div className="section-kicker">My team</div>
-              <div className="section-note">{isAdmin ? 'People active in the portal right now.' : 'Who is live across your working environment right now.'}</div>
+              <div className="section-kicker">{workspaceDashboardMeta.teamTitle}</div>
+              <div className="section-note">{workspaceDashboardMeta.teamNote}</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/my-team')}>Open team <ArrowRight size={12} /></button>
           </div>
@@ -1577,15 +1721,15 @@ export default function Dashboard() {
         <div className="surface-card" style={{ overflow:'hidden' }}>
           <div className="surface-card-header">
             <div>
-              <div className="section-kicker">Pending actions</div>
-              <div className="section-note">What needs your attention next across tasks, approvals, and onboarding.</div>
+              <div className="section-kicker">{workspaceDashboardMeta.actionTitle}</div>
+              <div className="section-note">{workspaceDashboardMeta.actionNote}</div>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>Open actions <ArrowRight size={12} /></button>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(workspaceDashboardMeta.actionsRoute)}>Open actions <ArrowRight size={12} /></button>
           </div>
           <div style={{ display:'grid' }}>
             {priorityItems.length ? priorityItems.slice(0, 5).map((item) => (
               <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
-            )) : <EmptyState text="Nothing urgent is stacked up right now." />}
+            )) : <EmptyState text={workspaceDashboardMeta.emptyActionText} />}
           </div>
         </div>
       </div>
