@@ -285,12 +285,24 @@ function DesktopCursor() {
   )
 }
 
+function AmbientBackground() {
+  return (
+    <div className="portal-ambient" aria-hidden="true">
+      <div className="portal-ambient-grid" />
+      <div className="portal-ambient-orb portal-ambient-orb-a" />
+      <div className="portal-ambient-orb portal-ambient-orb-b" />
+      <div className="portal-ambient-orb portal-ambient-orb-c" />
+    </div>
+  )
+}
+
 function PortalLayout() {
   return (
     <div className="app-layout">
       <DesktopCursor />
       <Sidebar />
       <div className="main-area">
+        <AmbientBackground />
         <Header />
         <main className="main-content">
           <Suspense fallback={<RouteLoader />}>

@@ -164,6 +164,10 @@ button { cursor: pointer; font-family: inherit; }
 @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
 @keyframes spin    { to { transform:rotate(360deg) } }
 @keyframes pulse   { 0%,100% { opacity:0.3 } 50% { opacity:0.7 } }
+@keyframes ambientDriftA { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(3%, -4%, 0) scale(1.06); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes ambientDriftB { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-4%, 3%, 0) scale(1.08); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes ambientDriftC { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(2%, 5%, 0) scale(1.04); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes ambientGridShift { 0% { transform: translate3d(0, 0, 0); opacity: 0.7; } 50% { transform: translate3d(0, -8px, 0); opacity: 1; } 100% { transform: translate3d(0, 0, 0); opacity: 0.7; } }
 
 .fade-in { animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both; }
 
@@ -174,6 +178,11 @@ button { cursor: pointer; font-family: inherit; }
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
+}
+
+[data-motion-mode="reduced"] .portal-ambient-grid,
+[data-motion-mode="reduced"] .portal-ambient-orb {
+  animation: none !important;
 }
 
 [data-contrast-mode="high"] {
@@ -204,9 +213,59 @@ button { cursor: pointer; font-family: inherit; }
   margin-left: var(--sw); flex: 1;
   display: flex; flex-direction: column;
   min-height: 100vh; min-width: 0;
+  position: relative;
   background:
     radial-gradient(circle at top right, var(--page-tint-strong), transparent 24%),
     linear-gradient(180deg, rgba(255,255,255,0.85), transparent 24%);
+}
+.portal-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-ambient-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(var(--accent-rgb), 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.018) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.28), transparent 72%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.28), transparent 72%);
+  animation: ambientGridShift 18s ease-in-out infinite;
+}
+.portal-ambient-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(40px);
+  opacity: 0.52;
+  will-change: transform;
+}
+.portal-ambient-orb-a {
+  width: 360px;
+  height: 360px;
+  top: 86px;
+  right: 10%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.18) 0%, rgba(var(--accent-rgb), 0.05) 54%, transparent 74%);
+  animation: ambientDriftA 24s ease-in-out infinite;
+}
+.portal-ambient-orb-b {
+  width: 300px;
+  height: 300px;
+  top: 38%;
+  left: 14%;
+  background: radial-gradient(circle, rgba(99, 166, 255, 0.13) 0%, rgba(99, 166, 255, 0.04) 58%, transparent 76%);
+  animation: ambientDriftB 28s ease-in-out infinite;
+}
+.portal-ambient-orb-c {
+  width: 280px;
+  height: 280px;
+  bottom: 8%;
+  right: 22%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.78) 0%, rgba(var(--accent-rgb), 0.05) 48%, transparent 72%);
+  animation: ambientDriftC 26s ease-in-out infinite;
 }
 .main-header {
   min-height: 72px;
@@ -225,6 +284,8 @@ button { cursor: pointer; font-family: inherit; }
 }
 .main-content {
   flex: 1;
+  position: relative;
+  z-index: 1;
   padding: 26px 30px 34px;
   overflow-x: hidden;
   background:
@@ -242,6 +303,34 @@ button { cursor: pointer; font-family: inherit; }
 
   .main-content {
     padding: 22px 20px 28px;
+  }
+}
+
+@media (max-width: 900px) {
+  .portal-ambient-grid {
+    opacity: 0.55;
+    background-size: 28px 28px;
+  }
+
+  .portal-ambient-orb-a {
+    width: 260px;
+    height: 260px;
+    top: 92px;
+    right: -40px;
+  }
+
+  .portal-ambient-orb-b {
+    width: 220px;
+    height: 220px;
+    left: -36px;
+    top: 44%;
+  }
+
+  .portal-ambient-orb-c {
+    width: 180px;
+    height: 180px;
+    right: 10%;
+    bottom: 12%;
   }
 }
 
