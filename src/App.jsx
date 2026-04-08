@@ -287,8 +287,11 @@ function DesktopCursor() {
 
 function AmbientBackground() {
   const ambientRef = useRef(null)
-  const cursorLineRef = useRef(null)
+  const cursorTrailRefs = useRef([])
   const frameRef = useRef(0)
+  const pointerTrailRef = useRef(
+    Array.from({ length: 6 }, () => ({ x: -320, y: -320, angle: 0, opacity: 0 }))
+  )
   const targetRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0, pointerX: -320, pointerY: -320, angle: 0, opacity: 0 })
 
   useEffect(() => {
@@ -303,11 +306,34 @@ function AmbientBackground() {
       ambientRef.current.style.setProperty('--ambient-shift-y', `${targetRef.current.y}px`)
       ambientRef.current.style.setProperty('--ambient-tilt-x', `${targetRef.current.rotateX}deg`)
       ambientRef.current.style.setProperty('--ambient-tilt-y', `${targetRef.current.rotateY}deg`)
-      if (cursorLineRef.current) {
-        cursorLineRef.current.style.setProperty('--ambient-cursor-x', `${targetRef.current.pointerX}px`)
-        cursorLineRef.current.style.setProperty('--ambient-cursor-y', `${targetRef.current.pointerY}px`)
-        cursorLineRef.current.style.setProperty('--ambient-cursor-angle', `${targetRef.current.angle}deg`)
-        cursorLineRef.current.style.opacity = String(targetRef.current.opacity)
+
+      let shouldContinue = targetRef.current.opacity > 0
+      let previousPoint = {
+        x: targetRef.current.pointerX,
+        y: targetRef.current.pointerY,
+        angle: targetRef.current.angle,
+        opacity: targetRef.current.opacity,
+      }
+
+      pointerTrailRef.current.forEach((point, index) => {
+        const followStrength = Math.max(0.18, 0.44 - index * 0.05)
+        point.x += (previousPoint.x - point.x) * followStrength
+        point.y += (previousPoint.y - point.y) * followStrength
+        point.angle += (previousPoint.angle - point.angle) * Math.max(0.18, 0.34 - index * 0.03)
+        point.opacity += (previousPoint.opacity * (1 - index * 0.12) - point.opacity) * 0.22
+        const trailNode = cursorTrailRefs.current[index]
+        if (trailNode) {
+          trailNode.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) rotate(${point.angle}deg)`
+          trailNode.style.opacity = String(Math.max(0, Math.min(1, point.opacity)))
+        }
+        if (point.opacity > 0.02 || Math.abs(previousPoint.x - point.x) > 0.4 || Math.abs(previousPoint.y - point.y) > 0.4) {
+          shouldContinue = true
+        }
+        previousPoint = point
+      })
+
+      if (shouldContinue) {
+        frameRef.current = window.requestAnimationFrame(applyMotion)
       }
     }
 
@@ -382,7 +408,17 @@ function AmbientBackground() {
       aria-hidden="true"
     >
       <div className="portal-ambient-grid" />
-      <div ref={cursorLineRef} className="portal-ambient-cursor-line" />
+      <div className="portal-ambient-cursor-trail" aria-hidden="true">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={`ambient-cursor-streak-${index}`}
+            ref={(node) => {
+              cursorTrailRefs.current[index] = node
+            }}
+            className={`portal-ambient-cursor-streak portal-ambient-cursor-streak-${index + 1}`}
+          />
+        ))}
+      </div>
       <div className="portal-ambient-trail-field">
         <div className="portal-ambient-trail portal-ambient-trail-a" />
         <div className="portal-ambient-trail portal-ambient-trail-b" />
