@@ -73,18 +73,6 @@ function SearchIcon() {
   )
 }
 
-function SparkleGridIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3v4" />
-      <path d="M12 17v4" />
-      <path d="M3 12h4" />
-      <path d="M17 12h4" />
-      <rect x="8" y="8" width="8" height="8" rx="2" />
-    </svg>
-  )
-}
-
 function MoreIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -200,7 +188,8 @@ export default function Header() {
   const [unread, setUnread]       = useState(0)
   const [bellOpen, setBellOpen]   = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const bellRef                   = useRef()
+  const desktopBellRef            = useRef(null)
+  const mobileBellRef             = useRef(null)
 
   const loadUnreadNotifications = async () => {
     if (!user?.email) {
@@ -242,7 +231,11 @@ export default function Header() {
 
   // Close bell dropdown on outside click
   useEffect(() => {
-    const handler = (e) => { if (bellRef.current && !bellRef.current.contains(e.target)) setBellOpen(false) }
+    const handler = (e) => {
+      const desktopInside = desktopBellRef.current?.contains(e.target)
+      const mobileInside = mobileBellRef.current?.contains(e.target)
+      if (!desktopInside && !mobileInside) setBellOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
@@ -340,13 +333,7 @@ export default function Header() {
       </div>
 
       <div className="header-actions hide-mob">
-        <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
-          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
-          <SearchIcon/>
-        </button>
-
-        <div ref={bellRef} style={{ position:'relative' }}>
+        <div ref={desktopBellRef} style={{ position:'relative' }}>
           <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
             onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
             onMouseOut={e => { if (!bellOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
@@ -369,12 +356,6 @@ export default function Header() {
           )}
         </div>
 
-        <button className="header-icon-btn" onClick={() => navigate('/dashboard')} title="Dashboard" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
-          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
-          <SparkleGridIcon />
-        </button>
-
         <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
           style={{ height:36, borderRadius:999, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', gap:10, padding:'0 8px 0 6px', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
@@ -387,7 +368,7 @@ export default function Header() {
       </div>
 
       <div className="header-actions mobile-only">
-        <div ref={bellRef} style={{ position:'relative' }}>
+        <div ref={mobileBellRef} style={{ position:'relative' }}>
           <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}>
             <BellIcon/>
             {unread > 0 && (
