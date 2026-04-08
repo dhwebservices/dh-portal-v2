@@ -73,6 +73,18 @@ function SearchIcon() {
   )
 }
 
+function SparkleGridIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v4" />
+      <path d="M12 17v4" />
+      <path d="M3 12h4" />
+      <path d="M17 12h4" />
+      <rect x="8" y="8" width="8" height="8" rx="2" />
+    </svg>
+  )
+}
+
 function MoreIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -304,6 +316,10 @@ export default function Header() {
             {pageMeta.note}
           </div>
         </div>
+        <button className="header-search-launch hide-mob" onClick={() => navigate('/search')} title="Search the portal">
+          <SearchIcon />
+          <span>Search tasks, staff, or documents...</span>
+        </button>
         {isPreviewing && previewTarget ? (
           <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, padding:'7px 10px', borderRadius:12, background:'var(--amber-bg)', border:'1px solid rgba(183,119,13,0.22)', color:'var(--amber)' }}>
             <span style={{ fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>Previewing</span>
@@ -324,11 +340,6 @@ export default function Header() {
       </div>
 
       <div className="header-actions hide-mob">
-        <button className="header-icon-btn" onClick={() => navigate('/dashboard')} title="Dashboard" style={{ height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s', padding:'0 12px', fontSize:12.5, fontWeight:600 }}
-          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
-          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
-          Dashboard
-        </button>
         <button className="header-icon-btn" onClick={() => navigate('/search')} title="Search" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
           onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
           onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
@@ -357,6 +368,12 @@ export default function Header() {
             />
           )}
         </div>
+
+        <button className="header-icon-btn" onClick={() => navigate('/dashboard')} title="Dashboard" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', transition:'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
+          onMouseOut={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' }}>
+          <SparkleGridIcon />
+        </button>
 
         <button className="header-avatar-btn" onClick={() => navigate('/my-profile')} title="My Profile"
           style={{ height:36, borderRadius:999, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', gap:10, padding:'0 8px 0 6px', fontSize:12, fontWeight:600, color:'var(--accent)', cursor:'pointer', flexShrink:0, transition:'all 0.15s' }}

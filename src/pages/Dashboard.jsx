@@ -1477,25 +1477,42 @@ export default function Dashboard() {
 
       <div style={{ marginBottom: dashboardDensity === 'compact' ? 20 : 26 }}>
         <div className="overview-hero">
-          <div style={{ padding: '22px 24px 18px', borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
+          <div className="overview-hero-main">
+            <div className="overview-hero-greeting">
               <div style={{ display:'flex', alignItems:'center', gap:16, minWidth:0 }}>
-                <div style={{ width: 68, height: 68, borderRadius: 20, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.24)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <div style={{ width: 68, height: 68, borderRadius: 20, background: 'var(--bg2)', border: '1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, color:'var(--accent)' }}>
                   <UserRound size={28} />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.68)', marginBottom: 6 }}>
+                  <div className="overview-hero-kicker">
                     {dateStr}
                   </div>
-                  <div style={{ fontSize:'clamp(28px,3vw,40px)', fontWeight:600, lineHeight:0.96, letterSpacing:'-0.04em' }}>
+                  <div className="overview-hero-title">
                     {greeting}, {firstName}
                   </div>
-                  <div style={{ fontSize:14, color:'rgba(255,255,255,0.82)', marginTop:10, lineHeight:1.55 }}>
+                  <div className="overview-hero-copy">
                     {user?.name || 'Staff member'}{isAdmin ? ' · Management workspace' : ' · Staff workspace'}
                   </div>
                 </div>
               </div>
+              <div className="overview-hero-toolbar">
+                {shortcutButtons.slice(0, 4).map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => navigate(item.route)}
+                      className="overview-toolbar-btn"
+                    >
+                      <span className="overview-toolbar-icon"><Icon size={15} /></span>
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
+            <div className="overview-hero-side">
               <div className="overview-meta-grid">
                 {[
                   { label: 'Tasks', value: stats.tasks, hint: 'Open' },
@@ -1503,32 +1520,23 @@ export default function Dashboard() {
                   { label: 'Clients', value: stats.clients, hint: 'Active' },
                 ].map((item) => (
                   <div key={item.label} className="overview-meta-tile">
-                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.72)' }}>{item.label}</div>
-                    <div style={{ fontSize:24, fontWeight:600, marginTop:8, lineHeight:1 }}>{item.value}</div>
-                    <div style={{ fontSize:11, color:'rgba(255,255,255,0.74)', marginTop:4 }}>{item.hint}</div>
+                    <div className="overview-meta-label">{item.label}</div>
+                    <div className="overview-meta-value">{item.value}</div>
+                    <div className="overview-meta-hint">{item.hint}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          <div style={{ padding:'18px 24px 22px' }}>
-            <div className="overview-shortcut-grid">
-              {shortcutButtons.map((item) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => navigate(item.route)}
-                    className="overview-shortcut-btn"
-                  >
-                    <div style={{ width:42, height:42, borderRadius:14, background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      <Icon size={18} />
+              <div className="overview-hero-presence">
+                <div className="overview-presence-title">Team online</div>
+                <div className="overview-presence-avatars">
+                  {teamCards.slice(0, 4).map((person) => (
+                    <div key={person.email} className="overview-presence-avatar" title={person.name}>
+                      {(person.name || '?').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
-                    <div style={{ fontSize:12.5, fontWeight:600 }}>{item.label}</div>
-                  </button>
-                )
-              })}
+                  ))}
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/my-team')}>View team</button>
+              </div>
             </div>
           </div>
         </div>
