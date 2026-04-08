@@ -65,6 +65,7 @@ export default function ClientMgmt() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [clients, setClients]         = useState([])
+  const [allTickets, setAllTickets]   = useState([])
   const [invoiceRows, setInvoiceRows] = useState([])
   const [updateRows, setUpdateRows]   = useState([])
   const [clientContractTemplates, setClientContractTemplates] = useState([])
@@ -99,14 +100,16 @@ export default function ClientMgmt() {
   useEffect(() => { load() }, [])
   const load = async () => {
     setLoading(true)
-    const [{ data: clientRows }, { data: invRows }, { data: depRows }, { data: templateRows }, { data: contractRows }] = await Promise.all([
+    const [{ data: clientRows }, { data: invRows }, { data: depRows }, { data: templateRows }, { data: contractRows }, { data: supportRows }] = await Promise.all([
       supabase.from('clients').select('*').order('name'),
       supabase.from('client_invoices').select('id,client_email,status,amount,created_at,due_date').order('created_at', { ascending: false }),
       supabase.from('deployment_updates').select('id,client_email,title,created_at').order('created_at', { ascending: false }),
       supabase.from('portal_settings').select('key,value').like('key', 'client_contract_template:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'client_contract:%'),
+      supabase.from('support_tickets').select('*').order('created_at', { ascending: false }),
     ])
     setClients(clientRows || [])
+    setAllTickets(supportRows || [])
     if (clientRows?.length) {
       Promise.all(clientRows.filter((row) => row.email).map((row) => upsertClientAccount(row))).catch(() => {})
     }
@@ -151,8 +154,7 @@ export default function ClientMgmt() {
     setExpanded(id)
     const current = clients.find((client) => client.id === id) || null
     setActiveClient(current)
-    const { data } = await supabase.from('support_tickets').select('*').eq('client_email', email).order('created_at',{ascending:false})
-    setTickets(data||[])
+    setTickets((allTickets || []).filter((ticket) => ticket.client_email === email))
   }
 
   const openModal = (type, client) => {
@@ -272,7 +274,7 @@ export default function ClientMgmt() {
       }),
     ])
     setSaving(false); setReplyForm(''); close()
-    if (activeClient) { const { data } = await supabase.from('support_tickets').select('*').eq('client_email', activeClient.email).order('created_at',{ascending:false}); setTickets(data||[]) }
+    await load()
   }
 
   const startEditContractTemplate = (template) => {
@@ -487,7 +489,7 @@ export default function ClientMgmt() {
       return acc
     }, {})
 
-    const ticketMap = tickets.reduce((acc, row) => {
+    const ticketMap = allTickets.reduce((acc, row) => {
       const key = row.client_email
       acc[key] = acc[key] || { open: 0, total: 0, latestAt: null }
       acc[key].total += 1
@@ -508,7 +510,7 @@ export default function ClientMgmt() {
     }, {})
 
     return { invoiceMap, updateMap, ticketMap, contractMap }
-  }, [invoiceRows, updateRows, tickets, clientContracts])
+  }, [invoiceRows, updateRows, allTickets, clientContracts])
 
   const stats = useMemo(() => {
     const active = clients.filter((c) => c.status === 'active').length

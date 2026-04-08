@@ -95,9 +95,6 @@ export default function Clients() {
     if (!form.name?.trim()) { alert('Business name is required'); return }
     setSaving(true)
     try {
-      const SUPABASE_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
-      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-      const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
       const payload = {
         name: form.name || null,
         contact: form.contact || null,
@@ -113,19 +110,16 @@ export default function Clients() {
       const previousEmail = editing?.email || ''
       const createdAt = editing?.created_at || new Date().toISOString()
       if (editing) {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/clients?id=eq.${editing.id}`, {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() })
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error(e) }
+        const { error } = await supabase
+          .from('clients')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editing.id)
+        if (error) throw error
       } else {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/clients`, {
-          method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ ...payload, created_at: new Date().toISOString() })
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error(e) }
+        const { error } = await supabase
+          .from('clients')
+          .insert([{ ...payload, created_at: new Date().toISOString() }])
+        if (error) throw error
       }
       await upsertClientAccount({ ...payload, created_at: createdAt, deployment_status: editing?.deployment_status || 'accepted' })
       await syncClientLinkedRecords({ oldEmail: previousEmail || payload.email, newEmail: payload.email, clientName: payload.name })

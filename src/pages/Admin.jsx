@@ -73,7 +73,7 @@ export default function Admin() {
   }
 
   const togglePerm = k => setEditPerms(p => ({ ...p, [k]: !p[k] }))
-  const accessCount = (email) => { const p = permsMap[email?.toLowerCase()]; return p ? Object.values(p).filter(Boolean).length : ALL_PAGES.length }
+  const accessCount = (email) => { const p = permsMap[email?.toLowerCase()]; return p ? Object.values(p).filter(Boolean).length : 0 }
 
   return (
     <div className="fade-in">

@@ -99,10 +99,18 @@ export default function Support() {
 
   const deleteTicket = async (id) => {
     if (!confirm('Delete this ticket?')) return
-    await Promise.all([
+    const [ticketResult, metaResult] = await Promise.all([
       supabase.from('support_tickets').delete().eq('id', id),
       supabase.from('portal_settings').delete().eq('key', buildSupportTicketMetaKey(id)),
     ])
+    if (ticketResult.error) {
+      alert(`Could not delete ticket: ${ticketResult.error.message}`)
+      return
+    }
+    if (metaResult.error) {
+      alert(`Ticket deleted, but support metadata could not be removed: ${metaResult.error.message}`)
+      return
+    }
     setTickets((prev) => prev.filter((ticket) => ticket.id !== id))
     if (selected?.id === id) closeTicket()
   }
@@ -111,59 +119,66 @@ export default function Support() {
     if (!selected) return
 
     setSaving(true)
+    try {
+      const nextWorkflowStatus = sendReply
+        ? (editor.workflow_status === 'resolved' ? 'resolved' : 'awaiting_client')
+        : editor.workflow_status
 
-    const nextWorkflowStatus = sendReply
-      ? (editor.workflow_status === 'resolved' ? 'resolved' : 'awaiting_client')
-      : editor.workflow_status
+      const notes = [
+        ...(selected.internal_notes || []),
+        ...(internalNote.trim() ? [{
+          id: `note-${Date.now()}`,
+          body: internalNote.trim(),
+          author_name: user?.name || 'Staff user',
+          author_email: user?.email || '',
+          created_at: new Date().toISOString(),
+        }] : []),
+      ]
 
-    const notes = [
-      ...(selected.internal_notes || []),
-      ...(internalNote.trim() ? [{
-        id: `note-${Date.now()}`,
-        body: internalNote.trim(),
-        author_name: user?.name || 'Staff user',
-        author_email: user?.email || '',
-        created_at: new Date().toISOString(),
-      }] : []),
-    ]
+      const dueAt = nextWorkflowStatus === 'resolved'
+        ? ''
+        : editor.due_at || buildSupportDueAt(selected.created_at, editor.priority)
 
-    const dueAt = nextWorkflowStatus === 'resolved'
-      ? ''
-      : editor.due_at || buildSupportDueAt(selected.created_at, editor.priority)
+      const metaPayload = {
+        workflow_status: nextWorkflowStatus,
+        priority: editor.priority,
+        assignee_email: editor.assignee_email,
+        assignee_name: editor.assignee_name,
+        due_at: dueAt,
+        internal_notes: notes,
+        last_updated_at: new Date().toISOString(),
+      }
 
-    const metaPayload = {
-      workflow_status: nextWorkflowStatus,
-      priority: editor.priority,
-      assignee_email: editor.assignee_email,
-      assignee_name: editor.assignee_name,
-      due_at: dueAt,
-      internal_notes: notes,
-      last_updated_at: new Date().toISOString(),
+      const ticketPayload = {
+        status: getSupportBaseStatus(nextWorkflowStatus),
+        priority: editor.priority,
+        ...(sendReply
+          ? {
+              staff_reply: reply,
+              replied_by: user?.name || '',
+              replied_at: new Date().toISOString(),
+            }
+          : {}),
+      }
+
+      const [ticketResult, metaResult] = await Promise.all([
+        supabase.from('support_tickets').update(ticketPayload).eq('id', selected.id),
+        supabase.from('portal_settings').upsert({
+          key: buildSupportTicketMetaKey(selected.id),
+          value: { value: metaPayload },
+        }, { onConflict: 'key' }),
+      ])
+
+      if (ticketResult.error) throw ticketResult.error
+      if (metaResult.error) throw metaResult.error
+
+      await load()
+      closeTicket()
+    } catch (error) {
+      alert(`Could not save ticket: ${error.message}`)
+    } finally {
+      setSaving(false)
     }
-
-    const ticketPayload = {
-      status: getSupportBaseStatus(nextWorkflowStatus),
-      priority: editor.priority,
-      ...(sendReply
-        ? {
-            staff_reply: reply,
-            replied_by: user?.name || '',
-            replied_at: new Date().toISOString(),
-          }
-        : {}),
-    }
-
-    await Promise.all([
-      supabase.from('support_tickets').update(ticketPayload).eq('id', selected.id),
-      supabase.from('portal_settings').upsert({
-        key: buildSupportTicketMetaKey(selected.id),
-        value: { value: metaPayload },
-      }, { onConflict: 'key' }),
-    ])
-
-    await load()
-    setSaving(false)
-    closeTicket()
   }
 
   const counts = useMemo(() => {
