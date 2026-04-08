@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase'
+import { getWorkspaceLabel, workspaceAllowsItem } from '../utils/workspaces'
 
 // ─── Top-level sections with tile pages ───────────────────────────────────
 const SECTIONS = [
@@ -538,7 +539,7 @@ const css = `
 `
 
 export default function Sidebar() {
-  const { user, can, isOnboarding, preferences, updatePreferences } = useAuth()
+  const { user, can, isOnboarding, preferences, updatePreferences, workspace } = useAuth()
   const { instance } = useMsal()
   const location = useLocation()
   const navigate = useNavigate()
@@ -554,6 +555,12 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
+
+  const isAllowed = useCallback((key) => {
+    if (isOnboarding) return key === 'hr_onboarding'
+    if (!workspaceAllowsItem(workspace, key)) return false
+    return can ? can(key) : true
+  }, [can, isOnboarding, workspace])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sw', '56px')
@@ -571,10 +578,10 @@ export default function Sidebar() {
 
   useEffect(() => {
     const match = SECTIONS.find(s =>
-      s.items.some(i => i.to === location.pathname || (i.to !== '/' && location.pathname.startsWith(i.to)))
+      s.items.some(i => isAllowed(i.key) && (i.to === location.pathname || (i.to !== '/' && location.pathname.startsWith(i.to))))
     )
     if (match) setActiveSection(match.id)
-  }, [location.pathname])
+  }, [location.pathname, isAllowed])
 
   useEffect(() => {
     const handler = (e) => {
@@ -587,11 +594,6 @@ export default function Sidebar() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [searchOpen, panelOpen])
-
-  const isAllowed = useCallback((key) => {
-    if (isOnboarding) return key === 'hr_onboarding'
-    return can ? can(key) : true
-  }, [can, isOnboarding])
 
   const fuzzy = (str, q) => {
     const s = str.toLowerCase(), qL = q.toLowerCase()
@@ -652,8 +654,8 @@ export default function Sidebar() {
   }
 
   const visibleSections = SECTIONS.filter(s => s.items.some(i => isAllowed(i.key)))
-  const activeSec = SECTIONS.find(s => s.id === activeSection)
-  const accentColor = SECTION_COLORS[activeSection] || SECTION_COLORS.home
+  const activeSec = visibleSections.find(s => s.id === activeSection) || visibleSections[0]
+  const accentColor = SECTION_COLORS[activeSec?.id] || SECTION_COLORS.home
 
   // Group results by type
   const groupedPages = pageResults.length > 0 ? { 'Pages': pageResults } : {}
@@ -687,7 +689,7 @@ export default function Sidebar() {
 
       {/* Desktop dock */}
       <nav className="dh-dock hide-mob">
-        <div className="dh-dock-logo" onClick={() => navigate('/')}>
+        <div className="dh-dock-logo" onClick={() => navigate('/workspace')}>
           <img src="/dh-logo.png" alt="DH" style={{ height: 22, opacity: 0.85 }} />
         </div>
         <div className="dh-dock-sep" />
@@ -725,7 +727,14 @@ export default function Sidebar() {
           <div className="dh-panel-icon" style={{ background: accentColor.bg }}>
             <Ico name={activeSec?.icon || 'grid'} size={17} />
           </div>
-          <div className="dh-panel-title">{activeSec?.label}</div>
+          <div style={{ minWidth: 0 }}>
+            <div className="dh-panel-title">{activeSec?.label || getWorkspaceLabel(workspace)}</div>
+            {!isOnboarding ? (
+              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3, fontFamily: 'var(--font-mono)' }}>
+                {getWorkspaceLabel(workspace)}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="dh-tiles">

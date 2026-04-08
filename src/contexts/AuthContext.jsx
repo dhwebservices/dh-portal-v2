@@ -23,6 +23,12 @@ import {
   isDirectorEmail,
   mergeOrgRecord,
 } from '../utils/orgStructure'
+import {
+  buildStaffWorkspaceKey,
+  getWorkspaceLabel,
+  inferWorkspaceFromProfile,
+  resolveWorkspaceHomeRoute,
+} from '../utils/workspaces'
 
 const Ctx = createContext(null)
 const ACTIVE_HEARTBEAT_MS = 60 * 1000
@@ -60,6 +66,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     preferenceResult,
     lifecycleResult,
     orgResult,
+    workspaceResult,
     departmentCatalogResult,
   ] = await Promise.all([
     supabase
@@ -69,7 +76,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       .maybeSingle(),
     supabase
       .from('hr_profiles')
-      .select('department, manager_email, manager_name, full_name')
+      .select('*')
       .ilike('user_email', safeEmail)
       .maybeSingle(),
     supabase
@@ -90,6 +97,11 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     supabase
       .from('portal_settings')
       .select('value')
+      .eq('key', buildStaffWorkspaceKey(safeEmail))
+      .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
       .eq('key', buildDepartmentCatalogKey())
       .maybeSingle(),
   ])
@@ -98,6 +110,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   const preferenceRaw = preferenceResult?.data?.value?.value ?? preferenceResult?.data?.value ?? {}
   const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
   const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
+  const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
   const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
   const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
     email: safeEmail,
@@ -106,6 +119,15 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   }), departmentCatalogRaw, safeEmail)
   const permissionsData = permissionsResult?.data
   const safePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
+  const nextWorkspace = inferWorkspaceFromProfile({
+    explicitWorkspace: workspaceRaw?.primary_workspace ?? workspaceRaw,
+    hrProfile,
+    org: nextOrg,
+    perms: safePerms,
+    isAdmin: OWNER_EMAILS.has(safeEmail) || permissionsData?.permissions?.admin === true,
+    isDirector: nextOrg.role_scope === 'director',
+    isDepartmentManager: getManagedDepartments(nextOrg).length > 0 && nextOrg.role_scope !== 'director',
+  })
 
   return {
     user: {
@@ -122,6 +144,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       reports_to_email: nextOrg.reports_to_email || String(hrProfile?.manager_email || '').toLowerCase().trim(),
       reports_to_name: nextOrg.reports_to_name || hrProfile?.manager_name || '',
     },
+    workspace: nextWorkspace,
     preferences: mergePortalPreferences(readStoredPortalPreferences(), preferenceRaw),
   }
 }
@@ -136,6 +159,7 @@ export function AuthProvider({ children }) {
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [lifecycle, setLifecycle] = useState(mergeLifecycleRecord())
   const [org, setOrg] = useState(mergeOrgRecord())
+  const [workspace, setWorkspace] = useState('self_service')
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
   const [previewState, setPreviewState] = useState(null)
   const [loading, setLoading]       = useState(true)
@@ -186,7 +210,7 @@ export function AuthProvider({ children }) {
         .maybeSingle(),
       supabase
         .from('hr_profiles')
-        .select('department, manager_email, manager_name, full_name')
+        .select('*')
         .ilike('user_email', normalizedEmail)
         .maybeSingle(),
       supabase
@@ -212,10 +236,15 @@ export function AuthProvider({ children }) {
       supabase
         .from('portal_settings')
         .select('value')
+        .eq('key', buildStaffWorkspaceKey(normalizedEmail))
+        .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
         .eq('key', buildDepartmentCatalogKey())
         .maybeSingle(),
     ])
-      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, departmentCatalogResult]) => {
+      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         const hrProfile = hrResult?.data || {}
@@ -237,6 +266,7 @@ export function AuthProvider({ children }) {
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
         setLifecycle(mergeLifecycleRecord(lifecycleRaw))
         const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
+        const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
         const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
         const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
           email: normalizedEmail,
@@ -249,8 +279,18 @@ export function AuthProvider({ children }) {
           reports_to_name: nextOrg.reports_to_name || hrProfile?.manager_name || '',
         })
 
+        const safePerms = !error && data ? sanitizePermissions(data.permissions) : { ...BASE_PERMISSIONS }
+        setWorkspace(inferWorkspaceFromProfile({
+          explicitWorkspace: workspaceRaw?.primary_workspace ?? workspaceRaw,
+          hrProfile,
+          org: nextOrg,
+          perms: safePerms,
+          isAdmin: isOwner || data?.permissions?.admin === true,
+          isDirector: nextOrg.role_scope === 'director',
+          isDepartmentManager: getManagedDepartments(nextOrg).length > 0 && nextOrg.role_scope !== 'director',
+        }))
+
         if (!error && data) {
-          const safePerms = sanitizePermissions(data.permissions)
           setPerms(isOwner ? null : safePerms)
           setIsAdmin(isOwner || data.permissions?.admin === true || nextOrg.role_scope === 'director')
           setIsOnboarding(data.onboarding === true)
@@ -272,6 +312,17 @@ export function AuthProvider({ children }) {
           email: normalizedEmail,
           isDirector: isDirectorEmail(normalizedEmail),
         }), [], normalizedEmail))
+        setWorkspace(inferWorkspaceFromProfile({
+          hrProfile: {},
+          org: hydrateManagedDepartments(mergeOrgRecord({}, {
+            email: normalizedEmail,
+            isDirector: isDirectorEmail(normalizedEmail),
+          }), [], normalizedEmail),
+          perms: { ...BASE_PERMISSIONS },
+          isAdmin: isOwner,
+          isDirector: isDirectorEmail(normalizedEmail),
+          isDepartmentManager: false,
+        }))
         const nextPreferences = mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences())
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
@@ -305,6 +356,7 @@ export function AuthProvider({ children }) {
   const effectiveIsOnboarding = previewState?.isOnboarding ?? isOnboarding
   const effectiveLifecycle = previewState?.lifecycle || lifecycle
   const effectiveOrg = previewState?.org || org
+  const effectiveWorkspace = previewState?.workspace || workspace
   const effectivePreferences = previewState?.preferences || preferences
 
   const managedDepartments = getManagedDepartments(effectiveOrg)
@@ -326,21 +378,22 @@ export function AuthProvider({ children }) {
     }
     if (key === 'my_department') {
       if (isDirector) return !isExplicitlyDenied
-      if (isDepartmentManager) return isExplicitlyAllowed
+      if (isDepartmentManager) return !isExplicitlyDenied
       return isExplicitlyAllowed
     }
     if (key === 'my_team') {
       if (isDirector) return !isExplicitlyDenied
-      if (isDepartmentManager || org?.department) return isExplicitlyAllowed
+      if (isDepartmentManager) return !isExplicitlyDenied
+      if (org?.department) return isExplicitlyAllowed
       return isExplicitlyAllowed
     }
     if (key === 'staff' || key === 'manager_board' || key === 'contract_queue') {
       if (isDirector) return !isExplicitlyDenied
-      if (isDepartmentManager) return isExplicitlyAllowed
+      if (isDepartmentManager) return !isExplicitlyDenied
     }
     if (key === 'recruiting_dashboard' || key === 'recruiting_jobs' || key === 'recruiting_applications' || key === 'recruiting_board') {
       if (isDirector) return !isExplicitlyDenied
-      if (isDepartmentManager) return isExplicitlyAllowed
+      if (isDepartmentManager) return !isExplicitlyDenied
     }
     if (key === 'recruiting_settings') {
       if (isDirector) return !isExplicitlyDenied
@@ -427,6 +480,13 @@ export function AuthProvider({ children }) {
       maintenance,
       lifecycle: effectiveLifecycle,
       org: effectiveOrg,
+      workspace: effectiveWorkspace,
+      workspaceLabel: getWorkspaceLabel(effectiveWorkspace),
+      workspaceHome: resolveWorkspaceHomeRoute({
+        workspace: effectiveWorkspace,
+        preferences: effectivePreferences,
+        can,
+      }),
       preferences: effectivePreferences,
       updatePreferences,
       isPreviewing: !!previewState,

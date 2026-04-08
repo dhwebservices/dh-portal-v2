@@ -358,22 +358,11 @@ function PortalLayout() {
 }
 
 function LandingResolver() {
-  const { preferences, loading, isOnboarding } = useAuth()
+  const { loading, isOnboarding, workspaceHome } = useAuth()
 
   if (loading) return <RouteLoader />
   if (isOnboarding) return <HROnboarding />
-
-  const routeMap = {
-    dashboard: '/dashboard',
-    mytasks: '/my-tasks',
-    notifications: '/notifications',
-    my_department: '/my-department',
-    schedule: '/schedule',
-    appointments: '/appointments',
-    clients: '/clients',
-  }
-
-  return <Navigate to={routeMap[preferences?.defaultLanding] || '/dashboard'} replace />
+  return <Navigate to={workspaceHome || '/dashboard'} replace />
 }
 
 function AuthenticatedApp() {
@@ -382,6 +371,7 @@ function AuthenticatedApp() {
       <Suspense fallback={<RouteLoader />}>
         <Routes>
           <Route path="/"              element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
+          <Route path="/workspace"     element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
           <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
           <Route path="/web-manager/*" element={<MaintenanceWall><WebManagerGate><WebManager /></WebManagerGate></MaintenanceWall>} />
           <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />

@@ -36,6 +36,12 @@ import {
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
 import {
+  buildStaffWorkspaceKey,
+  getWorkspaceLabel,
+  normalizeWorkspace,
+  WORKSPACE_OPTIONS,
+} from '../utils/workspaces'
+import {
   buildDepartmentCatalogKey,
   buildDepartmentRequestKey,
   buildStaffOrgKey,
@@ -269,6 +275,7 @@ export default function StaffProfile() {
   const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
   const [orgRecord, setOrgRecord] = useState(() => mergeOrgRecord())
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
+  const [primaryWorkspace, setPrimaryWorkspace] = useState('')
   const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [departmentRequests, setDepartmentRequests] = useState([])
   const [reviews, setReviews] = useState([])
@@ -441,6 +448,11 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildStaffOrgKey(email))
         .maybeSingle()
+      const { data: workspaceSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildStaffWorkspaceKey(email))
+        .maybeSingle()
       const { data: complianceSetting } = await supabase
         .from('portal_settings')
         .select('value')
@@ -490,6 +502,7 @@ export default function StaffProfile() {
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
+      const workspaceRaw = workspaceSetting?.value?.value ?? workspaceSetting?.value ?? {}
       const complianceRaw = complianceSetting?.value?.value ?? complianceSetting?.value ?? {}
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
@@ -515,6 +528,7 @@ export default function StaffProfile() {
       setDepartmentCatalog(nextDepartmentCatalog)
       setOrgRecord(hydratedOrg)
       setOriginalOrgRecord(hydratedOrg)
+      setPrimaryWorkspace(normalizeWorkspace(workspaceRaw?.primary_workspace ?? workspaceRaw))
       setComplianceRecord(mergeComplianceRecord(complianceRaw))
       const nextTemplates = (templateRows || [])
         .map((row) => createContractTemplate({
@@ -740,6 +754,7 @@ export default function StaffProfile() {
         updated_at:     new Date().toISOString(),
       }
 
+      // Save hr_profiles via raw REST to avoid supabase-js columns= bug
       const existingProfile = profileId
         ? { id: profileId }
         : pickBestProfileRow((await supabase.from('hr_profiles').select('*').ilike('user_email', email)).data || [])
@@ -752,6 +767,7 @@ export default function StaffProfile() {
         }, { onConflict: 'user_email' })
         .select()
         .single()
+
       if (hrError) throw new Error('HR save failed: ' + hrError.message)
 
       if (savedProfile?.id) setProfileId(savedProfile.id)
@@ -765,6 +781,30 @@ export default function StaffProfile() {
         .single()
       if (permError) throw new Error('Perms save failed: ' + permError.message)
       if (savedPerm?.id) setPermId(savedPerm.id)
+
+      const normalizedPrimaryWorkspace = normalizeWorkspace(primaryWorkspace)
+      if (normalizedPrimaryWorkspace) {
+        const { error: workspaceError } = await supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildStaffWorkspaceKey(email),
+            value: {
+              value: {
+                primary_workspace: normalizedPrimaryWorkspace,
+                assigned_by_email: user?.email || '',
+                assigned_by_name: user?.name || '',
+                updated_at: new Date().toISOString(),
+              },
+            },
+          }, { onConflict: 'key' })
+        if (workspaceError) throw new Error('Workspace save failed: ' + workspaceError.message)
+      } else {
+        const { error: workspaceDeleteError } = await supabase
+          .from('portal_settings')
+          .delete()
+          .eq('key', buildStaffWorkspaceKey(email))
+        if (workspaceDeleteError) throw new Error('Workspace save failed: ' + workspaceDeleteError.message)
+      }
 
       if (requiresDirectorApproval) {
         const request = createDepartmentRequest({
@@ -2211,9 +2251,11 @@ export default function StaffProfile() {
               </div>
             ))}
             <div className="staff-profile-hero-highlight-card staff-profile-hero-highlight-card-wide">
-              <div className="staff-profile-hero-highlight-label">Active workspace</div>
-              <div className="staff-profile-hero-highlight-value">{activeTabLabel}</div>
-              <div className="staff-profile-hero-highlight-hint">{activeTabDescription}</div>
+              <div className="staff-profile-hero-highlight-label">Assigned workspace</div>
+              <div className="staff-profile-hero-highlight-value">{primaryWorkspace ? getWorkspaceLabel(primaryWorkspace) : 'Auto workspace'}</div>
+              <div className="staff-profile-hero-highlight-hint">
+                {primaryWorkspace ? 'This controls where they land after onboarding is complete.' : 'No manual workspace assigned. The portal will infer it from role and permissions.'}
+              </div>
             </div>
           </div>
         </div>
@@ -2402,6 +2444,18 @@ export default function StaffProfile() {
                       </select>
                       {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
                     </div>
+                    <div>
+                      <label className="lbl">Primary Workspace</label>
+                      <select className="inp" value={primaryWorkspace} onChange={e => setPrimaryWorkspace(normalizeWorkspace(e.target.value))}>
+                        <option value="">Auto / infer from role</option>
+                        {WORKSPACE_OPTIONS.filter(([key]) => key !== 'self_service').map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                      <div style={{ fontSize:11, color:'var(--sub)', marginTop:4, lineHeight:1.5 }}>
+                        Onboarding still takes precedence. Once onboarding is complete, this becomes the staff member&apos;s main portal workspace.
+                      </div>
+                    </div>
                     {orgRecord.role_scope === 'department_manager' ? (
                       <div className="fc">
                         <label className="lbl">Managed Departments</label>
@@ -2566,7 +2620,7 @@ export default function StaffProfile() {
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Coverage</div>
-                    <div style={{ display:'grid', gap:6 }}>
+                      <div style={{ display:'grid', gap:6 }}>
                       {PERMISSION_GROUPS.map((group) => {
                         const groupItems = getPermissionItemsForGroup(group)
                         const enabled = getPermissionEnabledCount(editPerms, group)
