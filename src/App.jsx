@@ -287,8 +287,9 @@ function DesktopCursor() {
 
 function AmbientBackground() {
   const ambientRef = useRef(null)
+  const cursorLineRef = useRef(null)
   const frameRef = useRef(0)
-  const targetRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0 })
+  const targetRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0, pointerX: -320, pointerY: -320, angle: 0, opacity: 0 })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !ambientRef.current || !window.matchMedia) return undefined
@@ -302,6 +303,12 @@ function AmbientBackground() {
       ambientRef.current.style.setProperty('--ambient-shift-y', `${targetRef.current.y}px`)
       ambientRef.current.style.setProperty('--ambient-tilt-x', `${targetRef.current.rotateX}deg`)
       ambientRef.current.style.setProperty('--ambient-tilt-y', `${targetRef.current.rotateY}deg`)
+      if (cursorLineRef.current) {
+        cursorLineRef.current.style.setProperty('--ambient-cursor-x', `${targetRef.current.pointerX}px`)
+        cursorLineRef.current.style.setProperty('--ambient-cursor-y', `${targetRef.current.pointerY}px`)
+        cursorLineRef.current.style.setProperty('--ambient-cursor-angle', `${targetRef.current.angle}deg`)
+        cursorLineRef.current.style.opacity = String(targetRef.current.opacity)
+      }
     }
 
     const scheduleMotion = () => {
@@ -314,17 +321,38 @@ function AmbientBackground() {
       if (!mediaQuery.matches) return
       const xRatio = event.clientX / window.innerWidth - 0.5
       const yRatio = event.clientY / window.innerHeight - 0.5
+      const previousX = targetRef.current.pointerX
+      const previousY = targetRef.current.pointerY
+      const deltaX = event.clientX - previousX
+      const deltaY = event.clientY - previousY
+      const nextAngle =
+        Number.isFinite(deltaX) && Number.isFinite(deltaY) && (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5)
+          ? Math.atan2(deltaY, deltaX) * (180 / Math.PI)
+          : targetRef.current.angle
       targetRef.current = {
         x: xRatio * 72,
         y: yRatio * 48,
         rotateX: yRatio * -3.5,
         rotateY: xRatio * 4.5,
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        angle: nextAngle,
+        opacity: 1,
       }
       scheduleMotion()
     }
 
     const handleLeave = () => {
-      targetRef.current = { x: 0, y: 0, rotateX: 0, rotateY: 0 }
+      targetRef.current = {
+        x: 0,
+        y: 0,
+        rotateX: 0,
+        rotateY: 0,
+        pointerX: targetRef.current.pointerX,
+        pointerY: targetRef.current.pointerY,
+        angle: targetRef.current.angle,
+        opacity: 0,
+      }
       scheduleMotion()
     }
 
@@ -354,6 +382,7 @@ function AmbientBackground() {
       aria-hidden="true"
     >
       <div className="portal-ambient-grid" />
+      <div ref={cursorLineRef} className="portal-ambient-cursor-line" />
       <div className="portal-ambient-trail-field">
         <div className="portal-ambient-trail portal-ambient-trail-a" />
         <div className="portal-ambient-trail portal-ambient-trail-b" />
