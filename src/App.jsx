@@ -289,6 +289,10 @@ function AmbientBackground() {
   return (
     <div className="portal-ambient" aria-hidden="true">
       <div className="portal-ambient-grid" />
+      <div className="portal-ambient-trail portal-ambient-trail-a" />
+      <div className="portal-ambient-trail portal-ambient-trail-b" />
+      <div className="portal-ambient-trail portal-ambient-trail-c" />
+      <div className="portal-ambient-trail portal-ambient-trail-d" />
       <div className="portal-ambient-orb portal-ambient-orb-a" />
       <div className="portal-ambient-orb portal-ambient-orb-b" />
       <div className="portal-ambient-orb portal-ambient-orb-c" />
