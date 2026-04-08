@@ -377,6 +377,7 @@ export default function Dashboard() {
   const [insightLoading, setInsightLoading] = useState(false)
   const [whatsNew, setWhatsNew] = useState(null)
   const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [whatsNewCardIndex, setWhatsNewCardIndex] = useState(0)
   const [showPersonalise, setShowPersonalise] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
   const [feedbackForm, setFeedbackForm] = useState({ type: 'feature', title: '', message: '' })
@@ -995,6 +996,10 @@ export default function Dashboard() {
       .catch(() => {})
   }, [user?.email])
 
+  useEffect(() => {
+    if (showWhatsNew) setWhatsNewCardIndex(0)
+  }, [showWhatsNew, whatsNew?.version])
+
   const generatedInsight = useMemo(() => {
     if (stats.pendingLeave > 0) {
       return 'There are leave requests waiting on a decision. Approving or rejecting those first will clear a people bottleneck quickly.'
@@ -1026,6 +1031,9 @@ export default function Dashboard() {
     }
     setShowWhatsNew(false)
   }
+
+  const whatsNewCards = Array.isArray(whatsNew?.cards) && whatsNew.cards.length ? whatsNew.cards : []
+  const activeWhatsNewCard = whatsNewCards[whatsNewCardIndex] || null
 
   const patchPersonalise = (patch) => {
     setPersonalisePrefs((current) => mergePortalPreferences(current, { workspacePreset: 'custom', ...patch }))
@@ -1676,7 +1684,21 @@ export default function Dashboard() {
           title={whatsNew.title || 'What’s New'}
           onClose={dismissWhatsNew}
           width={860}
-          footer={<><button className="btn btn-outline" onClick={dismissWhatsNew}>Close</button><button className="btn btn-primary" onClick={dismissWhatsNew}>Got it</button></>}
+          footer={
+            <>
+              <button className="btn btn-outline" onClick={dismissWhatsNew}>Close</button>
+              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                <button className="btn btn-outline" onClick={() => setWhatsNewCardIndex((current) => Math.max(0, current - 1))} disabled={whatsNewCardIndex === 0}>Previous</button>
+                {whatsNewCardIndex < whatsNewCards.length - 1 ? (
+                  <button className="btn btn-primary" onClick={() => setWhatsNewCardIndex((current) => Math.min(whatsNewCards.length - 1, current + 1))}>
+                    Next <ArrowRight size={12} />
+                  </button>
+                ) : (
+                  <button className="btn btn-primary" onClick={dismissWhatsNew}>Got it</button>
+                )}
+              </div>
+            </>
+          }
         >
           <div style={{ display:'grid', gap:18 }}>
             <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--accent-soft)', border:'1px solid var(--accent-border)' }}>
@@ -1685,14 +1707,40 @@ export default function Dashboard() {
                 {whatsNew.intro || 'Recent updates and improvements across the portal.'}
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
-              {(whatsNew.cards || []).map((card, index) => (
-                <div key={`${card.title || 'card'}-${index}`} className="card card-pad">
-                  {card.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{card.tag}</span> : null}
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{card.title || 'Update'}</div>
-                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65 }}>{card.body || 'No details added yet.'}</div>
+            <div style={{ display:'grid', gap:14 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <div style={{ fontSize:12, color:'var(--sub)' }}>
+                  Feature {Math.min(whatsNewCardIndex + 1, Math.max(whatsNewCards.length, 1))} of {Math.max(whatsNewCards.length, 1)}
                 </div>
-              ))}
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                  {whatsNewCards.map((card, index) => (
+                    <button
+                      key={`${card.title || 'dot'}-${index}`}
+                      onClick={() => setWhatsNewCardIndex(index)}
+                      aria-label={`Open update ${index + 1}`}
+                      style={{
+                        width: index === whatsNewCardIndex ? 28 : 10,
+                        height: 10,
+                        borderRadius: 999,
+                        border: 'none',
+                        background: index === whatsNewCardIndex ? 'var(--accent)' : 'var(--border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="card card-pad" style={{ minHeight: 240, display:'grid', alignContent:'start' }}>
+                {activeWhatsNewCard?.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{activeWhatsNewCard.tag}</span> : null}
+                <div style={{ fontSize:22, fontWeight:650, color:'var(--text)', marginBottom:10 }}>
+                  {activeWhatsNewCard?.title || 'Update'}
+                </div>
+                <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.75, maxWidth: '58ch' }}>
+                  {activeWhatsNewCard?.body || 'No details added yet.'}
+                </div>
+              </div>
             </div>
           </div>
         </Modal>

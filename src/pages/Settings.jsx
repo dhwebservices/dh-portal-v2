@@ -14,6 +14,7 @@ export default function Settings() {
   const [success, setSuccess] = useState('')
   const [saved, setSaved]   = useState('')
   const [previousWhatsNew, setPreviousWhatsNew] = useState(null)
+  const [previewWhatsNewIndex, setPreviewWhatsNewIndex] = useState(0)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
     version: '',
@@ -55,7 +56,13 @@ export default function Settings() {
     })
   }, [])
 
+  useEffect(() => {
+    setPreviewWhatsNewIndex(0)
+  }, [whatsNew.version, whatsNew.cards.length])
+
   const set = (k, v) => setSettings(p => ({ ...p, [k]: v }))
+  const previewCards = Array.isArray(whatsNew.cards) && whatsNew.cards.length ? whatsNew.cards : [{ ...EMPTY_WHATS_NEW_CARD }]
+  const activePreviewCard = previewCards[previewWhatsNewIndex] || previewCards[0]
 
   const save = async (section) => {
     setSaving(true)
@@ -338,14 +345,40 @@ export default function Settings() {
               <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
               <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>{whatsNew.intro || 'Your intro text will appear here.'}</div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
-              {whatsNew.cards.map((card, index) => (
-                <div key={`preview-${index}`} style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--card)' }}>
-                  {card.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{card.tag}</span> : null}
-                  <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{card.title || 'Update title'}</div>
-                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>{card.body || 'Card details appear here.'}</div>
+            <div style={{ display:'grid', gap:14 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+                <div style={{ fontSize:12, color:'var(--sub)' }}>
+                  Previewing card {Math.min(previewWhatsNewIndex + 1, previewCards.length)} of {previewCards.length}
                 </div>
-              ))}
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                  {previewCards.map((card, index) => (
+                    <button
+                      key={`preview-dot-${index}`}
+                      onClick={() => setPreviewWhatsNewIndex(index)}
+                      style={{
+                        width: index === previewWhatsNewIndex ? 28 : 10,
+                        height: 10,
+                        borderRadius: 999,
+                        border: 'none',
+                        background: index === previewWhatsNewIndex ? 'var(--accent)' : 'var(--border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ padding:'18px', border:'1px solid var(--border)', borderRadius:14, background:'var(--card)', minHeight:220, display:'grid', alignContent:'start' }}>
+                {activePreviewCard?.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{activePreviewCard.tag}</span> : null}
+                <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{activePreviewCard?.title || 'Update title'}</div>
+                <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>{activePreviewCard?.body || 'Card details appear here.'}</div>
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+                <button className="btn btn-outline btn-sm" onClick={() => setPreviewWhatsNewIndex((current) => Math.max(0, current - 1))} disabled={previewWhatsNewIndex === 0}>Previous</button>
+                <button className="btn btn-outline btn-sm" onClick={() => setPreviewWhatsNewIndex((current) => Math.min(previewCards.length - 1, current + 1))} disabled={previewWhatsNewIndex >= previewCards.length - 1}>Next</button>
+              </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
               <button className="btn btn-primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</button>
