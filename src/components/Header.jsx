@@ -8,6 +8,7 @@ const TITLES = {
   '/search':'Search',
   '/my-department':'My Department',
   '/my-team':'View My Team',
+  '/recruiting':'Recruitment',
   '/outreach':'Clients Contacted', '/clients':'Onboarded Clients',
   '/client-mgmt':'Client Portal', '/support':'Support Tickets',
   '/tasks':'Manage Tasks', '/my-tasks':'My Tasks',

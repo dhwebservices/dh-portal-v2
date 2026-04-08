@@ -165,10 +165,13 @@ export default function MyDepartment() {
   const [selectedDepartment, setSelectedDepartment] = useState('')
   const [error, setError] = useState('')
   const [memberActions, setMemberActions] = useState({})
+  const accountIdentity = accounts[0]?.homeAccountId || accounts[0]?.username || ''
+  const managedDepartmentKey = managedDepartments.join('|')
 
   useEffect(() => {
+    if (!user?.email) return
     load()
-  }, [])
+  }, [user?.email, org?.department, isDirector, instance, managedDepartmentKey, accountIdentity])
 
   async function load() {
     setLoading(true)

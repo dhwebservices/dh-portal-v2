@@ -26,8 +26,8 @@ function inferCategory(notification) {
   const haystack = `${notification.title || ''} ${notification.message || ''} ${notification.link || ''}`.toLowerCase()
   if (haystack.includes('/tasks') || haystack.includes('task')) return 'tasks'
   if (haystack.includes('/hr/') || haystack.includes('leave') || haystack.includes('onboarding') || haystack.includes('schedule')) return 'hr'
-  if (haystack.includes('payment') || haystack.includes('invoice') || haystack.includes('gocardless') || haystack.includes('/clients') || haystack.includes('/client-mgmt')) return 'payments'
   if (haystack.includes('client') || haystack.includes('support') || haystack.includes('outreach') || haystack.includes('proposal')) return 'clients'
+  if (haystack.includes('payment') || haystack.includes('invoice') || haystack.includes('gocardless')) return 'payments'
   return 'general'
 }
 
