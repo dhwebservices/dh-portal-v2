@@ -14,6 +14,7 @@ import {
   getContractStatusLabel,
   renderContractHtml,
 } from '../../utils/contracts'
+import { openSecureDocument } from '../../utils/fileAccess'
 
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
@@ -266,6 +267,48 @@ export default function HROnboarding() {
       setRtwUploadName('')
     }
     setRtwUploading(false)
+  }
+
+  const openContractReferenceFile = async () => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: staffContract?.template_reference_file_path,
+        fallbackUrl: staffContract?.template_reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'onboarding_contract_reference_opened',
+        entity: 'staff_contract',
+        entityId: staffContract?.id || '',
+        details: {
+          template_name: staffContract?.template_name || '',
+          staff_email: normalizeEmail(user?.email || ''),
+        },
+      })
+    } catch (error) {
+      setContractMessage(error.message || 'Could not open the attached template file.')
+    }
+  }
+
+  const openSignedContractFile = async () => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: staffContract?.final_document_path,
+        fallbackUrl: staffContract?.final_document_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'onboarding_signed_contract_opened',
+        entity: 'staff_contract',
+        entityId: staffContract?.id || '',
+        details: {
+          template_name: staffContract?.template_name || '',
+          staff_email: normalizeEmail(user?.email || ''),
+        },
+      })
+    } catch (error) {
+      setContractMessage(error.message || 'Could not open the signed contract PDF.')
+    }
   }
 
   const signContract = async () => {
@@ -928,8 +971,8 @@ export default function HROnboarding() {
                       <div dangerouslySetInnerHTML={{ __html: renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}) }} />
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-                      {staffContract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={staffContract.template_reference_file_url} target="_blank" rel="noreferrer">Open attached template file</a> : null}
-                      {staffContract.final_document_url ? <a className="btn btn-outline btn-sm" href={staffContract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
+                      {staffContract.template_reference_file_path || staffContract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={openContractReferenceFile}>Open attached template file</button> : null}
+                      {staffContract.final_document_path || staffContract.final_document_url ? <button className="btn btn-outline btn-sm" onClick={openSignedContractFile}>Open signed PDF</button> : null}
                       {staffContract.status === 'awaiting_staff_signature' ? (
                         <button className="btn btn-primary btn-sm" onClick={signContract} disabled={contractSigning}>
                           {contractSigning ? 'Signing contract...' : `Sign as ${form.full_name || user?.name || user?.email || 'staff member'}`}

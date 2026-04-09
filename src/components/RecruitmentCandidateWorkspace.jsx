@@ -16,6 +16,7 @@ import RecruitingStatusBadge from './RecruitingStatusBadge'
 import { createCandidatePortalInvite, listApplications, listJobPosts } from '../utils/recruiting'
 import { sendCandidatePortalInviteEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
+import { logAction } from '../utils/audit'
 
 const STATUS_ORDER = ['new', 'reviewing', 'shortlisted', 'interview', 'offered', 'hired', 'rejected', 'withdrawn']
 const VIEW_TABS = [
@@ -195,18 +196,31 @@ export default function RecruitmentCandidateWorkspace({
   const exportRows = viewTab === 'disqualified' ? disqualifiedRows : filtered
   const inviteableApplications = filtered.filter((application) => application.email && application.portal_status !== 'active')
 
-  const exportCandidates = () => {
+  const exportCandidates = async () => {
+    const reason = window.prompt('Add a short reason for this candidate export:')
+    if (!reason?.trim()) return
     const csv = buildExportCsv(exportRows)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     const roleSlug = String(activeJob?.title || 'candidates').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const filename = `${roleSlug}-candidates.csv`
     link.href = url
-    link.download = `${roleSlug}-candidates.csv`
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+    await logAction(user?.email, user?.name, 'recruitment_candidates_exported', 'recruitment_candidates', activeJob?.id || filters.jobId || 'all', {
+      filename,
+      job_id: activeJob?.id || filters.jobId || 'all',
+      job_title: activeJob?.title || '',
+      row_count: exportRows.length,
+      view_tab: viewTab,
+      status_filter: filters.status,
+      reason: reason.trim(),
+      generated_at: new Date().toISOString(),
+    })
   }
 
   const sendPortalInvites = async () => {

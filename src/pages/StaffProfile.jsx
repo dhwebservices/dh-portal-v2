@@ -96,6 +96,7 @@ import {
 } from '../utils/contracts'
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
+import { openSecureDocument } from '../utils/fileAccess'
 
 function formatTimelineDate(value) {
   if (!value) return 'Unknown time'
@@ -1867,6 +1868,69 @@ export default function StaffProfile() {
       setContractError(error.message || 'Could not issue the contract.')
     } finally {
       setContractSaving(false)
+    }
+  }
+
+  const openTemplateReferenceFile = async (template) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: template?.reference_file_path,
+        fallbackUrl: template?.reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'contract_template_reference_opened',
+        entity: 'contract_template',
+        entityId: template?.id || '',
+        details: {
+          template_name: template?.name || '',
+          staff_email: email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the template reference file.')
+    }
+  }
+
+  const openContractReferenceFile = async (contract) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: contract?.template_reference_file_path,
+        fallbackUrl: contract?.template_reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_contract_reference_opened',
+        entity: 'staff_contract',
+        entityId: contract?.id || '',
+        details: {
+          template_name: contract?.template_name || '',
+          staff_email: contract?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the contract reference file.')
+    }
+  }
+
+  const openSignedContractFile = async (contract) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: contract?.final_document_path,
+        fallbackUrl: contract?.final_document_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_contract_signed_pdf_opened',
+        entity: 'staff_contract',
+        entityId: contract?.id || '',
+        details: {
+          template_name: contract?.template_name || '',
+          staff_email: contract?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the signed contract PDF.')
     }
   }
 
@@ -4021,7 +4085,7 @@ export default function StaffProfile() {
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Preview</div>
                     <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>{activeContractTemplate?.name || 'Choose a template'}</div>
                   </div>
-                  {activeContractTemplate?.reference_file_url ? <a className="btn btn-outline btn-sm" href={activeContractTemplate.reference_file_url} target="_blank" rel="noreferrer">Open reference file</a> : null}
+                  {activeContractTemplate?.reference_file_path || activeContractTemplate?.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openTemplateReferenceFile(activeContractTemplate)}>Open reference file</button> : null}
                 </div>
                 {activeContractTemplate ? (
                   <>
@@ -4079,8 +4143,8 @@ export default function StaffProfile() {
                             <div>Staff sign-off: {contract.staff_signature?.name || 'Pending'}</div>
                           </div>
                           <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-                            {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
-                            {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Open template attachment</a> : null}
+                            {contract.final_document_path || contract.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedContractFile(contract)}>Open signed PDF</button> : null}
+                            {contract.template_reference_file_path || contract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openContractReferenceFile(contract)}>Open template attachment</button> : null}
                             {contract.status === 'awaiting_staff_signature' ? (
                               <button className="btn btn-outline btn-sm" onClick={() => resendContractReminder(contract)} disabled={contractSaving}>Resend reminder</button>
                             ) : null}

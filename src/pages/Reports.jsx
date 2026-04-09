@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, CalendarRange, CheckSquare, Clock3, Download, HeadphonesIcon, ShieldCheck, UserCheck, Users } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../utils/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { logAction } from '../utils/audit'
 
 const ACTION_COLORS = {
   outreach_added: 'var(--accent)',
@@ -137,7 +139,9 @@ function toCsv(rows) {
   ].join('\n')
 }
 
-function downloadCsv(filename, rows) {
+async function downloadCsv({ filename, rows, user, action, target, details = {} }) {
+  const reason = window.prompt('Add a short reason for this report export:')
+  if (!reason?.trim()) return
   const csv = toCsv(rows)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -148,6 +152,13 @@ function downloadCsv(filename, rows) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+  await logAction(user?.email, user?.name, action || 'report_exported', target || 'report', filename, {
+    filename,
+    row_count: rows.length,
+    reason: reason.trim(),
+    generated_at: new Date().toISOString(),
+    ...details,
+  })
 }
 
 function ReportStatCard({ icon: Icon, label, value, hint, accent }) {
@@ -185,6 +196,7 @@ function EmptyState({ text }) {
 }
 
 export default function Reports() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('overview')
   const [period, setPeriod] = useState('30')
   const [loading, setLoading] = useState(true)
@@ -622,7 +634,7 @@ export default function Reports() {
                 <ReportPanel
                   title="Revenue tracked"
                   subtitle={`Commission revenue recorded over the last ${period} days.`}
-                  action={overview.revenue.length ? <button className="btn btn-outline btn-sm" onClick={() => downloadCsv(`dh-revenue-${period}d.csv`, overview.revenue)}><Download size={14} /> Export</button> : null}
+                  action={overview.revenue.length ? <button className="btn btn-outline btn-sm" onClick={() => downloadCsv({ filename: `dh-revenue-${period}d.csv`, rows: overview.revenue, user, action: 'report_revenue_exported', target: 'report_revenue', details: { period_days: Number(period) } })}><Download size={14} /> Export</button> : null}
                 >
                   {overview.revenue.length ? (
                     <div style={{ padding: '18px 18px 8px' }}>
@@ -657,7 +669,7 @@ export default function Reports() {
                 <ReportPanel
                   title="Scheduled hours"
                   subtitle="Submitted rota hours for this week, ranked by staff member."
-                  action={overview.scheduleHours.length ? <button className="btn btn-outline btn-sm" onClick={() => downloadCsv('dh-scheduled-hours.csv', overview.scheduleHours)}><Download size={14} /> Export</button> : null}
+                  action={overview.scheduleHours.length ? <button className="btn btn-outline btn-sm" onClick={() => downloadCsv({ filename: 'dh-scheduled-hours.csv', rows: overview.scheduleHours, user, action: 'report_schedule_hours_exported', target: 'report_schedule_hours' })}><Download size={14} /> Export</button> : null}
                 >
                   {overview.scheduleHours.length ? (
                     <div style={{ padding: '18px 18px 8px' }}>
@@ -705,7 +717,7 @@ export default function Reports() {
             <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>
               A live people view combining HR profiles, portal activity, and this week’s submitted rota hours.
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => downloadCsv('dh-people-report.csv', peopleExportRows)} disabled={!people.length}>
+            <button className="btn btn-outline btn-sm" onClick={() => downloadCsv({ filename: 'dh-people-report.csv', rows: peopleExportRows, user, action: 'report_people_exported', target: 'report_people' })} disabled={!people.length}>
               <Download size={14} /> Export
             </button>
           </div>
@@ -768,7 +780,7 @@ export default function Reports() {
             <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.6 }}>
               Outreach performance across assigned leads, booked calls, overdue follow-ups, and conversion progress.
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => downloadCsv('dh-outreach-performance.csv', outreach.exportRows)} disabled={!outreach.exportRows.length}>
+            <button className="btn btn-outline btn-sm" onClick={() => downloadCsv({ filename: 'dh-outreach-performance.csv', rows: outreach.exportRows, user, action: 'report_outreach_exported', target: 'report_outreach' })} disabled={!outreach.exportRows.length}>
               <Download size={14} /> Export
             </button>
           </div>
