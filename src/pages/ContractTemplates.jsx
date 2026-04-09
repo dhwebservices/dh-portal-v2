@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../utils/supabase'
 import { createContractTemplate, buildContractTemplateKey, CONTRACT_PLACEHOLDERS } from '../utils/contracts'
 import { Modal } from '../components/Modal'
+import { useAuth } from '../contexts/AuthContext'
+import { openSecureDocument } from '../utils/fileAccess'
 
 const DEFAULT_TEMPLATE_HTML = `
 <p>This Employment Contract is made between <strong>DH Website Services</strong> and <strong>{{staff_name}}</strong>.</p>
@@ -11,7 +13,7 @@ const DEFAULT_TEMPLATE_HTML = `
 <p>Issue date: <strong>{{issue_date}}</strong></p>
 `
 
-function TemplateCard({ template, onEdit, onArchive }) {
+function TemplateCard({ template, onEdit, onArchive, onOpenReference }) {
   return (
     <div className="card card-pad" style={{ display:'grid', gap:12 }}>
       <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
@@ -39,7 +41,7 @@ function TemplateCard({ template, onEdit, onArchive }) {
           Updated {new Date(template.updated_at || template.created_at || Date.now()).toLocaleString('en-GB')}
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          {template.reference_file_url ? <a className="btn btn-outline btn-sm" href={template.reference_file_url} target="_blank" rel="noreferrer">Open reference</a> : null}
+          {template.reference_file_path || template.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => onOpenReference(template)}>Open reference</button> : null}
           <button className="btn btn-outline btn-sm" onClick={() => onEdit(template)}>Edit</button>
           <button className="btn btn-danger btn-sm" onClick={() => onArchive(template)}>{template.active ? 'Archive' : 'Restore'}</button>
         </div>
@@ -49,6 +51,7 @@ function TemplateCard({ template, onEdit, onArchive }) {
 }
 
 export default function ContractTemplates() {
+  const { user } = useAuth()
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -122,10 +125,9 @@ export default function ContractTemplates() {
         const filePath = `contract-templates/${nextTemplate.id}/${Date.now()}-${referenceFile.name}`
         const { error: uploadError } = await supabase.storage.from('hr-documents').upload(filePath, referenceFile)
         if (uploadError) throw uploadError
-        const { data: fileUrlData } = supabase.storage.from('hr-documents').getPublicUrl(filePath)
         nextTemplate = {
           ...nextTemplate,
-          reference_file_url: fileUrlData.publicUrl,
+          reference_file_url: '',
           reference_file_path: filePath,
           reference_file_name: referenceFile.name,
         }
@@ -159,6 +161,26 @@ export default function ContractTemplates() {
     await load()
   }
 
+  async function openReference(template) {
+    try {
+      await openSecureDocument({
+        filePath: template.reference_file_path,
+        fallbackUrl: template.reference_file_url,
+        userEmail: user?.email,
+        userName: user?.name,
+        action: 'contract_template_reference_opened',
+        entity: 'contract_template',
+        entityId: template.id,
+        details: {
+          template_name: template.name,
+          file_name: template.reference_file_name || '',
+        },
+      })
+    } catch (openError) {
+      setError(openError.message || 'Could not open the reference file.')
+    }
+  }
+
   const activeCount = useMemo(() => templates.filter((template) => template.active).length, [templates])
 
   return (
@@ -184,7 +206,7 @@ export default function ContractTemplates() {
 
       <div style={{ display:'grid', gap:14 }}>
         {loading ? <div className="spin-wrap"><div className="spin" /></div> : templates.length ? templates.map((template) => (
-          <TemplateCard key={template.id} template={template} onEdit={openEdit} onArchive={toggleArchive} />
+          <TemplateCard key={template.id} template={template} onEdit={openEdit} onArchive={toggleArchive} onOpenReference={openReference} />
         )) : (
           <div className="empty"><p>No contract templates yet. Create one to start issuing signed staff contracts.</p></div>
         )}

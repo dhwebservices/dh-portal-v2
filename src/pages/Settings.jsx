@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendEmail } from '../utils/email'
+import { logAction } from '../utils/audit'
 
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
 const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'clientservices@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@', 'support@']
@@ -178,6 +179,45 @@ export default function Settings() {
       {saved === section && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span>}
     </div>
   )
+
+  const requireReason = (label) => {
+    const reason = window.prompt(`Add a short reason for this ${label.toLowerCase()}:`)
+    return String(reason || '').trim()
+  }
+
+  const clearOldAuditLogs = async () => {
+    if (!isAdmin) return
+    if (!window.confirm('Clear old audit logs? This cannot be undone.')) return
+    const reason = requireReason('audit log deletion')
+    if (!reason) return
+    const cutoff = new Date(Date.now() - 90 * 86400000).toISOString()
+    await supabase.from('audit_log').delete().lt('created_at', cutoff)
+    await logAction(user?.email, user?.name, 'audit_log_cleared', 'audit_log', null, { cutoff, reason })
+    setSuccess('Settings saved')
+  }
+
+  const exportPortalData = async () => {
+    if (!isAdmin) return
+    const reason = requireReason('data export')
+    if (!reason) return
+    const [{ data: clients }, { data: outreach }, { data: staff }] = await Promise.all([
+      supabase.from('clients').select('*'),
+      supabase.from('outreach').select('*'),
+      supabase.from('hr_profiles').select('*'),
+    ])
+    const generatedAt = new Date().toISOString()
+    const blob = new Blob([JSON.stringify({ generated_at: generatedAt, clients, outreach, staff }, null, 2)], { type:'application/json' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `dh-portal-export-${generatedAt.split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    await logAction(user?.email, user?.name, 'portal_data_exported', 'portal_data', null, {
+      reason,
+      generated_at: generatedAt,
+      datasets: ['clients', 'outreach', 'hr_profiles'],
+    })
+  }
 
   const Field = ({ label, k, type='text', placeholder='' }) => (
     <div>
@@ -395,12 +435,12 @@ export default function Settings() {
             <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--border)' }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>Clear Audit Log</div>
               <div style={{ fontSize:12, color:'var(--sub)', marginBottom:10 }}>Permanently delete all audit log entries older than 90 days.</div>
-              <button className="btn btn-danger btn-sm" onClick={async () => { if(!confirm('Clear old audit logs? This cannot be undone.')) return; const cutoff = new Date(Date.now()-90*86400000).toISOString(); await supabase.from('audit_log').delete().lt('created_at', cutoff); setSuccess('Settings saved') }}>Clear Old Logs</button>
+              <button className="btn btn-danger btn-sm" onClick={clearOldAuditLogs} disabled={!isAdmin}>Clear Old Logs</button>
             </div>
             <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--border)' }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>Export All Data</div>
               <div style={{ fontSize:12, color:'var(--sub)', marginBottom:10 }}>Download a full export of portal data as JSON.</div>
-              <button className="btn btn-outline btn-sm" onClick={async () => { const [{ data: c }, { data: o }, { data: s }] = await Promise.all([supabase.from('clients').select('*'), supabase.from('outreach').select('*'), supabase.from('staff').select('*')]); const blob = new Blob([JSON.stringify({ clients:c, outreach:o, staff:s }, null, 2)], { type:'application/json' }); const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='dh-portal-export.json'; a.click() }}>Export JSON</button>
+              <button className="btn btn-outline btn-sm" onClick={exportPortalData} disabled={!isAdmin}>Export JSON</button>
             </div>
           </div>
         </div>

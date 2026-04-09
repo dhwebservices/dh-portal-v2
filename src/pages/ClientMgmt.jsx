@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { sendEmail } from '../utils/email'
 import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
+import { openSecureDocument } from '../utils/fileAccess'
 import {
   buildClientContractKey,
   buildClientContractMergeFields,
@@ -303,10 +304,9 @@ export default function ClientMgmt() {
         const filePath = `client-contract-templates/${nextTemplate.id}/${Date.now()}-${referenceFile.name}`
         const { error: uploadError } = await supabase.storage.from('hr-documents').upload(filePath, referenceFile)
         if (uploadError) throw uploadError
-        const { data: publicUrlData } = supabase.storage.from('hr-documents').getPublicUrl(filePath)
         nextTemplate = {
           ...nextTemplate,
-          reference_file_url: publicUrlData.publicUrl,
+          reference_file_url: '',
           reference_file_path: filePath,
           reference_file_name: referenceFile.name,
         }
@@ -346,6 +346,47 @@ export default function ClientMgmt() {
       value: { value: nextTemplate },
     }, { onConflict: 'key' })
     await load()
+  }
+
+  const openTemplateReference = async (template) => {
+    try {
+      await openSecureDocument({
+        filePath: template.reference_file_path,
+        fallbackUrl: template.reference_file_url,
+        userEmail: user?.email,
+        userName: user?.name,
+        action: 'client_contract_template_reference_opened',
+        entity: 'client_contract_template',
+        entityId: template.id,
+        details: {
+          template_name: template.name,
+          file_name: template.reference_file_name || '',
+        },
+      })
+    } catch (error) {
+      setTemplateError(error.message || 'Could not open the reference file.')
+    }
+  }
+
+  const openIssuedContractReference = async (contract) => {
+    try {
+      await openSecureDocument({
+        filePath: contract.template_reference_file_path,
+        fallbackUrl: contract.template_reference_file_url,
+        userEmail: user?.email,
+        userName: user?.name,
+        action: 'client_contract_reference_opened',
+        entity: 'client_contract',
+        entityId: contract.id,
+        details: {
+          client_email: contract.client_email || '',
+          template_name: contract.template_name || '',
+          file_name: contract.template_reference_file_name || '',
+        },
+      })
+    } catch (error) {
+      setContractError(error.message || 'Could not open the contract reference file.')
+    }
   }
 
   const issueClientContract = async () => {
@@ -764,7 +805,7 @@ export default function ClientMgmt() {
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     <button className="btn btn-outline btn-sm" onClick={() => startEditContractTemplate(template)}>Edit</button>
                     <button className="btn btn-outline btn-sm" onClick={() => toggleContractTemplateArchive(template)}>{template.active ? 'Archive' : 'Restore'}</button>
-                    {template.reference_file_url ? <a className="btn btn-outline btn-sm" href={template.reference_file_url} target="_blank" rel="noreferrer">Reference file</a> : null}
+                    {template.reference_file_path || template.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openTemplateReference(template)}>Reference file</button> : null}
                   </div>
                 </div>
               )) : <div className="empty"><p>No client contract templates yet.</p></div>}
@@ -858,7 +899,7 @@ export default function ClientMgmt() {
                       </div>
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                         {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Signed PDF</a> : null}
-                        {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Reference file</a> : null}
+                        {contract.template_reference_file_path || contract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openIssuedContractReference(contract)}>Reference file</button> : null}
                       </div>
                     </div>
                   )

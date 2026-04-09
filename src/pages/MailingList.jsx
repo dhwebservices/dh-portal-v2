@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { logAction } from '../utils/audit'
 
 export default function MailingList() {
   const { user } = useAuth()
@@ -45,6 +46,25 @@ export default function MailingList() {
   const active = subscribers.filter(s => !s.unsubscribed).length
   const unsub  = subscribers.filter(s => s.unsubscribed).length
 
+  const exportCsv = async () => {
+    const reason = window.prompt('Add a short reason for this mailing list export:')
+    const safeReason = String(reason || '').trim()
+    if (!safeReason) return
+    const csv = 'Email,Name,Source,Subscribed,Status\n' +
+      subscribers.map(s => `${s.email},${s.name||''},${s.source||''},${s.subscribed_at},${s.unsubscribed?'Unsubscribed':'Active'}`).join('\n')
+    const generatedAt = new Date().toISOString()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }))
+    a.download = 'mailing-list-' + generatedAt.split('T')[0] + '.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
+    await logAction(user?.email, user?.name, 'mailing_list_exported', 'mailing_list', null, {
+      reason: safeReason,
+      generated_at: generatedAt,
+      row_count: subscribers.length,
+    })
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd">
@@ -52,14 +72,7 @@ export default function MailingList() {
           <h1 className="page-title">Mailing List</h1>
           <p className="page-sub">{active} active subscribers · {unsub} unsubscribed</p>
         </div>
-        <button className="btn btn-outline" onClick={() => {
-          const csv = 'Email,Name,Source,Subscribed,Status\n' +
-            subscribers.map(s => `${s.email},${s.name||''},${s.source||''},${s.subscribed_at},${s.unsubscribed?'Unsubscribed':'Active'}`).join('\n')
-          const a = document.createElement('a')
-          a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }))
-          a.download = 'mailing-list-' + new Date().toISOString().split('T')[0] + '.csv'
-          a.click()
-        }}>⬇ Export CSV</button>
+        <button className="btn btn-outline" onClick={exportCsv}>⬇ Export CSV</button>
       </div>
 
       {/* Stats */}
