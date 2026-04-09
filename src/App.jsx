@@ -286,160 +286,19 @@ function DesktopCursor() {
 }
 
 function AmbientBackground() {
-  const ambientRef = useRef(null)
-  const canvasRef = useRef(null)
-  const frameRef = useRef(0)
-  const pointsRef = useRef([])
-  const activeRef = useRef(false)
-  const targetRef = useRef({
-    x: 0,
-    y: 0,
-    rotateX: 0,
-    rotateY: 0,
-  })
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !ambientRef.current || !window.matchMedia || !canvasRef.current) return undefined
-
-    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)')
-    const canvas = canvasRef.current
-    const context = canvas.getContext('2d')
-    if (!context) return undefined
-
-    const resizeCanvas = () => {
-      const ratio = window.devicePixelRatio || 1
-      canvas.width = Math.floor(window.innerWidth * ratio)
-      canvas.height = Math.floor(window.innerHeight * ratio)
-      canvas.style.width = `${window.innerWidth}px`
-      canvas.style.height = `${window.innerHeight}px`
-      context.setTransform(1, 0, 0, 1, 0, 0)
-      context.scale(ratio, ratio)
-      context.lineCap = 'round'
-      context.lineJoin = 'round'
-    }
-
-    resizeCanvas()
-
-    const drawTrail = () => {
-      const now = performance.now()
-      pointsRef.current = pointsRef.current.filter((point) => now - point.t < 520)
-
-      context.clearRect(0, 0, window.innerWidth, window.innerHeight)
-
-      if (pointsRef.current.length > 1) {
-        const gradient = context.createLinearGradient(
-          pointsRef.current[0].x,
-          pointsRef.current[0].y,
-          pointsRef.current[pointsRef.current.length - 1].x,
-          pointsRef.current[pointsRef.current.length - 1].y,
-        )
-        gradient.addColorStop(0, 'rgba(107, 214, 171, 0.04)')
-        gradient.addColorStop(0.28, 'rgba(107, 214, 171, 0.58)')
-        gradient.addColorStop(0.68, 'rgba(75, 112, 226, 0.88)')
-        gradient.addColorStop(1, 'rgba(75, 112, 226, 0)')
-
-        context.beginPath()
-        context.moveTo(pointsRef.current[0].x, pointsRef.current[0].y)
-        for (let index = 1; index < pointsRef.current.length - 1; index += 1) {
-          const current = pointsRef.current[index]
-          const next = pointsRef.current[index + 1]
-          const controlX = (current.x + next.x) / 2
-          const controlY = (current.y + next.y) / 2
-          context.quadraticCurveTo(current.x, current.y, controlX, controlY)
-        }
-        const lastPoint = pointsRef.current[pointsRef.current.length - 1]
-        context.lineTo(lastPoint.x, lastPoint.y)
-        context.strokeStyle = gradient
-        context.lineWidth = 4
-        context.shadowColor = 'rgba(75, 112, 226, 0.28)'
-        context.shadowBlur = 18
-        context.stroke()
-
-        context.strokeStyle = 'rgba(255,255,255,0.16)'
-        context.lineWidth = 1.35
-        context.shadowBlur = 0
-        context.stroke()
-      }
-    }
-
-    const renderFrame = () => {
-      frameRef.current = 0
-      if (!ambientRef.current) return
-      ambientRef.current.style.setProperty('--ambient-shift-x', `${targetRef.current.x}px`)
-      ambientRef.current.style.setProperty('--ambient-shift-y', `${targetRef.current.y}px`)
-      ambientRef.current.style.setProperty('--ambient-tilt-x', `${targetRef.current.rotateX}deg`)
-      ambientRef.current.style.setProperty('--ambient-tilt-y', `${targetRef.current.rotateY}deg`)
-      drawTrail()
-
-      if (activeRef.current || pointsRef.current.length > 1) {
-        frameRef.current = window.requestAnimationFrame(renderFrame)
-      }
-    }
-
-    const scheduleFrame = () => {
-      if (!frameRef.current) {
-        frameRef.current = window.requestAnimationFrame(renderFrame)
-      }
-    }
-
-    const handleMove = (event) => {
-      if (!mediaQuery.matches) return
-      activeRef.current = true
-      const xRatio = event.clientX / window.innerWidth - 0.5
-      const yRatio = event.clientY / window.innerHeight - 0.5
-      targetRef.current = {
-        x: xRatio * 72,
-        y: yRatio * 48,
-        rotateX: yRatio * -3.5,
-        rotateY: xRatio * 4.5,
-      }
-      pointsRef.current.push({ x: event.clientX, y: event.clientY, t: performance.now() })
-      if (pointsRef.current.length > 24) {
-        pointsRef.current = pointsRef.current.slice(-24)
-      }
-      scheduleFrame()
-    }
-
-    const handleLeave = () => {
-      activeRef.current = false
-      targetRef.current = {
-        x: 0,
-        y: 0,
-        rotateX: 0,
-        rotateY: 0,
-      }
-      scheduleFrame()
-    }
-
-    window.addEventListener('mousemove', handleMove)
-    window.addEventListener('mouseleave', handleLeave)
-    window.addEventListener('resize', resizeCanvas)
-
-    return () => {
-      if (frameRef.current) {
-        window.cancelAnimationFrame(frameRef.current)
-        frameRef.current = 0
-      }
-      window.removeEventListener('mousemove', handleMove)
-      window.removeEventListener('mouseleave', handleLeave)
-      window.removeEventListener('resize', resizeCanvas)
-    }
-  }, [])
-
   return (
-    <div
-      ref={ambientRef}
-      className="portal-ambient"
-      style={{
-        '--ambient-shift-x': '0px',
-        '--ambient-shift-y': '0px',
-        '--ambient-tilt-x': '0deg',
-        '--ambient-tilt-y': '0deg',
-      }}
-      aria-hidden="true"
-    >
+    <div className="portal-ambient" aria-hidden="true">
       <div className="portal-ambient-grid" />
-      <canvas ref={canvasRef} className="portal-ambient-canvas" />
+      <div className="portal-ambient-trails">
+        <span className="portal-ambient-trail trail-1" />
+        <span className="portal-ambient-trail trail-2" />
+        <span className="portal-ambient-trail trail-3" />
+        <span className="portal-ambient-trail trail-4" />
+        <span className="portal-ambient-trail trail-5" />
+        <span className="portal-ambient-trail trail-6" />
+        <span className="portal-ambient-trail trail-7" />
+        <span className="portal-ambient-trail trail-8" />
+      </div>
       <div className="portal-ambient-orb-field">
         <div className="portal-ambient-orb portal-ambient-orb-a" />
         <div className="portal-ambient-orb portal-ambient-orb-b" />

@@ -168,6 +168,12 @@ button { cursor: pointer; font-family: inherit; }
 @keyframes ambientDriftB { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-4%, 3%, 0) scale(1.08); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes ambientDriftC { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(2%, 5%, 0) scale(1.04); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes ambientGridShift { 0% { transform: translate3d(0, 0, 0); opacity: 0.7; } 50% { transform: translate3d(0, -8px, 0); opacity: 1; } 100% { transform: translate3d(0, 0, 0); opacity: 0.7; } }
+@keyframes ambientLineRace {
+  0% { transform: translate3d(-24vw, 14vh, 0) rotate(var(--trail-angle)) scaleX(0.82); opacity: 0; }
+  10% { opacity: 0.92; }
+  58% { opacity: 0.84; }
+  100% { transform: translate3d(124vw, -18vh, 0) rotate(var(--trail-angle)) scaleX(1.08); opacity: 0; }
+}
 
 .fade-in { animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both; }
 
@@ -181,7 +187,8 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 [data-motion-mode="reduced"] .portal-ambient-grid,
-[data-motion-mode="reduced"] .portal-ambient-canvas,
+[data-motion-mode="reduced"] .portal-ambient-trails,
+[data-motion-mode="reduced"] .portal-ambient-trail,
 [data-motion-mode="reduced"] .portal-ambient-orb,
 [data-motion-mode="reduced"] .portal-ambient-orb-field {
   animation: none !important;
@@ -228,10 +235,6 @@ button { cursor: pointer; font-family: inherit; }
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
-  --ambient-shift-x: 0px;
-  --ambient-shift-y: 0px;
-  --ambient-tilt-x: 0deg;
-  --ambient-tilt-y: 0deg;
 }
 .portal-ambient-grid {
   position: absolute;
@@ -243,24 +246,57 @@ button { cursor: pointer; font-family: inherit; }
   mask-image: linear-gradient(180deg, rgba(0,0,0,0.28), transparent 72%);
   -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.28), transparent 72%);
   animation: ambientGridShift 18s ease-in-out infinite;
-  transform: translate3d(calc(var(--ambient-shift-x) * 0.12), calc(var(--ambient-shift-y) * 0.1), 0);
-  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.portal-ambient-canvas {
+.portal-ambient-trails {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  opacity: 0.9;
+  mix-blend-mode: screen;
 }
+.portal-ambient-trail {
+  --trail-angle: -12deg;
+  --trail-duration: 4.2s;
+  --trail-delay: 0s;
+  --trail-top: 22%;
+  --trail-thickness: 2px;
+  --trail-length: 42vw;
+  position: absolute;
+  left: -26vw;
+  top: var(--trail-top);
+  width: var(--trail-length);
+  height: var(--trail-thickness);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg,
+      rgba(102, 214, 173, 0) 0%,
+      rgba(102, 214, 173, 0.18) 8%,
+      rgba(102, 214, 173, 0.94) 28%,
+      rgba(75, 112, 226, 0.98) 58%,
+      rgba(75, 112, 226, 0.54) 84%,
+      rgba(75, 112, 226, 0) 100%);
+  box-shadow:
+    0 0 16px rgba(102, 214, 173, 0.34),
+    0 0 24px rgba(75, 112, 226, 0.22);
+  animation: ambientLineRace var(--trail-duration) linear infinite;
+  animation-delay: var(--trail-delay);
+  transform-origin: left center;
+  will-change: transform, opacity;
+}
+.trail-1 { --trail-top: 11%; --trail-angle: -11deg; --trail-duration: 3.7s; --trail-delay: -0.8s; --trail-length: 34vw; }
+.trail-2 { --trail-top: 20%; --trail-angle: -9deg; --trail-duration: 4.1s; --trail-delay: -1.9s; --trail-length: 48vw; --trail-thickness: 3px; }
+.trail-3 { --trail-top: 31%; --trail-angle: -14deg; --trail-duration: 3.4s; --trail-delay: -2.5s; --trail-length: 39vw; }
+.trail-4 { --trail-top: 44%; --trail-angle: -8deg; --trail-duration: 4.4s; --trail-delay: -0.3s; --trail-length: 54vw; }
+.trail-5 { --trail-top: 57%; --trail-angle: -13deg; --trail-duration: 3.8s; --trail-delay: -2.1s; --trail-length: 36vw; }
+.trail-6 { --trail-top: 68%; --trail-angle: -10deg; --trail-duration: 4s; --trail-delay: -1.2s; --trail-length: 46vw; --trail-thickness: 3px; }
+.trail-7 { --trail-top: 80%; --trail-angle: -15deg; --trail-duration: 3.5s; --trail-delay: -2.8s; --trail-length: 31vw; }
+.trail-8 { --trail-top: 89%; --trail-angle: -7deg; --trail-duration: 4.3s; --trail-delay: -1.6s; --trail-length: 43vw; }
 .portal-ambient-orb-field {
   position: absolute;
   inset: -8%;
   pointer-events: none;
   will-change: transform;
-}
-.portal-ambient-orb-field {
-  transform: translate3d(calc(var(--ambient-shift-x) * 0.24), calc(var(--ambient-shift-y) * 0.18), 0);
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .portal-ambient-orb {
   position: absolute;
@@ -336,6 +372,15 @@ button { cursor: pointer; font-family: inherit; }
   .portal-ambient-grid {
     opacity: 0.55;
     background-size: 28px 28px;
+  }
+
+  .portal-ambient-trails {
+    opacity: 0.66;
+  }
+
+  .portal-ambient-trail {
+    --trail-length: 54vw;
+    --trail-duration: 4.8s;
   }
 
   .portal-ambient-orb-a {
