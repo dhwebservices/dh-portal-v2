@@ -371,10 +371,10 @@ export function buildRequisitionPatch(nextStatus = '', actor = {}, notes = '') {
     requested_by_email: nextStatus === 'pending_approval' ? String(actor.email || '').trim().toLowerCase() : undefined,
     requested_by_name: nextStatus === 'pending_approval' ? String(actor.name || actor.email || '').trim() : undefined,
     requested_at: nextStatus === 'pending_approval' ? now : undefined,
-    decision_by_email: ['approved', 'rejected'].includes(nextStatus) ? String(actor.email || '').trim().toLowerCase() : undefined,
-    decision_by_name: ['approved', 'rejected'].includes(nextStatus) ? String(actor.name || actor.email || '').trim() : undefined,
-    decision_at: ['approved', 'rejected'].includes(nextStatus) ? now : undefined,
-    decision_notes: ['approved', 'rejected'].includes(nextStatus) ? String(notes || '').trim() : undefined,
+    decision_by_email: ['approved', 'rejected'].includes(nextStatus) ? String(actor.email || '').trim().toLowerCase() : null,
+    decision_by_name: ['approved', 'rejected'].includes(nextStatus) ? String(actor.name || actor.email || '').trim() : null,
+    decision_at: ['approved', 'rejected'].includes(nextStatus) ? now : null,
+    decision_notes: ['approved', 'rejected'].includes(nextStatus) ? String(notes || '').trim() : '',
   }
 }
 
@@ -431,8 +431,36 @@ export async function saveJobPost(job = {}, actor = '') {
 }
 
 export async function deleteJobPost(id) {
-  const { error } = await supabase.from('job_posts').delete().eq('id', id)
-  if (error) throw error
+  const { data: applications, error: applicationError } = await supabase
+    .from('job_applications')
+    .select('id')
+    .eq('job_post_id', id)
+
+  if (applicationError) throw applicationError
+
+  const applicationIds = (applications || []).map((application) => application.id).filter(Boolean)
+
+  if (applicationIds.length) {
+    const applicationProfileKeys = applicationIds.map((applicationId) => buildApplicationProfileSettingKey(applicationId))
+    const cleanupResults = await Promise.all([
+      supabase.from('job_application_status_history').delete().in('application_id', applicationIds),
+      supabase.from('job_application_notes').delete().in('application_id', applicationIds),
+      supabase.from('candidate_interview_slots').delete().in('application_id', applicationIds),
+      supabase.from('candidate_invites').delete().in('application_id', applicationIds),
+      supabase.from('portal_settings').delete().in('key', applicationProfileKeys),
+      supabase.from('job_applications').delete().in('id', applicationIds),
+    ])
+    const cleanupError = cleanupResults.find((result) => result.error)?.error
+    if (cleanupError) throw cleanupError
+  }
+
+  const [profileDelete, jobDelete] = await Promise.all([
+    supabase.from('portal_settings').delete().eq('key', buildJobProfileSettingKey(id)),
+    supabase.from('job_posts').delete().eq('id', id),
+  ])
+
+  if (profileDelete.error) throw profileDelete.error
+  if (jobDelete.error) throw jobDelete.error
 }
 
 async function listJobsByIds(jobIds = []) {
@@ -659,9 +687,27 @@ export async function createCandidatePortalInvite(application, actor = {}, optio
 
   return {
     token: rawToken,
-    inviteUrl: `https://careers.dhwebsiteservices.co.uk/invite/${rawToken}`,
+    inviteUrl: `https://careers.dhwebsiteservices.co.uk/login?email=${encodeURIComponent(String(application.email || '').trim().toLowerCase())}&applicationId=${encodeURIComponent(application.id)}&notice=portal-invite`,
     expiresAt,
   }
+}
+
+export async function sendCandidatePasswordReset(application) {
+  const email = String(application?.email || '').trim().toLowerCase()
+  if (!email) {
+    throw new Error('Application email is required before sending a password reset.')
+  }
+
+  const redirectTo = new URL('https://careers.dhwebsiteservices.co.uk/login')
+  redirectTo.searchParams.set('mode', 'reset')
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectTo.toString(),
+  })
+
+  if (error) throw error
+
+  return true
 }
 
 export async function listHiringUsers() {

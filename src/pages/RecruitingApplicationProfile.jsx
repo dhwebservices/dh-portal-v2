@@ -4,7 +4,7 @@ import { CalendarDays, Mail, NotebookPen, ShieldCheck, Star, UserRound } from 'l
 import ApplicantCvViewer from '../components/ApplicantCvViewer'
 import ApplicantTimeline from '../components/ApplicantTimeline'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
-import { addApplicationNote, createCandidatePortalInvite, getApplication, listApplicationHistory, listApplicationNotes, listHiringUsers, listInterviewSlots, replaceInterviewSlots, saveApplicationProfileMeta, updateApplicationStatus } from '../utils/recruiting'
+import { addApplicationNote, createCandidatePortalInvite, getApplication, listApplicationHistory, listApplicationNotes, listHiringUsers, listInterviewSlots, replaceInterviewSlots, saveApplicationProfileMeta, sendCandidatePasswordReset, updateApplicationStatus } from '../utils/recruiting'
 import { sendEmail } from '../utils/email'
 import { sendCandidateInterviewBookingEmail, sendCandidatePortalInviteEmail, sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
@@ -118,6 +118,8 @@ export default function RecruitingApplicationProfile() {
   const [bookingInviteBusy, setBookingInviteBusy] = useState(false)
   const [portalInviteBusy, setPortalInviteBusy] = useState(false)
   const [portalInviteFeedback, setPortalInviteFeedback] = useState('')
+  const [passwordResetBusy, setPasswordResetBusy] = useState(false)
+  const [passwordResetFeedback, setPasswordResetFeedback] = useState('')
   const [overallRating, setOverallRating] = useState(0)
   const [scorecardRatings, setScorecardRatings] = useState({})
   const [strengthsDraft, setStrengthsDraft] = useState('')
@@ -306,6 +308,31 @@ DH Website Services HR`)
       setPortalInviteFeedback(error.message || 'Could not send the candidate portal invite.')
     } finally {
       setPortalInviteBusy(false)
+    }
+  }
+
+  const sendCandidateReset = async () => {
+    if (!application) return
+    setPasswordResetBusy(true)
+    setPasswordResetFeedback('')
+    try {
+      await sendCandidatePasswordReset(application)
+      await addApplicationNote(
+        application.id,
+        `Candidate password reset email sent${user?.email ? ` by ${user.email}` : ''}.`,
+        user,
+      )
+      const [applicationRow, noteRows] = await Promise.all([
+        getApplication(id),
+        listApplicationNotes(id),
+      ])
+      setApplication(applicationRow)
+      setNotes(noteRows)
+      setPasswordResetFeedback('Password reset email sent.')
+    } catch (error) {
+      setPasswordResetFeedback(error.message || 'Could not send the password reset email.')
+    } finally {
+      setPasswordResetBusy(false)
     }
   }
 
@@ -818,8 +845,12 @@ DH Website Services HR`)
                     Invite existing applicants to set up their candidate portal using the email address already attached to this application. Historical applications stay intact and will be linked into the new portal account.
                   </div>
                   {portalInviteFeedback ? <div style={{ fontSize:12.5, color: portalInviteFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{portalInviteFeedback}</div> : null}
+                  {passwordResetFeedback ? <div style={{ fontSize:12.5, color: passwordResetFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{passwordResetFeedback}</div> : null}
                   <button className="btn btn-primary" disabled={portalInviteBusy} onClick={sendCandidatePortalInvite}>
                     {portalInviteBusy ? 'Sending...' : application.portal_invited_at ? 'Resend portal invite' : 'Send portal invite'}
+                  </button>
+                  <button className="btn btn-outline" disabled={passwordResetBusy} onClick={sendCandidateReset}>
+                    {passwordResetBusy ? 'Sending...' : 'Send password reset'}
                   </button>
                 </div>
               </div>
