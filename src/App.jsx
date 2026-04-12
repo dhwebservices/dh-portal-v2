@@ -199,6 +199,7 @@ function DesktopCursor() {
   const cursorRef = useRef(null)
   const frameRef = useRef(0)
   const pointerRef = useRef({ x: 0, y: 0 })
+  const activatedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined
@@ -206,6 +207,10 @@ function DesktopCursor() {
     const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1025px)')
     const updateEnabled = () => {
       setEnabled(mediaQuery.matches)
+      if (!mediaQuery.matches) {
+        document.documentElement.classList.remove('custom-cursor-active')
+        activatedRef.current = false
+      }
       if (!mediaQuery.matches && cursorRef.current) {
         cursorRef.current.style.opacity = '0'
       }
@@ -224,14 +229,22 @@ function DesktopCursor() {
   useEffect(() => {
     if (!enabled) return undefined
 
+    const activateCursor = () => {
+      if (!activatedRef.current) {
+        activatedRef.current = true
+        document.documentElement.classList.add('custom-cursor-active')
+      }
+    }
+
     const renderCursor = () => {
       frameRef.current = 0
       if (!cursorRef.current) return
       cursorRef.current.style.transform = `translate3d(${pointerRef.current.x}px, ${pointerRef.current.y}px, 0)`
     }
 
-    const handleMove = (event) => {
+    const handlePointerMove = (event) => {
       pointerRef.current = { x: event.clientX, y: event.clientY }
+      activateCursor()
       if (cursorRef.current) {
         cursorRef.current.style.opacity = '1'
       }
@@ -246,26 +259,39 @@ function DesktopCursor() {
       }
     }
 
-    const handleEnter = (event) => {
+    const handlePointerEnter = (event) => {
       pointerRef.current = { x: event.clientX, y: event.clientY }
+      activateCursor()
       if (cursorRef.current) {
         cursorRef.current.style.opacity = '1'
         cursorRef.current.style.transform = `translate3d(${pointerRef.current.x}px, ${pointerRef.current.y}px, 0)`
       }
     }
 
-    window.addEventListener('mousemove', handleMove)
+    const handleWindowBlur = () => {
+      if (cursorRef.current) {
+        cursorRef.current.style.opacity = '0'
+      }
+      document.documentElement.classList.remove('custom-cursor-active')
+      activatedRef.current = false
+    }
+
+    document.addEventListener('pointermove', handlePointerMove, { passive: true })
+    document.addEventListener('pointerover', handlePointerEnter, { passive: true })
     window.addEventListener('mouseleave', handleLeave)
-    window.addEventListener('mouseenter', handleEnter)
+    window.addEventListener('blur', handleWindowBlur)
 
     return () => {
       if (frameRef.current) {
         window.cancelAnimationFrame(frameRef.current)
         frameRef.current = 0
       }
-      window.removeEventListener('mousemove', handleMove)
+      document.documentElement.classList.remove('custom-cursor-active')
+      activatedRef.current = false
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerover', handlePointerEnter)
       window.removeEventListener('mouseleave', handleLeave)
-      window.removeEventListener('mouseenter', handleEnter)
+      window.removeEventListener('blur', handleWindowBlur)
     }
   }, [enabled])
 

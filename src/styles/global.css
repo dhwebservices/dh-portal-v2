@@ -113,12 +113,12 @@ a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
 
 @media (hover: hover) and (pointer: fine) {
-  body,
-  a,
-  button,
-  [role="button"],
-  input[type="button"],
-  input[type="submit"] {
+  html.custom-cursor-active body,
+  html.custom-cursor-active a,
+  html.custom-cursor-active button,
+  html.custom-cursor-active [role="button"],
+  html.custom-cursor-active input[type="button"],
+  html.custom-cursor-active input[type="submit"] {
     cursor: none !important;
   }
 }

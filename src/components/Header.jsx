@@ -143,15 +143,15 @@ function resolvePageMeta(pathname = '') {
 
 function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAllRead, markReadAndOpen, markReadOnly }) {
   return (
-    <div className="header-bell-dropdown" style={{ position:'absolute', top:'calc(100% + 8px)', right:0, zIndex:200, overflow:'hidden' }}>
+    <div className="header-bell-dropdown" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 8px)', right:0, zIndex:400, overflow:'hidden' }}>
       <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
           <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Notifications</div>
           <div style={{ fontSize:11, color:'var(--sub)', marginTop:3 }}>{unread ? `${unread} unread` : 'Inbox is clear'}</div>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <button onClick={openInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
-          {unread > 0 && <button onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Read all</button>}
+          <button type="button" onClick={openInbox} style={{ fontSize:12, color:'var(--sub)', background:'none', border:'none', cursor:'pointer' }}>Open inbox</button>
+          {unread > 0 && <button type="button" onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>Read all</button>}
         </div>
       </div>
       <div style={{ maxHeight:320, overflowY:'auto' }}>
@@ -160,7 +160,7 @@ function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAll
             <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.05em', color:'var(--faint)', marginBottom:8 }}>Pinned</div>
             <div style={{ display:'grid', gap:8 }}>
               {pinnedAlerts.map((banner) => (
-                <button key={banner.id} onClick={openInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                <button type="button" key={banner.id} onClick={openInbox} style={{ textAlign:'left', padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:4 }}>
                     <span style={{ fontSize:12.5, fontWeight:600, color:'var(--text)' }}>{banner.title || 'Pinned alert'}</span>
                     <span className={`badge badge-${banner.type === 'urgent' ? 'red' : banner.type === 'warning' ? 'amber' : banner.type === 'success' ? 'green' : 'blue'}`}>Pinned</span>
@@ -181,8 +181,8 @@ function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAll
               <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{n.message}</div>
               <div style={{ fontSize:10, color:'var(--faint)', marginTop:5, fontFamily:'var(--font-mono)' }}>{new Date(n.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
             </div>
-            {n.link ? <button onClick={() => markReadAndOpen(n)} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11.5, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
-            <button onClick={() => markReadOnly(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:15, flexShrink:0, lineHeight:1 }}>×</button>
+            {n.link ? <button type="button" onClick={() => markReadAndOpen(n)} style={{ background:'none', border:'none', color:'var(--accent)', cursor:'pointer', fontSize:11.5, flexShrink:0, lineHeight:1.2 }}>Open</button> : null}
+            <button type="button" onClick={() => markReadOnly(n.id)} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:15, flexShrink:0, lineHeight:1 }}>×</button>
           </div>
         ))}
       </div>
@@ -360,7 +360,7 @@ export default function Header() {
 
       <div className="header-actions hide-mob">
         <div ref={desktopBellRef} style={{ position:'relative' }}>
-          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
+          <button type="button" className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:34, height:34, borderRadius:10, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}
             onMouseOver={e => { e.currentTarget.style.background='var(--bg2)'; e.currentTarget.style.color='var(--text)' }}
             onMouseOut={e => { if (!bellOpen) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--sub)' } }}>
             <BellIcon/>
@@ -395,7 +395,7 @@ export default function Header() {
 
       <div className="header-actions mobile-only">
         <div ref={mobileBellRef} style={{ position:'relative' }}>
-          <button className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}>
+          <button type="button" className="header-icon-btn" onClick={() => setBellOpen(o => !o)} title="Notifications" style={{ width:28, height:28, borderRadius:8, border:'1px solid var(--border)', background: bellOpen ? 'var(--bg2)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--sub)', position:'relative', transition:'all 0.15s' }}>
             <BellIcon/>
             {unread > 0 && (
               <span style={{ position:'absolute', top:3, right:3, width:8, height:8, borderRadius:'50%', background:'var(--red)', border:'2px solid var(--card)' }}/>
