@@ -8,6 +8,17 @@ import { setupMandate, getBillingRequest, getMandates, createPayment, createSubs
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
 import { deleteClientAccountByEmail, logClientActivity, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
+import {
+  buildClientOnboardingKey,
+  buildClientOnboardingSectionKey,
+  getOnboardingStatusLabel,
+  getOnboardingStatusTone,
+  getOrderedOnboardingSections,
+  normalizeOnboardingSection,
+  normalizeOnboardingSummary,
+  ONBOARDING_SECTION_ORDER,
+  parsePortalSetting,
+} from '../utils/clientOnboarding'
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
 const STATUSES = ['active','inactive','pending']
@@ -79,6 +90,10 @@ export default function ClientProfile() {
   // Activity + docs
   const [activity, setActivity] = useState([])
   const [tickets, setTickets]   = useState([])
+  const [onboardingSummary, setOnboardingSummary] = useState(null)
+  const [onboardingSections, setOnboardingSections] = useState({})
+  const [onboardingLoading, setOnboardingLoading] = useState(false)
+  const [onboardingSaving, setOnboardingSaving] = useState(false)
 
   const refreshMandateStatus = async (status, clientRecord = client) => {
     if (!status || !clientRecord?.email) return false
@@ -187,6 +202,79 @@ export default function ClientProfile() {
     supabase.from('support_tickets').select('*').ilike('client_email', client.email).order('created_at', { ascending:false })
       .then(({ data }) => setTickets(data || []))
   }, [client?.email])
+
+  const loadOnboarding = async (clientRecord = client) => {
+    if (!clientRecord?.email) return
+    setOnboardingLoading(true)
+    const summaryKey = buildClientOnboardingKey(clientRecord.email)
+    const sectionPrefix = buildClientOnboardingSectionKey(clientRecord.email, '')
+    const [{ data: summaryRow }, { data: sectionRows }] = await Promise.all([
+      supabase.from('portal_settings').select('key,value').eq('key', summaryKey).maybeSingle(),
+      supabase.from('portal_settings').select('key,value').like('key', `${sectionPrefix}%`),
+    ])
+
+    const summary = summaryRow?.value
+      ? normalizeOnboardingSummary(parsePortalSetting(summaryRow), clientRecord)
+      : null
+
+    const sectionMap = Object.fromEntries(
+      ONBOARDING_SECTION_ORDER.map((sectionKey) => {
+        const row = (sectionRows || []).find((item) => item.key === buildClientOnboardingSectionKey(clientRecord.email, sectionKey))
+        return [sectionKey, normalizeOnboardingSection(sectionKey, parsePortalSetting(row))]
+      })
+    )
+
+    setOnboardingSummary(summary)
+    setOnboardingSections(sectionMap)
+    setOnboardingLoading(false)
+  }
+
+  useEffect(() => {
+    if (!client?.email) return undefined
+
+    loadOnboarding(client)
+
+    const onboardingKey = buildClientOnboardingKey(client.email)
+    const sectionPrefix = buildClientOnboardingSectionKey(client.email, '')
+
+    const channel = supabase
+      .channel(`staff-client-onboarding-${client.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, (payload) => {
+        const key = payload.new?.key || payload.old?.key || ''
+        if (key === onboardingKey || key.startsWith(sectionPrefix)) loadOnboarding(client)
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [client?.email, client?.id])
+
+  const approveOnboarding = async () => {
+    if (!client?.email || !onboardingSummary) return
+    setOnboardingSaving(true)
+
+    const nextSummary = {
+      ...onboardingSummary,
+      approved_at: new Date().toISOString(),
+      approved_by: user?.email || user?.name || 'staff',
+      updated_at: new Date().toISOString(),
+      updated_by: user?.email || user?.name || 'staff',
+    }
+
+    await supabase.from('portal_settings').upsert({
+      key: buildClientOnboardingKey(client.email),
+      value: nextSummary,
+    }, { onConflict: 'key' })
+
+    await logClientActivity({
+      clientEmail: client.email,
+      eventType: 'onboarding_reviewed',
+      title: 'Client onboarding reviewed',
+      description: 'Staff marked the onboarding submission as reviewed in the staff portal.',
+    })
+
+    setOnboardingSummary(nextSummary)
+    setOnboardingSaving(false)
+  }
 
   const save = async () => {
     setSaving(true)
@@ -466,7 +554,7 @@ export default function ClientProfile() {
 
       {/* Tabs */}
       <div className="tabs">
-        {[['overview','Overview'],['payments','Payments'],['invoices','Invoices'],['tickets','Tickets'],['activity','Activity']].map(([k,l]) => (
+        {[['overview','Overview'],['onboarding','Onboarding'],['payments','Payments'],['invoices','Invoices'],['tickets','Tickets'],['activity','Activity']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -590,6 +678,120 @@ export default function ClientProfile() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'onboarding' && (
+        <div className="client-profile-overview-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap:20 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+            <div className="card card-pad">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', flexWrap:'wrap', marginBottom:18 }}>
+                <div>
+                  <div className="lbl" style={{ marginBottom:8 }}>Client onboarding sync</div>
+                  <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, maxWidth:620 }}>
+                    This tab reads the same shared onboarding records the client portal writes into <span style={{ fontFamily:'var(--font-mono)' }}>portal_settings</span>, so staff can review progress without a separate sync process.
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                  {onboardingSummary ? (
+                    <span className={`badge badge-${getOnboardingStatusTone(onboardingSummary.status)}`}>
+                      {getOnboardingStatusLabel(onboardingSummary.status)}
+                    </span>
+                  ) : (
+                    <span className="badge badge-grey">Not started</span>
+                  )}
+                  <button className="btn btn-ghost btn-sm" onClick={() => loadOnboarding(client)} disabled={onboardingLoading}>
+                    {onboardingLoading ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  {onboardingSummary?.status === 'submitted' && !onboardingSummary?.approved_at && (
+                    <button className="btn btn-primary btn-sm" onClick={approveOnboarding} disabled={onboardingSaving}>
+                      {onboardingSaving ? 'Approving...' : 'Mark reviewed'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="client-profile-summary-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:12 }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Completion</div>
+                  <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{onboardingSummary?.progress?.percent || 0}%</div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {(onboardingSummary?.progress?.completeCount || 0)}/{onboardingSummary?.progress?.total || ONBOARDING_SECTION_ORDER.length} sections submitted
+                  </div>
+                </div>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Submitted</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>
+                    {onboardingSummary?.submitted_at ? new Date(onboardingSummary.submitted_at).toLocaleString('en-GB') : 'Not submitted yet'}
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    Source: {onboardingSummary?.source || 'client_portal'}
+                  </div>
+                </div>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="lbl" style={{ marginBottom:8 }}>Reviewed by staff</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>
+                    {onboardingSummary?.approved_by || 'Pending'}
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                    {onboardingSummary?.approved_at ? new Date(onboardingSummary.approved_at).toLocaleString('en-GB') : 'No review recorded yet'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ overflow:'hidden' }}>
+              <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Section detail</div>
+              </div>
+              {getOrderedOnboardingSections(onboardingSections).map((section, index) => (
+                <div key={section.key} style={{ padding:'16px 18px', borderTop:index === 0 ? 'none' : '1px solid var(--border)', display:'grid', gap:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{section.label}</div>
+                    <span className={`badge badge-${getOnboardingStatusTone(section.status)}`}>{getOnboardingStatusLabel(section.status)}</span>
+                  </div>
+                  <div style={{ fontSize:12.5, color:'var(--faint)' }}>
+                    {section.updated_at ? `Last updated ${new Date(section.updated_at).toLocaleString('en-GB')}` : 'No update yet'}
+                  </div>
+                  <div style={{ display:'grid', gap:8 }}>
+                    {Object.entries(section.data || {}).map(([field, value]) => (
+                      <div key={field} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
+                        <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>
+                          {field.replace(/_/g, ' ')}
+                        </div>
+                        <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value || '').trim() || '—')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:12 }}>Operational note</div>
+              <p style={{ fontSize:13.5, color:'var(--sub)', lineHeight:1.7 }}>
+                The client portal writes onboarding to shared keys, and the client pipeline already supports onboarding lifecycle stages. This tab is the staff-side review surface for that same data.
+              </p>
+            </div>
+
+            <div className="card card-pad">
+              <div className="lbl" style={{ marginBottom:12 }}>Recommended next action</div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:8 }}>
+                {onboardingSummary?.status === 'submitted'
+                  ? 'Review the submitted content and move the project into internal planning.'
+                  : onboardingSummary?.status === 'in_progress'
+                    ? 'Wait for the client to finish the remaining onboarding sections.'
+                    : 'Ask the client to start the onboarding flow from their portal.'}
+              </div>
+              <div style={{ fontSize:12.5, color:'var(--faint)', lineHeight:1.6 }}>
+                This gives staff a clear place to check whether the brief is complete before build work starts.
+              </div>
             </div>
           </div>
         </div>

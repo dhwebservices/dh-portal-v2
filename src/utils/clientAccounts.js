@@ -74,6 +74,53 @@ export async function syncClientLinkedRecords({ oldEmail, newEmail, clientName }
 
   if (!tasks.length) return
   await Promise.all(tasks)
+
+  if (next && next !== previous) {
+    const summaryKey = `client_onboarding:${previous}`
+    const nextSummaryKey = `client_onboarding:${next}`
+    const sectionPrefix = `client_onboarding_section:${previous}:`
+    const nextSectionPrefix = `client_onboarding_section:${next}:`
+
+    const [{ data: summaryRow }, { data: sectionRows }] = await Promise.all([
+      supabase.from('portal_settings').select('key,value').eq('key', summaryKey).maybeSingle(),
+      supabase.from('portal_settings').select('key,value').like('key', `${sectionPrefix}%`),
+    ])
+
+    const onboardingUpserts = []
+
+    if (summaryRow?.value) {
+      const summaryValue = summaryRow.value?.value ?? summaryRow.value ?? {}
+      onboardingUpserts.push({
+        key: nextSummaryKey,
+        value: {
+          ...summaryValue,
+          client_email: next,
+          updated_at: new Date().toISOString(),
+        },
+      })
+    }
+
+    ;(sectionRows || []).forEach((row) => {
+      const sectionKey = String(row.key || '').replace(sectionPrefix, '')
+      const rawValue = row.value?.value ?? row.value ?? {}
+      onboardingUpserts.push({
+        key: `${nextSectionPrefix}${sectionKey}`,
+        value: {
+          ...rawValue,
+          client_email: next,
+          updated_at: new Date().toISOString(),
+        },
+      })
+    })
+
+    if (onboardingUpserts.length) {
+      await supabase.from('portal_settings').upsert(onboardingUpserts, { onConflict: 'key' })
+      await Promise.all([
+        supabase.from('portal_settings').delete().eq('key', summaryKey),
+        supabase.from('portal_settings').delete().like('key', `${sectionPrefix}%`),
+      ])
+    }
+  }
 }
 
 export async function logClientActivity({
