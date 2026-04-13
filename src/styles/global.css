@@ -1351,7 +1351,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .hr-onboarding-review-shell {
   width: min(1480px, calc(100vw - 48px));
-  min-height: calc(100vh - 48px);
+  height: calc(100vh - 48px);
+  max-height: calc(100vh - 48px);
   margin: 0 auto;
   background: var(--card);
   border: 1px solid var(--border);
@@ -1379,12 +1380,17 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
   gap: 20px;
   align-items: start;
+  overflow: hidden;
 }
 
 .hr-onboarding-review-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .hr-onboarding-review-card {
@@ -1399,6 +1405,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   display: grid;
   gap: 14px;
   align-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .hr-onboarding-review-panel {
@@ -1423,7 +1432,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
   .hr-onboarding-review-shell {
     width: 100%;
-    min-height: calc(100vh - 24px);
+    height: calc(100vh - 24px);
+    max-height: calc(100vh - 24px);
     border-radius: 18px;
   }
 
@@ -1434,10 +1444,18 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   .hr-onboarding-review-body {
     grid-template-columns: 1fr;
     padding: 18px;
+    overflow: auto;
   }
 
   .hr-onboarding-review-grid {
     grid-template-columns: 1fr;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .hr-onboarding-review-sections {
+    overflow: visible;
+    padding-right: 0;
   }
 }
 
