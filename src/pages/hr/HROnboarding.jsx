@@ -169,7 +169,30 @@ export default function HROnboarding() {
 
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  useEffect(() => { load() }, [user?.email])
+  const managedDepartmentKeys = managedDepartments.map((department) => String(department || '').trim().toLowerCase()).filter(Boolean)
+
+  useEffect(() => { load() }, [user?.email, isReviewer, canSeeAllSubmissions, managedDepartmentKeys.join('|')])
+
+  useEffect(() => {
+    if (!user?.email) return undefined
+
+    const channel = supabase
+      .channel(`hr-onboarding-${normalizeEmail(user.email)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'onboarding_submissions' }, () => {
+        load()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, (payload) => {
+        const key = payload.new?.key || payload.old?.key || ''
+        if (key.startsWith('onboarding_payload:') || key.startsWith('staff_org:') || key.startsWith('staff_contract:')) {
+          load()
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user?.email, isReviewer, canSeeAllSubmissions, managedDepartmentKeys.join('|')])
 
   const load = async () => {
     setLoading(true)
@@ -219,11 +242,12 @@ export default function HROnboarding() {
     setContractMessage('')
     const mergedAll = (all || []).map((submission) => mergeSubmissionWithPayload(submission, payloadMap[normalizeEmail(submission.user_email)] || {}))
     const currentReviewerEmail = normalizeEmail(user?.email || '')
+    const managedDepartmentSet = new Set(managedDepartmentKeys)
     const visibleSubmissions = mergedAll.filter((submission) => {
       if (canSeeAllSubmissions) return true
-      const submissionDepartment = String(submission.department || '').trim()
+      const submissionDepartment = String(submission.department || '').trim().toLowerCase()
       const submissionManagerEmail = normalizeEmail(submission.manager_email || '')
-      const inManagedDepartment = !!submissionDepartment && managedDepartments.includes(submissionDepartment)
+      const inManagedDepartment = !!submissionDepartment && managedDepartmentSet.has(submissionDepartment)
       const assignedToCurrentManager = !!submissionManagerEmail && submissionManagerEmail === currentReviewerEmail
       return inManagedDepartment || assignedToCurrentManager
     })
@@ -481,6 +505,7 @@ export default function HROnboarding() {
         emailSubject: `Onboarding approval required — ${form.full_name || payload.user_name || payload.user_email}`,
         sentBy: user?.name || user?.email || 'DH Portal',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceDelivery: 'both',
       })))
       await Promise.allSettled([...DIRECTOR_EMAILS].map((directorEmail) => sendManagedNotification({
         userEmail: directorEmail,
@@ -493,6 +518,7 @@ export default function HROnboarding() {
         emailSubject: `Onboarding submitted — ${form.full_name || payload.user_name || payload.user_email}`,
         sentBy: user?.name || user?.email || 'DH Portal',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceDelivery: 'both',
       })))
       await load()
     } catch (error) {
@@ -589,6 +615,7 @@ export default function HROnboarding() {
         emailSubject: status === 'approved' ? 'Onboarding approved — DH Website Services' : 'Onboarding update — DH Website Services',
         sentBy: user?.name || user?.email || 'DH Portal',
         fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceDelivery: 'both',
       }).catch(() => {})
 
       setSubmissions((current) =>
