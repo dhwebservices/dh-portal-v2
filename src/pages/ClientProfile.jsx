@@ -10,14 +10,11 @@ import { logAction } from '../utils/audit'
 import { deleteClientAccountByEmail, logClientActivity, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
 import {
   buildClientOnboardingKey,
-  buildClientOnboardingSectionKey,
   getOnboardingStatusLabel,
   getOnboardingStatusTone,
   getOrderedOnboardingSections,
-  normalizeOnboardingSection,
-  normalizeOnboardingSummary,
   ONBOARDING_SECTION_ORDER,
-  parsePortalSetting,
+  resolveClientOnboardingState,
 } from '../utils/clientOnboarding'
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
@@ -94,6 +91,7 @@ export default function ClientProfile() {
   const [onboardingSections, setOnboardingSections] = useState({})
   const [onboardingLoading, setOnboardingLoading] = useState(false)
   const [onboardingSaving, setOnboardingSaving] = useState(false)
+  const [onboardingSource, setOnboardingSource] = useState({ summaryKey: '', resolvedEmail: '', linkedAccountId: '' })
 
   const refreshMandateStatus = async (status, clientRecord = client) => {
     if (!status || !clientRecord?.email) return false
@@ -206,26 +204,14 @@ export default function ClientProfile() {
   const loadOnboarding = async (clientRecord = client) => {
     if (!clientRecord?.email) return
     setOnboardingLoading(true)
-    const summaryKey = buildClientOnboardingKey(clientRecord.email)
-    const sectionPrefix = buildClientOnboardingSectionKey(clientRecord.email, '')
-    const [{ data: summaryRow }, { data: sectionRows }] = await Promise.all([
-      supabase.from('portal_settings').select('key,value').eq('key', summaryKey).maybeSingle(),
-      supabase.from('portal_settings').select('key,value').like('key', `${sectionPrefix}%`),
-    ])
-
-    const summary = summaryRow?.value
-      ? normalizeOnboardingSummary(parsePortalSetting(summaryRow), clientRecord)
-      : null
-
-    const sectionMap = Object.fromEntries(
-      ONBOARDING_SECTION_ORDER.map((sectionKey) => {
-        const row = (sectionRows || []).find((item) => item.key === buildClientOnboardingSectionKey(clientRecord.email, sectionKey))
-        return [sectionKey, normalizeOnboardingSection(sectionKey, parsePortalSetting(row))]
-      })
-    )
-
-    setOnboardingSummary(summary)
-    setOnboardingSections(sectionMap)
+    const resolved = await resolveClientOnboardingState(supabase, clientRecord)
+    setOnboardingSummary(resolved.summary)
+    setOnboardingSections(resolved.sections)
+    setOnboardingSource({
+      summaryKey: resolved.summaryKey || buildClientOnboardingKey(clientRecord.email),
+      resolvedEmail: resolved.resolvedEmail || clientRecord.email,
+      linkedAccountId: resolved.linkedAccountId || '',
+    })
     setOnboardingLoading(false)
   }
 
@@ -234,19 +220,22 @@ export default function ClientProfile() {
 
     loadOnboarding(client)
 
-    const onboardingKey = buildClientOnboardingKey(client.email)
-    const sectionPrefix = buildClientOnboardingSectionKey(client.email, '')
-
     const channel = supabase
       .channel(`staff-client-onboarding-${client.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, (payload) => {
         const key = payload.new?.key || payload.old?.key || ''
-        if (key === onboardingKey || key.startsWith(sectionPrefix)) loadOnboarding(client)
+        if (
+          key.startsWith('client_onboarding:') ||
+          key.startsWith('client_onboarding_section:') ||
+          (onboardingSource.linkedAccountId && key === `client_lifecycle:${onboardingSource.linkedAccountId}`)
+        ) {
+          loadOnboarding(client)
+        }
       })
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [client?.email, client?.id])
+  }, [client?.email, client?.id, onboardingSource.linkedAccountId])
 
   const approveOnboarding = async () => {
     if (!client?.email || !onboardingSummary) return
@@ -254,6 +243,7 @@ export default function ClientProfile() {
 
     const nextSummary = {
       ...onboardingSummary,
+      client_email: onboardingSource.resolvedEmail || onboardingSummary.client_email || client.email,
       approved_at: new Date().toISOString(),
       approved_by: user?.email || user?.name || 'staff',
       updated_at: new Date().toISOString(),
@@ -261,7 +251,7 @@ export default function ClientProfile() {
     }
 
     await supabase.from('portal_settings').upsert({
-      key: buildClientOnboardingKey(client.email),
+      key: onboardingSource.summaryKey || buildClientOnboardingKey(onboardingSource.resolvedEmail || client.email),
       value: nextSummary,
     }, { onConflict: 'key' })
 
@@ -693,6 +683,11 @@ export default function ClientProfile() {
                   <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, maxWidth:620 }}>
                     This tab reads the same shared onboarding records the client portal writes into <span style={{ fontFamily:'var(--font-mono)' }}>portal_settings</span>, so staff can review progress without a separate sync process.
                   </div>
+                  {onboardingSource.resolvedEmail && client?.email && onboardingSource.resolvedEmail !== client.email ? (
+                    <div style={{ fontSize:12.5, color:'var(--faint)', marginTop:8, lineHeight:1.6 }}>
+                      Synced from client portal email <span style={{ fontFamily:'var(--font-mono)' }}>{onboardingSource.resolvedEmail}</span>.
+                    </div>
+                  ) : null}
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                   {onboardingSummary ? (

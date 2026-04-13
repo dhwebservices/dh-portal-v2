@@ -268,6 +268,7 @@ export default function StaffProfile() {
   const [saved, setSaved]         = useState(false)
   const [sendingNotification, setSendingNotification] = useState(false)
   const [notificationSaved, setNotificationSaved] = useState(false)
+  const [notificationSavedMessage, setNotificationSavedMessage] = useState('')
   const [notificationHistory, setNotificationHistory] = useState([])
   const [msUsers, setMsUsers]     = useState([])
   const [prevMgr, setPrevMgr]     = useState('')
@@ -2183,6 +2184,8 @@ export default function StaffProfile() {
     }
 
     setSendingNotification(true)
+    setNotificationSaved(false)
+    setNotificationSavedMessage('')
     try {
       const effectiveType = customNotification.important ? 'urgent' : (customNotification.type || 'info')
       const notificationPayload = {
@@ -2212,7 +2215,12 @@ export default function StaffProfile() {
         `,
         sentBy: user?.name || 'Admin',
         forceImportant: customNotification.important,
+        forceDelivery: 'both',
       })
+
+      if (!deliveryResult.emailSent) {
+        throw deliveryResult.emailError || new Error('Email delivery failed')
+      }
 
       if (deliveryResult.portalSent) {
         setNotificationHistory((current) => [{
@@ -2244,7 +2252,9 @@ export default function StaffProfile() {
       }
 
       setNotificationSaved(true)
+      setNotificationSavedMessage(deliveryResult.portalSent ? 'Portal + email sent' : 'Email sent')
       setTimeout(() => setNotificationSaved(false), 3000)
+      setTimeout(() => setNotificationSavedMessage(''), 3000)
       setCustomNotification({
         title: '',
         message: '',
@@ -2259,6 +2269,8 @@ export default function StaffProfile() {
       })
     } catch (err) {
       console.error('Custom notification failed:', err)
+      setNotificationSaved(false)
+      setNotificationSavedMessage('')
       alert('Notification send failed: ' + (err.message || 'Unknown error'))
     } finally {
       setSendingNotification(false)
@@ -3871,11 +3883,11 @@ export default function StaffProfile() {
                   <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Custom notification</div>
                   <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Send staff alert</div>
                   <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:520 }}>
-                    This sends through the user’s saved notification preferences. Urgent alerts still go to both the portal and work email.
+                    Manual sends now always attempt both the portal alert and the work email so staff receive the message outside the bell as well.
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  {notificationSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Sent</span> : null}
+                  {notificationSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ {notificationSavedMessage || 'Sent'}</span> : null}
                   <button className="btn btn-primary" disabled={sendingNotification} onClick={sendCustomNotification}>
                     {sendingNotification ? 'Sending...' : 'Send notification'}
                   </button>
