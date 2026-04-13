@@ -558,8 +558,8 @@ export default function Sidebar() {
 
   const isAllowed = useCallback((key) => {
     if (isOnboarding) return key === 'hr_onboarding'
-    if (!workspaceAllowsItem(workspace, key)) return false
-    return can ? can(key) : true
+    if (can?.(key)) return true
+    return workspaceAllowsItem(workspace, key)
   }, [can, isOnboarding, workspace])
 
   useEffect(() => {
