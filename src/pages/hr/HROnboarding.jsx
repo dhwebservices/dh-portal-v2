@@ -113,6 +113,29 @@ function buildSubmissionRow(payload = {}) {
   }
 }
 
+async function ensureSubmissionSummary(payload = {}) {
+  const summaryRow = buildSubmissionRow(payload)
+  const normalizedEmail = normalizeEmail(summaryRow.user_email)
+  if (!normalizedEmail) throw new Error('Missing onboarding email')
+
+  const { error: upsertError } = await supabase
+    .from('onboarding_submissions')
+    .upsert(summaryRow, { onConflict:'user_email' })
+  if (upsertError) throw upsertError
+
+  const { data: verificationRow, error: verificationError } = await supabase
+    .from('onboarding_submissions')
+    .select('user_email,status,submitted_at,updated_at')
+    .ilike('user_email', normalizedEmail)
+    .maybeSingle()
+  if (verificationError) throw verificationError
+  if (!verificationRow?.user_email) {
+    throw new Error(`Onboarding summary verification failed for ${normalizedEmail}`)
+  }
+
+  return summaryRow
+}
+
 function mergeSubmissionWithPayload(summary = {}, payload = {}) {
   return {
     ...summary,
@@ -506,16 +529,14 @@ export default function HROnboarding() {
     try {
       const normalizedEmail = normalizeEmail(user?.email || '')
       const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'submitted' })
-      const summaryRow = buildSubmissionRow(payload)
-      const [{ error: summaryError }, { error: payloadError }] = await Promise.all([
-        supabase.from('onboarding_submissions').upsert(summaryRow, { onConflict:'user_email' }),
+      const [, payloadResult] = await Promise.all([
+        ensureSubmissionSummary(payload),
         supabase.from('portal_settings').upsert({
           key: buildOnboardingPayloadKey(normalizedEmail),
           value: { value: payload },
         }, { onConflict: 'key' }),
       ])
-      if (summaryError) throw summaryError
-      if (payloadError) throw payloadError
+      if (payloadResult?.error) throw payloadResult.error
 
       await syncOnboardingSubmissionToHrProfile({
         ...payload,
@@ -565,16 +586,14 @@ export default function HROnboarding() {
     setSaving(true)
     try {
       const payload = buildSubmissionPayload({ user, form, employmentContext, status: 'draft' })
-      const summaryRow = buildSubmissionRow(payload)
-      const [{ error: summaryError }, { error: payloadError }] = await Promise.all([
-        supabase.from('onboarding_submissions').upsert(summaryRow, { onConflict:'user_email' }),
+      const [, payloadResult] = await Promise.all([
+        ensureSubmissionSummary(payload),
         supabase.from('portal_settings').upsert({
           key: buildOnboardingPayloadKey(normalizeEmail(user?.email || '')),
           value: { value: payload },
         }, { onConflict: 'key' }),
       ])
-      if (summaryError) throw summaryError
-      if (payloadError) throw payloadError
+      if (payloadResult?.error) throw payloadResult.error
       await load()
     } catch (error) {
       console.error('Onboarding draft save failed:', error)
