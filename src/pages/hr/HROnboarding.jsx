@@ -129,6 +129,21 @@ function mergeSubmissionWithPayload(summary = {}, payload = {}) {
   }
 }
 
+function dedupeSubmissions(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const email = normalizeEmail(row?.user_email || '')
+    if (!email) return
+    const existing = map.get(email)
+    const currentDate = new Date(row?.submitted_at || row?.updated_at || row?.created_at || 0).getTime()
+    const existingDate = existing ? new Date(existing?.submitted_at || existing?.updated_at || existing?.created_at || 0).getTime() : 0
+    if (!existing || currentDate >= existingDate) {
+      map.set(email, row)
+    }
+  })
+  return [...map.values()]
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
@@ -231,6 +246,10 @@ export default function HROnboarding() {
       String(row.key || '').replace('onboarding_payload:', '').toLowerCase(),
       row.value?.value ?? row.value ?? {},
     ]))
+    const summaryEmailSet = new Set((all || []).map((submission) => normalizeEmail(submission.user_email)))
+    const orphanPayloads = Object.entries(payloadMap)
+      .filter(([email, payload]) => email && !summaryEmailSet.has(email) && payload?.status && payload.status !== 'draft')
+      .map(([, payload]) => buildSubmissionRow(payload))
     const currentContract = (contractSettings || [])
       .map((row) => createStaffContract({
         id: String(row.key || '').replace('staff_contract:', ''),
@@ -240,7 +259,16 @@ export default function HROnboarding() {
       .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())[0] || null
     setStaffContract(currentContract)
     setContractMessage('')
-    const mergedAll = (all || []).map((submission) => mergeSubmissionWithPayload(submission, payloadMap[normalizeEmail(submission.user_email)] || {}))
+    if (orphanPayloads.length) {
+      supabase
+        .from('onboarding_submissions')
+        .upsert(orphanPayloads, { onConflict:'user_email' })
+        .then(() => {})
+        .catch((error) => console.error('Onboarding repair sync failed:', error))
+    }
+
+    const mergedAll = dedupeSubmissions([...(all || []), ...orphanPayloads])
+      .map((submission) => mergeSubmissionWithPayload(submission, payloadMap[normalizeEmail(submission.user_email)] || {}))
     const currentReviewerEmail = normalizeEmail(user?.email || '')
     const managedDepartmentSet = new Set(managedDepartmentKeys)
     const visibleSubmissions = mergedAll.filter((submission) => {
@@ -253,11 +281,15 @@ export default function HROnboarding() {
     })
     setSubmissions(visibleSubmissions)
     const mergedMine = mine ? mergeSubmissionWithPayload(mine, payloadMap[currentEmail] || {}) : null
-    if (mergedMine) {
-      setMy(mergedMine)
+    const recoveredMine = !mergedMine && payloadMap[currentEmail]?.status && payloadMap[currentEmail]?.status !== 'draft'
+      ? mergeSubmissionWithPayload(buildSubmissionRow(payloadMap[currentEmail]), payloadMap[currentEmail])
+      : null
+    if (mergedMine || recoveredMine) {
+      const activeSubmission = mergedMine || recoveredMine
+      setMy(activeSubmission)
       // Pre-fill form from existing submission
       const saved = { ...form }
-      Object.keys(saved).forEach(k => { if (mergedMine[k] !== undefined && mergedMine[k] !== null) saved[k] = mergedMine[k] })
+      Object.keys(saved).forEach(k => { if (activeSubmission[k] !== undefined && activeSubmission[k] !== null) saved[k] = activeSubmission[k] })
       if (currentContract?.status === 'completed') saved.contract_signed = true
       setForm(saved)
     }
