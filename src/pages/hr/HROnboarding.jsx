@@ -167,6 +167,10 @@ function dedupeSubmissions(rows = []) {
   return [...map.values()]
 }
 
+function getOnboardingDisplayName(submission = {}) {
+  return submission.full_name || submission.user_name || submission.personal_email || submission.user_email || 'This staff member'
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
@@ -630,6 +634,10 @@ export default function HROnboarding() {
         decided_by: user?.name || user?.email || '',
         decided_at: new Date().toISOString(),
       })
+      const staffDisplayName = getOnboardingDisplayName(updatedPayload)
+      const managerEmail = normalizeEmail(updatedPayload.manager_email || targetSubmission.manager_email || '')
+      const managerName = updatedPayload.manager_name || targetSubmission.manager_name || managerEmail || 'Manager'
+      const reopenedAfterApproval = targetSubmission.status === 'approved' && status === 'rejected'
 
       const { error: payloadError } = await supabase
         .from('portal_settings')
@@ -651,23 +659,70 @@ export default function HROnboarding() {
             onboarding: false,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_email' })
+      } else if (status === 'rejected') {
+        await supabase
+          .from('user_permissions')
+          .upsert({
+            user_email: normalizedEmail,
+            onboarding: true,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_email' })
       }
 
-      await sendManagedNotification({
-        userEmail: normalizedEmail,
-        userName: submission.full_name || submission.user_name || normalizedEmail,
-        category: 'hr',
-        type: status === 'approved' ? 'success' : 'warning',
-        title: status === 'approved' ? 'Onboarding approved' : 'Onboarding update',
-        message: status === 'approved'
-          ? 'Your onboarding has been approved. You can now continue into the portal.'
-          : `Your onboarding has been declined${notes ? `. Notes: ${notes}` : '.'}`,
-        link: '/hr/onboarding',
-        emailSubject: status === 'approved' ? 'Onboarding approved — DH Website Services' : 'Onboarding update — DH Website Services',
-        sentBy: user?.name || user?.email || 'DH Portal',
-        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-        forceDelivery: 'both',
-      }).catch(() => {})
+      await Promise.allSettled([
+        sendManagedNotification({
+          userEmail: normalizedEmail,
+          userName: staffDisplayName,
+          category: 'hr',
+          type: status === 'approved' ? 'success' : 'warning',
+          title: status === 'approved'
+            ? 'Onboarding approved'
+            : reopenedAfterApproval
+              ? 'Onboarding reopened'
+              : 'Onboarding update',
+          message: status === 'approved'
+            ? 'Your onboarding has been approved. You can now continue into the portal.'
+            : reopenedAfterApproval
+              ? `Your onboarding has been sent back for changes${notes ? `. Notes: ${notes}` : '.'}`
+              : `Your onboarding has been declined${notes ? `. Notes: ${notes}` : '.'}`,
+          link: '/hr/onboarding',
+          emailSubject: status === 'approved'
+            ? 'Onboarding approved — DH Website Services'
+            : reopenedAfterApproval
+              ? 'Onboarding reopened — action required'
+              : 'Onboarding update — DH Website Services',
+          sentBy: user?.name || user?.email || 'DH Portal',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceDelivery: 'both',
+        }),
+        managerEmail
+          ? sendManagedNotification({
+            userEmail: managerEmail,
+            userName: managerName,
+            category: 'hr',
+            type: status === 'approved' ? 'info' : 'warning',
+            title: status === 'approved'
+              ? 'Onboarding approved'
+              : reopenedAfterApproval
+                ? 'Approved onboarding reopened'
+                : 'Onboarding declined',
+            message: status === 'approved'
+              ? `${staffDisplayName}'s onboarding has been approved.`
+              : reopenedAfterApproval
+                ? `${staffDisplayName}'s approved onboarding has been sent back for changes${notes ? `. Notes: ${notes}` : '.'}`
+                : `${staffDisplayName}'s onboarding has been declined${notes ? `. Notes: ${notes}` : '.'}`,
+            link: '/hr/onboarding',
+            emailSubject: status === 'approved'
+              ? `Onboarding approved — ${staffDisplayName}`
+              : reopenedAfterApproval
+                ? `Onboarding reopened — ${staffDisplayName}`
+                : `Onboarding declined — ${staffDisplayName}`,
+            sentBy: user?.name || user?.email || 'DH Portal',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            forceDelivery: 'both',
+          })
+          : Promise.resolve(),
+      ])
 
       setSubmissions((current) =>
         current.map((item) =>
@@ -681,7 +736,13 @@ export default function HROnboarding() {
       } else {
         setViewSub(null)
       }
-      setAdminMessage(status === 'approved' ? 'Onboarding approved successfully.' : 'Onboarding marked as rejected.')
+      setAdminMessage(
+        status === 'approved'
+          ? 'Onboarding approved successfully.'
+          : reopenedAfterApproval
+            ? 'Approved onboarding sent back for changes.'
+            : 'Onboarding marked as rejected.'
+      )
     } catch (err) {
       console.error('Onboarding decision failed:', err)
       alert('Onboarding update failed: ' + (err.message || 'Unknown error'))
@@ -1208,6 +1269,25 @@ export default function HROnboarding() {
                   <button className="btn btn-primary" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
                   <button className="btn btn-danger" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
                   <button className="btn btn-outline" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => removeSubmission(viewSub.user_email)}>Remove record</button>
+                </div>
+              )}
+              {viewSub.status === 'approved' && (
+                <div className="hr-onboarding-review-actions">
+                  <button
+                    className="btn btn-danger"
+                    disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)}
+                    onClick={() => {
+                      const notes = prompt('Why are you sending this approved onboarding back for changes?')
+                      if (notes === null) return
+                      if (!String(notes || '').trim()) {
+                        alert('A reason is required when reopening an approved onboarding.')
+                        return
+                      }
+                      decide(viewSub.user_email,'rejected',String(notes).trim())
+                    }}
+                  >
+                    Reopen onboarding
+                  </button>
                 </div>
               )}
               </div>
