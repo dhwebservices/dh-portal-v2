@@ -1154,15 +1154,21 @@ export default function HROnboarding() {
 
       {/* Admin review modal */}
       {viewSub && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(8px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+        <div className="hr-onboarding-review-bg"
           onClick={() => setViewSub(null)}>
-          <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, width:'100%', maxWidth:640, maxHeight:'90vh', overflow:'auto' }} onClick={e=>e.stopPropagation()}>
-            <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontSize:17, fontWeight:600 }}>{viewSub.full_name||viewSub.user_name} — Onboarding Review</div>
-              <button onClick={() => setViewSub(null)} style={{ background:'var(--bg2)', border:'none', borderRadius:'50%', width:28, height:28, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+          <div className="hr-onboarding-review-shell" onClick={e=>e.stopPropagation()}>
+            <div className="hr-onboarding-review-head">
+              <div>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Staff Onboarding Review</div>
+                <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{viewSub.full_name||viewSub.user_name}</div>
+                <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>
+                  {viewSub.user_email} · {viewSub.status || 'submitted'}
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setViewSub(null)}>×</button>
             </div>
-            <div style={{ padding:'18px 22px' }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <div className="hr-onboarding-review-body">
+              <div className="hr-onboarding-review-grid">
                 {[
                   ['Email', viewSub.user_email],
                   ['NI Number', viewSub.ni_number],
@@ -1178,31 +1184,33 @@ export default function HROnboarding() {
                   ['Emergency', viewSub.emergency_name ? `${viewSub.emergency_name} (${viewSub.emergency_phone})` : '—'],
                   ['Address', viewSub.address_line1 ? `${viewSub.address_line1}, ${viewSub.city}, ${viewSub.postcode}` : '—'],
                 ].map(([k,v]) => (
-                  <div key={k} style={{ padding:'8px 12px', background:'var(--bg2)', borderRadius:7 }}>
+                  <div key={k} className="hr-onboarding-review-card">
                     <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:3 }}>{k}</div>
                     <div style={{ fontSize:13, fontWeight:500 }}>{v||'—'}</div>
                   </div>
                 ))}
               </div>
-              {viewSub.rtw_document_url && (
-                <div style={{ marginBottom:16 }}>
-                  <label className="lbl">Right to Work Document</label>
-                  <a href={viewSub.rtw_document_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View Document ↗</a>
-                </div>
-              )}
-              {viewSub.additional_notes && (
-                <div style={{ padding:'10px 14px', background:'var(--bg2)', borderRadius:7, marginBottom:16, fontSize:13, color:'var(--sub)' }}>
-                  <div className="lbl" style={{ marginBottom:4 }}>Notes from staff</div>
-                  {viewSub.additional_notes}
-                </div>
-              )}
+              <div className="hr-onboarding-review-sections">
+                {viewSub.rtw_document_url && (
+                  <div className="hr-onboarding-review-panel">
+                    <label className="lbl">Right to Work Document</label>
+                    <a href={viewSub.rtw_document_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View Document ↗</a>
+                  </div>
+                )}
+                {viewSub.additional_notes && (
+                  <div className="hr-onboarding-review-panel" style={{ fontSize:13, color:'var(--sub)' }}>
+                    <div className="lbl" style={{ marginBottom:4 }}>Notes from staff</div>
+                    {viewSub.additional_notes}
+                  </div>
+                )}
               {viewSub.status === 'submitted' && (
-                <div style={{ display:'flex', gap:8, paddingTop:14, borderTop:'1px solid var(--border)' }}>
+                <div className="hr-onboarding-review-actions">
                   <button className="btn btn-primary" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
                   <button className="btn btn-danger" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
                   <button className="btn btn-outline" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => removeSubmission(viewSub.user_email)}>Remove record</button>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
