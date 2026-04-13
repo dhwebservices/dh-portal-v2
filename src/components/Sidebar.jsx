@@ -539,7 +539,7 @@ const css = `
 `
 
 export default function Sidebar() {
-  const { user, can, isOnboarding, preferences, updatePreferences, workspace } = useAuth()
+  const { user, can, perms, isOnboarding, preferences, updatePreferences, workspace } = useAuth()
   const { instance } = useMsal()
   const location = useLocation()
   const navigate = useNavigate()
@@ -558,9 +558,12 @@ export default function Sidebar() {
 
   const isAllowed = useCallback((key) => {
     if (isOnboarding) return key === 'hr_onboarding'
+    if (perms && typeof perms === 'object' && Object.prototype.hasOwnProperty.call(perms, key)) {
+      return perms[key] === true
+    }
     if (can?.(key)) return true
     return workspaceAllowsItem(workspace, key)
-  }, [can, isOnboarding, workspace])
+  }, [can, isOnboarding, perms, workspace])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sw', '56px')
