@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { buildAddressFromOnboarding, normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
@@ -341,6 +342,15 @@ export default function HROnboarding() {
       supabase.removeChannel(channel)
     }
   }, [user?.email, isReviewer, canSeeAllSubmissions, managedDepartmentKeys.join('|')])
+
+  useEffect(() => {
+    if (!viewSub) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [viewSub])
 
   const load = async () => {
     setLoading(true)
@@ -1320,7 +1330,7 @@ export default function HROnboarding() {
       ) : null}
 
       {/* Admin review modal */}
-      {viewSub && (
+      {viewSub && createPortal((
         <div className="hr-onboarding-review-bg"
           onClick={() => setViewSub(null)}>
           <div className="hr-onboarding-review-shell" onClick={e=>e.stopPropagation()}>
@@ -1411,7 +1421,7 @@ export default function HROnboarding() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }
