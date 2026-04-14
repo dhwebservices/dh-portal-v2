@@ -171,6 +171,112 @@ function getOnboardingDisplayName(submission = {}) {
   return submission.full_name || submission.user_name || submission.personal_email || submission.user_email || 'This staff member'
 }
 
+function formatReviewValue(value, fallback = '—') {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  const stringValue = String(value).trim()
+  return stringValue || fallback
+}
+
+function formatReviewDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+}
+
+function buildReviewSections(submission = {}) {
+  const addressParts = [
+    submission.address_line1,
+    submission.address_line2,
+    submission.city,
+    submission.postcode,
+  ].filter((item) => String(item || '').trim())
+
+  const employmentParts = [
+    submission.job_title,
+    submission.department,
+    submission.contract_type,
+  ].filter((item) => String(item || '').trim())
+
+  return [
+    {
+      title: 'Personal details',
+      fields: [
+        ['Full name', submission.full_name || submission.user_name],
+        ['Preferred name', submission.preferred_name],
+        ['Date of birth', formatReviewDate(submission.dob)],
+        ['Gender', submission.gender],
+        ['Nationality', submission.nationality],
+        ['National Insurance number', submission.ni_number],
+      ],
+    },
+    {
+      title: 'Address and contact',
+      fields: [
+        ['Address', addressParts.join(', ')],
+        ['Personal email', submission.personal_email],
+        ['Personal phone', submission.personal_phone],
+        ['Work email', submission.user_email],
+      ],
+    },
+    {
+      title: 'Employment',
+      fields: [
+        ['Role summary', employmentParts.join(' · ')],
+        ['Job title', submission.job_title],
+        ['Department', submission.department],
+        ['Start date', formatReviewDate(submission.start_date)],
+        ['Contract type', submission.contract_type],
+        ['Hours per week', submission.hours_per_week],
+        ['Work location', submission.work_location],
+        ['Company portal confirmed', submission.company_portal_confirmed],
+      ],
+    },
+    {
+      title: 'Manager and emergency contact',
+      fields: [
+        ['Manager name', submission.manager_name],
+        ['Manager email', submission.manager_email],
+        ['Emergency contact', submission.emergency_name],
+        ['Relationship', submission.emergency_relationship],
+        ['Emergency phone', submission.emergency_phone],
+        ['Emergency email', submission.emergency_email],
+      ],
+    },
+    {
+      title: 'Bank details',
+      fields: [
+        ['Bank name', submission.bank_name],
+        ['Account name', submission.account_name],
+        ['Sort code', submission.sort_code],
+        ['Account number', submission.account_number],
+        ['Payment frequency', submission.payment_frequency],
+      ],
+    },
+    {
+      title: 'Right to work and declarations',
+      fields: [
+        ['Right to work document', submission.rtw_type],
+        ['Right to work expiry', formatReviewDate(submission.rtw_expiry)],
+        ['Right to work notes', submission.rtw_notes],
+        ['Contract signed', submission.contract_signed],
+        ['Handbook read', submission.handbook_read],
+        ['Data consent', submission.data_consent],
+      ],
+    },
+    {
+      title: 'Additional information',
+      fields: [
+        ['Status', submission.status || 'submitted'],
+        ['Submitted', formatReviewDate(submission.submitted_at)],
+        ['Photo URL', submission.photo_url],
+        ['Additional notes', submission.additional_notes],
+      ],
+    },
+  ]
+}
+
 export default function HROnboarding() {
   const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
@@ -1229,68 +1335,79 @@ export default function HROnboarding() {
               <button className="modal-close" onClick={() => setViewSub(null)}>×</button>
             </div>
             <div className="hr-onboarding-review-body">
-              <div className="hr-onboarding-review-grid">
-                {[
-                  ['Email', viewSub.user_email],
-                  ['NI Number', viewSub.ni_number],
-                  ['DOB', viewSub.dob],
-                  ['Start Date', viewSub.start_date],
-                  ['Job Title', viewSub.job_title],
-                  ['Contract', viewSub.contract_type],
-                  ['Bank', viewSub.bank_name ? `${viewSub.bank_name} ••${viewSub.account_number?.slice(-4)}` : '—'],
-                  ['Department', viewSub.department || '—'],
-                  ['Manager', viewSub.manager_name ? `${viewSub.manager_name}${viewSub.manager_email ? ` (${viewSub.manager_email})` : ''}` : '—'],
-                  ['RTW Doc', viewSub.rtw_type||'—'],
-                  ['Company Portal', viewSub.company_portal_confirmed ? 'Confirmed' : 'Not confirmed'],
-                  ['Emergency', viewSub.emergency_name ? `${viewSub.emergency_name} (${viewSub.emergency_phone})` : '—'],
-                  ['Address', viewSub.address_line1 ? `${viewSub.address_line1}, ${viewSub.city}, ${viewSub.postcode}` : '—'],
-                ].map(([k,v]) => (
-                  <div key={k} className="hr-onboarding-review-card">
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:3 }}>{k}</div>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{v||'—'}</div>
-                  </div>
+              <div className="hr-onboarding-review-main">
+                {buildReviewSections(viewSub).map((section) => (
+                  <section key={section.title} className="hr-onboarding-review-section-block">
+                    <div className="hr-onboarding-review-section-head">
+                      <div className="hr-onboarding-review-section-title">{section.title}</div>
+                    </div>
+                    <div className="hr-onboarding-review-grid">
+                      {section.fields.map(([label, value]) => (
+                        <div key={`${section.title}-${label}`} className="hr-onboarding-review-card">
+                          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{label}</div>
+                          <div style={{ fontSize:14, fontWeight:500, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                            {formatReviewValue(value)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
-              <div className="hr-onboarding-review-sections">
+              <aside className="hr-onboarding-review-aside">
+                <div className="hr-onboarding-review-panel">
+                  <div className="hr-onboarding-review-panel-title">Submission summary</div>
+                  <div className="hr-onboarding-review-meta-list">
+                    <div><span>Name</span><strong>{formatReviewValue(getOnboardingDisplayName(viewSub))}</strong></div>
+                    <div><span>Status</span><strong>{formatReviewValue(viewSub.status || 'submitted')}</strong></div>
+                    <div><span>Department</span><strong>{formatReviewValue(viewSub.department)}</strong></div>
+                    <div><span>Manager</span><strong>{formatReviewValue(viewSub.manager_name || viewSub.manager_email)}</strong></div>
+                    <div><span>Submitted</span><strong>{formatReviewValue(formatReviewDate(viewSub.submitted_at))}</strong></div>
+                    <div><span>Completion</span><strong>{completionForSubmission(viewSub)}%</strong></div>
+                  </div>
+                </div>
                 {viewSub.rtw_document_url && (
                   <div className="hr-onboarding-review-panel">
-                    <label className="lbl">Right to Work Document</label>
-                    <a href={viewSub.rtw_document_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View Document ↗</a>
+                    <div className="hr-onboarding-review-panel-title">Right to work document</div>
+                    <a href={viewSub.rtw_document_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View document ↗</a>
                   </div>
                 )}
                 {viewSub.additional_notes && (
                   <div className="hr-onboarding-review-panel" style={{ fontSize:13, color:'var(--sub)' }}>
-                    <div className="lbl" style={{ marginBottom:4 }}>Notes from staff</div>
-                    {viewSub.additional_notes}
+                    <div className="hr-onboarding-review-panel-title">Notes from staff</div>
+                    <div style={{ lineHeight:1.7, whiteSpace:'pre-wrap' }}>{viewSub.additional_notes}</div>
                   </div>
                 )}
-              {viewSub.status === 'submitted' && (
-                <div className="hr-onboarding-review-actions">
-                  <button className="btn btn-primary" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
-                  <button className="btn btn-danger" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
-                  <button className="btn btn-outline" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => removeSubmission(viewSub.user_email)}>Remove record</button>
+                <div className="hr-onboarding-review-panel">
+                  <div className="hr-onboarding-review-panel-title">Actions</div>
+                  {viewSub.status === 'submitted' && (
+                    <div className="hr-onboarding-review-actions">
+                      <button className="btn btn-primary" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => decide(viewSub.user_email,'approved')}>✓ Approve</button>
+                      <button className="btn btn-danger" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => { const notes=prompt('Reason for rejection (optional):'); decide(viewSub.user_email,'rejected',notes||'') }}>✗ Reject</button>
+                      <button className="btn btn-outline" disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)} onClick={() => removeSubmission(viewSub.user_email)}>Remove record</button>
+                    </div>
+                  )}
+                  {viewSub.status === 'approved' && (
+                    <div className="hr-onboarding-review-actions">
+                      <button
+                        className="btn btn-danger"
+                        disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)}
+                        onClick={() => {
+                          const notes = prompt('Why are you sending this approved onboarding back for changes?')
+                          if (notes === null) return
+                          if (!String(notes || '').trim()) {
+                            alert('A reason is required when reopening an approved onboarding.')
+                            return
+                          }
+                          decide(viewSub.user_email,'rejected',String(notes).trim())
+                        }}
+                      >
+                        Reopen onboarding
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-              {viewSub.status === 'approved' && (
-                <div className="hr-onboarding-review-actions">
-                  <button
-                    className="btn btn-danger"
-                    disabled={adminBusyEmail === normalizeEmail(viewSub.user_email)}
-                    onClick={() => {
-                      const notes = prompt('Why are you sending this approved onboarding back for changes?')
-                      if (notes === null) return
-                      if (!String(notes || '').trim()) {
-                        alert('A reason is required when reopening an approved onboarding.')
-                        return
-                      }
-                      decide(viewSub.user_email,'rejected',String(notes).trim())
-                    }}
-                  >
-                    Reopen onboarding
-                  </button>
-                </div>
-              )}
-              </div>
+              </aside>
             </div>
           </div>
         </div>

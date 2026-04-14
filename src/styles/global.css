@@ -1491,37 +1491,63 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   flex: 1;
   padding: 24px 28px 28px;
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(340px, 0.75fr);
   gap: 20px;
   align-items: start;
   overflow: hidden;
 }
 
+.hr-onboarding-review-main {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 8px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.hr-onboarding-review-section-block {
+  display: grid;
+  gap: 12px;
+}
+
+.hr-onboarding-review-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hr-onboarding-review-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
 .hr-onboarding-review-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   align-content: start;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 4px;
 }
 
 .hr-onboarding-review-card {
-  padding: 12px 14px;
+  padding: 15px 16px;
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  min-height: 82px;
+  border-radius: 14px;
+  min-height: 94px;
 }
 
-.hr-onboarding-review-sections {
+.hr-onboarding-review-aside {
   display: grid;
   gap: 14px;
   align-content: start;
   min-height: 0;
   overflow: auto;
-  padding-right: 4px;
+  padding-right: 8px;
 }
 
 .hr-onboarding-review-panel {
@@ -1531,12 +1557,56 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   border-radius: 14px;
 }
 
+.hr-onboarding-review-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 12px;
+}
+
+.hr-onboarding-review-meta-list {
+  display: grid;
+  gap: 10px;
+}
+
+.hr-onboarding-review-meta-list div {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hr-onboarding-review-meta-list div:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.hr-onboarding-review-meta-list span {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+}
+
+.hr-onboarding-review-meta-list strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+}
+
 .hr-onboarding-review-actions {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  flex-wrap: wrap;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+}
+
+.hr-onboarding-review-actions .btn {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 980px) {
@@ -1561,13 +1631,16 @@ textarea.inp { resize: vertical; line-height: 1.6; }
     overflow: auto;
   }
 
-  .hr-onboarding-review-grid {
-    grid-template-columns: 1fr;
+  .hr-onboarding-review-main {
     overflow: visible;
     padding-right: 0;
   }
 
-  .hr-onboarding-review-sections {
+  .hr-onboarding-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hr-onboarding-review-aside {
     overflow: visible;
     padding-right: 0;
   }
