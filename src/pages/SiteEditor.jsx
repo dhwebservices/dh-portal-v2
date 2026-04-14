@@ -72,6 +72,19 @@ const SECTIONS = [
   { key: 'faq',      label: '❓ FAQ',        desc: 'Frequently asked questions' },
   { key: 'contact',  label: '📞 Contact',   desc: 'Contact details' },
   { key: 'mailing_list', label: '📬 Mailing List', desc: 'Popup settings' },
+  { key: 'pages', label: '📄 Pages', desc: 'Create and manage public pages' },
+]
+
+const CORE_PAGE_OPTIONS = [
+  { key: 'home', label: 'Home' },
+  { key: 'services', label: 'Services' },
+  { key: 'about', label: 'About' },
+  { key: 'partners', label: 'Partners' },
+  { key: 'portfolio', label: 'Portfolio' },
+  { key: 'pricing', label: 'Pricing' },
+  { key: 'calculator', label: 'Calculator' },
+  { key: 'contact', label: 'Contact' },
+  { key: 'careers', label: 'Careers' },
 ]
 
 async function loadSection(section) {
@@ -101,10 +114,121 @@ async function saveSection(section, content, updatedBy) {
   return res.ok
 }
 
+async function loadPages() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/website_pages?select=*&order=sort_order.asc.nullslast,created_at.asc`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  )
+  const rows = await res.json()
+  return Array.isArray(rows) ? rows : []
+}
+
+async function createPageRecord(page, updatedBy) {
+  const payload = {
+    title: page.title,
+    slug: page.slug,
+    nav_label: page.nav_label || page.title,
+    summary: page.summary || '',
+    body: page.body || '',
+    show_in_nav: !!page.show_in_nav,
+    active: page.active !== false,
+    sort_order: Number(page.sort_order || 0),
+    meta_title: page.meta_title || page.title,
+    meta_description: page.meta_description || page.summary || '',
+    updated_by: updatedBy,
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/website_pages`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const rows = await res.json().catch(() => [])
+  return { ok: res.ok, page: Array.isArray(rows) ? rows[0] : rows }
+}
+
+async function updatePageRecord(page, updatedBy) {
+  const payload = {
+    title: page.title,
+    slug: page.slug,
+    nav_label: page.nav_label || page.title,
+    summary: page.summary || '',
+    body: page.body || '',
+    show_in_nav: !!page.show_in_nav,
+    active: page.active !== false,
+    sort_order: Number(page.sort_order || 0),
+    meta_title: page.meta_title || page.title,
+    meta_description: page.meta_description || page.summary || '',
+    updated_by: updatedBy,
+    updated_at: new Date().toISOString(),
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/website_pages?id=eq.${page.id}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const rows = await res.json().catch(() => [])
+  return { ok: res.ok, page: Array.isArray(rows) ? rows[0] : rows }
+}
+
+async function deletePageRecord(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/website_pages?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: 'return=minimal',
+    },
+  })
+  return res.ok
+}
+
+function slugify(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
+function createDraftPage() {
+  const stamp = Date.now()
+  return {
+    id: `draft-${stamp}`,
+    title: 'New page',
+    slug: `new-page-${String(stamp).slice(-4)}`,
+    nav_label: 'New page',
+    summary: '',
+    body: '',
+    show_in_nav: false,
+    active: true,
+    sort_order: 0,
+    meta_title: '',
+    meta_description: '',
+    isDraft: true,
+  }
+}
+
 export default function SiteEditor() {
   const { user } = useAuth()
   const [active, setActive]       = useState('banner')
   const [data, setData]           = useState({})    // { section: content }
+  const [pages, setPages]         = useState([])
+  const [pageDirty, setPageDirty] = useState({})
   const [loading, setLoading]     = useState(true)
   const [dirty, setDirty]         = useState({})    // { section: true }
   const [saving, setSaving]       = useState(false)
@@ -114,20 +238,25 @@ export default function SiteEditor() {
   // Load all sections on mount
   useEffect(() => {
     setLoading(true)
-    Promise.all(SECTIONS.map(s => loadSection(s.key).then(content => [s.key, content])))
-      .then(results => {
+    Promise.all([
+      Promise.all(SECTIONS.filter(s => s.key !== 'pages').map(s => loadSection(s.key).then(content => [s.key, content]))),
+      loadPages(),
+    ])
+      .then(([results, pageRows]) => {
         const map = {}
         results.forEach(([key, content]) => {
           map[key] = content || DEFAULTS[key]
         })
         setData(map)
+        setPages(pageRows)
         setLoading(false)
       })
       .catch(() => {
         // Fall back to defaults if table doesn't exist yet
         const map = {}
-        SECTIONS.forEach(s => { map[s.key] = DEFAULTS[s.key] })
+        SECTIONS.filter(s => s.key !== 'pages').forEach(s => { map[s.key] = DEFAULTS[s.key] })
         setData(map)
+        setPages([])
         setLoading(false)
       })
   }, [])
@@ -149,6 +278,97 @@ export default function SiteEditor() {
     setSaving(false)
   }
 
+  const pageOptions = [
+    ...CORE_PAGE_OPTIONS,
+    ...pages.map((page) => ({ key: page.slug, label: page.nav_label || page.title })),
+  ]
+
+  const updatePage = (id, updates) => {
+    setPages((current) => current.map((page) => (
+      page.id === id ? { ...page, ...updates } : page
+    )))
+    setPageDirty((current) => ({ ...current, [id]: true }))
+  }
+
+  const addPage = () => {
+    const draft = createDraftPage()
+    setPages((current) => [...current, draft])
+    setPageDirty((current) => ({ ...current, [draft.id]: true }))
+    setActive('pages')
+  }
+
+  const savePage = async (page) => {
+    setSaving(true)
+    setError('')
+    const slug = slugify(page.slug || page.title)
+    if (!page.title?.trim()) {
+      setError('Page title is required.')
+      setSaving(false)
+      return
+    }
+    if (!slug) {
+      setError('Page slug is required.')
+      setSaving(false)
+      return
+    }
+    if (pages.some((entry) => entry.id !== page.id && entry.slug === slug)) {
+      setError('That slug is already in use.')
+      setSaving(false)
+      return
+    }
+
+    const payload = { ...page, slug }
+    const updatedBy = user?.name || user?.email
+    const result = page.isDraft
+      ? await createPageRecord(payload, updatedBy)
+      : await updatePageRecord(payload, updatedBy)
+
+    if (result.ok && result.page) {
+      setPages((current) => {
+        if (page.isDraft) {
+          return current.map((entry) => (
+            entry.id === page.id ? { ...result.page } : entry
+          ))
+        }
+        return current.map((entry) => (
+          entry.id === page.id ? { ...result.page } : entry
+        ))
+      })
+      setPageDirty((current) => {
+        const next = { ...current }
+        delete next[page.id]
+        if (result.page.id !== page.id) delete next[result.page.id]
+        return next
+      })
+      setSaved(`page:${result.page.id}`)
+      setTimeout(() => setSaved(''), 3000)
+    } else {
+      setError('Page save failed — check the website_pages table exists.')
+    }
+    setSaving(false)
+  }
+
+  const deletePage = async (page) => {
+    if (!confirm(`Delete page "${page.title}"?`)) return
+    setSaving(true)
+    setError('')
+    if (!page.isDraft) {
+      const ok = await deletePageRecord(page.id)
+      if (!ok) {
+        setError('Page delete failed — check the website_pages table exists.')
+        setSaving(false)
+        return
+      }
+    }
+    setPages((current) => current.filter((entry) => entry.id !== page.id))
+    setPageDirty((current) => {
+      const next = { ...current }
+      delete next[page.id]
+      return next
+    })
+    setSaving(false)
+  }
+
   const activeData = data[active] || DEFAULTS[active]
 
   return (
@@ -164,7 +384,7 @@ export default function SiteEditor() {
               <div style={{ fontSize:13, fontWeight: active===s.key ? 500 : 400, color: active===s.key ? 'var(--accent)' : 'var(--text)' }}>{s.label}</div>
               <div style={{ fontSize:10, color:'var(--faint)' }}>{s.desc}</div>
             </div>
-            {dirty[s.key] && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--amber)', flexShrink:0 }}/>}
+            {(dirty[s.key] || (s.key === 'pages' && Object.keys(pageDirty).length > 0)) && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--amber)', flexShrink:0 }}/>}
           </button>
         ))}
 
@@ -183,7 +403,7 @@ export default function SiteEditor() {
 
             {/* Banner editor */}
             {active === 'banner' && (
-              <BannerEditor data={activeData} onChange={v => update('banner', v)} />
+              <BannerEditor data={activeData} onChange={v => update('banner', v)} pageOptions={pageOptions} />
             )}
 
             {/* Services editor */}
@@ -277,12 +497,95 @@ export default function SiteEditor() {
               </SectionEditor>
             )}
 
+            {active === 'pages' && (
+              <SectionEditor title="Pages" desc="Create, publish, hide in navigation, or delete public website pages">
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, marginBottom:8 }}>
+                  <div style={{ fontSize:12, color:'var(--faint)', lineHeight:1.6 }}>
+                    Custom pages publish to the public website and can optionally appear in the main navigation.
+                  </div>
+                  <button className="btn btn-outline btn-sm" onClick={addPage}>+ Add Page</button>
+                </div>
+                {pages.length === 0 ? (
+                  <div style={{ padding:'18px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)', fontSize:13, color:'var(--faint)' }}>
+                    No custom pages yet.
+                  </div>
+                ) : pages.map((page, index) => (
+                  <div key={page.id} style={{ background:'var(--bg2)', borderRadius:12, padding:'16px', border:'1px solid var(--border)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>
+                          {page.isDraft ? 'Draft page' : 'Published page'}
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>
+                          {page.title || `Page ${index + 1}`}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                        <span className={`badge badge-${page.active !== false ? 'green' : 'grey'}`}>
+                          {page.active !== false ? 'Live' : 'Hidden'}
+                        </span>
+                        {pageDirty[page.id] && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--amber)' }} />}
+                      </div>
+                    </div>
+
+                    <div className="fg">
+                      <Field label="Page title" value={page.title || ''} onChange={v => updatePage(page.id, { title: v, nav_label: page.nav_label || v, meta_title: page.meta_title || v, slug: page.isDraft ? slugify(v) : page.slug })} type="text" />
+                      <Field label="Slug" value={page.slug || ''} onChange={v => updatePage(page.id, { slug: slugify(v) })} type="text" />
+                    </div>
+
+                    <div className="fg">
+                      <Field label="Navigation label" value={page.nav_label || ''} onChange={v => updatePage(page.id, { nav_label: v })} type="text" />
+                      <Field label="Sort order" value={String(page.sort_order || 0)} onChange={v => updatePage(page.id, { sort_order: Number(v) || 0 })} type="text" />
+                    </div>
+
+                    <Field label="Summary" value={page.summary || ''} onChange={v => updatePage(page.id, { summary: v, meta_description: page.meta_description || v })} type="textarea" rows={3} />
+                    <Field label="Body content" value={page.body || ''} onChange={v => updatePage(page.id, { body: v })} type="textarea" rows={8} />
+
+                    <div className="fg">
+                      <Field label="Meta title" value={page.meta_title || ''} onChange={v => updatePage(page.id, { meta_title: v })} type="text" />
+                      <Field label="Meta description" value={page.meta_description || ''} onChange={v => updatePage(page.id, { meta_description: v })} type="textarea" rows={3} />
+                    </div>
+
+                    <div style={{ display:'flex', gap:20, flexWrap:'wrap', marginTop:8 }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
+                        <input type="checkbox" checked={page.active !== false} onChange={e => updatePage(page.id, { active: e.target.checked })} style={{ accentColor:'var(--accent)', width:16, height:16 }} />
+                        Publish page
+                      </label>
+                      <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
+                        <input type="checkbox" checked={!!page.show_in_nav} onChange={e => updatePage(page.id, { show_in_nav: e.target.checked })} style={{ accentColor:'var(--accent)', width:16, height:16 }} />
+                        Show in navigation
+                      </label>
+                    </div>
+
+                    <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:16 }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => savePage(page)} disabled={saving}>
+                        {saving ? 'Saving...' : 'Save page'}
+                      </button>
+                      {!page.isDraft && (
+                        <a href={`https://dhwebsiteservices.co.uk/${page.slug}`} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                          ↗ View page
+                        </a>
+                      )}
+                      <button className="btn btn-danger btn-sm" onClick={() => deletePage(page)} disabled={saving}>
+                        Delete
+                      </button>
+                      {saved === `page:${page.id}` && <span style={{ fontSize:13, color:'var(--green)', alignSelf:'center' }}>✓ Saved</span>}
+                    </div>
+                  </div>
+                ))}
+              </SectionEditor>
+            )}
+
             {/* Save button */}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)' }}>
-              <button className="btn btn-primary" onClick={() => save(active)} disabled={saving || !dirty[active]} style={{ opacity: dirty[active] ? 1 : 0.5 }}>
-                {saving ? 'Saving...' : dirty[active] ? '💾 Save & Publish' : '✓ No Changes'}
-              </button>
-              {saved === active && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved — live site updated immediately</span>}
+              {active !== 'pages' && (
+                <>
+                  <button className="btn btn-primary" onClick={() => save(active)} disabled={saving || !dirty[active]} style={{ opacity: dirty[active] ? 1 : 0.5 }}>
+                    {saving ? 'Saving...' : dirty[active] ? '💾 Save & Publish' : '✓ No Changes'}
+                  </button>
+                  {saved === active && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved — live site updated immediately</span>}
+                </>
+              )}
             </div>
 
             {/* Setup instructions if needed */}
@@ -296,8 +599,27 @@ create table website_content (
   updated_at timestamptz default now(),
   updated_by text
 );
+create table if not exists website_pages (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  slug text unique not null,
+  nav_label text,
+  summary text,
+  body text,
+  show_in_nav boolean default false,
+  active boolean default true,
+  sort_order integer default 0,
+  meta_title text,
+  meta_description text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  updated_by text
+);
 alter table website_content enable row level security;
+alter table website_pages enable row level security;
 create policy "allow_all" on website_content
+  for all using (true) with check (true);
+create policy "allow_all_pages" on website_pages
   for all using (true) with check (true);`}</pre>
             </details>
           </>
@@ -329,23 +651,13 @@ create policy "allow_all" on website_content
     </div>
   )
 }
-
-
-const PAGE_OPTIONS = [
-  { key: 'home',     label: 'Home' },
-  { key: 'services', label: 'Services' },
-  { key: 'pricing',  label: 'Pricing' },
-  { key: 'contact',  label: 'Contact' },
-  { key: 'careers',  label: 'Careers' },
-]
-
 const SIZE_OPTIONS = [
   { key: 'small',  label: 'Small',  desc: '32px' },
   { key: 'normal', label: 'Normal', desc: '44px' },
   { key: 'large',  label: 'Large',  desc: '56px' },
 ]
 
-function BannerEditor({ data, onChange }) {
+function BannerEditor({ data, onChange, pageOptions }) {
   const bars = data?.bars || []
   const enabled = data?.enabled !== false
 
@@ -459,7 +771,7 @@ function BannerEditor({ data, onChange }) {
             <div>
               <label className="lbl" style={{ marginBottom:8, display:'block' }}>Show On Pages</label>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                {PAGE_OPTIONS.map(p => {
+                {pageOptions.map(p => {
                   const active = (bar.pages||[]).includes(p.key)
                   return (
                     <button key={p.key} onClick={() => togglePage(idx, p.key)}
@@ -468,7 +780,7 @@ function BannerEditor({ data, onChange }) {
                     </button>
                   )
                 })}
-                <button onClick={() => onChange({ ...data, bars: bars.map((b,i) => i===idx ? {...b, pages: PAGE_OPTIONS.map(p=>p.key)} : b) })}
+                <button onClick={() => onChange({ ...data, bars: bars.map((b,i) => i===idx ? {...b, pages: pageOptions.map(p=>p.key)} : b) })}
                   style={{ padding:'5px 12px', borderRadius:6, border:'1px solid var(--border)', background:'transparent', color:'var(--faint)', cursor:'pointer', fontSize:11 }}>All pages</button>
               </div>
             </div>
