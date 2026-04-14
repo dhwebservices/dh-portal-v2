@@ -6,6 +6,7 @@ import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 
 function lazyRetry(importer, key) {
@@ -435,6 +436,7 @@ export default function App() {
   return (
     <MsalProvider instance={msal}>
       <BrowserRouter>
+        <InitialLoader />
         <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
         <UnauthenticatedTemplate>
           <Suspense fallback={<RouteLoader />}>
