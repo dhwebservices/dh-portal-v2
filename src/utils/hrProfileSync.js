@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export const normalizeEmail = (email = '') => email.toLowerCase().trim()
+export const buildOnboardingPayloadKey = (email = '') => `onboarding_payload:${normalizeEmail(email)}`
 
 export const pickBestProfileRow = (rows = []) =>
   rows
@@ -78,18 +79,75 @@ export function mergeHrProfileWithOnboarding(profile = {}, submission = null) {
   return merged
 }
 
+export async function loadOnboardingPayloadByEmail(email) {
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail) return null
+
+  const { data, error } = await supabase
+    .from('portal_settings')
+    .select('value')
+    .eq('key', buildOnboardingPayloadKey(normalizedEmail))
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.value?.value ?? data?.value ?? null
+}
+
+export async function upsertEmailScopedRow(table, email, payload) {
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail) throw new Error(`Missing user_email for ${table}`)
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from(table)
+    .select('*')
+    .ilike('user_email', normalizedEmail)
+
+  if (existingError) throw existingError
+
+  const existing = pickBestProfileRow(existingRows || [])
+  const nextPayload = {
+    ...(existing || {}),
+    ...payload,
+    user_email: normalizedEmail,
+    updated_at: payload.updated_at || new Date().toISOString(),
+  }
+
+  if (!existing) {
+    const { data, error } = await supabase
+      .from(table)
+      .insert({
+        ...nextPayload,
+        created_at: payload.created_at || new Date().toISOString(),
+      })
+      .select()
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  }
+
+  const { data, error } = await supabase
+    .from(table)
+    .update(nextPayload)
+    .eq('id', existing.id)
+    .select()
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
 export async function syncOnboardingSubmissionToHrProfile(submission, options = {}) {
   if (!submission?.user_email) return null
 
   const normalizedEmail = normalizeEmail(submission.user_email)
   const incoming = buildHrProfileFromOnboarding({ ...submission, user_email: normalizedEmail })
   const { overwrite = false } = options
-
-  const { data: existingRows } = await supabase
+  const { data: existingRows, error: existingError } = await supabase
     .from('hr_profiles')
     .select('*')
     .ilike('user_email', normalizedEmail)
-
+  if (existingError) throw existingError
   const existing = pickBestProfileRow(existingRows || [])
 
   const merged = {
@@ -110,23 +168,5 @@ export async function syncOnboardingSubmissionToHrProfile(submission, options = 
     created_at: existing?.created_at || new Date().toISOString(),
   }
 
-  if (!existing) {
-    const { data, error } = await supabase
-      .from('hr_profiles')
-      .insert(payload)
-      .select()
-      .maybeSingle()
-    if (error) throw error
-    return data
-  }
-
-  const { data, error } = await supabase
-    .from('hr_profiles')
-    .update(payload)
-    .eq('id', existing.id)
-    .select()
-    .maybeSingle()
-
-  if (error) throw error
-  return data
+  return upsertEmailScopedRow('hr_profiles', normalizedEmail, payload)
 }

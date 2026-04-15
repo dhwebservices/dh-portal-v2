@@ -4,7 +4,14 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
 import ProfileTimeline from '../components/ProfileTimeline'
-import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import {
+  loadOnboardingPayloadByEmail,
+  mergeHrProfileWithOnboarding,
+  normalizeEmail,
+  pickBestProfileRow,
+  syncOnboardingSubmissionToHrProfile,
+  upsertEmailScopedRow,
+} from '../utils/hrProfileSync'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import {
   ACCENT_SCHEMES,
@@ -429,12 +436,13 @@ export default function StaffProfile() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [profileRows, perm, comms, docs, onboardingSubmission] = await Promise.all([
+      const [profileRows, perm, comms, docs, onboardingSubmission, onboardingPayload] = await Promise.all([
         supabase.from('hr_profiles').select('*').ilike('user_email', email),
         supabase.from('user_permissions').select('*').ilike('user_email', email).maybeSingle(),
         supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending: false }),
         supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false }),
         supabase.from('onboarding_submissions').select('*').ilike('user_email', email).maybeSingle(),
+        loadOnboardingPayloadByEmail(email).catch(() => null),
       ])
       const { data: preferenceSetting } = await supabase
         .from('portal_settings')
@@ -500,7 +508,7 @@ export default function StaffProfile() {
         .like('key', 'training_template:%')
 
       const p = pickBestProfileRow(profileRows?.data || [])
-      const nextOnboardingSubmission = onboardingSubmission?.data || null
+      const nextOnboardingSubmission = onboardingPayload || onboardingSubmission?.data || null
       const mergedProfile = mergeHrProfileWithOnboarding(p || {}, nextOnboardingSubmission)
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
@@ -757,32 +765,13 @@ export default function StaffProfile() {
         updated_at:     new Date().toISOString(),
       }
 
-      // Save hr_profiles via raw REST to avoid supabase-js columns= bug
-      const existingProfile = profileId
-        ? { id: profileId }
-        : pickBestProfileRow((await supabase.from('hr_profiles').select('*').ilike('user_email', email)).data || [])
-
-      const { data: savedProfile, error: hrError } = await supabase
-        .from('hr_profiles')
-        .upsert({
-          ...(existingProfile?.created_at ? {} : { created_at: new Date().toISOString() }),
-          ...hrPayload,
-        }, { onConflict: 'user_email' })
-        .select()
-        .single()
-
-      if (hrError) throw new Error('HR save failed: ' + hrError.message)
+      const savedProfile = await upsertEmailScopedRow('hr_profiles', email, hrPayload)
 
       if (savedProfile?.id) setProfileId(savedProfile.id)
       if (!requiresDirectorApproval) setPrevMgr(profile.manager_email || '')
 
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
-      const { data: savedPerm, error: permError } = await supabase
-        .from('user_permissions')
-        .upsert({ ...permPayload, user_email: email }, { onConflict: 'user_email' })
-        .select()
-        .single()
-      if (permError) throw new Error('Perms save failed: ' + permError.message)
+      const savedPerm = await upsertEmailScopedRow('user_permissions', email, permPayload)
       if (savedPerm?.id) setPermId(savedPerm.id)
 
       const normalizedPrimaryWorkspace = normalizeWorkspace(primaryWorkspace)

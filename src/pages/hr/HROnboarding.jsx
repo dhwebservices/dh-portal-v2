@@ -2,7 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { buildAddressFromOnboarding, normalizeEmail, syncOnboardingSubmissionToHrProfile } from '../../utils/hrProfileSync'
+import {
+  buildAddressFromOnboarding,
+  buildOnboardingPayloadKey,
+  normalizeEmail,
+  syncOnboardingSubmissionToHrProfile,
+  upsertEmailScopedRow,
+} from '../../utils/hrProfileSync'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
 import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
@@ -39,10 +45,6 @@ function daysUntil(dateString) {
   if (!dateString) return null
   const diff = new Date(dateString).getTime() - Date.now()
   return Math.ceil(diff / 86400000)
-}
-
-function buildOnboardingPayloadKey(email = '') {
-  return `onboarding_payload:${normalizeEmail(email)}`
 }
 
 function buildSubmissionPayload({ user, form, employmentContext, status }) {
@@ -791,21 +793,15 @@ export default function HROnboarding() {
           ...updatedPayload,
           full_name: updatedPayload.full_name || updatedPayload.user_name,
         }, { overwrite: true })
-        await supabase
-          .from('user_permissions')
-          .upsert({
-            user_email: normalizedEmail,
-            onboarding: false,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_email' })
+        await upsertEmailScopedRow('user_permissions', normalizedEmail, {
+          onboarding: false,
+          updated_at: new Date().toISOString(),
+        })
       } else if (status === 'rejected') {
-        await supabase
-          .from('user_permissions')
-          .upsert({
-            user_email: normalizedEmail,
-            onboarding: true,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_email' })
+        await upsertEmailScopedRow('user_permissions', normalizedEmail, {
+          onboarding: true,
+          updated_at: new Date().toISOString(),
+        })
       }
 
       await Promise.allSettled([
