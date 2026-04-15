@@ -558,8 +558,8 @@ export default function Sidebar() {
 
   const isAllowed = useCallback((key) => {
     if (isOnboarding) return key === 'hr_onboarding'
-    if (perms && typeof perms === 'object' && Object.prototype.hasOwnProperty.call(perms, key)) {
-      return perms[key] === true
+    if (perms && typeof perms === 'object') {
+      return !!can?.(key)
     }
     if (can?.(key)) return true
     return workspaceAllowsItem(workspace, key)
