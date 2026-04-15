@@ -119,22 +119,55 @@ async function ensureSubmissionSummary(payload = {}) {
   const normalizedEmail = normalizeEmail(summaryRow.user_email)
   if (!normalizedEmail) throw new Error('Missing onboarding email')
 
-  const { error: upsertError } = await supabase
+  const { data: existingRows, error: existingError } = await supabase
     .from('onboarding_submissions')
-    .upsert(summaryRow, { onConflict:'user_email' })
-  if (upsertError) throw upsertError
-
-  const { data: verificationRow, error: verificationError } = await supabase
-    .from('onboarding_submissions')
-    .select('user_email,status,submitted_at,updated_at')
+    .select('*')
     .ilike('user_email', normalizedEmail)
-    .maybeSingle()
-  if (verificationError) throw verificationError
-  if (!verificationRow?.user_email) {
-    throw new Error(`Onboarding summary verification failed for ${normalizedEmail}`)
+
+  if (existingError) throw existingError
+
+  const sortedRows = (existingRows || []).slice().sort((a, b) =>
+    new Date(b.updated_at || b.submitted_at || b.created_at || 0).getTime() -
+    new Date(a.updated_at || a.submitted_at || a.created_at || 0).getTime()
+  )
+
+  if (!sortedRows.length) {
+    const { data: insertedRows, error: insertError } = await supabase
+      .from('onboarding_submissions')
+      .insert(summaryRow)
+      .select('*')
+    if (insertError) throw insertError
+    const inserted = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows
+    if (!inserted?.user_email) throw new Error(`Onboarding summary insert failed for ${normalizedEmail}`)
+    return inserted
   }
 
-  return summaryRow
+  const primaryRow = sortedRows[0]
+  let updatedRows = null
+  let updateError = null
+
+  if (primaryRow?.id) {
+    const result = await supabase
+      .from('onboarding_submissions')
+      .update(summaryRow)
+      .eq('id', primaryRow.id)
+      .select('*')
+    updatedRows = result.data
+    updateError = result.error
+  } else {
+    const result = await supabase
+      .from('onboarding_submissions')
+      .update(summaryRow)
+      .ilike('user_email', normalizedEmail)
+      .select('*')
+    updatedRows = result.data
+    updateError = result.error
+  }
+
+  if (updateError) throw updateError
+  const updated = Array.isArray(updatedRows) ? updatedRows[0] : updatedRows
+  if (!updated?.user_email) throw new Error(`Onboarding summary update failed for ${normalizedEmail}`)
+  return updated
 }
 
 function mergeSubmissionWithPayload(summary = {}, payload = {}) {
@@ -403,9 +436,7 @@ export default function HROnboarding() {
     setStaffContract(currentContract)
     setContractMessage('')
     if (orphanPayloads.length) {
-      supabase
-        .from('onboarding_submissions')
-        .upsert(orphanPayloads, { onConflict:'user_email' })
+      Promise.allSettled(orphanPayloads.map((payloadRow) => ensureSubmissionSummary(payloadRow)))
         .then(() => {})
         .catch((error) => console.error('Onboarding repair sync failed:', error))
     }
@@ -733,23 +764,15 @@ export default function HROnboarding() {
     setAdminBusyEmail(normalizedEmail)
     setAdminMessage('')
     try {
-      const { data, error } = await supabase
-        .from('onboarding_submissions')
-        .update({ status, updated_at: new Date().toISOString() })
-        .ilike('user_email', normalizedEmail)
-        .select('*')
-
-      if (error) throw error
-      const submission = Array.isArray(data) ? data[0] : data
-      if (!submission) throw new Error('No onboarding submission was updated for this staff member.')
-
-      const updatedPayload = mergeSubmissionWithPayload(submission, {
+      const updatedPayload = mergeSubmissionWithPayload(targetSubmission, {
         ...(submissions.find((item) => normalizeEmail(item.user_email) === normalizedEmail) || {}),
         status,
         admin_notes: notes,
         decided_by: user?.name || user?.email || '',
         decided_at: new Date().toISOString(),
       })
+      const submission = await ensureSubmissionSummary(updatedPayload)
+      if (!submission?.user_email) throw new Error('No onboarding submission was updated for this staff member.')
       const staffDisplayName = getOnboardingDisplayName(updatedPayload)
       const managerEmail = normalizeEmail(updatedPayload.manager_email || targetSubmission.manager_email || '')
       const managerName = updatedPayload.manager_name || targetSubmission.manager_name || managerEmail || 'Manager'

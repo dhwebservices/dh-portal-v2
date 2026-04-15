@@ -110,9 +110,20 @@ export async function syncOnboardingSubmissionToHrProfile(submission, options = 
     created_at: existing?.created_at || new Date().toISOString(),
   }
 
+  if (!existing) {
+    const { data, error } = await supabase
+      .from('hr_profiles')
+      .insert(payload)
+      .select()
+      .maybeSingle()
+    if (error) throw error
+    return data
+  }
+
   const { data, error } = await supabase
     .from('hr_profiles')
-    .upsert(payload, { onConflict: 'user_email' })
+    .update(payload)
+    .eq('id', existing.id)
     .select()
     .maybeSingle()
 
