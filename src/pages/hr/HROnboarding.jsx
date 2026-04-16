@@ -168,8 +168,33 @@ async function ensureSubmissionSummary(payload = {}) {
 
   if (updateError) throw updateError
   const updated = Array.isArray(updatedRows) ? updatedRows[0] : updatedRows
-  if (!updated?.user_email) throw new Error(`Onboarding summary update failed for ${normalizedEmail}`)
-  return updated
+  if (updated?.user_email) return updated
+
+  const { data: refreshedRows, error: refreshError } = await supabase
+    .from('onboarding_submissions')
+    .select('*')
+    .ilike('user_email', normalizedEmail)
+
+  if (refreshError) throw refreshError
+
+  const refreshed = (refreshedRows || [])
+    .slice()
+    .sort((a, b) =>
+      new Date(b.updated_at || b.submitted_at || b.created_at || 0).getTime() -
+      new Date(a.updated_at || a.submitted_at || a.created_at || 0).getTime()
+    )[0]
+
+  if (refreshed?.user_email) return refreshed
+
+  const { data: fallbackRows, error: fallbackInsertError } = await supabase
+    .from('onboarding_submissions')
+    .insert(summaryRow)
+    .select('*')
+
+  if (fallbackInsertError) throw fallbackInsertError
+  const fallbackInserted = Array.isArray(fallbackRows) ? fallbackRows[0] : fallbackRows
+  if (!fallbackInserted?.user_email) throw new Error(`Onboarding summary update failed for ${normalizedEmail}`)
+  return fallbackInserted
 }
 
 function mergeSubmissionWithPayload(summary = {}, payload = {}) {
