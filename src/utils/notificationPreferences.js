@@ -77,7 +77,9 @@ export async function sendManagedNotification({
 
   const preferences = await getUserPortalPreferences(safeEmail)
   const resolved = resolveNotificationDelivery(preferences, category, { forceImportant, type })
-  const delivery = forceDelivery === 'both'
+  const delivery = forceDelivery === 'all'
+    ? { portal: true, email: true, delivery: 'all' }
+    : forceDelivery === 'both'
     ? { portal: true, email: true, delivery: 'both' }
     : forceDelivery === 'portal'
       ? { portal: true, email: false, delivery: 'portal' }

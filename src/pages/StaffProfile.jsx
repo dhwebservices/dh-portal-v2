@@ -2205,7 +2205,7 @@ export default function StaffProfile() {
         `,
         sentBy: user?.name || 'Admin',
         forceImportant: customNotification.important,
-        forceDelivery: 'both',
+        forceDelivery: 'all',
       })
 
       if (!deliveryResult.emailSent) {
@@ -2242,7 +2242,11 @@ export default function StaffProfile() {
       }
 
       setNotificationSaved(true)
-      setNotificationSavedMessage(deliveryResult.portalSent ? 'Portal + email sent' : 'Email sent')
+      setNotificationSavedMessage(
+        deliveryResult.smsSent
+          ? (deliveryResult.portalSent ? 'Portal, email + SMS sent' : 'Email + SMS sent')
+          : (deliveryResult.portalSent ? 'Portal + email sent' : 'Email sent')
+      )
       setTimeout(() => setNotificationSaved(false), 3000)
       setTimeout(() => setNotificationSavedMessage(''), 3000)
       setCustomNotification({
