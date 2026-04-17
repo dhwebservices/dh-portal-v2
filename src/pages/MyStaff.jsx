@@ -142,7 +142,7 @@ export default function MyStaff() {
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
     const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }, { data: orgSettings }] = await Promise.all([
-      supabase.from('user_permissions').select('*'),
+      supabase.from('user_permissions').select('id,user_email,permissions,onboarding,bookable_staff,updated_at'),
       supabase.from('hr_profiles').select('*'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),

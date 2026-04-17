@@ -133,7 +133,7 @@ export default function AdminSafeguards() {
       const weekStart = getWeekStart()
       const [hrProfilesRes, permissionsRes, onboardingRes, schedulesRes, clientsRes, mandatesRes, paymentsRes] = await Promise.all([
         supabase.from('hr_profiles').select('*'),
-        supabase.from('user_permissions').select('*'),
+        supabase.from('user_permissions').select('id,user_email,permissions,onboarding,bookable_staff,updated_at'),
         supabase.from('onboarding_submissions').select('*'),
         supabase.from('schedules').select('user_email,user_name,submitted,week_start').eq('week_start', weekStart).eq('submitted', true),
         supabase.from('clients').select('*'),

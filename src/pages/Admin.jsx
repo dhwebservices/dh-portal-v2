@@ -50,7 +50,9 @@ export default function Admin() {
       const data = await res.json()
       setUsers((data.value||[]).map(u=>({ id:u.id, name:u.displayName, email:u.userPrincipalName, role:u.jobTitle })))
     } catch(e) { setError('Could not load Azure users: '+e.message) }
-    const { data: pd } = await supabase.from('user_permissions').select('*')
+    const { data: pd } = await supabase
+      .from('user_permissions')
+      .select('id,user_email,permissions,onboarding,bookable_staff,updated_at')
     const map = {}; (pd||[]).forEach(p=>{ map[p.user_email?.toLowerCase()] = p.permissions }); setPermsMap(map)
     setLoading(false)
   }
@@ -73,7 +75,7 @@ export default function Admin() {
   }
 
   const togglePerm = k => setEditPerms(p => ({ ...p, [k]: !p[k] }))
-  const accessCount = (email) => { const p = permsMap[email?.toLowerCase()]; return p ? Object.values(p).filter(Boolean).length : ALL_PAGES.length }
+  const accessCount = (email) => { const p = permsMap[email?.toLowerCase()]; return p ? Object.values(p).filter(Boolean).length : 0 }
 
   return (
     <div className="fade-in">

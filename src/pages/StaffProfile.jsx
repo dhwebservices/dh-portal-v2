@@ -33,8 +33,15 @@ import {
   getLifecycleMeta,
   LIFECYCLE_STATES,
   OFFBOARDING_ITEMS,
+  TERMINATED_STATES,
   mergeLifecycleRecord,
 } from '../utils/staffLifecycle'
+import {
+  buildStaffWorkspaceKey,
+  getWorkspaceLabel,
+  normalizeWorkspace,
+  WORKSPACE_OPTIONS,
+} from '../utils/workspaces'
 import {
   buildDepartmentCatalogKey,
   buildDepartmentRequestKey,
@@ -89,6 +96,7 @@ import {
 } from '../utils/contracts'
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
+import { openSecureDocument } from '../utils/fileAccess'
 
 function formatTimelineDate(value) {
   if (!value) return 'Unknown time'
@@ -173,6 +181,42 @@ const ROLE_DEFAULTS = {
 }
 
 const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Admin']
+const HIRING_PERMISSION_KEYS = [
+  'recruiting_dashboard',
+  'recruiting_jobs',
+  'recruiting_applications',
+  'recruiting_board',
+  'recruiting_settings',
+]
+const HIRING_WORKSPACE_PERMISSION = {
+  key: 'recruiting_workspace',
+  label: 'Recruitment',
+  group: 'Hiring',
+  category: 'Pipeline',
+  desc: 'Roles, overview, applicants, board, and hiring settings in one workspace',
+}
+
+function getPermissionItemsForGroup(group) {
+  if (group === 'Hiring') return [HIRING_WORKSPACE_PERMISSION]
+  return ALL_PAGES.filter((page) => page.group === group)
+}
+
+function isHiringWorkspaceEnabled(perms = {}) {
+  return HIRING_PERMISSION_KEYS.some((key) => !!perms?.[key])
+}
+
+function getPermissionEnabledCount(perms = {}, group) {
+  if (group === 'Hiring') return isHiringWorkspaceEnabled(perms) ? 1 : 0
+  return getPermissionItemsForGroup(group).filter(({ key }) => perms?.[key]).length
+}
+
+function setHiringWorkspacePermission(current = {}, enabled) {
+  const next = { ...current }
+  HIRING_PERMISSION_KEYS.forEach((key) => {
+    next[key] = enabled
+  })
+  return next
+}
 
 function countEnabledPermissions(perms) {
   return ALL_PAGES.filter((page) => perms?.[page.key]).length
@@ -233,6 +277,7 @@ export default function StaffProfile() {
   const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
   const [orgRecord, setOrgRecord] = useState(() => mergeOrgRecord())
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
+  const [primaryWorkspace, setPrimaryWorkspace] = useState('')
   const [departmentCatalog, setDepartmentCatalog] = useState([])
   const [departmentRequests, setDepartmentRequests] = useState([])
   const [reviews, setReviews] = useState([])
@@ -375,36 +420,24 @@ export default function StaffProfile() {
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(location.search).get('tab')
-    if (requestedTab) setTab(requestedTab)
+    if (requestedTab && staffProfileTabs.some(([key]) => key === requestedTab)) {
+      setTab(requestedTab)
+    }
   }, [location.search])
-
-  const SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
-  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-  const sbHeaders = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }
-
-  const sbGet = async (table, query) => {
-    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}&limit=1`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
-    if (!res.ok) return null
-    const data = await res.json()
-    return Array.isArray(data) ? (data[0] || null) : data
-  }
-
-  const sbGetMany = async (table, query) => {
-    const res = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, { headers: { ...sbHeaders, 'Accept': 'application/json' } })
-    if (!res.ok) return []
-    return await res.json()
-  }
 
   const loadAll = async () => {
     setLoading(true)
     try {
-      const enc = encodeURIComponent(email)
       const [profileRows, perm, comms, docs, onboardingSubmission] = await Promise.all([
-        sbGetMany('hr_profiles', `user_email=ilike.${enc}`),
-        sbGet('user_permissions', `user_email=ilike.${enc}`),
-        sbGetMany('commissions', `staff_email=ilike.${enc}&order=date.desc`),
-        sbGetMany('staff_documents', `staff_email=ilike.${enc}&order=created_at.desc`),
-        sbGet('onboarding_submissions', `user_email=ilike.${enc}`),
+        supabase.from('hr_profiles').select('*').ilike('user_email', email),
+        supabase
+          .from('user_permissions')
+          .select('id,user_email,permissions,onboarding,bookable_staff,updated_at')
+          .ilike('user_email', email)
+          .maybeSingle(),
+        supabase.from('commissions').select('*').ilike('staff_email', email).order('date', { ascending: false }),
+        supabase.from('staff_documents').select('*').ilike('staff_email', email).order('created_at', { ascending: false }),
+        supabase.from('onboarding_submissions').select('*').ilike('user_email', email).maybeSingle(),
       ])
       const { data: preferenceSetting } = await supabase
         .from('portal_settings')
@@ -420,6 +453,11 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('value')
         .eq('key', buildStaffOrgKey(email))
+        .maybeSingle()
+      const { data: workspaceSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildStaffWorkspaceKey(email))
         .maybeSingle()
       const { data: complianceSetting } = await supabase
         .from('portal_settings')
@@ -464,16 +502,18 @@ export default function StaffProfile() {
         .select('key,value')
         .like('key', 'training_template:%')
 
-      const p = pickBestProfileRow(profileRows || [])
-      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, onboardingSubmission)
+      const p = pickBestProfileRow(profileRows?.data || [])
+      const nextOnboardingSubmission = onboardingSubmission?.data || null
+      const mergedProfile = mergeHrProfileWithOnboarding(p || {}, nextOnboardingSubmission)
       const preferenceRaw = preferenceSetting?.value?.value ?? preferenceSetting?.value ?? {}
       const lifecycleRaw = lifecycleSetting?.value?.value ?? lifecycleSetting?.value ?? {}
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
+      const workspaceRaw = workspaceSetting?.value?.value ?? workspaceSetting?.value ?? {}
       const complianceRaw = complianceSetting?.value?.value ?? complianceSetting?.value ?? {}
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
-        onboarding: !!perm?.onboarding,
+        onboarding: !!perm?.data?.onboarding,
         startDate: mergedProfile.start_date,
         contractType: mergedProfile.contract_type,
       }))
@@ -494,6 +534,7 @@ export default function StaffProfile() {
       setDepartmentCatalog(nextDepartmentCatalog)
       setOrgRecord(hydratedOrg)
       setOriginalOrgRecord(hydratedOrg)
+      setPrimaryWorkspace(normalizeWorkspace(workspaceRaw?.primary_workspace ?? workspaceRaw))
       setComplianceRecord(mergeComplianceRecord(complianceRaw))
       const nextTemplates = (templateRows || [])
         .map((row) => createContractTemplate({
@@ -609,7 +650,7 @@ export default function StaffProfile() {
         .filter((request) => request.target_email === email)
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
 
-      if (p || onboardingSubmission) {
+      if (p || nextOnboardingSubmission) {
         setProfile(mergedProfile)
         setProfileId(p?.id || null)
         setPrevMgr(mergedProfile.manager_email || '')
@@ -619,23 +660,23 @@ export default function StaffProfile() {
         setPrevMgr('')
       }
 
-      if (onboardingSubmission) {
-        syncOnboardingSubmissionToHrProfile(onboardingSubmission).catch((err) => {
+      if (nextOnboardingSubmission) {
+        syncOnboardingSubmissionToHrProfile(nextOnboardingSubmission).catch((err) => {
           console.error('Onboarding sync error:', err)
         })
       }
 
-      if (perm) {
-        setPermId(perm.id)
-        setEditPerms(perm.permissions && Object.keys(perm.permissions).length ? perm.permissions : { ...ROLE_DEFAULTS.Staff })
-        setOnboarding(!!perm.onboarding)
-        setBookable(perm.bookable_staff === true)
+      if (perm?.data) {
+        setPermId(perm.data.id)
+        setEditPerms(perm.data.permissions && Object.keys(perm.data.permissions).length ? perm.data.permissions : { ...ROLE_DEFAULTS.Staff })
+        setOnboarding(!!perm.data.onboarding)
+        setBookable(perm.data.bookable_staff === true)
       } else {
         setPermId(null)
       }
 
-      setComms(comms || [])
-      setDocs(docs || [])
+      setComms(comms?.data || [])
+      setDocs(docs?.data || [])
       const { data: notificationRows } = await supabase
         .from('notifications')
         .select('*')
@@ -722,46 +763,53 @@ export default function StaffProfile() {
       // Save hr_profiles via raw REST to avoid supabase-js columns= bug
       const existingProfile = profileId
         ? { id: profileId }
-        : pickBestProfileRow(await sbGetMany('hr_profiles', `user_email=ilike.${encodeURIComponent(email)}`))
+        : pickBestProfileRow((await supabase.from('hr_profiles').select('*').ilike('user_email', email)).data || [])
 
-      const hrRes = await fetch(`${SB_URL}/rest/v1/hr_profiles?on_conflict=user_email`, {
-        method: 'POST',
-        headers: {
-          ...sbHeaders,
-          'Prefer': 'resolution=merge-duplicates,return=representation',
-        },
-        body: JSON.stringify([{
+      const { data: savedProfile, error: hrError } = await supabase
+        .from('hr_profiles')
+        .upsert({
           ...(existingProfile?.created_at ? {} : { created_at: new Date().toISOString() }),
           ...hrPayload,
-        }]),
-      })
+        }, { onConflict: 'user_email' })
+        .select()
+        .single()
 
-      if (!hrRes.ok) {
-        const e = await hrRes.text()
-        throw new Error('HR save failed: ' + e)
-      }
+      if (hrError) throw new Error('HR save failed: ' + hrError.message)
 
-      const savedProfiles = await hrRes.json().catch(() => [])
-      const savedProfile = Array.isArray(savedProfiles) ? savedProfiles[0] : savedProfiles
       if (savedProfile?.id) setProfileId(savedProfile.id)
       if (!requiresDirectorApproval) setPrevMgr(profile.manager_email || '')
 
-      // Save user_permissions via raw REST
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
-      if (permId) {
-        const res = await fetch(`${SB_URL}/rest/v1/user_permissions?id=eq.${permId}`, {
-          method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify(permPayload)
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('Perms update failed: ' + e) }
+      const { data: savedPerm, error: permError } = await supabase
+        .from('user_permissions')
+        .upsert({ ...permPayload, user_email: email }, { onConflict: 'user_email' })
+        .select('id,user_email,permissions,onboarding,bookable_staff,updated_at')
+        .single()
+      if (permError) throw new Error('Perms save failed: ' + permError.message)
+      if (savedPerm?.id) setPermId(savedPerm.id)
+
+      const normalizedPrimaryWorkspace = normalizeWorkspace(primaryWorkspace)
+      if (normalizedPrimaryWorkspace) {
+        const { error: workspaceError } = await supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildStaffWorkspaceKey(email),
+            value: {
+              value: {
+                primary_workspace: normalizedPrimaryWorkspace,
+                assigned_by_email: user?.email || '',
+                assigned_by_name: user?.name || '',
+                updated_at: new Date().toISOString(),
+              },
+            },
+          }, { onConflict: 'key' })
+        if (workspaceError) throw new Error('Workspace save failed: ' + workspaceError.message)
       } else {
-        const res = await fetch(`${SB_URL}/rest/v1/user_permissions`, {
-          method: 'POST', headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ ...permPayload, user_email: email })
-        })
-        if (!res.ok) { const e = await res.text(); throw new Error('Perms insert failed: ' + e) }
-        const newPerm = await sbGet('user_permissions', `user_email=ilike.${encodeURIComponent(email)}`)
-        if (newPerm?.id) setPermId(newPerm.id)
+        const { error: workspaceDeleteError } = await supabase
+          .from('portal_settings')
+          .delete()
+          .eq('key', buildStaffWorkspaceKey(email))
+        if (workspaceDeleteError) throw new Error('Workspace save failed: ' + workspaceDeleteError.message)
       }
 
       if (requiresDirectorApproval) {
@@ -1089,16 +1137,16 @@ export default function StaffProfile() {
     await saveLifecycleRecord(nextRecord, { silent: true })
 
     if (approved) {
-      await fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
-        method: 'PATCH',
-        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
+      await supabase
+        .from('user_permissions')
+        .update({
           permissions: {},
           onboarding: false,
           bookable_staff: false,
           updated_at: new Date().toISOString(),
-        }),
-      }).catch(() => {})
+        })
+        .ilike('user_email', email)
+        .catch(() => {})
     }
 
     await Promise.allSettled([
@@ -1219,26 +1267,11 @@ export default function StaffProfile() {
     setDeletingStaff(true)
     try {
       await Promise.allSettled([
-        fetch(`${SB_URL}/rest/v1/hr_profiles?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/user_permissions?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/onboarding_submissions?user_email=ilike.${encodeURIComponent(email)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_lifecycle:${email}`)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
-        fetch(`${SB_URL}/rest/v1/portal_settings?key=eq.${encodeURIComponent(`staff_org:${email}`)}`, {
-          method: 'DELETE',
-          headers: { ...sbHeaders, Prefer: 'return=minimal' },
-        }),
+        supabase.from('hr_profiles').delete().ilike('user_email', email),
+        supabase.from('user_permissions').delete().ilike('user_email', email),
+        supabase.from('onboarding_submissions').delete().ilike('user_email', email),
+        supabase.from('portal_settings').delete().eq('key', `staff_lifecycle:${email}`),
+        supabase.from('portal_settings').delete().eq('key', `staff_org:${email}`),
       ])
 
       navigate('/my-staff')
@@ -1842,6 +1875,69 @@ export default function StaffProfile() {
     }
   }
 
+  const openTemplateReferenceFile = async (template) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: template?.reference_file_path,
+        fallbackUrl: template?.reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'contract_template_reference_opened',
+        entity: 'contract_template',
+        entityId: template?.id || '',
+        details: {
+          template_name: template?.name || '',
+          staff_email: email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the template reference file.')
+    }
+  }
+
+  const openContractReferenceFile = async (contract) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: contract?.template_reference_file_path,
+        fallbackUrl: contract?.template_reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_contract_reference_opened',
+        entity: 'staff_contract',
+        entityId: contract?.id || '',
+        details: {
+          template_name: contract?.template_name || '',
+          staff_email: contract?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the contract reference file.')
+    }
+  }
+
+  const openSignedContractFile = async (contract) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: contract?.final_document_path,
+        fallbackUrl: contract?.final_document_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_contract_signed_pdf_opened',
+        entity: 'staff_contract',
+        entityId: contract?.id || '',
+        details: {
+          template_name: contract?.template_name || '',
+          staff_email: contract?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the signed contract PDF.')
+    }
+  }
+
   const voidContract = async (contract) => {
     if (!confirm(`Void ${contract.template_name || 'this contract'}?`)) return
     setContractSaving(true)
@@ -2072,6 +2168,8 @@ export default function StaffProfile() {
   }
   const roleSummary = [profile.role, profile.department, roleScopeLabel].filter(Boolean)
   const managerDisplay = profile.manager_name || profile.manager_email || 'No manager assigned'
+  const activeTabLabel = staffProfileTabs.find(([key]) => key === tab)?.[1] || 'Profile'
+  const activeTabDescription = staffProfileTabDescriptions[tab] || 'Manage this employee workspace.'
   const heroSignals = [
     { label: 'Lifecycle', value: lifecycle.label, tone: lifecycle.tone, hint: lifecycle.hint || 'Current employment stage' },
     { label: 'Profile', value: `${profileCompleteness.percent}%`, tone: staff360Signals[0]?.tone || 'blue', hint: `${profileCompleteness.completed}/${profileCompleteness.total} checks complete` },
@@ -2195,20 +2293,38 @@ export default function StaffProfile() {
 
       <div className="staff-profile-hero">
         <div className="staff-profile-hero-main">
-          <div className="staff-profile-avatar">
-            {getInitials(displayName)}
-          </div>
-          <div className="staff-profile-hero-copy">
-            <div className="staff-profile-kicker">Staff 360</div>
-            <h1 className="staff-profile-name">{displayName}</h1>
-            <div className="staff-profile-subline">
-              {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
+          <div className="staff-profile-hero-identity">
+            <div className="staff-profile-avatar">
+              {getInitials(displayName)}
             </div>
-            <div className="staff-profile-meta-row">
-              <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
-              {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
-              {bookable ? <span className="badge badge-blue">Bookable</span> : null}
-              <span className="badge badge-grey">{email}</span>
+            <div className="staff-profile-hero-copy">
+              <div className="staff-profile-kicker">Staff 360</div>
+              <h1 className="staff-profile-name">{displayName}</h1>
+              <div className="staff-profile-subline">
+                {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
+              </div>
+              <div className="staff-profile-meta-row">
+                <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+                {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
+                {bookable ? <span className="badge badge-blue">Bookable</span> : null}
+                <span className="badge badge-grey">{email}</span>
+              </div>
+            </div>
+          </div>
+          <div className="staff-profile-hero-highlight-grid">
+            {heroSignals.slice(0, 3).map((item) => (
+              <div key={item.label} className="staff-profile-hero-highlight-card">
+                <div className="staff-profile-hero-highlight-label">{item.label}</div>
+                <div className="staff-profile-hero-highlight-value">{item.value}</div>
+                <div className="staff-profile-hero-highlight-hint">{item.hint}</div>
+              </div>
+            ))}
+            <div className="staff-profile-hero-highlight-card staff-profile-hero-highlight-card-wide">
+              <div className="staff-profile-hero-highlight-label">Assigned workspace</div>
+              <div className="staff-profile-hero-highlight-value">{primaryWorkspace ? getWorkspaceLabel(primaryWorkspace) : 'Auto workspace'}</div>
+              <div className="staff-profile-hero-highlight-hint">
+                {primaryWorkspace ? 'This controls where they land after onboarding is complete.' : 'No manual workspace assigned. The portal will infer it from role and permissions.'}
+              </div>
             </div>
           </div>
         </div>
@@ -2267,20 +2383,24 @@ export default function StaffProfile() {
 
       <div className="staff-profile-workspace">
         <aside className="staff-profile-nav">
-          <div className="staff-profile-action-head" style={{ marginBottom: 0 }}>
-            <div>
-              <div className="staff-profile-kicker">Workspace</div>
-              <div className="staff-profile-action-title">Profile areas</div>
-            </div>
+          <div className="staff-profile-nav-head">
+            <div className="staff-profile-kicker">Workspace</div>
+            <div className="staff-profile-action-title">Profile areas</div>
             <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
           </div>
+          <div className="staff-profile-nav-current">
+            <div className="staff-profile-nav-current-label">Current section</div>
+            <div className="staff-profile-nav-current-title">{activeTabLabel}</div>
+            <div className="staff-profile-nav-current-copy">{activeTabDescription}</div>
+          </div>
           <div className="staff-profile-nav-list">
-            {staffProfileTabs.map(([k, l]) => (
+            {staffProfileTabs.map(([k, l], index) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
                 className={`staff-profile-nav-btn${tab === k ? ' on' : ''}`}
               >
+                <span className="staff-profile-nav-index">{String(index + 1).padStart(2, '0')}</span>
                 <span className="staff-profile-nav-label">{l}</span>
                 <span className="staff-profile-nav-copy">{staffProfileTabDescriptions[k]}</span>
               </button>
@@ -2289,10 +2409,21 @@ export default function StaffProfile() {
         </aside>
 
         <div style={{ width:'100%' }} className="staff-profile-content">
+        <div className="staff-profile-content-head">
+          <div>
+            <div className="staff-profile-kicker">Profile workspace</div>
+            <div className="staff-profile-content-title">{activeTabLabel}</div>
+            <div className="staff-profile-content-copy">{activeTabDescription}</div>
+          </div>
+          <div className="staff-profile-content-badges">
+            <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
+            {missingProfileItems.length ? <span className="badge badge-amber">{missingProfileItems.length} missing items</span> : <span className="badge badge-green">Core record healthy</span>}
+          </div>
+        </div>
         {tab === 'profile' && (
           <div className="staff-profile-main-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.55fr) minmax(320px,0.95fr)', gap:20, alignItems:'start' }}>
             <div style={{ display:'grid', gap:18 }}>
-              <div className="card card-pad" style={{ background:'color-mix(in srgb, var(--card) 82%, var(--accent-soft) 18%)', border:'1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%)' }}>
+              <div className="card card-pad staff-profile-overview-card">
                 <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Staff 360</div>
@@ -2304,18 +2435,18 @@ export default function StaffProfile() {
                   <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
                 </div>
 
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))', gap:10, marginTop:16 }}>
+                <div className="staff-profile-overview-signal-grid">
                   {staff360Signals.map((item) => (
-                    <div key={item.label} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
-                      <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{item.label}</div>
-                      <div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>{item.value}</div>
-                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>{item.hint}</div>
+                    <div key={item.label} className="staff-profile-overview-signal-card">
+                      <div className="staff-profile-overview-signal-label">{item.label}</div>
+                      <div className="staff-profile-overview-signal-value">{item.value}</div>
+                      <div className="staff-profile-overview-signal-hint">{item.hint}</div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(240px,0.9fr)', gap:14, marginTop:16 }}>
-                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div className="staff-profile-overview-detail-grid">
+                  <div className="staff-profile-overview-pane">
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Latest record movement</div>
                     <div style={{ display:'grid', gap:10 }}>
                       {staffTimeline.slice(0, 3).map((item) => (
@@ -2328,7 +2459,7 @@ export default function StaffProfile() {
                       {staffTimeline.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No staff profile timeline activity yet.</div> : null}
                     </div>
                   </div>
-                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div className="staff-profile-overview-pane">
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Missing profile items</div>
                     <div style={{ display:'grid', gap:8 }}>
                       {missingProfileItems.map((item) => (
@@ -2381,6 +2512,18 @@ export default function StaffProfile() {
                         {ORG_ROLE_SCOPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                       </select>
                       {!isDirector && isDepartmentManager ? <div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Department managers can request role changes, but Directors approve them.</div> : null}
+                    </div>
+                    <div>
+                      <label className="lbl">Primary Workspace</label>
+                      <select className="inp" value={primaryWorkspace} onChange={e => setPrimaryWorkspace(normalizeWorkspace(e.target.value))}>
+                        <option value="">Auto / infer from role</option>
+                        {WORKSPACE_OPTIONS.filter(([key]) => key !== 'self_service').map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                      <div style={{ fontSize:11, color:'var(--sub)', marginTop:4, lineHeight:1.5 }}>
+                        Onboarding still takes precedence. Once onboarding is complete, this becomes the staff member&apos;s main portal workspace.
+                      </div>
                     </div>
                     {orgRecord.role_scope === 'department_manager' ? (
                       <div className="fc">
@@ -2446,7 +2589,7 @@ export default function StaffProfile() {
             </div>
 
             <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
-              <div className="card card-pad staff-profile-admin-card">
+              <div className="card card-pad staff-profile-admin-card staff-profile-admin-shell">
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                   <div>
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Admin controls</div>
@@ -2526,7 +2669,7 @@ export default function StaffProfile() {
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Quick admin jumps</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                    <div className="staff-profile-jump-grid">
                       {[
                         ['Lifecycle', 'lifecycle'],
                         ['Performance', 'performance'],
@@ -2546,10 +2689,10 @@ export default function StaffProfile() {
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
                     <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Coverage</div>
-                    <div style={{ display:'grid', gap:6 }}>
+                      <div style={{ display:'grid', gap:6 }}>
                       {PERMISSION_GROUPS.map((group) => {
-                        const groupItems = ALL_PAGES.filter((page) => page.group === group)
-                        const enabled = groupItems.filter((page) => editPerms[page.key]).length
+                        const groupItems = getPermissionItemsForGroup(group)
+                        const enabled = getPermissionEnabledCount(editPerms, group)
                         return (
                           <div key={group} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, fontSize:12.5 }}>
                             <span style={{ color:'var(--sub)' }}>{group}</span>
@@ -3547,8 +3690,8 @@ export default function StaffProfile() {
             </div>
 
             {PERMISSION_GROUPS.map(group => {
-              const items = ALL_PAGES.filter((page) => page.group === group)
-              const enabledCount = items.filter(({ key }) => editPerms[key]).length
+              const items = getPermissionItemsForGroup(group)
+              const enabledCount = getPermissionEnabledCount(editPerms, group)
               return (
                 <div key={group} style={{ marginBottom:18, border:'1px solid var(--border)', borderRadius:12, overflow:'hidden', background:'var(--bg)' }}>
                   <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
@@ -3560,11 +3703,13 @@ export default function StaffProfile() {
                     </div>
                     <div style={{ display:'flex', gap:8 }}>
                       <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        if (group === 'Hiring') return setHiringWorkspacePermission(current, true)
                         const next = { ...current }
                         items.forEach(({ key }) => { next[key] = true })
                         return next
                       })}>Enable all</button>
                       <button className="btn btn-outline btn-sm" onClick={() => setEditPerms((current) => {
+                        if (group === 'Hiring') return setHiringWorkspacePermission(current, false)
                         const next = { ...current }
                         items.forEach(({ key }) => { next[key] = false })
                         return next
@@ -3574,11 +3719,18 @@ export default function StaffProfile() {
 
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10, padding:12 }}>
                     {items.map(({ key, label, desc }) => {
-                      const enabled = !!editPerms[key]
+                      const enabled = key === HIRING_WORKSPACE_PERMISSION.key
+                        ? isHiringWorkspaceEnabled(editPerms)
+                        : !!editPerms[key]
                       return (
                         <button
                           key={key}
-                          onClick={() => setEditPerms((current) => ({ ...current, [key]: !current[key] }))}
+                          onClick={() => setEditPerms((current) => {
+                            if (key === HIRING_WORKSPACE_PERMISSION.key) {
+                              return setHiringWorkspacePermission(current, !isHiringWorkspaceEnabled(current))
+                            }
+                            return { ...current, [key]: !current[key] }
+                          })}
                           style={{
                             display:'flex',
                             alignItems:'flex-start',
@@ -3937,7 +4089,7 @@ export default function StaffProfile() {
                     <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Preview</div>
                     <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>{activeContractTemplate?.name || 'Choose a template'}</div>
                   </div>
-                  {activeContractTemplate?.reference_file_url ? <a className="btn btn-outline btn-sm" href={activeContractTemplate.reference_file_url} target="_blank" rel="noreferrer">Open reference file</a> : null}
+                  {activeContractTemplate?.reference_file_path || activeContractTemplate?.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openTemplateReferenceFile(activeContractTemplate)}>Open reference file</button> : null}
                 </div>
                 {activeContractTemplate ? (
                   <>
@@ -3995,8 +4147,8 @@ export default function StaffProfile() {
                             <div>Staff sign-off: {contract.staff_signature?.name || 'Pending'}</div>
                           </div>
                           <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-                            {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open signed PDF</a> : null}
-                            {contract.template_reference_file_url ? <a className="btn btn-outline btn-sm" href={contract.template_reference_file_url} target="_blank" rel="noreferrer">Open template attachment</a> : null}
+                            {contract.final_document_path || contract.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedContractFile(contract)}>Open signed PDF</button> : null}
+                            {contract.template_reference_file_path || contract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openContractReferenceFile(contract)}>Open template attachment</button> : null}
                             {contract.status === 'awaiting_staff_signature' ? (
                               <button className="btn btn-outline btn-sm" onClick={() => resendContractReminder(contract)} disabled={contractSaving}>Resend reminder</button>
                             ) : null}
