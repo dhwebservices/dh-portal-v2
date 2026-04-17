@@ -9,7 +9,7 @@ const ALL_PAGES = [
   {key:'clients',label:'Onboarded Clients'},{key:'clientmgmt',label:'Client Portal'},
   {key:'support',label:'Support'},{key:'competitor',label:'Competitor Lookup'},
   {key:'domains',label:'Domain Checker'},{key:'proposals',label:'Proposal Builder'},
-  {key:'sendemail',label:'Send Email'},{key:'tasks',label:'Manage Tasks'},
+  {key:'sendemail',label:'Send Email'},{key:'sms_manager',label:'SMS Manager'},{key:'tasks',label:'Manage Tasks'},
   {key:'mytasks',label:'My Tasks'},{key:'schedule',label:'Schedule'},
   {key:'reports',label:'Reports'},{key:'staff',label:'Staff & Commissions'},
   {key:'banners',label:'Banners'},{key:'emailtemplates',label:'Email Templates'},

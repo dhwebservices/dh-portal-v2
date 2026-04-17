@@ -32,7 +32,7 @@ const SECTIONS = [
       { to: '/domains',     icon: 'link',   label: 'Domain Checker',    desc: 'Check domains',      key: 'domains'     },
       { to: '/proposals',   icon: 'doc',    label: 'Proposal Builder',  desc: 'Build proposals',    key: 'proposals'   },
       { to: '/send-email',  icon: 'send',   label: 'Send Email',        desc: 'Compose & send',     key: 'sendemail'   },
-      { to: '/sms-centre',  icon: 'phone',  label: 'SMS Centre',        desc: 'Staff text alerts',  key: 'sendemail'   },
+      { to: '/sms-centre',  icon: 'phone',  label: 'SMS Centre',        desc: 'Staff text alerts',  key: 'sms_manager' },
       { to: '/email-templates', icon: 'mail', label: 'Email Templates', desc: 'Template library',   key: 'emailtemplates' },
       { to: '/mailing-list',icon: 'mail',   label: 'Mailing List',      desc: 'Subscribers',        key: 'mailinglist' },
     ]

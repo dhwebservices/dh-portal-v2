@@ -146,6 +146,7 @@ const ALL_PAGES = [
   {key:'domains',       label:'Domain Checker',     group:'Business'},
   {key:'proposals',     label:'Proposal Builder',   group:'Business'},
   {key:'sendemail',     label:'Send Email',         group:'Business'},
+  {key:'sms_manager',   label:'SMS Manager',        group:'Business', category:'Comms', desc:'Access to the staff SMS centre and bulk text alerts'},
   {key:'tasks',         label:'Manage Tasks',       group:'Tasks'},
   {key:'mytasks',       label:'My Tasks',           group:'Tasks'},
   {key:'schedule',      label:'Schedule',           group:'Tasks'},

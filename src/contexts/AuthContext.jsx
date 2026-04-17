@@ -40,6 +40,7 @@ const BASE_PERMISSIONS = {
   notifications: true,
   my_profile: true,
   search: true,
+  sms_manager: false,
   recruiting_dashboard: false,
   recruiting_jobs: false,
   recruiting_applications: false,

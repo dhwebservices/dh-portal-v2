@@ -48,7 +48,7 @@ const SHARED_ITEM_KEYS = new Set([
 
 const WORKSPACE_ITEM_KEYS = {
   self_service: ['dashboard'],
-  outreach: ['outreach', 'sendemail', 'emailtemplates', 'mailinglist', 'proposals', 'support', 'knowledge_base'],
+  outreach: ['outreach', 'sendemail', 'sms_manager', 'emailtemplates', 'mailinglist', 'proposals', 'support', 'knowledge_base'],
   recruitment: ['recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'recruiting_settings'],
   hr: ['hr_profiles', 'hr_policies', 'hr_documents', 'hr_timesheet', 'hr_onboarding', 'contract_queue', 'contract_templates', 'staff', 'org_chart'],
   client_ops: ['clients', 'clientmgmt', 'support', 'knowledge_base', 'proposals', 'website_editor', 'domains', 'competitor'],
@@ -132,6 +132,7 @@ export function inferWorkspaceFromProfile({ explicitWorkspace = '', hrProfile = 
   if (
     perms?.outreach === true ||
     perms?.sendemail === true ||
+    perms?.sms_manager === true ||
     perms?.emailtemplates === true ||
     perms?.mailinglist === true ||
     containsText(roleText, 'outreach') ||
