@@ -53,6 +53,8 @@ export const NOTIFICATION_DELIVERY_OPTIONS = [
   ['both', 'Portal + email'],
 ]
 
+export const SMS_NOTIFICATION_CATEGORY_OPTIONS = [...NOTIFICATION_CATEGORY_OPTIONS]
+
 export const DASHBOARD_DENSITY_OPTIONS = [
   ['comfortable', 'Comfortable'],
   ['compact', 'Compact'],
@@ -146,6 +148,15 @@ export const DEFAULT_PORTAL_PREFERENCES = {
   notificationPreferences: Object.fromEntries(
     NOTIFICATION_CATEGORY_OPTIONS.map(([key]) => [key, 'both'])
   ),
+  smsNotificationsEnabled: false,
+  smsNotificationPreferences: {
+    general: false,
+    urgent: true,
+    hr: true,
+    tasks: false,
+    schedule: false,
+    appointments: true,
+  },
 }
 
 function hexToRgb(hex = '#0071E3') {
@@ -289,6 +300,13 @@ export function sanitizePortalPreferences(raw = {}) {
       return [key, safe]
     })
   )
+  const smsNotificationsEnabled = raw?.smsNotificationsEnabled === true
+  const smsNotificationPreferences = Object.fromEntries(
+    SMS_NOTIFICATION_CATEGORY_OPTIONS.map(([key]) => {
+      const requested = raw?.smsNotificationPreferences?.[key]
+      return [key, typeof requested === 'boolean' ? requested : DEFAULT_PORTAL_PREFERENCES.smsNotificationPreferences[key]]
+    })
+  )
 
   return {
     workspacePreset,
@@ -306,6 +324,8 @@ export function sanitizePortalPreferences(raw = {}) {
     dashboardOrder,
     dashboardSections,
     notificationPreferences,
+    smsNotificationsEnabled,
+    smsNotificationPreferences,
   }
 }
 
@@ -320,6 +340,10 @@ export function mergePortalPreferences(base = DEFAULT_PORTAL_PREFERENCES, patch 
     notificationPreferences: {
       ...(base.notificationPreferences || {}),
       ...(patch.notificationPreferences || {}),
+    },
+    smsNotificationPreferences: {
+      ...(base.smsNotificationPreferences || {}),
+      ...(patch.smsNotificationPreferences || {}),
     },
   })
 }

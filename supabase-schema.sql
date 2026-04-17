@@ -21,6 +21,8 @@ create table if not exists user_permissions (
   user_email text unique,
   permissions jsonb default '{}',
   onboarding boolean default false,
+  bookable_staff boolean default false,
+  created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
@@ -38,6 +40,7 @@ create table if not exists hr_profiles (
   personal_email text,
   address text,
   manager_name text,
+  manager_email text,
   hr_notes text,
   bank_name text,
   account_name text,
@@ -48,6 +51,7 @@ create table if not exists hr_profiles (
   bio text,
   skills text,
   location text,
+  bookable boolean default false,
   updated_at timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -157,6 +161,25 @@ create table if not exists email_templates (
   name text,
   subject text,
   body text,
+  created_at timestamptz default now()
+);
+
+-- SMS logs
+create table if not exists sms_logs (
+  id uuid default gen_random_uuid() primary key,
+  recipient_phone text,
+  recipient_name text,
+  recipient_email text,
+  sender_id text,
+  message text,
+  category text default 'general',
+  provider text default 'clicksend',
+  provider_message_id text,
+  status text default 'queued',
+  sent_by_email text,
+  sent_by_name text,
+  audience_type text default 'manual',
+  metadata jsonb default '{}',
   created_at timestamptz default now()
 );
 

@@ -113,12 +113,14 @@ export async function upsertEmailScopedRow(table, email, payload) {
   }
 
   if (!existing) {
+    const insertPayload = {
+      ...nextPayload,
+      ...(payload.created_at ? { created_at: payload.created_at } : {}),
+    }
+
     const { data, error } = await supabase
       .from(table)
-      .insert({
-        ...nextPayload,
-        created_at: payload.created_at || new Date().toISOString(),
-      })
+      .insert(insertPayload)
       .select()
       .maybeSingle()
 

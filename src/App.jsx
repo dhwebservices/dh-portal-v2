@@ -58,6 +58,7 @@ const OrgChart = lazyRetry(() => import('./pages/OrgChart'), 'org-chart')
 const AdminSafeguards = lazyRetry(() => import('./pages/AdminSafeguards'), 'admin-safeguards')
 const Proposals = lazyRetry(() => import('./pages/Proposals'), 'proposals')
 const SendEmail = lazyRetry(() => import('./pages/SendEmail'), 'send-email')
+const SmsCentre = lazyRetry(() => import('./pages/SmsCentre'), 'sms-centre')
 const EmailTemplates = lazyRetry(() => import('./pages/EmailTemplates'), 'email-templates')
 const Banners = lazyRetry(() => import('./pages/Banners'), 'banners')
 const Domains = lazyRetry(() => import('./pages/Domains'), 'domains')
@@ -373,6 +374,7 @@ function PortalLayout() {
               <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
               <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
               <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
+              <Route path="/sms-centre"      element={<PermissionGate permKey="sendemail"><SmsCentre /></PermissionGate>} />
               <Route path="/email-templates" element={<PermissionGate permKey="emailtemplates"><EmailTemplates /></PermissionGate>} />
               <Route path="/banners"         element={<PermissionGate permKey="banners"><Banners /></PermissionGate>} />
               <Route path="/domains"         element={<PermissionGate permKey="domains"><Domains /></PermissionGate>} />

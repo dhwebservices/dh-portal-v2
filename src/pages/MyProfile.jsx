@@ -14,6 +14,7 @@ import {
   NOTIFICATION_CATEGORY_OPTIONS,
   NOTIFICATION_DELIVERY_OPTIONS,
   QUICK_ACTION_OPTIONS,
+  SMS_NOTIFICATION_CATEGORY_OPTIONS,
   TEXT_SCALE_OPTIONS,
   WORKSPACE_PRESET_OPTIONS,
   applyWorkspacePreset,
@@ -60,6 +61,17 @@ export default function MyProfile() {
     notificationPreferences: {
       ...current.notificationPreferences,
       [category]: delivery,
+    },
+  }))
+  const setSmsNotificationsEnabled = (enabled) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    workspacePreset: 'custom',
+    smsNotificationsEnabled: enabled,
+  }))
+  const setSmsCategoryEnabled = (category, enabled) => setPortalPrefs((current) => mergePortalPreferences(current, {
+    workspacePreset: 'custom',
+    smsNotificationPreferences: {
+      ...current.smsNotificationPreferences,
+      [category]: enabled,
     },
   }))
 
@@ -657,6 +669,72 @@ export default function MyProfile() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ marginTop: 18, padding:'16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:14 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:10, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>SMS alerts</div>
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:4, lineHeight:1.55 }}>
+                    Use one-way SMS for operational updates. Messages are sent from an alpha tag sender and replies are not supported.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSmsNotificationsEnabled(!portalPrefs.smsNotificationsEnabled)}
+                  style={{
+                    padding:'10px 14px',
+                    borderRadius:999,
+                    border:`1px solid ${portalPrefs.smsNotificationsEnabled ? 'var(--accent-border)' : 'var(--border)'}`,
+                    background: portalPrefs.smsNotificationsEnabled ? 'var(--accent-soft)' : 'var(--card)',
+                    color:'var(--text)',
+                    fontSize:12,
+                    fontWeight:700,
+                    letterSpacing:'0.04em',
+                    textTransform:'uppercase',
+                  }}
+                >
+                  {portalPrefs.smsNotificationsEnabled ? 'SMS enabled' : 'SMS disabled'}
+                </button>
+              </div>
+
+              <div style={{ display:'grid', gap:10 }}>
+                {SMS_NOTIFICATION_CATEGORY_OPTIONS.map(([category, label]) => {
+                  const active = category === 'urgent'
+                    ? true
+                    : portalPrefs.smsNotificationsEnabled && portalPrefs.smsNotificationPreferences?.[category] === true
+                  return (
+                    <div key={category} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--card)', opacity: !portalPrefs.smsNotificationsEnabled && category !== 'urgent' ? 0.6 : 1 }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{label}</div>
+                        <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                          {category === 'urgent'
+                            ? 'Critical alerts stay SMS-enabled once the SMS channel is on.'
+                            : 'Allow this category to trigger text messages to your staff mobile number.'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={category === 'urgent' || !portalPrefs.smsNotificationsEnabled}
+                        onClick={() => setSmsCategoryEnabled(category, !portalPrefs.smsNotificationPreferences?.[category])}
+                        style={{
+                          minWidth:88,
+                          padding:'9px 12px',
+                          borderRadius:999,
+                          border:`1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`,
+                          background: active ? 'var(--accent-soft)' : 'var(--bg2)',
+                          color: active ? 'var(--accent)' : 'var(--sub)',
+                          fontSize:12,
+                          fontWeight:700,
+                          cursor: category === 'urgent' || !portalPrefs.smsNotificationsEnabled ? 'default' : 'pointer',
+                        }}
+                      >
+                        {active ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

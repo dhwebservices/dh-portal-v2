@@ -336,8 +336,8 @@ export function AuthProvider({ children }) {
       user_email: normalizedEmail,
       user_name:  account.name || normalizedEmail,
       action:     'user_login',
-      entity:     'session',
-      entity_id:  null,
+      target:     'session',
+      target_id:  null,
       details:    {},
       created_at: now,
     }]).then(() => {}).catch(() => {})

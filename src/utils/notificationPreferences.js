@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { sendEmail } from './email'
+import { buildPortalSmsNotificationMessage, sendPortalSms } from './sms'
 import {
   buildPreferenceSettingKey,
   DEFAULT_PORTAL_PREFERENCES,
@@ -27,6 +28,15 @@ export function resolveNotificationDelivery(preferences, category = 'general', {
     email: delivery === 'email' || delivery === 'both',
     delivery,
   }
+}
+
+function resolveSmsDelivery(preferences, category = 'general', { forceImportant = false, type = 'info', forceDelivery = '' } = {}) {
+  if (forceDelivery === 'sms' || forceDelivery === 'all') return true
+  if (!preferences?.smsNotificationsEnabled) return false
+  if (forceImportant || category === 'urgent' || type === 'urgent') return true
+
+  const safeCategory = CATEGORY_KEYS.has(category) ? category : 'general'
+  return preferences?.smsNotificationPreferences?.[safeCategory] === true
 }
 
 export async function getUserPortalPreferences(email = '') {
@@ -77,8 +87,10 @@ export async function sendManagedNotification({
   const createdAt = new Date().toISOString()
   let portalSent = false
   let emailSent = false
+  let smsSent = false
   let portalError = null
   let emailError = null
+  let smsError = null
 
   if (delivery.portal) {
     const { error } = await supabase.from('notifications').insert([{
@@ -120,15 +132,57 @@ export async function sendManagedNotification({
     else emailSent = true
   }
 
-  if (!portalSent && !emailSent) {
-    throw portalError || emailError || new Error('Notification delivery failed')
+  if (resolveSmsDelivery(preferences, category, { forceImportant, type, forceDelivery })) {
+    try {
+      const { data: profileRows } = await supabase
+        .from('hr_profiles')
+        .select('user_email,full_name,phone')
+        .ilike('user_email', safeEmail)
+
+      const profile = (profileRows || [])[0]
+      const smsPhone = String(profile?.phone || '').trim()
+
+      if (smsPhone) {
+        await sendPortalSms({
+          recipients: [{
+            phone: smsPhone,
+            name: profile?.full_name || userName || safeEmail,
+            email: safeEmail,
+          }],
+          message: buildPortalSmsNotificationMessage({
+            title,
+            message,
+            link,
+            portalUrl,
+          }),
+          category,
+          sentByEmail: sentBy,
+          sentByName: sentBy,
+          audienceType: 'managed_notification',
+          metadata: {
+            notification_title: title,
+            notification_type: type,
+            link,
+          },
+        })
+        smsSent = true
+      }
+    } catch (error) {
+      smsError = error
+    }
+  }
+
+  if (!portalSent && !emailSent && !smsSent) {
+    throw portalError || emailError || smsError || new Error('Notification delivery failed')
   }
 
   return {
     portalSent,
     emailSent,
+    smsSent,
     delivery: delivery.delivery,
     portalError,
     emailError,
+    smsError,
   }
 }
