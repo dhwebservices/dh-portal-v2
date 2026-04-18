@@ -22,6 +22,15 @@ const DEFAULTS = {
       }
     ],
   },
+  maintenance: {
+    enabled: false,
+    headline: 'We are currently carrying out scheduled maintenance.',
+    message: 'Leave your name and phone number and a member of our team will call you back as soon as possible.',
+    form_enabled: true,
+    button_text: 'Request a callback',
+    email_to: 'mgmt@dhwebsiteservices.co.uk',
+    background_tone: 'light',
+  },
   services: [
     { icon: '💻', title: 'Custom Web Development', desc: 'Tailored solutions built from the ground up for your unique business needs. Production-ready code, not templates.', color: 'var(--cyan)' },
     { icon: '🎨', title: 'User-Centric Design', desc: 'Beautiful interfaces that engage visitors and drive conversions. Every pixel intentional, every interaction purposeful.', color: 'var(--purple2)' },
@@ -67,6 +76,7 @@ const DEFAULTS = {
 
 const SECTIONS = [
   { key: 'banner',   label: '📢 Banner',   desc: 'Top announcement bar' },
+  { key: 'maintenance', label: '🛠 Maintenance', desc: 'Public site lock screen' },
   { key: 'services', label: '🛠 Services',  desc: 'Service cards on homepage' },
   { key: 'pricing',  label: '💰 Pricing',   desc: 'Build packages & hosting plans' },
   { key: 'faq',      label: '❓ FAQ',        desc: 'Frequently asked questions' },
@@ -404,6 +414,49 @@ export default function SiteEditor() {
             {/* Banner editor */}
             {active === 'banner' && (
               <BannerEditor data={activeData} onChange={v => update('banner', v)} pageOptions={pageOptions} />
+            )}
+
+            {active === 'maintenance' && (
+              <SectionEditor title="Maintenance Mode" desc="Temporarily replace the public site with a callback form">
+                <ToggleField
+                  label="Enable maintenance mode"
+                  value={activeData?.enabled}
+                  onChange={v => update('maintenance', { ...activeData, enabled: v })}
+                />
+                <Field
+                  label="Headline"
+                  value={activeData?.headline || ''}
+                  onChange={v => update('maintenance', { ...activeData, headline: v })}
+                  type="text"
+                />
+                <Field
+                  label="Message"
+                  value={activeData?.message || ''}
+                  onChange={v => update('maintenance', { ...activeData, message: v })}
+                  type="textarea"
+                  rows={4}
+                />
+                <ToggleField
+                  label="Show callback form"
+                  value={activeData?.form_enabled !== false}
+                  onChange={v => update('maintenance', { ...activeData, form_enabled: v })}
+                />
+                <Field
+                  label="Button text"
+                  value={activeData?.button_text || ''}
+                  onChange={v => update('maintenance', { ...activeData, button_text: v })}
+                  type="text"
+                />
+                <Field
+                  label="Notification email"
+                  value={activeData?.email_to || 'mgmt@dhwebsiteservices.co.uk'}
+                  onChange={v => update('maintenance', { ...activeData, email_to: v })}
+                  type="text"
+                />
+                <div style={{ padding:'10px 14px', background:'var(--blue-bg)', border:'1px solid var(--blue)', borderRadius:8, fontSize:13, color:'var(--blue)' }}>
+                  When enabled, the public site will be replaced with a maintenance screen. Callback requests are emailed to the address above.
+                </div>
+              </SectionEditor>
             )}
 
             {/* Services editor */}
