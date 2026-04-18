@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
-import { fetchShopCategories, fetchShopProducts, saveShopProduct, deleteShopProduct, buildVariantLabel, uploadShopProductImage } from '../../utils/shop'
+import { fetchShopCategories, fetchShopProducts, saveShopProduct, deleteShopProduct, buildVariantLabel, uploadShopProductImage, updateShopProductImage } from '../../utils/shop'
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -27,6 +27,7 @@ export default function ShopProducts() {
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [form, setForm] = useState(EMPTY_PRODUCT)
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     load()
@@ -99,21 +100,24 @@ export default function ShopProducts() {
   async function handleImageUpload(file) {
     if (!file) return
     setError('')
+    setNotice('')
     setUploadingImage(true)
     try {
       const publicUrl = await uploadShopProductImage(file, form.name || file.name)
-      let nextForm
-      setForm((current) => {
-        nextForm = {
-          ...current,
-          image_url: publicUrl || current.image_url,
-        }
-        return nextForm
-      })
-      if (form.id && nextForm) {
-        await saveShopProduct(nextForm)
-        await load()
+      if (!publicUrl) {
+        throw new Error('The image uploaded but no public image URL was returned.')
       }
+
+      if (form.id) {
+        await updateShopProductImage(form.id, publicUrl)
+        setForm((current) => ({ ...current, image_url: publicUrl }))
+        await load()
+        setNotice('Product image updated.')
+        return
+      }
+
+      setForm((current) => ({ ...current, image_url: publicUrl }))
+      setNotice('Image attached. Save the product to publish it.')
     } catch (err) {
       setError(err.message || 'Could not upload product image.')
     } finally {
@@ -134,10 +138,12 @@ export default function ShopProducts() {
     event.preventDefault()
     setSaving(true)
     setError('')
+    setNotice('')
     try {
       await saveShopProduct(form)
       setEditorOpen(false)
       await load()
+      setNotice('Product saved.')
     } catch (err) {
       setError(err.message || 'Could not save product.')
     } finally {
@@ -151,6 +157,7 @@ export default function ShopProducts() {
     try {
       await deleteShopProduct(productId)
       await load()
+      setNotice('Product deleted.')
     } catch (err) {
       setError(err.message || 'Could not delete product.')
     }
@@ -170,6 +177,7 @@ export default function ShopProducts() {
       </div>
 
       {error ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(180,35,24,0.24)', color: '#b42318' }}>{error}</div> : null}
+      {notice ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(17,140,79,0.24)', color: '#118c4f' }}>{notice}</div> : null}
 
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>

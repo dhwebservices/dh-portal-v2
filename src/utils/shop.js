@@ -127,6 +127,23 @@ export async function uploadShopProductImage(file, productName = '') {
   return data?.publicUrl || null
 }
 
+export async function updateShopProductImage(productId, imageUrl) {
+  if (!productId) throw new Error('Product ID is required')
+
+  const { data, error } = await supabase
+    .from('shop_products')
+    .update({
+      image_url: String(imageUrl || '').trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', productId)
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export async function saveShopProduct(product = {}) {
   const {
     id,
