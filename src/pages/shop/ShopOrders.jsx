@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { fetchShopOrders, fetchShopProducts, createManualShopOrder, updateShopOrder, buildVariantLabel } from '../../utils/shop'
+import { sendAwaitingDispatchEmail, sendDeliveredEmail } from '../../utils/shopNotifications'
 
 const EMPTY_MANUAL_ORDER = {
   first_name: '',
@@ -61,7 +62,31 @@ export default function ShopOrders() {
   async function handleStatusUpdate(orderId, payload) {
     setError('')
     try {
-      await updateShopOrder(orderId, payload)
+      const currentOrder = orders.find((entry) => entry.id === orderId)
+      const updated = await updateShopOrder(orderId, payload)
+
+      if (
+        payload.order_status === 'ordered_from_supplier' &&
+        !currentOrder?.awaiting_dispatch_emailed_at &&
+        updated?.awaiting_dispatch_emailed_at == null
+      ) {
+        const sent = await sendAwaitingDispatchEmail(updated)
+        if (sent?.ok !== false) {
+          await updateShopOrder(orderId, { awaiting_dispatch_emailed_at: new Date().toISOString() })
+        }
+      }
+
+      if (
+        payload.order_status === 'delivered' &&
+        !currentOrder?.delivered_emailed_at &&
+        updated?.delivered_emailed_at == null
+      ) {
+        const sent = await sendDeliveredEmail(updated)
+        if (sent?.ok !== false) {
+          await updateShopOrder(orderId, { delivered_emailed_at: new Date().toISOString() })
+        }
+      }
+
       await load()
     } catch (err) {
       setError(err.message || 'Could not update order.')
