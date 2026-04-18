@@ -102,10 +102,18 @@ export default function ShopProducts() {
     setUploadingImage(true)
     try {
       const publicUrl = await uploadShopProductImage(file, form.name || file.name)
-      setForm((current) => ({
-        ...current,
-        image_url: publicUrl || current.image_url,
-      }))
+      let nextForm
+      setForm((current) => {
+        nextForm = {
+          ...current,
+          image_url: publicUrl || current.image_url,
+        }
+        return nextForm
+      })
+      if (form.id && nextForm) {
+        await saveShopProduct(nextForm)
+        await load()
+      }
     } catch (err) {
       setError(err.message || 'Could not upload product image.')
     } finally {
@@ -171,11 +179,11 @@ export default function ShopProducts() {
           {(loading ? [] : filtered).map((product) => (
             <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '96px 1.8fr 1fr 1fr 0.8fr 0.9fr', gap: 12, padding: '16px 18px', borderTop: '1px solid var(--border)', alignItems: 'start' }}>
               <div style={{ width: 96, height: 96, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--faint)' }}>{product.brand}</div>
-                )}
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--faint)' }}>{product.brand}</div>
+                  )}
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{product.name}</div>
@@ -258,7 +266,7 @@ export default function ShopProducts() {
               <div style={{ display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
                 <div style={{ width: 180, height: 180, borderRadius: 22, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
                   {form.image_url ? (
-                    <img src={form.image_url} alt={form.name || 'Product preview'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={form.image_url} alt={form.name || 'Product preview'} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 13, color: 'var(--faint)' }}>
                       No image
