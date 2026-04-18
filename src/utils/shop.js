@@ -2,6 +2,15 @@ import { supabase } from './supabase'
 
 const SHOP_IMAGE_BUCKET = 'shop-product-images'
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Could not read the selected image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function slugify(value = '') {
   return String(value || '')
     .toLowerCase()
@@ -108,23 +117,28 @@ export async function fetchShopOrders() {
 export async function uploadShopProductImage(file, productName = '') {
   if (!(file instanceof File)) throw new Error('Select an image to upload')
 
+  const embeddedImage = await fileToDataUrl(file)
   const extension = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
   const slug = slugify(productName || file.name || 'product')
   const fileName = `${slug || 'product'}-${crypto.randomUUID()}.${sanitizeFileName(extension) || 'jpg'}`
   const filePath = `products/${fileName}`
 
-  const { error: uploadError } = await supabase.storage
-    .from(SHOP_IMAGE_BUCKET)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || undefined,
-    })
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from(SHOP_IMAGE_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || undefined,
+      })
 
-  if (uploadError) throw uploadError
+    if (uploadError) throw uploadError
 
-  const { data } = supabase.storage.from(SHOP_IMAGE_BUCKET).getPublicUrl(filePath)
-  return data?.publicUrl || null
+    const { data } = supabase.storage.from(SHOP_IMAGE_BUCKET).getPublicUrl(filePath)
+    return data?.publicUrl || embeddedImage
+  } catch {
+    return embeddedImage
+  }
 }
 
 export async function updateShopProductImage(productId, imageUrl) {
