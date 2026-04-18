@@ -166,6 +166,12 @@ const ALL_PAGES = [
   {key:'recruiting_applications', label:'Recruiting Applications', group:'Hiring', category:'Pipeline', desc:'Full applicant inbox and review surface'},
   {key:'recruiting_board', label:'Recruiting Board', group:'Hiring', category:'Pipeline', desc:'Kanban hiring pipeline'},
   {key:'recruiting_settings', label:'Recruiting Settings', group:'Hiring', category:'Control', desc:'Question bank and default hiring copy'},
+  {key:'shop_orders_view', label:'Shop Orders', group:'Shop', category:'Commerce', desc:'View and manage store orders'},
+  {key:'shop_orders_edit', label:'Edit Shop Orders', group:'Shop', category:'Commerce', desc:'Change order, procurement, and fulfilment statuses'},
+  {key:'shop_products_view', label:'Shop Products', group:'Shop', category:'Commerce', desc:'View the product catalogue and variants'},
+  {key:'shop_products_edit', label:'Edit Shop Products', group:'Shop', category:'Commerce', desc:'Create, edit, and archive public shop products'},
+  {key:'shop_customers_view', label:'Shop Customers', group:'Shop', category:'Commerce', desc:'View customer accounts and order history'},
+  {key:'shop_customers_edit', label:'Edit Shop Customers', group:'Shop', category:'Commerce', desc:'Create manual orders and manage customer details'},
   {key:'staff',         label:'My Staff',           group:'Admin'},
   {key:'reports',       label:'Reports',            group:'Admin'},
   {key:'manager_board', label:'Manager Board',      group:'Admin', category:'Control', desc:'Department and workload queue'},
@@ -184,11 +190,11 @@ const ALL_PAGES = [
 const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
   DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
 }
 
-const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Admin']
+const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Shop', 'Admin']
 const HIRING_PERMISSION_KEYS = [
   'recruiting_dashboard',
   'recruiting_jobs',

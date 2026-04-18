@@ -71,6 +71,14 @@ const SECTIONS = [
     ]
   },
   {
+    id: 'shop', label: 'Shop', icon: 'briefcase',
+    items: [
+      { to: '/shop/orders', icon: 'wallet', label: 'Orders', desc: 'Procurement & fulfilment', key: 'shop_orders_view' },
+      { to: '/shop/customers', icon: 'people', label: 'Customers', desc: 'Accounts & order history', key: 'shop_customers_view' },
+      { to: '/shop/products', icon: 'briefcase', label: 'Products', desc: 'Catalogue & variants', key: 'shop_products_view' },
+    ]
+  },
+  {
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
       { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
@@ -144,6 +152,7 @@ const SECTION_COLORS = {
   tasks:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   hr:       { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   hiring:   { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+  shop:     { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   admin:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
   account:  { bg: 'var(--accent-soft)', color: 'var(--accent)' },
 }

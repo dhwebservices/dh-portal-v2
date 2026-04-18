@@ -85,6 +85,9 @@ const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list
 const AuditLog = lazyRetry(() => import('./pages/AuditLog'), 'audit-log')
 const Settings = lazyRetry(() => import('./pages/Settings'), 'settings')
 const Notifications = lazyRetry(() => import('./pages/Notifications'), 'notifications')
+const ShopOrders = lazyRetry(() => import('./pages/shop/ShopOrders'), 'shop-orders')
+const ShopProducts = lazyRetry(() => import('./pages/shop/ShopProducts'), 'shop-products')
+const ShopCustomers = lazyRetry(() => import('./pages/shop/ShopCustomers'), 'shop-customers')
 
 const msal = new PublicClientApplication(msalConfig)
 
@@ -401,6 +404,9 @@ function PortalLayout() {
               <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />
               <Route path="/settings"        element={<PermissionGate permKey="settings"><Settings /></PermissionGate>} />
               <Route path="/notifications"   element={<PermissionGate permKey="notifications"><Notifications /></PermissionGate>} />
+              <Route path="/shop/orders"     element={<PermissionGate permKey="shop_orders_view"><ShopOrders /></PermissionGate>} />
+              <Route path="/shop/customers"  element={<PermissionGate permKey="shop_customers_view"><ShopCustomers /></PermissionGate>} />
+              <Route path="/shop/products"   element={<PermissionGate permKey="shop_products_view"><ShopProducts /></PermissionGate>} />
               <Route path="*"               element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
             </Routes>
           </Suspense>

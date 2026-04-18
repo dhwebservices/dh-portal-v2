@@ -17,10 +17,10 @@ const WORKSPACE_SECTION_ORDER = {
   outreach: ['business', 'tasks', 'home', 'account'],
   recruitment: ['hiring', 'tasks', 'home', 'hr', 'account'],
   hr: ['hr', 'home', 'tasks', 'hiring', 'account'],
-  client_ops: ['business', 'tasks', 'home', 'account'],
-  manager: ['home', 'hiring', 'hr', 'tasks', 'business', 'account'],
-  director: ['home', 'business', 'tasks', 'hr', 'hiring', 'admin', 'account'],
-  admin: ['admin', 'home', 'business', 'tasks', 'hr', 'hiring', 'account'],
+  client_ops: ['business', 'shop', 'tasks', 'home', 'account'],
+  manager: ['home', 'hiring', 'hr', 'shop', 'tasks', 'business', 'account'],
+  director: ['home', 'business', 'shop', 'tasks', 'hr', 'hiring', 'admin', 'account'],
+  admin: ['admin', 'home', 'business', 'shop', 'tasks', 'hr', 'hiring', 'account'],
 }
 
 const WORKSPACE_SECTION_NOTES = {
@@ -51,8 +51,8 @@ const WORKSPACE_ITEM_KEYS = {
   outreach: ['outreach', 'sendemail', 'sms_manager', 'emailtemplates', 'mailinglist', 'proposals', 'support', 'knowledge_base'],
   recruitment: ['recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'recruiting_settings'],
   hr: ['hr_profiles', 'hr_policies', 'hr_documents', 'hr_timesheet', 'hr_onboarding', 'contract_queue', 'contract_templates', 'staff', 'org_chart'],
-  client_ops: ['clients', 'clientmgmt', 'support', 'knowledge_base', 'proposals', 'website_editor', 'domains', 'competitor'],
-  manager: ['my_department', 'my_team', 'staff', 'org_chart', 'contract_queue', 'recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'manager_board'],
+  client_ops: ['clients', 'clientmgmt', 'support', 'knowledge_base', 'proposals', 'website_editor', 'domains', 'competitor', 'shop_orders_view', 'shop_customers_view', 'shop_products_view'],
+  manager: ['my_department', 'my_team', 'staff', 'org_chart', 'contract_queue', 'recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'manager_board', 'shop_orders_view', 'shop_orders_edit', 'shop_products_view', 'shop_products_edit', 'shop_customers_view', 'shop_customers_edit'],
   director: ['*'],
   admin: ['*'],
 }

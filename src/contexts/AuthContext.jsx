@@ -47,6 +47,12 @@ const BASE_PERMISSIONS = {
   recruiting_board: false,
   recruiting_settings: false,
   hr_profiles: false,
+  shop_orders_view: false,
+  shop_orders_edit: false,
+  shop_products_view: false,
+  shop_products_edit: false,
+  shop_customers_view: false,
+  shop_customers_edit: false,
 }
 
 function sanitizePermissions(raw) {
