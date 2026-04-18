@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
-import { fetchShopCategories, fetchShopProducts, saveShopProduct, deleteShopProduct, buildVariantLabel } from '../../utils/shop'
+import { fetchShopCategories, fetchShopProducts, saveShopProduct, deleteShopProduct, buildVariantLabel, uploadShopProductImage } from '../../utils/shop'
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -25,6 +25,7 @@ export default function ShopProducts() {
   const [query, setQuery] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [form, setForm] = useState(EMPTY_PRODUCT)
 
   useEffect(() => {
@@ -95,6 +96,23 @@ export default function ShopProducts() {
     setEditorOpen(true)
   }
 
+  async function handleImageUpload(file) {
+    if (!file) return
+    setError('')
+    setUploadingImage(true)
+    try {
+      const publicUrl = await uploadShopProductImage(file, form.name || file.name)
+      setForm((current) => ({
+        ...current,
+        image_url: publicUrl || current.image_url,
+      }))
+    } catch (err) {
+      setError(err.message || 'Could not upload product image.')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   function updateVariant(index, key, value) {
     setForm((current) => ({
       ...current,
@@ -151,7 +169,14 @@ export default function ShopProducts() {
         </div>
         <div style={{ display: 'grid' }}>
           {(loading ? [] : filtered).map((product) => (
-            <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 0.8fr 0.9fr', gap: 12, padding: '16px 18px', borderTop: '1px solid var(--border)', alignItems: 'start' }}>
+            <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '96px 1.8fr 1fr 1fr 0.8fr 0.9fr', gap: 12, padding: '16px 18px', borderTop: '1px solid var(--border)', alignItems: 'start' }}>
+              <div style={{ width: 96, height: 96, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
+                {product.image_url ? (
+                  <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--faint)' }}>{product.brand}</div>
+                )}
+              </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{product.name}</div>
                 <div style={{ marginTop: 6, fontSize: 13, color: 'var(--sub)' }}>{product.brand} · {product.category?.name || 'Uncategorised'} · /shop/product/{product.slug}</div>
@@ -228,10 +253,44 @@ export default function ShopProducts() {
               </label>
             </div>
 
-            <label style={fieldStyle}>
-              <span>Image URL</span>
-              <input value={form.image_url} onChange={(e) => setForm((current) => ({ ...current, image_url: e.target.value }))} style={inputStyle} />
-            </label>
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ fontSize: 13, color: 'var(--sub)' }}>Product image</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
+                <div style={{ width: 180, height: 180, borderRadius: 22, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
+                  {form.image_url ? (
+                    <img src={form.image_url} alt={form.name || 'Product preview'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 13, color: 'var(--faint)' }}>
+                      No image
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <label style={{ ...fieldStyle, gap: 10 }}>
+                    <span>Attach image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
+                      style={inputStyle}
+                    />
+                  </label>
+                  <div style={{ fontSize: 12, color: 'var(--faint)', lineHeight: 1.6 }}>
+                    Upload a clean product image. The portal stores the image and links it to the public catalogue automatically.
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={() => setForm((current) => ({ ...current, image_url: '' }))}
+                    >
+                      Remove image
+                    </button>
+                    {uploadingImage ? <span style={{ fontSize: 12, color: 'var(--sub)' }}>Uploading image…</span> : null}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <label style={fieldStyle}>
               <span>Description</span>

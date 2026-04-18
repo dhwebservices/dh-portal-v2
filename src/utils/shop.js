@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 
+const SHOP_IMAGE_BUCKET = 'shop-product-images'
+
 export function slugify(value = '') {
   return String(value || '')
     .toLowerCase()
@@ -10,6 +12,14 @@ export function slugify(value = '') {
 
 export function buildVariantLabel(variant = {}) {
   return [variant.model, variant.colour, variant.storage, variant.size].filter(Boolean).join(' · ')
+}
+
+function sanitizeFileName(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 function toNumber(value, fallback = 0) {
@@ -93,6 +103,28 @@ export async function fetchShopOrders() {
 
   if (error) throw error
   return data || []
+}
+
+export async function uploadShopProductImage(file, productName = '') {
+  if (!(file instanceof File)) throw new Error('Select an image to upload')
+
+  const extension = file.name.includes('.') ? file.name.split('.').pop() : 'jpg'
+  const slug = slugify(productName || file.name || 'product')
+  const fileName = `${slug || 'product'}-${crypto.randomUUID()}.${sanitizeFileName(extension) || 'jpg'}`
+  const filePath = `products/${fileName}`
+
+  const { error: uploadError } = await supabase.storage
+    .from(SHOP_IMAGE_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || undefined,
+    })
+
+  if (uploadError) throw uploadError
+
+  const { data } = supabase.storage.from(SHOP_IMAGE_BUCKET).getPublicUrl(filePath)
+  return data?.publicUrl || null
 }
 
 export async function saveShopProduct(product = {}) {
