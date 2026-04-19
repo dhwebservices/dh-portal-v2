@@ -387,8 +387,8 @@ export function applyPortalAppearance(preferences = DEFAULT_PORTAL_PREFERENCES) 
   root.style.setProperty('--accent-contrast', '#FFFFFF')
   root.style.setProperty('--font-size-base', safe.textScale === 'large' ? '15.5px' : '14px')
   root.style.setProperty('--line-height-base', safe.textScale === 'large' ? '1.6' : '1.5')
-  root.style.setProperty('--sw', safe.navDensity === 'compact' ? '50px' : '56px')
-  root.style.setProperty('--sidebar-panel-w', safe.navDensity === 'compact' ? '272px' : '300px')
+  root.style.setProperty('--sw', safe.navDensity === 'compact' ? '58px' : '56px')
+  root.style.setProperty('--sidebar-panel-w', safe.navDensity === 'compact' ? '284px' : '300px')
 
   try {
     localStorage.setItem('dh-theme', safe.themeMode)

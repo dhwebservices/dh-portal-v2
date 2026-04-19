@@ -455,21 +455,22 @@ const css = `
   padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg);
 }
 [data-nav-density="compact"] .dh-dock {
-  padding: 10px 0;
+  padding: 12px 0;
 }
 [data-nav-density="compact"] .dh-dock-logo {
-  width: 28px;
-  height: 28px;
-  margin-bottom: 6px;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
 }
 [data-nav-density="compact"] .dh-dock-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  gap: 2px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  gap: 3px;
 }
 [data-nav-density="compact"] .dh-dock-label {
-  font-size: 6px;
+  font-size: 8px;
+  letter-spacing: 0.03em;
 }
 [data-nav-density="compact"] .dh-panel-head {
   padding: 16px 14px 12px;
