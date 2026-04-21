@@ -1,0 +1,6 @@
+name = "dh-portal-meeting-reminders"
+main = "workers/meeting-reminders.js"
+compatibility_date = "2026-04-22"
+
+[triggers]
+crons = ["*/5 * * * *"]

@@ -387,6 +387,8 @@ create table if not exists staff_meetings (
   notes text,
   location text,
   status text default 'scheduled',
+  reminder_sent_at timestamptz,
+  reminder_last_checked_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

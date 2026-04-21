@@ -31,6 +31,8 @@ alter table if exists staff_meetings
   add column if not exists notes text,
   add column if not exists location text,
   add column if not exists status text default 'scheduled',
+  add column if not exists reminder_sent_at timestamptz,
+  add column if not exists reminder_last_checked_at timestamptz,
   add column if not exists created_at timestamptz default now(),
   add column if not exists updated_at timestamptz default now();
 

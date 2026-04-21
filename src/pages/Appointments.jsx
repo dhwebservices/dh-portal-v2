@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { sendPortalSms } from '../utils/sms'
 import { logAction } from '../utils/audit'
 
 const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
@@ -73,6 +74,16 @@ function formatMeetingDateTime(date, start, end) {
   return `${formatDate(date)} · ${start}${end ? ` - ${end}` : ''}`
 }
 
+function buildMeetingSmsMessage(meeting) {
+  return [
+    `DH Portal: ${meeting.title}.`,
+    meeting.meeting_with_name ? `With ${meeting.meeting_with_name}.` : '',
+    `At ${meeting.start_time}${meeting.end_time ? ` - ${meeting.end_time}` : ''} on ${formatDate(meeting.date)}.`,
+    meeting.location ? `Location: ${meeting.location}.` : '',
+    meeting.notes ? `Notes: ${meeting.notes}` : '',
+  ].filter(Boolean).join(' ')
+}
+
 const EMPTY_MEETING = {
   title: '',
   meeting_with_name: '',
@@ -111,7 +122,7 @@ export default function Appointments() {
     const from = days[0], to = days[6]
     const weekKey = getScheduleWeekStart(from)
     const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }, { data: meetingRows }] = await Promise.all([
-      supabase.from('hr_profiles').select('user_email,full_name,role,bookable').order('full_name'),
+      supabase.from('hr_profiles').select('user_email,full_name,role,bookable,phone').order('full_name'),
       supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
       supabase.from('schedules').select('user_email,user_name,week_start,submitted,week_data').eq('week_start', weekKey).eq('submitted', true),
       supabase.from('staff_availability').select('*').gte('date', from).lte('date', to),
@@ -136,6 +147,7 @@ export default function Appointments() {
           user_email: email,
           full_name: profile?.full_name || email,
           role: profile?.role || null,
+          phone: profile?.phone || '',
         }
       })
       .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
@@ -144,6 +156,7 @@ export default function Appointments() {
         user_email: String(profile.user_email || '').toLowerCase(),
         full_name: profile.full_name || profile.user_email,
         role: profile.role || null,
+        phone: profile.phone || '',
       }))
       .filter((row) => row.user_email)
       .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
@@ -292,6 +305,8 @@ export default function Appointments() {
       return
     }
 
+    const deliveryIssues = []
+
     await sendManagedNotification({
       userEmail: assignedStaff.user_email,
       userName: assignedStaff.full_name,
@@ -315,8 +330,38 @@ export default function Appointments() {
       `,
       sentBy: user?.name || user?.email || 'Portal',
       portalUrl: PORTAL_URL,
-      forceDelivery: 'all',
-    }).catch(() => {})
+      forceDelivery: 'both',
+    }).catch((error) => {
+      deliveryIssues.push(error?.message || 'Portal/email notification failed.')
+    })
+
+    const staffPhone = String(assignedStaff.phone || '').trim()
+    if (staffPhone) {
+      await sendPortalSms({
+        recipients: [{
+          phone: staffPhone,
+          name: assignedStaff.full_name,
+          email: assignedStaff.user_email,
+        }],
+        message: buildMeetingSmsMessage(payload),
+        category: 'appointments',
+        link: '/appointments',
+        sentByEmail: user?.email || '',
+        sentByName: user?.name || user?.email || 'Portal',
+        audienceType: 'meeting_assignment',
+        metadata: {
+          meeting_id: data?.id,
+          meeting_title: payload.title,
+          meeting_date: payload.date,
+          meeting_start_time: payload.start_time,
+          meeting_type: payload.meeting_type,
+        },
+      }).catch((error) => {
+        deliveryIssues.push(error?.message || 'SMS send failed.')
+      })
+    } else {
+      deliveryIssues.push('No staff phone number is saved on the HR profile.')
+    }
 
     await logAction(user?.email, user?.name, 'staff_meeting_created', assignedStaff.full_name, data?.id, payload)
     setMeetingForm({
@@ -326,7 +371,11 @@ export default function Appointments() {
       start_time: meetingForm.start_time,
       end_time: meetingForm.end_time,
     })
-    setMeetingFeedback('Meeting saved and notification sent.')
+    setMeetingFeedback(
+      deliveryIssues.length
+        ? `Meeting saved. Check delivery: ${deliveryIssues.join(' ')}`
+        : 'Meeting saved and portal, email, and SMS notifications sent.'
+    )
     setMeetingSaving(false)
     load()
   }
@@ -335,6 +384,8 @@ export default function Appointments() {
     if (!confirm(`Cancel "${meeting.title}" for ${meeting.staff_name} on ${meeting.date}?`)) return
     setSaving(true)
     await supabase.from('staff_meetings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', meeting.id)
+    const deliveryIssues = []
+
     await sendManagedNotification({
       userEmail: meeting.staff_email,
       userName: meeting.staff_name,
@@ -346,11 +397,50 @@ export default function Appointments() {
       emailSubject: `${meeting.title} — meeting cancelled`,
       sentBy: user?.name || user?.email || 'Portal',
       portalUrl: PORTAL_URL,
-      forceDelivery: 'all',
-    }).catch(() => {})
+      forceDelivery: 'both',
+    }).catch((error) => {
+      deliveryIssues.push(error?.message || 'Portal/email cancellation notice failed.')
+    })
+
+    const staffPhone = String(
+      staffDirectory.find((person) => person.user_email === String(meeting.staff_email || '').toLowerCase())?.phone || ''
+    ).trim()
+
+    if (staffPhone) {
+      await sendPortalSms({
+        recipients: [{
+          phone: staffPhone,
+          name: meeting.staff_name,
+          email: meeting.staff_email,
+        }],
+        message: [
+          `DH Portal: Meeting cancelled.`,
+          `"${meeting.title}" on ${formatMeetingDateTime(meeting.date, meeting.start_time, meeting.end_time)} has been cancelled.`,
+          meeting.location ? `Location: ${meeting.location}.` : '',
+        ].filter(Boolean).join(' '),
+        category: 'appointments',
+        link: '/appointments',
+        sentByEmail: user?.email || '',
+        sentByName: user?.name || user?.email || 'Portal',
+        audienceType: 'meeting_cancellation',
+        metadata: {
+          meeting_id: meeting.id,
+          meeting_title: meeting.title,
+          meeting_date: meeting.date,
+          meeting_start_time: meeting.start_time,
+        },
+      }).catch((error) => {
+        deliveryIssues.push(error?.message || 'SMS cancellation notice failed.')
+      })
+    } else {
+      deliveryIssues.push('No staff phone number is saved on the HR profile.')
+    }
     await logAction(user?.email, user?.name, 'staff_meeting_cancelled', meeting.staff_name, meeting.id, meeting)
     setSaving(false)
     setDetailAppt(null)
+    if (deliveryIssues.length) {
+      alert(`Meeting cancelled. Delivery issues: ${deliveryIssues.join(' ')}`)
+    }
     load()
   }
 
