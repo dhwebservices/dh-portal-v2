@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { sendManagedNotification } from '../utils/notificationPreferences'
+import { logAction } from '../utils/audit'
 
 const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const HOURS = Array.from({ length: 32 }, (_, i) => {
   const h = Math.floor(i / 2) + 9
   const m = i % 2 === 0 ? '00' : '30'
@@ -66,18 +69,39 @@ function startsWithinWindow(appt, from, to) {
   return appt.date >= from && appt.date <= to
 }
 
+function formatMeetingDateTime(date, start, end) {
+  return `${formatDate(date)} · ${start}${end ? ` - ${end}` : ''}`
+}
+
+const EMPTY_MEETING = {
+  title: '',
+  meeting_with_name: '',
+  meeting_type: 'internal',
+  staff_email: '',
+  date: new Date().toISOString().split('T')[0],
+  start_time: '09:00',
+  end_time: '09:30',
+  location: '',
+  notes: '',
+}
+
 export default function Appointments() {
   const { user, isAdmin } = useAuth()
   const [tab, setTab] = useState('calendar')
   const [anchor, setAnchor] = useState(() => new Date().toISOString().split('T')[0])
   const [staffFilter, setStaffFilter] = useState('all')
   const [bookableStaff, setBookableStaff] = useState([])
+  const [staffDirectory, setStaffDirectory] = useState([])
   const [availability, setAvailability] = useState([]) // staff_availability rows
   const [appointments, setAppointments] = useState([]) // appointments rows
+  const [meetings, setMeetings] = useState([]) // staff_meetings rows
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null) // { date, staff, slot }
   const [detailAppt, setDetailAppt] = useState(null)
   const [slotModal, setSlotModal] = useState(null) // { date, staffEmail, staffName }
+  const [meetingForm, setMeetingForm] = useState(EMPTY_MEETING)
+  const [meetingSaving, setMeetingSaving] = useState(false)
+  const [meetingFeedback, setMeetingFeedback] = useState('')
   const [saving, setSaving] = useState(false)
 
   const days = useMemo(() => weekDays(anchor), [anchor])
@@ -86,12 +110,13 @@ export default function Appointments() {
     setLoading(true)
     const from = days[0], to = days[6]
     const weekKey = getScheduleWeekStart(from)
-    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }] = await Promise.all([
+    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }, { data: meetingRows }] = await Promise.all([
       supabase.from('hr_profiles').select('user_email,full_name,role,bookable').order('full_name'),
       supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
       supabase.from('schedules').select('user_email,user_name,week_start,submitted,week_data').eq('week_start', weekKey).eq('submitted', true),
       supabase.from('staff_availability').select('*').gte('date', from).lte('date', to),
       supabase.from('appointments').select('*').gte('date', from).lte('date', to).neq('status','cancelled'),
+      supabase.from('staff_meetings').select('*').gte('date', from).lte('date', to).neq('status','cancelled').order('date').order('start_time'),
     ])
 
     const profileMap = new Map((profiles || []).map((item) => [String(item.user_email || '').toLowerCase(), item]))
@@ -113,6 +138,14 @@ export default function Appointments() {
           role: profile?.role || null,
         }
       })
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+    const directory = (profiles || [])
+      .map((profile) => ({
+        user_email: String(profile.user_email || '').toLowerCase(),
+        full_name: profile.full_name || profile.user_email,
+        role: profile.role || null,
+      }))
+      .filter((row) => row.user_email)
       .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
 
     const explicitAvailability = avail || []
@@ -153,8 +186,10 @@ export default function Appointments() {
     }
 
     setBookableStaff(staff)
+    setStaffDirectory(directory)
     setAvailability([...explicitAvailability, ...derivedAvailability])
     setAppointments(appts || [])
+    setMeetings(meetingRows || [])
     setLoading(false)
   }, [days, anchor])
 
@@ -165,6 +200,7 @@ export default function Appointments() {
 
   const getAvail = (staffEmail, date) => availability.find(a => String(a.staff_email || '').toLowerCase() === String(staffEmail || '').toLowerCase() && a.date === date)
   const getAppts = (staffEmail, date) => appointments.filter(a => a.staff_email === staffEmail && a.date === date)
+  const getMeetings = (staffEmail, date) => meetings.filter((meeting) => String(meeting.staff_email || '').toLowerCase() === String(staffEmail || '').toLowerCase() && meeting.date === date)
 
   const toggleDayAvailable = async (staffEmail, staffName, date, makeAvailable) => {
     const existing = getAvail(staffEmail, date)
@@ -198,6 +234,126 @@ export default function Appointments() {
     setSaving(false); setDetailAppt(null); load()
   }
 
+  const saveMeeting = async () => {
+    if (!meetingForm.title.trim() || !meetingForm.staff_email || !meetingForm.date || !meetingForm.start_time || !meetingForm.end_time) {
+      alert('Add a meeting title, staff member, date, and start/end time.')
+      return
+    }
+
+    const assignedStaff = staffDirectory.find((person) => person.user_email === meetingForm.staff_email)
+    if (!assignedStaff) {
+      alert('Choose a valid staff member first.')
+      return
+    }
+    const appointmentConflict = appointments.find((entry) =>
+      String(entry.staff_email || '').toLowerCase() === meetingForm.staff_email
+      && entry.date === meetingForm.date
+      && entry.start_time === meetingForm.start_time
+      && entry.status !== 'cancelled'
+    )
+    if (appointmentConflict) {
+      alert('That staff member already has a client appointment at that start time.')
+      return
+    }
+    const meetingConflict = meetings.find((entry) =>
+      String(entry.staff_email || '').toLowerCase() === meetingForm.staff_email
+      && entry.date === meetingForm.date
+      && entry.start_time === meetingForm.start_time
+      && entry.status !== 'cancelled'
+    )
+    if (meetingConflict) {
+      alert('That staff member already has a meeting at that start time.')
+      return
+    }
+
+    setMeetingSaving(true)
+    setMeetingFeedback('')
+    const payload = {
+      title: meetingForm.title.trim(),
+      meeting_with_name: meetingForm.meeting_with_name.trim() || null,
+      meeting_type: meetingForm.meeting_type || 'internal',
+      staff_email: assignedStaff.user_email,
+      staff_name: assignedStaff.full_name,
+      organizer_email: user?.email || null,
+      organizer_name: user?.name || user?.email || 'Portal',
+      date: meetingForm.date,
+      start_time: meetingForm.start_time,
+      end_time: meetingForm.end_time,
+      location: meetingForm.location.trim() || null,
+      notes: meetingForm.notes.trim() || null,
+      status: 'scheduled',
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase.from('staff_meetings').insert([payload]).select().maybeSingle()
+    if (error) {
+      setMeetingSaving(false)
+      alert('Could not save meeting: ' + error.message)
+      return
+    }
+
+    await sendManagedNotification({
+      userEmail: assignedStaff.user_email,
+      userName: assignedStaff.full_name,
+      title: `You have a meeting: ${payload.title}`,
+      message: [
+        payload.meeting_with_name ? `You have a meeting with ${payload.meeting_with_name}` : 'You have a meeting booked',
+        `at ${payload.start_time}${payload.end_time ? ` - ${payload.end_time}` : ''}`,
+        `on ${formatDate(payload.date)}`,
+        payload.location ? `at ${payload.location}` : '',
+      ].filter(Boolean).join(' '),
+      type: 'info',
+      category: 'appointments',
+      link: '/appointments',
+      emailSubject: `${payload.title} — meeting scheduled`,
+      emailHtml: `
+        <p>Hi ${(assignedStaff.full_name || assignedStaff.user_email).split(' ')[0] || 'there'},</p>
+        <p>You have a meeting booked in the DH Portal.</p>
+        <p><strong>${payload.title}</strong><br/>${formatMeetingDateTime(payload.date, payload.start_time, payload.end_time)}${payload.meeting_with_name ? `<br/>With: ${payload.meeting_with_name}` : ''}${payload.location ? `<br/>Location: ${payload.location}` : ''}</p>
+        ${payload.notes ? `<p>${payload.notes.replace(/\n/g, '<br/>')}</p>` : ''}
+        <p><a href="${PORTAL_URL}/appointments" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open calendar</a></p>
+      `,
+      sentBy: user?.name || user?.email || 'Portal',
+      portalUrl: PORTAL_URL,
+      forceDelivery: 'all',
+    }).catch(() => {})
+
+    await logAction(user?.email, user?.name, 'staff_meeting_created', assignedStaff.full_name, data?.id, payload)
+    setMeetingForm({
+      ...EMPTY_MEETING,
+      staff_email: meetingForm.staff_email,
+      date: meetingForm.date,
+      start_time: meetingForm.start_time,
+      end_time: meetingForm.end_time,
+    })
+    setMeetingFeedback('Meeting saved and notification sent.')
+    setMeetingSaving(false)
+    load()
+  }
+
+  const cancelMeeting = async (meeting) => {
+    if (!confirm(`Cancel "${meeting.title}" for ${meeting.staff_name} on ${meeting.date}?`)) return
+    setSaving(true)
+    await supabase.from('staff_meetings').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', meeting.id)
+    await sendManagedNotification({
+      userEmail: meeting.staff_email,
+      userName: meeting.staff_name,
+      title: `Meeting cancelled: ${meeting.title}`,
+      message: `Your meeting scheduled for ${formatMeetingDateTime(meeting.date, meeting.start_time, meeting.end_time)} has been cancelled.`,
+      type: 'warning',
+      category: 'appointments',
+      link: '/appointments',
+      emailSubject: `${meeting.title} — meeting cancelled`,
+      sentBy: user?.name || user?.email || 'Portal',
+      portalUrl: PORTAL_URL,
+      forceDelivery: 'all',
+    }).catch(() => {})
+    await logAction(user?.email, user?.name, 'staff_meeting_cancelled', meeting.staff_name, meeting.id, meeting)
+    setSaving(false)
+    setDetailAppt(null)
+    load()
+  }
+
   const today = new Date().toISOString().split('T')[0]
   const weekLabel = formatDate(days[0]) + ' – ' + formatDate(days[6])
   const visibleStaff = staffFilter === 'all'
@@ -207,7 +363,9 @@ export default function Appointments() {
   const weeklySummary = useMemo(() => {
     const visibleEmails = new Set(visibleStaff.map((staffMember) => staffMember.user_email))
     const weekAppointments = appointments.filter((appt) => visibleEmails.has(appt.staff_email) && startsWithinWindow(appt, days[0], days[6]))
+    const weekMeetings = meetings.filter((meeting) => visibleEmails.has(meeting.staff_email) && startsWithinWindow(meeting, days[0], days[6]))
     const todayAppointments = weekAppointments.filter((appt) => appt.date === today)
+    const todayMeetings = weekMeetings.filter((meeting) => meeting.date === today)
     const availableToday = visibleStaff.filter((staffMember) => {
       const avail = getAvail(staffMember.user_email, today)
       return avail?.is_available
@@ -218,8 +376,10 @@ export default function Appointments() {
       availableToday,
       weekBookings: weekAppointments.filter((appt) => appt.status === 'confirmed').length,
       bookedToday,
+      weekMeetings: weekMeetings.length,
+      meetingsToday: todayMeetings.length,
     }
-  }, [appointments, visibleStaff, availability, today, days])
+  }, [appointments, meetings, visibleStaff, availability, today, days])
 
   const todayOverview = useMemo(() => {
     return visibleStaff.map((staffMember) => {
@@ -230,9 +390,10 @@ export default function Appointments() {
         available: !!avail?.is_available,
         window: avail?.start_time && avail?.end_time ? `${avail.start_time} – ${avail.end_time}` : 'Unavailable',
         bookings: staffAppointments.length,
+        meetings: getMeetings(staffMember.user_email, today).length,
       }
     })
-  }, [visibleStaff, availability, appointments, today])
+  }, [visibleStaff, availability, appointments, meetings, today])
 
   return (
     <div className="fade-in">
@@ -246,6 +407,7 @@ export default function Appointments() {
           ['Available today', weeklySummary.availableToday, formatDate(today)],
           ['Booked today', weeklySummary.bookedToday, 'Confirmed appointments'],
           ['Week bookings', weeklySummary.weekBookings, 'Current week confirmed'],
+          ['Meetings today', weeklySummary.meetingsToday, 'Internal calendar items'],
         ].map(([label, value, hint]) => (
           <div key={label} className="stat-card">
             <div className="stat-val">{value}</div>
@@ -257,7 +419,7 @@ export default function Appointments() {
 
       {/* Tabs */}
       <div className="tabs" style={{ marginBottom:24 }}>
-        {[['calendar','Calendar'],['bookings','All Bookings']].map(([k,l]) => (
+        {[['calendar','Calendar'],['bookings','All Bookings'],['meetings','Meetings']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -305,6 +467,7 @@ export default function Appointments() {
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     <span className="badge badge-grey">{staffMember.window}</span>
                     <span className="badge badge-grey">{staffMember.bookings} booking{staffMember.bookings === 1 ? '' : 's'}</span>
+                    <span className="badge badge-grey">{staffMember.meetings} meeting{staffMember.meetings === 1 ? '' : 's'}</span>
                   </div>
                 </div>
               ))}
@@ -334,11 +497,12 @@ export default function Appointments() {
                             const avail = getAvail(s.user_email, d)
                             const isOn = avail ? avail.is_available : false
                             const dayAppts = getAppts(s.user_email, d)
+                            const dayMeetings = getMeetings(s.user_email, d)
                             const isPast = d < today
                             return (
                               <button key={d} onClick={() => !isPast && setSlotModal({ date:d, staffEmail:s.user_email, staffName:s.full_name })}
-                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
-                                title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '')}>
+                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : dayMeetings.length > 0 ? '#fef3c7' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': dayMeetings.length > 0 ? '#b45309' : isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
+                                title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '') + (dayMeetings.length > 0 ? ' · ' + dayMeetings.length + ' meeting' + (dayMeetings.length === 1 ? '' : 's') : '')}>
                                 {new Date(d+'T12:00').getDate()}
                               </button>
                             )
@@ -357,13 +521,15 @@ export default function Appointments() {
                         // Find if any day this week has a booking at this time for this staff
                         const dayBookings = days.map(d => {
                           const appt = appointments.find(a => a.staff_email === s.user_email && a.date === d && a.start_time === time)
+                          const meeting = meetings.find(m => m.staff_email === s.user_email && m.date === d && m.start_time === time)
                           const avail = getAvail(s.user_email, d)
                           const isOn = avail ? avail.is_available : false
-                          return { d, appt, isOn }
+                          return { d, appt, meeting, isOn }
                         })
                         // Show the week's most relevant info - today's column
                         const todayInfo = dayBookings.find(db => db.d === today) || dayBookings[0]
                         const appt = todayInfo?.appt
+                        const meeting = todayInfo?.meeting
                         const isOn = todayInfo?.isOn
 
                         return (
@@ -371,6 +537,10 @@ export default function Appointments() {
                             {appt ? (
                               <button onClick={() => setDetailAppt(appt)} style={{ width:'100%', padding:'2px 6px', borderRadius:4, border:'none', background:'#3b82f6', color:'#fff', fontSize:10, fontWeight:500, cursor:'pointer', textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                 {appt.client_name}
+                              </button>
+                            ) : meeting ? (
+                              <button onClick={() => setDetailAppt({ ...meeting, _type: 'meeting' })} style={{ width:'100%', padding:'2px 6px', borderRadius:4, border:'none', background:'#f59e0b', color:'#111827', fontSize:10, fontWeight:600, cursor:'pointer', textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                {meeting.title}
                               </button>
                             ) : !isOn ? (
                               <div style={{ width:'100%', height:20, borderRadius:4, background:'var(--bg3)', opacity:0.5 }}/>
@@ -401,6 +571,19 @@ export default function Appointments() {
         <AllBookings appointments={appointments} loading={loading} onCancel={cancelAppt} saving={saving} isAdmin={isAdmin} user={user} onRefresh={load}/>
       )}
 
+      {tab === 'meetings' && (
+        <MeetingsPanel
+          staffDirectory={staffDirectory}
+          meetings={meetings}
+          form={meetingForm}
+          setForm={setMeetingForm}
+          onSave={saveMeeting}
+          onCancelMeeting={cancelMeeting}
+          saving={meetingSaving}
+          feedback={meetingFeedback}
+        />
+      )}
+
       {/* Slot modal — manage a specific staff member's day */}
       {slotModal && (
         <DaySlotModal
@@ -409,9 +592,11 @@ export default function Appointments() {
           date={slotModal.date}
           avail={getAvail(slotModal.staffEmail, slotModal.date)}
           appts={getAppts(slotModal.staffEmail, slotModal.date)}
+          meetings={getMeetings(slotModal.staffEmail, slotModal.date)}
           onClose={() => setSlotModal(null)}
           onSave={load}
           onCancelAppt={cancelAppt}
+          onCancelMeeting={cancelMeeting}
           isAdmin={isAdmin}
           currentUser={user}
         />
@@ -419,7 +604,7 @@ export default function Appointments() {
 
       {/* Appointment detail panel */}
       {detailAppt && (
-        <ApptDetail appt={detailAppt} onClose={() => setDetailAppt(null)} onCancel={cancelAppt} saving={saving} worker={WORKER}/>
+        <ApptDetail appt={detailAppt} onClose={() => setDetailAppt(null)} onCancel={detailAppt._type === 'meeting' ? cancelMeeting : cancelAppt} saving={saving}/>
       )}
     </div>
   )
@@ -533,7 +718,73 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
   )
 }
 
-function DaySlotModal({ staffEmail, staffName, date, avail, appts, onClose, onSave, onCancelAppt, isAdmin, currentUser }) {
+function MeetingsPanel({ staffDirectory, meetings, form, setForm, onSave, onCancelMeeting, saving, feedback }) {
+  const sf = (key, value) => setForm((current) => ({ ...current, [key]: value }))
+  const upcoming = [...meetings]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'minmax(320px,0.95fr) minmax(0,1.05fr)', gap:20 }}>
+      <div className="card card-pad" style={{ display:'grid', gap:14 }}>
+        <div>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Add meeting</div>
+          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>Create an internal meeting and notify the assigned staff member by portal, email, and SMS.</div>
+        </div>
+        <div><label className="lbl">Meeting title</label><input className="inp" value={form.title} onChange={(e) => sf('title', e.target.value)} placeholder="Weekly check-in" /></div>
+        <div className="fg">
+          <div>
+            <label className="lbl">Assigned staff member</label>
+            <select className="inp" value={form.staff_email} onChange={(e) => sf('staff_email', e.target.value)}>
+              <option value="">Choose staff member</option>
+              {staffDirectory.map((person) => <option key={person.user_email} value={person.user_email}>{person.full_name}</option>)}
+            </select>
+          </div>
+          <div><label className="lbl">Meeting with</label><input className="inp" value={form.meeting_with_name} onChange={(e) => sf('meeting_with_name', e.target.value)} placeholder="Client / colleague / manager" /></div>
+        </div>
+        <div className="fg">
+          <div><label className="lbl">Date</label><input className="inp" type="date" value={form.date} onChange={(e) => sf('date', e.target.value)} /></div>
+          <div><label className="lbl">Type</label><select className="inp" value={form.meeting_type} onChange={(e) => sf('meeting_type', e.target.value)}><option value="internal">Internal</option><option value="client">Client</option><option value="review">Review</option><option value="manager">Manager</option></select></div>
+        </div>
+        <div className="fg">
+          <div><label className="lbl">Start time</label><input className="inp" type="time" value={form.start_time} onChange={(e) => sf('start_time', e.target.value)} /></div>
+          <div><label className="lbl">End time</label><input className="inp" type="time" value={form.end_time} onChange={(e) => sf('end_time', e.target.value)} /></div>
+        </div>
+        <div><label className="lbl">Location</label><input className="inp" value={form.location} onChange={(e) => sf('location', e.target.value)} placeholder="Google Meet / Office / Phone" /></div>
+        <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} placeholder="Agenda or context..." style={{ resize:'vertical' }} /></div>
+        {feedback ? <div style={{ padding:'10px 12px', border:'1px solid var(--green)', background:'var(--green-bg)', color:'var(--green)', borderRadius:8, fontSize:13 }}>{feedback}</div> : null}
+        <button className="btn btn-primary" onClick={onSave} disabled={saving}>{saving ? 'Saving meeting...' : 'Save meeting + notify'}</button>
+      </div>
+
+      <div className="card" style={{ overflow:'hidden' }}>
+        <div style={{ padding:'18px 18px 0', fontSize:18, fontWeight:600, color:'var(--text)' }}>Upcoming meetings</div>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Title</th><th>Assigned to</th><th>Date</th><th>Time</th><th>With</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {upcoming.map((meeting) => (
+                <tr key={meeting.id}>
+                  <td className="t-main">
+                    <div style={{ fontWeight:600 }}>{meeting.title}</div>
+                    <div style={{ fontSize:11, color:'var(--faint)' }}>{meeting.location || meeting.meeting_type || 'Meeting'}</div>
+                  </td>
+                  <td>{meeting.staff_name}</td>
+                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{formatDate(meeting.date)}</td>
+                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{meeting.start_time} - {meeting.end_time}</td>
+                  <td>{meeting.meeting_with_name || '—'}</td>
+                  <td><span className={'badge badge-'+(meeting.status === 'scheduled' ? 'amber' : 'grey')}>{meeting.status}</span></td>
+                  <td>{meeting.status === 'scheduled' ? <button className="btn btn-danger btn-sm" onClick={() => onCancelMeeting(meeting)}>Cancel</button> : null}</td>
+                </tr>
+              ))}
+              {upcoming.length === 0 ? <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No meetings added yet</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onClose, onSave, onCancelAppt, onCancelMeeting, isAdmin, currentUser }) {
   const [isAvailable, setIsAvailable] = useState(avail ? avail.is_available : true)
   const [saving, setSaving] = useState(false)
 
@@ -606,6 +857,32 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, onClose, onSa
               </div>
             ))}
           </div>
+
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+              Meetings this day {meetings.length > 0 && `(${meetings.length})`}
+            </div>
+            {meetings.length === 0 ? (
+              <div style={{ fontSize:13, color:'var(--faint)', padding:'16px 0' }}>No meetings for this day</div>
+            ) : meetings.map((meeting) => (
+              <div key={meeting.id} style={{ background:'var(--bg2)', borderRadius:10, padding:'14px 16px', marginBottom:8, border:'1px solid var(--border)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, gap:10 }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'var(--text)' }}>{meeting.title}</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:3 }}>{meeting.meeting_with_name || 'Internal meeting'}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'#b45309', fontWeight:600 }}>{meeting.start_time} – {meeting.end_time}</div>
+                    <div style={{ fontSize:11, color:'var(--faint)' }}>{meeting.location || meeting.meeting_type}</div>
+                  </div>
+                </div>
+                {meeting.notes ? <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8, lineHeight:1.55 }}>{meeting.notes}</div> : null}
+                {canEdit && (
+                  <button className="btn btn-danger btn-sm" onClick={() => onCancelMeeting(meeting)} style={{ marginTop:4 }}>Cancel meeting</button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -613,15 +890,19 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, onClose, onSa
 }
 
 function ApptDetail({ appt, onClose, onCancel, saving }) {
+  const isMeeting = appt._type === 'meeting'
+  const rows = isMeeting
+    ? [['Meeting', appt.title], ['Assigned to', appt.staff_name], ['With', appt.meeting_with_name || '—'], ['Date', formatDate(appt.date)], ['Time', appt.start_time + ' – ' + appt.end_time], ['Location', appt.location || '—'], ['Type', appt.meeting_type || 'internal'], ['Status', appt.status], ['Created', new Date(appt.created_at).toLocaleString('en-GB')]]
+    : [['Client', appt.client_name], ['Business', appt.client_business||'—'], ['Email', appt.client_email], ['Date', formatDate(appt.date)], ['Time', appt.start_time + ' – ' + appt.end_time], ['Duration', appt.duration + ' min'], ['Staff', appt.staff_name], ['Status', appt.status], ['Booked', new Date(appt.created_at).toLocaleString('en-GB')]]
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
       <div className="legacy-side-sheet" style={{ position:'relative', width:420, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', padding:'24px', display:'flex', flexDirection:'column', gap:20, boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>Appointment Details</div>
+          <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>{isMeeting ? 'Meeting Details' : 'Appointment Details'}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
         </div>
-        {[['Client', appt.client_name], ['Business', appt.client_business||'—'], ['Email', appt.client_email], ['Date', formatDate(appt.date)], ['Time', appt.start_time + ' – ' + appt.end_time], ['Duration', appt.duration + ' min'], ['Staff', appt.staff_name], ['Status', appt.status], ['Booked', new Date(appt.created_at).toLocaleString('en-GB')]].map(([l,v]) => (
+        {rows.map(([l,v]) => (
           <div key={l} style={{ display:'flex', gap:12, borderBottom:'1px solid var(--border-light)', paddingBottom:12 }}>
             <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.06em', width:70, flexShrink:0, paddingTop:1 }}>{l}</span>
             <span style={{ fontSize:13, color:'var(--text)' }}>{v}</span>
@@ -630,6 +911,11 @@ function ApptDetail({ appt, onClose, onCancel, saving }) {
         {appt.status === 'confirmed' && (
           <button className="btn btn-danger" onClick={() => onCancel(appt)} disabled={saving} style={{ marginTop:'auto' }}>
             {saving ? 'Cancelling...' : 'Cancel Appointment'}
+          </button>
+        )}
+        {appt.status === 'scheduled' && isMeeting && (
+          <button className="btn btn-danger" onClick={() => onCancel(appt)} disabled={saving} style={{ marginTop:'auto' }}>
+            {saving ? 'Cancelling...' : 'Cancel Meeting'}
           </button>
         )}
       </div>

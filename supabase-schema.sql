@@ -371,6 +371,26 @@ create table if not exists notifications (
   created_at timestamptz default now()
 );
 
+-- Staff meetings
+create table if not exists staff_meetings (
+  id uuid default gen_random_uuid() primary key,
+  title text,
+  meeting_with_name text,
+  meeting_type text default 'internal',
+  staff_email text,
+  staff_name text,
+  organizer_email text,
+  organizer_name text,
+  date date,
+  start_time text,
+  end_time text,
+  notes text,
+  location text,
+  status text default 'scheduled',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- Client payments
 create table if not exists client_payments (
   id uuid default gen_random_uuid() primary key,
@@ -424,6 +444,7 @@ alter table client_documents      enable row level security;
 alter table client_activity       enable row level security;
 alter table deployment_updates    enable row level security;
 alter table notifications         enable row level security;
+alter table staff_meetings        enable row level security;
 alter table client_payments       enable row level security;
 alter table gocardless_mandates   enable row level security;
 
@@ -457,6 +478,7 @@ create policy "allow_all" on client_documents       for all using (true) with ch
 create policy "allow_all" on client_activity        for all using (true) with check (true);
 create policy "allow_all" on deployment_updates     for all using (true) with check (true);
 create policy "allow_all" on notifications          for all using (true) with check (true);
+create policy "allow_all" on staff_meetings         for all using (true) with check (true);
 create policy "allow_all" on client_payments        for all using (true) with check (true);
 create policy "allow_all" on gocardless_mandates    for all using (true) with check (true);
 
