@@ -634,6 +634,7 @@ export default function Dashboard() {
       setLoading(true)
       const activeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
       const todayStartIso = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
+      const weekStartIso = new Date(`${weekStart}T00:00:00`).toISOString()
 
       const results = await Promise.allSettled([
         supabase.from('outreach').select('*', { count: 'exact', head: true }),
@@ -656,7 +657,7 @@ export default function Dashboard() {
         supabase.from('appointments').select('id,client_name,staff_name,date,start_time,status').gte('date', todayIso).lte('date', sevenDaysOut).neq('status', 'cancelled').order('date', { ascending: true }).limit(8),
         supabase.from('outreach').select('id,business_name,contact_name,email,status,notes,created_at,updated_at').order('updated_at', { ascending: false }).limit(80),
         isAdmin
-          ? supabase.from('notifications').select('user_email,title,link,created_at').gte('created_at', todayStartIso)
+          ? supabase.from('notifications').select('user_email,title,link,created_at').gte('created_at', weekStartIso)
           : Promise.resolve({ data: [] }),
         isAdmin
           ? supabase.from('portal_settings').select('key,value').like('key', 'training_record:%')
@@ -861,8 +862,8 @@ export default function Dashboard() {
         const escalationJobs = []
 
         const queueAlert = nextFollowUps.filter((lead) => lead.overdue).slice(0, 3)
-        for (const lead of queueAlert) {
-          const title = 'Outreach follow-up escalation'
+        if (queueAlert.length) {
+          const title = `Weekly outreach follow-up digest (${weekStart})`
           const key = `${adminEmail}|${title}|/outreach?filter=follow_up_queue`
           if (!alreadySent.has(key)) {
             escalationJobs.push(sendManagedNotification({
@@ -871,11 +872,27 @@ export default function Dashboard() {
               category: 'urgent',
               type: 'warning',
               title,
-              message: `${lead.business_name || lead.contact_name || 'A lead'} is overdue for follow-up.${lead.assigned_to_name ? ` Assigned to ${lead.assigned_to_name}.` : ''}${lead.email ? ` Contact email: ${lead.email}.` : ''}`,
+              message: `${queueAlert.length} outreach follow-up item${queueAlert.length === 1 ? '' : 's'} need attention this week.`,
               link: '/outreach?filter=follow_up_queue',
-              emailSubject: `Overdue outreach follow-up — ${lead.business_name || lead.contact_name || 'Lead'}`,
+              emailSubject: `Weekly outreach follow-up digest — ${queueAlert.length} item${queueAlert.length === 1 ? '' : 's'}`,
+              emailHtml: `
+                <p>Hi ${(user?.name || adminEmail).split(' ')[0] || 'there'},</p>
+                <p>Here is this week's outreach follow-up digest.</p>
+                <ul>
+                  ${queueAlert.map((lead) => `
+                    <li>
+                      <strong>${lead.business_name || lead.contact_name || 'Untitled lead'}</strong>
+                      ${lead.assigned_to_name ? ` — assigned to ${lead.assigned_to_name}` : ''}
+                      ${lead.follow_up_date ? ` — due ${formatDayLabel(lead.follow_up_date)}` : ' — overdue follow-up'}
+                      ${lead.email ? ` — ${lead.email}` : ''}
+                    </li>
+                  `).join('')}
+                </ul>
+                <p><a href="https://staff.dhwebsiteservices.co.uk/outreach?filter=follow_up_queue" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open follow-up queue</a></p>
+              `,
               sentBy: 'DH Portal',
               fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+              forceDelivery: 'email',
             }))
             alreadySent.add(key)
           }

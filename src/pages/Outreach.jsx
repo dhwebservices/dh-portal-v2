@@ -149,6 +149,15 @@ function formatShortDate(value) {
   })
 }
 
+function getLocalWeekStart(date = new Date()) {
+  const dt = new Date(date)
+  const day = dt.getDay()
+  const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
+  dt.setDate(diff)
+  dt.setHours(0, 0, 0, 0)
+  return dt.toISOString().split('T')[0]
+}
+
 function isSameLocalDay(value, target = new Date()) {
   if (!value) return false
   const date = new Date(value)
@@ -914,16 +923,17 @@ export default function Outreach() {
     const run = async () => {
       reminderRunRef.current = true
       const today = new Date().toISOString().split('T')[0]
+      const weekStart = getLocalWeekStart()
+      const noticeKey = `weekly:${weekStart}`
       const updates = []
+      const staffNameMap = new Map(staffDirectory.map((member) => [member.user_email, member.full_name]))
+      const digestMap = new Map()
 
       for (const row of enrichedRows) {
         if (!needsFollowUp(row)) continue
         const due = row.follow_up_date ? row.follow_up_date <= today : isOverdue(row)
         if (!due) continue
-
-        const noticeKey = row.follow_up_date || today
-        const lockKey = `${row.id}:${noticeKey}`
-        if (row.reminder_notice_key === noticeKey || reminderLock.current.has(lockKey)) continue
+        if (row.reminder_notice_key === noticeKey) continue
 
         const recipients = Array.from(new Set(
           [row.assigned_to_email, row.creator_email]
@@ -932,52 +942,94 @@ export default function Outreach() {
         ))
         if (!recipients.length) continue
 
+        for (const recipient of recipients) {
+          const lockKey = `${recipient}:${noticeKey}`
+          if (reminderLock.current.has(lockKey)) continue
+          if (!digestMap.has(recipient)) digestMap.set(recipient, [])
+          digestMap.get(recipient).push(row)
+        }
+      }
+
+      for (const [recipient, rowsForRecipient] of digestMap.entries()) {
+        const lockKey = `${recipient}:${noticeKey}`
         reminderLock.current.add(lockKey)
 
-        const staffNameMap = new Map(staffDirectory.map((member) => [member.user_email, member.full_name]))
-        await Promise.all(recipients.map((recipient) => sendManagedNotification({
-          userEmail: recipient,
-          userName: staffNameMap.get(recipient) || recipient,
-          category: 'general',
-          type: row.follow_up_date && row.follow_up_date < today ? 'warning' : 'info',
-          title: 'Outreach follow-up due',
-          message: `${row.business_name || row.contact_name || 'A lead'} now needs a follow-up.${row.email ? ` Contact email: ${row.email}.` : ''}${row.follow_up_date ? ` Follow-up date: ${formatShortDate(row.follow_up_date)}.` : ''}`,
-          link: '/outreach',
-          emailSubject: `Follow-up due — ${row.business_name || row.contact_name || 'Lead'}`,
-          sentBy: 'DH Portal',
-        }).catch(() => {})))
-
-        const meta = {
-          outcome: row.outcome || 'none',
-          follow_up_date: row.follow_up_date || '',
-          assigned_to_email: row.assigned_to_email || '',
-          assigned_to_name: row.assigned_to_name || '',
-          creator_email: row.creator_email || '',
-          creator_department: row.creator_department || '',
-          reminder_notice_key: noticeKey,
-          history: [
-            buildHistoryEntry({
-              action: 'reminder',
-              value: `Follow-up reminder sent${row.follow_up_date ? ` for ${row.follow_up_date}` : ''}`,
-              actor: 'DH Portal',
-            }),
-            ...(row.history || []),
-          ].slice(0, 12),
-        }
-
-        const updatedAt = new Date().toISOString()
-        const nextNotes = buildOutreachNotes(row.plainNotes || '', meta)
-        const { error } = await supabase.from('outreach').update({
-          notes: nextNotes,
-          updated_at: updatedAt,
-        }).eq('id', row.id)
-
-        if (!error) {
-          updates.push({
-            id: row.id,
-            notes: nextNotes,
-            updated_at: updatedAt,
+        const digestRows = rowsForRecipient
+          .filter((row, index, arr) => arr.findIndex((candidate) => candidate.id === row.id) === index)
+          .sort((a, b) => {
+            const aDate = a.follow_up_date || '9999-12-31'
+            const bDate = b.follow_up_date || '9999-12-31'
+            if (aDate !== bDate) return aDate.localeCompare(bDate)
+            return String(a.business_name || a.contact_name || '').localeCompare(String(b.business_name || b.contact_name || ''))
           })
+
+        if (!digestRows.length) continue
+
+        try {
+          await sendManagedNotification({
+            userEmail: recipient,
+            userName: staffNameMap.get(recipient) || recipient,
+            category: 'general',
+            type: digestRows.some((row) => row.follow_up_date && row.follow_up_date < today) ? 'warning' : 'info',
+            title: 'Weekly outreach follow-up digest',
+            message: `${digestRows.length} outreach follow-up item${digestRows.length === 1 ? '' : 's'} need attention this week.`,
+            link: '/outreach?filter=follow_up_queue',
+            emailSubject: `Weekly follow-up digest — ${digestRows.length} item${digestRows.length === 1 ? '' : 's'}`,
+            emailHtml: `
+              <p>Hi ${(staffNameMap.get(recipient) || recipient).split(' ')[0] || 'there'},</p>
+              <p>Here is your weekly outreach follow-up digest from DH Portal.</p>
+              <ul>
+                ${digestRows.map((row) => `
+                  <li>
+                    <strong>${row.business_name || row.contact_name || 'Untitled lead'}</strong>
+                    ${row.follow_up_date ? ` — due ${formatShortDate(row.follow_up_date)}` : row.overdue ? ' — overdue follow-up' : ' — follow-up due'}
+                    ${row.assigned_to_name ? ` — assigned to ${row.assigned_to_name}` : ''}
+                    ${row.email ? ` — ${row.email}` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+              <p><a href="https://staff.dhwebsiteservices.co.uk/outreach?filter=follow_up_queue" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open follow-up queue</a></p>
+            `,
+            sentBy: 'DH Portal',
+            forceDelivery: 'email',
+          })
+
+          const updatedAt = new Date().toISOString()
+          for (const row of digestRows) {
+            const meta = {
+              outcome: row.outcome || 'none',
+              follow_up_date: row.follow_up_date || '',
+              assigned_to_email: row.assigned_to_email || '',
+              assigned_to_name: row.assigned_to_name || '',
+              creator_email: row.creator_email || '',
+              creator_department: row.creator_department || '',
+              reminder_notice_key: noticeKey,
+              history: [
+                buildHistoryEntry({
+                  action: 'reminder',
+                  value: `Weekly follow-up digest emailed for week starting ${weekStart}`,
+                  actor: 'DH Portal',
+                }),
+                ...(row.history || []),
+              ].slice(0, 12),
+            }
+
+            const nextNotes = buildOutreachNotes(row.plainNotes || '', meta)
+            const { error } = await supabase.from('outreach').update({
+              notes: nextNotes,
+              updated_at: updatedAt,
+            }).eq('id', row.id)
+
+            if (!error) {
+              updates.push({
+                id: row.id,
+                notes: nextNotes,
+                updated_at: updatedAt,
+              })
+            }
+          }
+        } catch {
+          reminderLock.current.delete(lockKey)
         }
       }
 
