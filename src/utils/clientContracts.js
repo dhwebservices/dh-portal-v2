@@ -258,9 +258,9 @@ export async function buildClientContractPdfBlob(contract = {}) {
       pageCanvas.height = sliceHeightPx
       ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height)
       ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx)
-      const sliceData = pageCanvas.toDataURL('image/png')
+      const sliceData = pageCanvas.toDataURL('image/jpeg', 0.98)
       const renderedHeight = (sliceHeightPx * imgWidth) / canvas.width
-      pdf.addImage(sliceData, 'PNG', 20, position, imgWidth, renderedHeight)
+      pdf.addImage(sliceData, 'JPEG', 20, position, imgWidth, renderedHeight)
       sourceY += sliceHeightPx
       remainingHeight -= renderedHeight
       if (remainingHeight > 0) pdf.addPage()
