@@ -865,6 +865,13 @@ textarea.inp:focus {
   border-radius: 20px;
 }
 
+.staff-profile-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
 .staff-profile-hero {
   padding: 28px;
   margin-bottom: 20px;
@@ -900,6 +907,28 @@ textarea.inp:focus {
   box-shadow: 0 16px 34px rgba(24, 32, 44, 0.08);
 }
 
+.staff-profile-hero-main {
+  gap: 24px;
+}
+
+.staff-profile-hero-identity,
+.staff-profile-actions {
+  display: grid;
+  gap: 16px;
+}
+
+.staff-profile-subline {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.staff-profile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .staff-profile-hero-highlight-grid,
 .staff-profile-summary-grid,
 .staff-profile-overview-signal-grid,
@@ -922,22 +951,53 @@ textarea.inp:focus {
 
 .staff-profile-nav {
   padding: 18px;
+  position: sticky;
+  top: 104px;
 }
 
 .staff-profile-nav-btn {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-areas:
+    "index label"
+    "index copy";
+  align-items: start;
+  gap: 4px 12px;
   padding: 14px 14px 14px 16px;
   background: rgba(255,255,255,0.58);
   border: 1px solid rgba(24, 32, 44, 0.08);
   margin-bottom: 10px;
+  text-align: left;
 }
 
 .staff-profile-nav-btn.on {
   background: linear-gradient(180deg, rgba(240,244,250,0.95), rgba(255,255,255,0.92));
   border-color: rgba(22, 58, 112, 0.18);
+  box-shadow: 0 14px 28px rgba(24, 32, 44, 0.05);
 }
 
 .staff-profile-nav-index {
+  grid-area: index;
   color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding-top: 3px;
+}
+
+.staff-profile-nav-label {
+  grid-area: label;
+  font-size: 14px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.staff-profile-nav-copy {
+  grid-area: copy;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sub);
 }
 
 .staff-profile-content-head {
@@ -957,6 +1017,113 @@ textarea.inp:focus {
   color: var(--text);
 }
 
+.staff-profile-content-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.staff-profile-overview-card,
+.staff-profile-form-card,
+.staff-profile-admin-card {
+  border-radius: 22px;
+}
+
+.staff-profile-overview-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.staff-profile-overview-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(145deg, rgba(49, 92, 191, 0.04), transparent 26%),
+    radial-gradient(circle at top right, rgba(49, 92, 191, 0.07), transparent 30%);
+  pointer-events: none;
+}
+
+.staff-profile-overview-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.staff-profile-overview-signal-card,
+.staff-profile-overview-pane,
+.staff-profile-summary-card,
+.staff-profile-hero-highlight-card,
+.staff-profile-toggle-card {
+  padding: 14px 16px;
+}
+
+.staff-profile-summary-card,
+.staff-profile-overview-signal-card,
+.staff-profile-hero-highlight-card {
+  min-height: 118px;
+}
+
+.staff-profile-summary-label,
+.staff-profile-overview-signal-label,
+.staff-profile-hero-highlight-label,
+.staff-profile-nav-current-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.staff-profile-summary-value,
+.staff-profile-overview-signal-value,
+.staff-profile-hero-highlight-value,
+.staff-profile-nav-current-title {
+  font-size: clamp(22px, 2.3vw, 30px);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  font-weight: 640;
+  color: var(--text);
+  margin-top: 8px;
+}
+
+.staff-profile-nav-current-title {
+  font-size: 20px;
+}
+
+.staff-profile-admin-shell {
+  position: sticky;
+  top: 104px;
+}
+
+.staff-profile-admin-column {
+  gap: 16px !important;
+}
+
+.staff-profile-jump-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-profile-jump-grid > * {
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.64);
+  border: 1px solid rgba(24, 32, 44, 0.08);
+}
+
+.staff-profile-form-card .fg {
+  gap: 18px 16px;
+}
+
+.staff-profile-form-card .lbl {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  margin-bottom: 8px;
+}
+
 .hr-onboarding-review-bg {
   background: rgba(24, 32, 44, 0.26);
   backdrop-filter: blur(6px);
@@ -965,6 +1132,10 @@ textarea.inp:focus {
 .hr-onboarding-review-shell {
   border-radius: 28px;
   overflow: hidden;
+  width: min(1380px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  display: grid;
+  grid-template-rows: auto 1fr;
 }
 
 .hr-onboarding-review-head {
@@ -976,6 +1147,7 @@ textarea.inp:focus {
 .hr-onboarding-review-body {
   padding: 20px;
   gap: 18px;
+  overflow: auto;
 }
 
 .hr-onboarding-review-main,
@@ -997,16 +1169,51 @@ textarea.inp:focus {
 
 .hr-onboarding-review-grid {
   gap: 12px !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .hr-onboarding-review-card {
   border-radius: 16px;
-  background: rgba(247,243,236,0.92);
+  background: rgba(246,250,255,0.9);
   border: 1px solid rgba(24, 32, 44, 0.06);
+  padding: 14px;
 }
 
 .hr-onboarding-review-panel {
   padding: 16px;
+}
+
+.hr-onboarding-review-meta-list {
+  display: grid;
+  gap: 10px;
+}
+
+.hr-onboarding-review-meta-list > div {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.8fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(24, 32, 44, 0.08);
+}
+
+.hr-onboarding-review-meta-list > div:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.hr-onboarding-review-meta-list span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.hr-onboarding-review-meta-list strong {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
 }
 
 .hr-onboarding-review-panel-title,
@@ -1019,11 +1226,20 @@ textarea.inp:focus {
 
 .hr-onboarding-review-actions {
   gap: 10px;
+  display: grid;
 }
 
 .hr-onboarding-review-actions .btn,
 .staff-profile-actions .btn {
   min-height: 42px;
+}
+
+.hr-onboarding-review-head .modal-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.84);
+  border: 1px solid rgba(24, 32, 44, 0.08);
 }
 
 .hr-onboarding-review-shell,
@@ -1070,6 +1286,17 @@ textarea.inp:focus {
   .overview-hero-toolbar,
   .overview-meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .staff-profile-workspace,
+  .staff-profile-main-grid,
+  .hr-onboarding-review-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  .staff-profile-nav,
+  .staff-profile-admin-shell {
+    position: static;
   }
 }
 
