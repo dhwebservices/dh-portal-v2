@@ -149,13 +149,20 @@ function formatShortDate(value) {
   })
 }
 
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function getLocalWeekStart(date = new Date()) {
   const dt = new Date(date)
   const day = dt.getDay()
   const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
   dt.setDate(diff)
   dt.setHours(0, 0, 0, 0)
-  return dt.toISOString().split('T')[0]
+  return getLocalDateKey(dt)
 }
 
 function isSameLocalDay(value, target = new Date()) {
@@ -552,7 +559,7 @@ export default function Outreach() {
   }
 
   const quickFollowUpDate = async (row, daysAhead) => {
-    const target = new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0]
+    const target = getLocalDateKey(new Date(Date.now() + daysAhead * 86400000))
     const meta = buildLeadMeta(row, {
       follow_up_date: target,
       history: [
@@ -650,7 +657,7 @@ export default function Outreach() {
       assigned_to_email: followUpDoneLead.assigned_to_email || '',
       assigned_to_name: followUpDoneLead.assigned_to_name || '',
       creator_email: followUpDoneLead.creator_email || '',
-      reminder_notice_key: nextDate ? '' : '',
+      reminder_notice_key: '',
       history: [
         buildHistoryEntry({
           action: 'follow_up_done',
@@ -761,7 +768,7 @@ export default function Outreach() {
   const openBookingModal = (row) => {
     setBookingLead(row)
     setBookingForm({
-      date: row.follow_up_date || new Date().toISOString().split('T')[0],
+      date: row.follow_up_date || getLocalDateKey(),
       start_time: '10:00',
       duration: 30,
       staff_email: bookableStaff[0]?.user_email || '',
@@ -922,7 +929,7 @@ export default function Outreach() {
 
     const run = async () => {
       reminderRunRef.current = true
-      const today = new Date().toISOString().split('T')[0]
+      const today = getLocalDateKey()
       const weekStart = getLocalWeekStart()
       const noticeKey = `weekly:${weekStart}`
       const updates = []
@@ -931,7 +938,8 @@ export default function Outreach() {
 
       for (const row of enrichedRows) {
         if (!needsFollowUp(row)) continue
-        const due = row.follow_up_date ? row.follow_up_date <= today : isOverdue(row)
+        const overdue = isOverdue(row)
+        const due = row.follow_up_date ? row.follow_up_date <= today : overdue
         if (!due) continue
         if (row.reminder_notice_key === noticeKey) continue
 
@@ -946,14 +954,11 @@ export default function Outreach() {
           const lockKey = `${recipient}:${noticeKey}`
           if (reminderLock.current.has(lockKey)) continue
           if (!digestMap.has(recipient)) digestMap.set(recipient, [])
-          digestMap.get(recipient).push(row)
+          digestMap.get(recipient).push({ ...row, overdue })
         }
       }
 
       for (const [recipient, rowsForRecipient] of digestMap.entries()) {
-        const lockKey = `${recipient}:${noticeKey}`
-        reminderLock.current.add(lockKey)
-
         const digestRows = rowsForRecipient
           .filter((row, index, arr) => arr.findIndex((candidate) => candidate.id === row.id) === index)
           .sort((a, b) => {
@@ -964,6 +969,10 @@ export default function Outreach() {
           })
 
         if (!digestRows.length) continue
+
+        const lockKey = `${recipient}:${noticeKey}`
+        reminderLock.current.add(lockKey)
+        let updateFailed = false
 
         try {
           await sendManagedNotification({
@@ -1026,9 +1035,15 @@ export default function Outreach() {
                 notes: nextNotes,
                 updated_at: updatedAt,
               })
+            } else {
+              updateFailed = true
             }
           }
         } catch {
+          updateFailed = true
+        }
+
+        if (updateFailed) {
           reminderLock.current.delete(lockKey)
         }
       }
@@ -1073,7 +1088,7 @@ export default function Outreach() {
       const matchF =
         filter === 'all'
         || (filter === 'assigned_to_me' && !!user?.email && String(r.assigned_to_email || '').toLowerCase() === String(user.email || '').toLowerCase())
-        || (filter === 'due_today' && !!r.follow_up_date && r.follow_up_date <= new Date().toISOString().split('T')[0] && needsFollowUp(r))
+        || (filter === 'due_today' && !!r.follow_up_date && r.follow_up_date <= getLocalDateKey() && needsFollowUp(r))
         || (filter === 'follow_up_queue' && needsFollowUp(r))
         || (filter === 'overdue' && isOverdue(r))
         || (filter === 'hot' && r.status === 'interested')
