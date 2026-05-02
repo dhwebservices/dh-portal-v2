@@ -1044,6 +1044,24 @@ export default function MyProfile() {
                     <div style={{ padding:'18px 20px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
                       <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
                     </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12 }}>
+                      <div style={{ padding:'14px 16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Issued by manager</div>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{documentRecord.manager_signature?.name || documentRecord.manager_name || 'Pending'}</div>
+                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>{documentRecord.manager_signature?.title || documentRecord.manager_title || 'Manager'}</div>
+                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:8 }}>
+                          {documentRecord.manager_signed_at ? `Signed ${new Date(documentRecord.manager_signed_at).toLocaleString('en-GB')}` : 'Manager sign-off pending'}
+                        </div>
+                      </div>
+                      <div style={{ padding:'14px 16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Your agreement</div>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{documentRecord.staff_signature?.name || profile.full_name || user?.name || 'Awaiting your signature'}</div>
+                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>{documentRecord.staff_signature?.title || 'Staff member'}</div>
+                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', marginTop:8 }}>
+                          {documentRecord.staff_signed_at ? `Signed ${new Date(documentRecord.staff_signed_at).toLocaleString('en-GB')}` : 'Not signed yet'}
+                        </div>
+                      </div>
+                    </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                       {documentRecord.reference_file_path || documentRecord.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignDocumentReferenceFile(documentRecord)}>Open attachment</button> : null}
                       {documentRecord.final_document_path || documentRecord.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedSignDocumentFile(documentRecord)}>Open signed PDF</button> : null}
