@@ -7,12 +7,12 @@ import { sendManagedNotification } from '../utils/notificationPreferences'
 import { openSecureDocument } from '../utils/fileAccess'
 import { createPortalSignature } from '../utils/contracts'
 import {
+  buildStaffSignDocumentBodyHtml,
   buildStaffSignDocumentFileName,
   buildStaffSignDocumentKey,
   buildStaffSignDocumentPdfBlob,
   createStaffSignDocument,
   getStaffSignDocumentStatusLabel,
-  renderStaffSignDocumentHtml,
 } from '../utils/staffSignDocuments'
 import {
   ACCENT_SCHEMES,
@@ -1029,7 +1029,7 @@ export default function MyProfile() {
             <div style={{ display:'grid', gap:12, padding:12 }}>
               {signDocuments.map((documentRecord) => {
                 const [statusLabel, statusTone] = getStaffSignDocumentStatusLabel(documentRecord.status)
-                const renderedHtml = renderStaffSignDocumentHtml(documentRecord.document_html || '', documentRecord.merge_fields || {})
+                const renderedHtml = buildStaffSignDocumentBodyHtml(documentRecord)
                 return (
                   <div key={documentRecord.id} className="card" style={{ padding:16, display:'grid', gap:12 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>

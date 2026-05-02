@@ -82,6 +82,15 @@ export function renderStaffSignDocumentHtml(templateHtml = '', fields = {}) {
   })
 }
 
+function escapeHtml(value = '') {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function buildStaffSignDocumentFileName(document = {}) {
   const base = `${document.staff_name || document.staff_email || 'staff'}-${document.title || document.document_type || 'document'}`
   return base
@@ -104,8 +113,44 @@ function signatureBlock(signature, label) {
   `
 }
 
-export function buildSignedStaffSignDocumentHtml(document = {}) {
+export function buildStaffSignDocumentBodyHtml(document = {}) {
   const body = renderStaffSignDocumentHtml(document.document_html || '', document.merge_fields || {})
+  const managerName = document.manager_signature?.name || document.manager_name || document.merge_fields?.manager_name || ''
+  const managerTitle = document.manager_signature?.title || document.manager_title || document.merge_fields?.manager_title || ''
+  const managerEmail = document.manager_signature?.email || document.manager_email || document.merge_fields?.manager_email || ''
+  const managerSignedAt = document.manager_signature?.signed_at || document.manager_signed_at || document.issued_at || ''
+  const staffName = document.staff_signature?.name || document.staff_name || document.merge_fields?.staff_name || ''
+  const staffSignedAt = document.staff_signature?.signed_at || document.staff_signed_at || ''
+
+  const signatureSection = `
+    <section style="margin-top:32px;padding-top:20px;border-top:1px solid #d8d8d8;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#7a7a7a;margin-bottom:14px;">Digital Sign-off</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:10px;">Issued by manager</div>
+          <div style="min-height:18px;border-bottom:1px solid #111;margin-bottom:10px;"></div>
+          <div style="font-size:16px;font-weight:600;color:#111;">${escapeHtml(managerName)}</div>
+          <div style="font-size:13px;color:#555;margin-top:4px;">${escapeHtml(managerTitle)}</div>
+          <div style="font-size:12px;color:#777;margin-top:8px;">${managerSignedAt ? `Signed ${escapeHtml(new Date(managerSignedAt).toLocaleString('en-GB'))}` : 'Awaiting manager sign-off'}</div>
+          <div style="font-size:11px;color:#8a8a8a;margin-top:4px;">${escapeHtml(managerEmail)}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#111;margin-bottom:10px;">Staff agreement</div>
+          <div style="min-height:18px;border-bottom:1px solid #111;margin-bottom:10px;"></div>
+          <div style="font-size:16px;font-weight:600;color:#111;">${escapeHtml(staffName)}</div>
+          <div style="font-size:13px;color:#555;margin-top:4px;">Staff member</div>
+          <div style="font-size:12px;color:#777;margin-top:8px;">${staffSignedAt ? `Signed ${escapeHtml(new Date(staffSignedAt).toLocaleString('en-GB'))}` : 'Pending staff agreement'}</div>
+          <div style="font-size:11px;color:#8a8a8a;margin-top:4px;">Digital portal sign-off</div>
+        </div>
+      </div>
+    </section>
+  `
+
+  return `${body}${signatureSection}`
+}
+
+export function buildSignedStaffSignDocumentHtml(document = {}) {
+  const body = buildStaffSignDocumentBodyHtml(document)
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -135,10 +180,6 @@ export function buildSignedStaffSignDocumentHtml(document = {}) {
       </div>
     </div>
     <div class="body">${body}</div>
-    <div class="signatures">
-      ${signatureBlock(document.manager_signature, 'Issued by manager')}
-      ${signatureBlock(document.staff_signature, 'Staff agreement')}
-    </div>
     <div class="audit">
       <h3>Audit trail</h3>
       <p>Document status: ${document.status || 'draft'}</p>

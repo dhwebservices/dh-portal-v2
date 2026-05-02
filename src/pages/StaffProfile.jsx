@@ -102,13 +102,11 @@ import {
   renderContractHtml,
 } from '../utils/contracts'
 import {
-  buildStaffSignDocumentFileName,
+  buildStaffSignDocumentBodyHtml,
   buildStaffSignDocumentKey,
   buildStaffSignDocumentMergeFields,
-  buildStaffSignDocumentPdfBlob,
   createStaffSignDocument,
   getStaffSignDocumentStatusLabel,
-  renderStaffSignDocumentHtml,
   STAFF_SIGN_DOCUMENT_PLACEHOLDERS,
 } from '../utils/staffSignDocuments'
 import { sendEmail } from '../utils/email'
@@ -2350,7 +2348,16 @@ export default function StaffProfile() {
     staffEmail: email,
   })
   const renderedSignDocumentPreview = signDocumentForm.documentHtml
-    ? renderStaffSignDocumentHtml(signDocumentForm.documentHtml, signDocumentPreviewFields)
+    ? buildStaffSignDocumentBodyHtml({
+        title: signDocumentForm.title,
+        document_type: signDocumentForm.documentType,
+        manager_name: signDocumentForm.managerSignatureName,
+        manager_email: user?.email || '',
+        manager_title: signDocumentForm.managerSignatureTitle,
+        manager_signed_at: new Date().toISOString(),
+        document_html: signDocumentForm.documentHtml,
+        merge_fields: signDocumentPreviewFields,
+      })
     : ''
   const pendingSignatureContracts = contracts.filter((contract) => contract.status === 'awaiting_staff_signature')
   const completedContracts = contracts.filter((contract) => contract.status === 'completed')
