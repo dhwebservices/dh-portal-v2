@@ -266,6 +266,8 @@ export default function MyProfile() {
           staff_name: profile.full_name || documentRecord.staff_name || user?.name || normalizedEmail,
           staff_role: profile.role || documentRecord.staff_role || '',
           staff_department: profile.department || documentRecord.staff_department || '',
+          staff_signature_name: profile.full_name || documentRecord.staff_name || user?.name || normalizedEmail,
+          staff_signed_date: new Date(staffSignature.signed_at).toLocaleDateString('en-GB'),
         },
         staff_signature: staffSignature,
         staff_signed_at: staffSignature.signed_at,
