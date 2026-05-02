@@ -101,6 +101,16 @@ import {
   getContractStatusLabel,
   renderContractHtml,
 } from '../utils/contracts'
+import {
+  buildStaffSignDocumentFileName,
+  buildStaffSignDocumentKey,
+  buildStaffSignDocumentMergeFields,
+  buildStaffSignDocumentPdfBlob,
+  createStaffSignDocument,
+  getStaffSignDocumentStatusLabel,
+  renderStaffSignDocumentHtml,
+  STAFF_SIGN_DOCUMENT_PLACEHOLDERS,
+} from '../utils/staffSignDocuments'
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
 import { openSecureDocument } from '../utils/fileAccess'
@@ -304,6 +314,7 @@ export default function StaffProfile() {
   const [complianceSaving, setComplianceSaving] = useState(false)
   const [contractTemplates, setContractTemplates] = useState([])
   const [contracts, setContracts] = useState([])
+  const [signDocuments, setSignDocuments] = useState([])
   const [contractSaving, setContractSaving] = useState(false)
   const [contractError, setContractError] = useState('')
   const [contractSuccess, setContractSuccess] = useState('')
@@ -312,6 +323,19 @@ export default function StaffProfile() {
     managerSignatureName: '',
     managerSignatureTitle: '',
     notes: '',
+  })
+  const [signDocumentSaving, setSignDocumentSaving] = useState(false)
+  const [signDocumentError, setSignDocumentError] = useState('')
+  const [signDocumentSuccess, setSignDocumentSuccess] = useState('')
+  const [selectedSignDocumentFile, setSelectedSignDocumentFile] = useState(null)
+  const [signDocumentForm, setSignDocumentForm] = useState({
+    title: '',
+    subject: '',
+    documentType: 'Policy acknowledgement',
+    managerSignatureName: '',
+    managerSignatureTitle: '',
+    notes: '',
+    documentHtml: '',
   })
   const [reviewForm, setReviewForm] = useState({
     review_type: 'probation_30',
@@ -368,6 +392,7 @@ export default function StaffProfile() {
     bannerExpiresAt: '',
   })
   const fileRef = useRef()
+  const signDocumentFileRef = useRef()
 
   const fileTypeLabel = (name = '') => {
     const ext = name.split('.').pop()?.toUpperCase()
@@ -493,6 +518,10 @@ export default function StaffProfile() {
         .from('portal_settings')
         .select('key,value')
         .like('key', 'staff_contract:%')
+      const { data: signDocumentRows } = await supabase
+        .from('portal_settings')
+        .select('key,value')
+        .like('key', 'staff_sign_document:%')
       const { data: reviewRows } = await supabase
         .from('portal_settings')
         .select('key,value')
@@ -564,6 +593,14 @@ export default function StaffProfile() {
         .filter((item) => item.staff_email === email)
         .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
       setContracts(nextContracts)
+      const nextSignDocuments = (signDocumentRows || [])
+        .map((row) => createStaffSignDocument({
+          id: String(row.key || '').replace('staff_sign_document:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === email)
+        .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
+      setSignDocuments(nextSignDocuments)
       const nextReviews = (reviewRows || [])
         .map((row) => createProbationReview({
           id: String(row.key || '').replace('probation_review:', ''),
@@ -615,6 +652,11 @@ export default function StaffProfile() {
       setContractForm((current) => ({
         ...current,
         templateId: current.templateId || nextTemplates[0]?.id || '',
+        managerSignatureName: current.managerSignatureName || user?.name || '',
+        managerSignatureTitle: current.managerSignatureTitle || getRoleScopeLabel(hydratedOrg.role_scope) || 'Department Manager',
+      }))
+      setSignDocumentForm((current) => ({
+        ...current,
         managerSignatureName: current.managerSignatureName || user?.name || '',
         managerSignatureTitle: current.managerSignatureTitle || getRoleScopeLabel(hydratedOrg.role_scope) || 'Department Manager',
       }))
@@ -2038,6 +2080,243 @@ export default function StaffProfile() {
     }
   }
 
+  const persistSignDocumentRecord = async (nextDocument) => {
+    const payload = createStaffSignDocument(nextDocument)
+    const { error } = await supabase
+      .from('portal_settings')
+      .upsert({
+        key: buildStaffSignDocumentKey(payload.id),
+        value: { value: payload },
+      }, { onConflict: 'key' })
+    if (error) throw error
+    setSignDocuments((current) => [payload, ...current.filter((item) => item.id !== payload.id)]
+      .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()))
+    return payload
+  }
+
+  const issueSignDocumentToStaff = async () => {
+    if (!signDocumentForm.title.trim()) {
+      setSignDocumentError('Add a document title first.')
+      return
+    }
+    if (!signDocumentForm.documentHtml.trim()) {
+      setSignDocumentError('Paste the document HTML before sending it to staff.')
+      return
+    }
+    if (!signDocumentForm.managerSignatureName.trim() || !signDocumentForm.managerSignatureTitle.trim()) {
+      setSignDocumentError('Add the signer name and title before issuing the document.')
+      return
+    }
+
+    setSignDocumentSaving(true)
+    setSignDocumentError('')
+    setSignDocumentSuccess('')
+
+    try {
+      let referenceFile = {
+        name: '',
+        path: '',
+        url: '',
+      }
+
+      if (selectedSignDocumentFile) {
+        const referencePath = `staff-sign-documents/${email}/references/${Date.now()}-${selectedSignDocumentFile.name}`
+        const { error: uploadError } = await supabase.storage.from('hr-documents').upload(referencePath, selectedSignDocumentFile)
+        if (uploadError) throw uploadError
+        const { data: referenceUrlData } = supabase.storage.from('hr-documents').getPublicUrl(referencePath)
+        referenceFile = {
+          name: selectedSignDocumentFile.name,
+          path: referencePath,
+          url: referenceUrlData.publicUrl,
+        }
+      }
+
+      const mergeFields = buildStaffSignDocumentMergeFields({
+        profile,
+        orgRecord,
+        title: signDocumentForm.title,
+        documentType: signDocumentForm.documentType,
+        managerName: signDocumentForm.managerSignatureName,
+        managerEmail: user?.email || '',
+        managerTitle: signDocumentForm.managerSignatureTitle,
+        staffEmail: email,
+      })
+      const managerSignature = createPortalSignature({
+        name: signDocumentForm.managerSignatureName,
+        title: signDocumentForm.managerSignatureTitle,
+        email: user?.email || '',
+      })
+      const now = new Date().toISOString()
+      const nextDocument = await persistSignDocumentRecord({
+        title: signDocumentForm.title,
+        subject: signDocumentForm.subject || signDocumentForm.title,
+        document_type: signDocumentForm.documentType,
+        staff_email: email,
+        staff_name: profile.full_name || email,
+        staff_role: profile.role || '',
+        staff_department: profile.department || orgRecord.department || '',
+        manager_email: normalizeEmail(user?.email || profile.manager_email || orgRecord.reports_to_email || ''),
+        manager_name: signDocumentForm.managerSignatureName,
+        manager_title: signDocumentForm.managerSignatureTitle,
+        status: 'awaiting_staff_signature',
+        notes: signDocumentForm.notes,
+        merge_fields: mergeFields,
+        document_html: signDocumentForm.documentHtml,
+        reference_file_url: referenceFile.url,
+        reference_file_path: referenceFile.path,
+        reference_file_name: referenceFile.name,
+        manager_signature: managerSignature,
+        manager_signed_at: managerSignature.signed_at,
+        issued_at: now,
+        updated_at: now,
+      })
+
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'info',
+        title: 'Document ready to sign',
+        message: `${signDocumentForm.managerSignatureName.trim()} has issued ${nextDocument.title}. Review it in your profile and sign to confirm agreement.`,
+        link: '/my-profile?tab=sign_docs',
+        emailSubject: `${nextDocument.subject || nextDocument.title} — ready to sign`,
+        emailHtml: `
+          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+          <p><strong>${nextDocument.title}</strong> is ready for your digital sign-off in DH Portal.</p>
+          ${referenceFile.url ? `<p>An attachment was included with the signing request: <a href="${referenceFile.url}">${referenceFile.name || 'Open attachment'}</a>.</p>` : ''}
+          <p><a href="https://staff.dhwebsiteservices.co.uk/my-profile?tab=sign_docs" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open sign documents</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      })
+
+      setSignDocumentForm((current) => ({
+        ...current,
+        title: '',
+        subject: '',
+        documentType: 'Policy acknowledgement',
+        notes: '',
+        documentHtml: '',
+      }))
+      setSelectedSignDocumentFile(null)
+      if (signDocumentFileRef.current) signDocumentFileRef.current.value = ''
+      setSignDocumentSuccess(`Issued ${nextDocument.title} for staff signature.`)
+    } catch (error) {
+      console.error('Staff sign document issue failed:', error)
+      setSignDocumentError(error.message || 'Could not issue the document.')
+    } finally {
+      setSignDocumentSaving(false)
+    }
+  }
+
+  const openSignDocumentReferenceFile = async (documentRecord) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: documentRecord?.reference_file_path,
+        fallbackUrl: documentRecord?.reference_file_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_sign_document_reference_opened',
+        entity: 'staff_sign_document',
+        entityId: documentRecord?.id || '',
+        details: {
+          title: documentRecord?.title || '',
+          staff_email: documentRecord?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the reference attachment.')
+    }
+  }
+
+  const openSignedSignDocumentFile = async (documentRecord) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: documentRecord?.final_document_path,
+        fallbackUrl: documentRecord?.final_document_url,
+        userEmail: user?.email || '',
+        userName: user?.name || '',
+        action: 'staff_sign_document_signed_pdf_opened',
+        entity: 'staff_sign_document',
+        entityId: documentRecord?.id || '',
+        details: {
+          title: documentRecord?.title || '',
+          staff_email: documentRecord?.staff_email || email,
+        },
+      })
+    } catch (error) {
+      window.alert(error.message || 'Could not open the signed PDF.')
+    }
+  }
+
+  const resendSignDocumentReminder = async (documentRecord) => {
+    setSignDocumentSaving(true)
+    setSignDocumentError('')
+    setSignDocumentSuccess('')
+    try {
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'warning',
+        title: 'Document signature reminder',
+        message: `${documentRecord.title || 'A document'} is still waiting for your digital signature in your staff profile.`,
+        link: '/my-profile?tab=sign_docs',
+        emailSubject: `${documentRecord.subject || documentRecord.title || 'DH Portal document'} — signature reminder`,
+        emailHtml: `
+          <p>Hi ${(profile.full_name || email).split(' ')[0] || 'there'},</p>
+          <p>This is a reminder that <strong>${documentRecord.title || 'your document'}</strong> is still waiting for your digital agreement in DH Portal.</p>
+          <p><a href="https://staff.dhwebsiteservices.co.uk/my-profile?tab=sign_docs" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open sign documents</a></p>
+        `,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+        forceImportant: true,
+      })
+      setSignDocumentSuccess(`Reminder sent for ${documentRecord.title || 'the document'}.`)
+    } catch (error) {
+      console.error('Staff sign document reminder failed:', error)
+      setSignDocumentError(error.message || 'Could not resend the reminder.')
+    } finally {
+      setSignDocumentSaving(false)
+    }
+  }
+
+  const voidSignDocument = async (documentRecord) => {
+    if (!confirm(`Void ${documentRecord.title || 'this document'}?`)) return
+    setSignDocumentSaving(true)
+    setSignDocumentError('')
+    setSignDocumentSuccess('')
+    try {
+      const nextDocument = await persistSignDocumentRecord({
+        ...documentRecord,
+        status: 'voided',
+        voided_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      await sendManagedNotification({
+        userEmail: email,
+        userName: profile.full_name || email,
+        category: 'hr',
+        type: 'warning',
+        title: 'Document update',
+        message: `${nextDocument.title || 'A document'} has been voided and is no longer awaiting your signature.`,
+        link: '/my-profile?tab=sign_docs',
+        emailSubject: `Document voided — ${nextDocument.title || 'DH Portal'}`,
+        sentBy: user?.name || user?.email || 'Department manager',
+        fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+      }).catch(() => {})
+      setSignDocumentSuccess(`${nextDocument.title || 'Document'} marked as voided.`)
+    } catch (error) {
+      console.error('Staff sign document void failed:', error)
+      setSignDocumentError(error.message || 'Could not void the document.')
+    } finally {
+      setSignDocumentSaving(false)
+    }
+  }
+
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
@@ -2060,8 +2339,23 @@ export default function StaffProfile() {
   const renderedContractPreview = activeContractTemplate
     ? renderContractHtml(activeContractTemplate.content_html, contractPreviewFields)
     : ''
+  const signDocumentPreviewFields = buildStaffSignDocumentMergeFields({
+    profile,
+    orgRecord,
+    title: signDocumentForm.title,
+    documentType: signDocumentForm.documentType,
+    managerName: signDocumentForm.managerSignatureName,
+    managerEmail: user?.email || '',
+    managerTitle: signDocumentForm.managerSignatureTitle || roleScopeLabel || 'Department Manager',
+    staffEmail: email,
+  })
+  const renderedSignDocumentPreview = signDocumentForm.documentHtml
+    ? renderStaffSignDocumentHtml(signDocumentForm.documentHtml, signDocumentPreviewFields)
+    : ''
   const pendingSignatureContracts = contracts.filter((contract) => contract.status === 'awaiting_staff_signature')
   const completedContracts = contracts.filter((contract) => contract.status === 'completed')
+  const pendingSignDocuments = signDocuments.filter((item) => item.status === 'awaiting_staff_signature')
+  const completedSignDocuments = signDocuments.filter((item) => item.status === 'completed')
   const openReviews = reviews.filter((review) => review.status !== 'completed')
   const overdueReviews = openReviews.filter((review) => review.due_date && new Date(`${review.due_date}T23:59:59`).getTime() < Date.now())
   const openGoals = goals.filter((goal) => goal.status !== 'completed')
@@ -2142,6 +2436,7 @@ export default function StaffProfile() {
     ['notify','Notify'],
     ['commissions','Commissions'],
     ['contracts','Contracts'],
+    ['sign_docs','Sign Docs'],
     ['docs','Documents'],
   ]
   const staffProfileTabDescriptions = {
@@ -2157,6 +2452,7 @@ export default function StaffProfile() {
     notify: 'Send internal updates or manager-led alerts.',
     commissions: 'Commission records and payout context.',
     contracts: 'Templates, issued contracts, and signatures.',
+    sign_docs: 'Separate staff documents to sign outside onboarding.',
     docs: 'Documents, uploads, and supporting files.',
   }
   const roleSummary = [profile.role, profile.department, roleScopeLabel].filter(Boolean)
@@ -4174,6 +4470,153 @@ export default function StaffProfile() {
                 ) : (
                   <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
                     No contracts have been issued for this staff member yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'sign_docs' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.1fr) minmax(320px,0.9fr)', gap:18 }} className="staff-profile-main-grid">
+            <div className="card card-pad">
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+                <div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Issue signable document</div>
+                  <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginTop:4 }}>Separate document sign-off</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                    Create a document outside onboarding, paste the HTML body or include a supporting file, and send it straight to this staff member for digital agreement.
+                  </div>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={issueSignDocumentToStaff} disabled={signDocumentSaving}>
+                  {signDocumentSaving ? 'Issuing...' : 'Send for signature'}
+                </button>
+              </div>
+
+              <div className="fg" style={{ marginBottom:18 }}>
+                <div>
+                  <label className="lbl">Document title</label>
+                  <input className="inp" value={signDocumentForm.title} onChange={(e) => setSignDocumentForm((current) => ({ ...current, title: e.target.value }))} placeholder="Policy acknowledgement" />
+                </div>
+                <div>
+                  <label className="lbl">Document type</label>
+                  <input className="inp" value={signDocumentForm.documentType} onChange={(e) => setSignDocumentForm((current) => ({ ...current, documentType: e.target.value }))} placeholder="Policy acknowledgement" />
+                </div>
+                <div>
+                  <label className="lbl">Email subject</label>
+                  <input className="inp" value={signDocumentForm.subject} onChange={(e) => setSignDocumentForm((current) => ({ ...current, subject: e.target.value }))} placeholder="Document ready to sign" />
+                </div>
+                <div>
+                  <label className="lbl">Signer name</label>
+                  <input className="inp" value={signDocumentForm.managerSignatureName} onChange={(e) => setSignDocumentForm((current) => ({ ...current, managerSignatureName: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="lbl">Signer title</label>
+                  <input className="inp" value={signDocumentForm.managerSignatureTitle} onChange={(e) => setSignDocumentForm((current) => ({ ...current, managerSignatureTitle: e.target.value }))} />
+                </div>
+                <div className="fc">
+                  <label className="lbl">Issue notes</label>
+                  <textarea className="inp" rows={3} value={signDocumentForm.notes} onChange={(e) => setSignDocumentForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} placeholder="Optional internal or staff-facing context." />
+                </div>
+                <div className="fc">
+                  <label className="lbl">Document HTML</label>
+                  <textarea className="inp" rows={14} value={signDocumentForm.documentHtml} onChange={(e) => setSignDocumentForm((current) => ({ ...current, documentHtml: e.target.value }))} style={{ resize:'vertical', fontFamily:'var(--font-mono)', fontSize:12.5 }} placeholder="<p>Please review and agree to this document.</p>" />
+                </div>
+              </div>
+
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:18 }}>
+                <input
+                  type="file"
+                  ref={signDocumentFileRef}
+                  style={{ display:'none' }}
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  onChange={(e) => setSelectedSignDocumentFile(e.target.files?.[0] || null)}
+                />
+                <button className="btn btn-outline btn-sm" onClick={() => signDocumentFileRef.current?.click()} disabled={signDocumentSaving}>
+                  {selectedSignDocumentFile ? 'Change attachment' : 'Attach file'}
+                </button>
+                <span style={{ fontSize:12, color:selectedSignDocumentFile ? 'var(--text)' : 'var(--sub)' }}>
+                  {selectedSignDocumentFile ? selectedSignDocumentFile.name : 'Optional reference attachment for the staff member.'}
+                </span>
+              </div>
+
+              <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:10, flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Preview</div>
+                    <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginTop:4 }}>{signDocumentForm.title || 'Document preview'}</div>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <span className="badge badge-blue">{signDocumentForm.documentType || 'Staff Document'}</span>
+                    {STAFF_SIGN_DOCUMENT_PLACEHOLDERS.map(([key]) => <span key={key} className="badge badge-grey">{`{{${key}}}`}</span>)}
+                  </div>
+                </div>
+                {renderedSignDocumentPreview ? (
+                  <div style={{ padding:'18px 20px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
+                    <div style={{ fontSize:12.5, color:'var(--sub)', marginBottom:10 }}>Live merged document body</div>
+                    <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedSignDocumentPreview }} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize:13, color:'var(--sub)' }}>Paste the HTML body above to preview the document staff will sign.</div>
+                )}
+              </div>
+
+              {signDocumentError ? <div style={{ marginTop:12, fontSize:13, color:'var(--red)' }}>{signDocumentError}</div> : null}
+              {signDocumentSuccess ? <div style={{ marginTop:12, fontSize:13, color:'var(--green)' }}>{signDocumentSuccess}</div> : null}
+            </div>
+
+            <div className="staff-profile-admin-column" style={{ display:'grid', gap:14 }}>
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Status</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:10 }}>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Awaiting staff</div>
+                    <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{pendingSignDocuments.length}</div>
+                  </div>
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Completed</div>
+                    <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{completedSignDocuments.length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card card-pad staff-profile-admin-card">
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Sign-off history</div>
+                {signDocuments.length ? (
+                  <div style={{ display:'grid', gap:10 }}>
+                    {signDocuments.map((documentRecord) => {
+                      const [statusLabel, statusTone] = getStaffSignDocumentStatusLabel(documentRecord.status)
+                      return (
+                        <div key={documentRecord.id} style={{ padding:'14px 16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                            <div>
+                              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{documentRecord.title || documentRecord.document_type || 'Staff document'}</div>
+                              <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{documentRecord.document_type || 'Staff document'} · {documentRecord.staff_name || profile.full_name || email}</div>
+                            </div>
+                            <span className={`badge badge-${statusTone}`}>{statusLabel}</span>
+                          </div>
+                          <div style={{ display:'grid', gap:6, marginTop:10, fontSize:12.5, color:'var(--sub)' }}>
+                            <div>Issued {documentRecord.issued_at ? new Date(documentRecord.issued_at).toLocaleString('en-GB') : 'Not issued yet'}</div>
+                            <div>Manager sign-off: {documentRecord.manager_signature?.name || 'Pending'}</div>
+                            <div>Staff agreement: {documentRecord.staff_signature?.name || 'Pending'}</div>
+                          </div>
+                          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
+                            {documentRecord.final_document_path || documentRecord.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedSignDocumentFile(documentRecord)}>Open signed PDF</button> : null}
+                            {documentRecord.reference_file_path || documentRecord.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignDocumentReferenceFile(documentRecord)}>Open attachment</button> : null}
+                            {documentRecord.status === 'awaiting_staff_signature' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => resendSignDocumentReminder(documentRecord)} disabled={signDocumentSaving}>Resend reminder</button>
+                            ) : null}
+                            {documentRecord.status !== 'completed' && documentRecord.status !== 'voided' ? (
+                              <button className="btn btn-outline btn-sm" onClick={() => voidSignDocument(documentRecord)} disabled={signDocumentSaving}>Void</button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                    No separate sign-off documents have been issued for this staff member yet.
                   </div>
                 )}
               </div>

@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
+import { sendManagedNotification } from '../utils/notificationPreferences'
+import { openSecureDocument } from '../utils/fileAccess'
+import { createPortalSignature } from '../utils/contracts'
+import {
+  buildStaffSignDocumentFileName,
+  buildStaffSignDocumentKey,
+  buildStaffSignDocumentPdfBlob,
+  createStaffSignDocument,
+  getStaffSignDocumentStatusLabel,
+  renderStaffSignDocumentHtml,
+} from '../utils/staffSignDocuments'
 import {
   ACCENT_SCHEMES,
   CONTRAST_OPTIONS,
@@ -22,8 +34,11 @@ import {
   mergePortalPreferences,
 } from '../utils/portalPreferences'
 
+const PROFILE_TABS = ['info', 'portal', 'alerts', 'hr', 'bank', 'docs', 'sign_docs', 'payslips']
+
 export default function MyProfile() {
   const { user, preferences, updatePreferences } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const normalizedEmail = user?.email?.toLowerCase?.() || ''
   const [profile, setProfile]   = useState({})
   const [profileId, setProfileId] = useState(null)
@@ -32,10 +47,13 @@ export default function MyProfile() {
   const [saved, setSaved]       = useState(false)
   const [prefsSaving, setPrefsSaving] = useState(false)
   const [prefsSaved, setPrefsSaved] = useState(false)
-  const [tab, setTab]           = useState('info')
+  const [tab, setTab]           = useState(() => PROFILE_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'info')
   const [docs, setDocs]         = useState([])
+  const [signDocuments, setSignDocuments] = useState([])
   const [payslips, setPayslips] = useState([])
   const [portalPrefs, setPortalPrefs] = useState(() => mergePortalPreferences(preferences))
+  const [signingDocumentId, setSigningDocumentId] = useState('')
+  const [signDocumentMessage, setSignDocumentMessage] = useState('')
 
   // All editable fields staff can update themselves
   const [form, setForm] = useState({
@@ -76,13 +94,21 @@ export default function MyProfile() {
   }))
 
   useEffect(() => {
+    const requestedTab = searchParams.get('tab')
+    if (PROFILE_TABS.includes(requestedTab) && requestedTab !== tab) {
+      setTab(requestedTab)
+    }
+  }, [searchParams, tab])
+
+  useEffect(() => {
     if (!normalizedEmail) return
     Promise.all([
       supabase.from('hr_profiles').select('*').ilike('user_email', normalizedEmail),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
       supabase.from('staff_documents').select('*').ilike('staff_email', normalizedEmail).order('created_at', { ascending:false }),
       supabase.from('payslips').select('*').ilike('user_email', normalizedEmail).order('created_at', { ascending:false }),
-    ]).then(([{ data: profileRows, error: profileError }, { data: onboarding }, { data: d }, { data: ps }]) => {
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_sign_document:%'),
+    ]).then(([{ data: profileRows, error: profileError }, { data: onboarding }, { data: d }, { data: ps }, { data: signDocumentRows }]) => {
       if (profileError) {
         console.error('My Profile load error:', profileError)
       }
@@ -103,6 +129,13 @@ export default function MyProfile() {
         }
       }
       setDocs(d || [])
+      setSignDocuments((signDocumentRows || [])
+        .map((row) => createStaffSignDocument({
+          id: String(row.key || '').replace('staff_sign_document:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.staff_email === normalizedEmail)
+        .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime()))
       setPayslips(ps || [])
       setLoading(false)
     })
@@ -170,6 +203,177 @@ export default function MyProfile() {
     }
   }
 
+  const openSignDocumentReferenceFile = async (documentRecord) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: documentRecord?.reference_file_path,
+        fallbackUrl: documentRecord?.reference_file_url,
+        userEmail: normalizedEmail,
+        userName: user?.name || normalizedEmail,
+        action: 'staff_sign_document_reference_opened',
+        entity: 'staff_sign_document',
+        entityId: documentRecord?.id || '',
+        details: {
+          title: documentRecord?.title || '',
+          staff_email: normalizedEmail,
+        },
+      })
+    } catch (error) {
+      setSignDocumentMessage(error.message || 'Could not open the attached file.')
+    }
+  }
+
+  const openSignedSignDocumentFile = async (documentRecord) => {
+    try {
+      await openSecureDocument({
+        bucket: 'hr-documents',
+        filePath: documentRecord?.final_document_path,
+        fallbackUrl: documentRecord?.final_document_url,
+        userEmail: normalizedEmail,
+        userName: user?.name || normalizedEmail,
+        action: 'staff_sign_document_signed_pdf_opened',
+        entity: 'staff_sign_document',
+        entityId: documentRecord?.id || '',
+        details: {
+          title: documentRecord?.title || '',
+          staff_email: normalizedEmail,
+        },
+      })
+    } catch (error) {
+      setSignDocumentMessage(error.message || 'Could not open the signed PDF.')
+    }
+  }
+
+  const signStaffDocument = async (documentRecord) => {
+    if (!documentRecord || documentRecord.status !== 'awaiting_staff_signature') return
+    setSigningDocumentId(documentRecord.id)
+    setSignDocumentMessage('')
+    try {
+      const staffSignature = createPortalSignature({
+        name: profile.full_name || user?.name || normalizedEmail,
+        title: 'Staff member',
+        email: normalizedEmail,
+      })
+      const now = new Date().toISOString()
+      const completedDocument = createStaffSignDocument({
+        ...documentRecord,
+        staff_name: profile.full_name || documentRecord.staff_name || user?.name || normalizedEmail,
+        staff_role: profile.role || documentRecord.staff_role || '',
+        staff_department: profile.department || documentRecord.staff_department || '',
+        merge_fields: {
+          ...(documentRecord.merge_fields || {}),
+          staff_name: profile.full_name || documentRecord.staff_name || user?.name || normalizedEmail,
+          staff_role: profile.role || documentRecord.staff_role || '',
+          staff_department: profile.department || documentRecord.staff_department || '',
+        },
+        staff_signature: staffSignature,
+        staff_signed_at: staffSignature.signed_at,
+        status: 'completed',
+        completed_at: now,
+        updated_at: now,
+      })
+
+      const pdfBlob = await buildStaffSignDocumentPdfBlob(completedDocument)
+      const fileName = buildStaffSignDocumentFileName(completedDocument)
+      const filePath = `staff-sign-documents/${normalizedEmail}/completed/${Date.now()}-${fileName}`
+      const { error: uploadError } = await supabase.storage.from('hr-documents').upload(filePath, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: false,
+      })
+      if (uploadError) throw uploadError
+      const { data: publicUrlData } = supabase.storage.from('hr-documents').getPublicUrl(filePath)
+
+      const finalizedDocument = createStaffSignDocument({
+        ...completedDocument,
+        final_document_path: filePath,
+        final_document_url: publicUrlData.publicUrl,
+      })
+
+      const [{ error: signDocError }, { error: docError }] = await Promise.all([
+        supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildStaffSignDocumentKey(finalizedDocument.id),
+            value: { value: finalizedDocument },
+          }, { onConflict: 'key' }),
+        supabase
+          .from('staff_documents')
+          .insert([{
+            staff_email: normalizedEmail,
+            staff_name: profile.full_name || user?.name || normalizedEmail,
+            name: `${finalizedDocument.title || finalizedDocument.document_type || 'Staff document'}.pdf`,
+            type: finalizedDocument.document_type || 'Signed Document',
+            file_url: publicUrlData.publicUrl,
+            file_path: filePath,
+            uploaded_by: 'Staff sign-off',
+            created_at: now,
+          }]),
+      ])
+      if (signDocError) throw signDocError
+      if (docError) throw docError
+
+      await Promise.allSettled([
+        sendManagedNotification({
+          userEmail: normalizedEmail,
+          userName: profile.full_name || user?.name || normalizedEmail,
+          category: 'hr',
+          type: 'success',
+          title: 'Signed document complete',
+          message: `${finalizedDocument.title || 'Your document'} has been signed and stored in DH Portal.`,
+          link: finalizedDocument.final_document_url || '/my-profile?tab=docs',
+          emailSubject: `${finalizedDocument.title || 'Staff document'} — signed copy`,
+          emailHtml: `
+            <p>Hi ${(profile.full_name || user?.name || normalizedEmail).split(' ')[0] || 'there'},</p>
+            <p>Your document has now been signed and stored.</p>
+            <p><a href="${finalizedDocument.final_document_url}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open signed PDF</a></p>
+          `,
+          sentBy: user?.name || user?.email || 'DH Portal',
+          fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          forceImportant: true,
+        }),
+        finalizedDocument.manager_email
+          ? sendManagedNotification({
+            userEmail: finalizedDocument.manager_email,
+            userName: finalizedDocument.manager_name || finalizedDocument.manager_email,
+            category: 'hr',
+            type: 'success',
+            title: 'Staff document signed',
+            message: `${finalizedDocument.staff_name || normalizedEmail} has signed ${finalizedDocument.title || 'their document'}.`,
+            link: finalizedDocument.final_document_url || '/my-staff',
+            emailSubject: `${finalizedDocument.staff_name || normalizedEmail} — document signed`,
+            emailHtml: `
+              <p>Hi ${(finalizedDocument.manager_name || finalizedDocument.manager_email).split(' ')[0] || 'there'},</p>
+              <p>${finalizedDocument.staff_name || normalizedEmail} has signed <strong>${finalizedDocument.title || 'their document'}</strong>.</p>
+              <p><a href="${finalizedDocument.final_document_url}" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open signed PDF</a></p>
+            `,
+            sentBy: user?.name || user?.email || 'DH Portal',
+            fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            forceImportant: true,
+          })
+          : Promise.resolve(),
+      ])
+
+      setSignDocuments((current) => current.map((item) => item.id === finalizedDocument.id ? finalizedDocument : item))
+      setDocs((current) => [{
+        id: `signed-${finalizedDocument.id}`,
+        staff_email: normalizedEmail,
+        name: `${finalizedDocument.title || finalizedDocument.document_type || 'Staff document'}.pdf`,
+        type: finalizedDocument.document_type || 'Signed Document',
+        file_url: finalizedDocument.final_document_url,
+        file_path: finalizedDocument.final_document_path,
+        uploaded_by: 'Staff sign-off',
+        created_at: now,
+      }, ...current])
+      setSignDocumentMessage('Document signed successfully. The PDF has been stored and emailed.')
+    } catch (error) {
+      console.error('Staff sign document failed:', error)
+      setSignDocumentMessage(error.message || 'Could not sign the document right now.')
+    } finally {
+      setSigningDocumentId('')
+    }
+  }
+
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
   return (
@@ -194,8 +398,8 @@ export default function MyProfile() {
       </div>
 
       <div className="tabs">
-        {[['info','My Details'],['portal','Portal'],['alerts','Alerts'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['payslips','Payslips']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+        {[['info','My Details'],['portal','Portal'],['alerts','Alerts'],['hr','HR Info'],['bank','Bank Details'],['docs','Documents'],['sign_docs','Sign Docs'],['payslips','Payslips']].map(([k,l]) => (
+          <button key={k} onClick={() => { setTab(k); setSearchParams(k === 'info' ? {} : { tab: k }) }} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
 
@@ -801,6 +1005,58 @@ export default function MyProfile() {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+      )}
+
+      {tab === 'sign_docs' && (
+        <div className="card" style={{ overflow:'hidden' }}>
+          <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Documents waiting for your agreement</div>
+              <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>These are separate from onboarding contracts. Review each one, then sign digitally when you agree.</div>
+            </div>
+            <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{signDocuments.filter((item) => item.status === 'awaiting_staff_signature').length} awaiting</span>
+          </div>
+          {signDocumentMessage ? (
+            <div style={{ padding:'10px 20px', borderBottom:'1px solid var(--border)', fontSize:12.5, color:signDocumentMessage.includes('successfully') ? 'var(--green)' : 'var(--sub)' }}>
+              {signDocumentMessage}
+            </div>
+          ) : null}
+          {signDocuments.length === 0 ? (
+            <div className="empty"><p>No sign-off documents have been sent to you yet.</p></div>
+          ) : (
+            <div style={{ display:'grid', gap:12, padding:12 }}>
+              {signDocuments.map((documentRecord) => {
+                const [statusLabel, statusTone] = getStaffSignDocumentStatusLabel(documentRecord.status)
+                const renderedHtml = renderStaffSignDocumentHtml(documentRecord.document_html || '', documentRecord.merge_fields || {})
+                return (
+                  <div key={documentRecord.id} className="card" style={{ padding:16, display:'grid', gap:12 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+                      <div style={{ minWidth:0, flex:1 }}>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{documentRecord.title || documentRecord.document_type || 'Staff document'}</div>
+                        <div style={{ fontSize:13, color:'var(--sub)' }}>
+                          {documentRecord.document_type || 'Staff document'} · issued {documentRecord.issued_at ? new Date(documentRecord.issued_at).toLocaleDateString('en-GB') : 'recently'}
+                        </div>
+                      </div>
+                      <span className={`badge badge-${statusTone}`}>{statusLabel}</span>
+                    </div>
+                    <div style={{ padding:'18px 20px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                    </div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                      {documentRecord.reference_file_path || documentRecord.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignDocumentReferenceFile(documentRecord)}>Open attachment</button> : null}
+                      {documentRecord.final_document_path || documentRecord.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedSignDocumentFile(documentRecord)}>Open signed PDF</button> : null}
+                      {documentRecord.status === 'awaiting_staff_signature' ? (
+                        <button className="btn btn-primary btn-sm" onClick={() => signStaffDocument(documentRecord)} disabled={signingDocumentId === documentRecord.id}>
+                          {signingDocumentId === documentRecord.id ? 'Signing...' : 'I agree and sign'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       )}
