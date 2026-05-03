@@ -33,6 +33,7 @@ const EMPTY = {
   outcome: 'none',
   follow_up_date: '',
   assigned_to_email: '',
+  creator_email: '',
   creator_department: '',
 }
 const FOLLOW_UP_DONE_OUTCOMES = ['no_answer', 'follow_up_later', 'interested', 'send_info', 'booked_call', 'proposal_requested', 'not_interested', 'converted']
@@ -430,7 +431,11 @@ export default function Outreach() {
 
   const openAdd = () => {
     setEditing(null)
-    setForm({ ...EMPTY, creator_department: org?.department || '' })
+    setForm({
+      ...EMPTY,
+      creator_email: String(user?.email || '').toLowerCase().trim(),
+      creator_department: org?.department || '',
+    })
     setModal(true)
   }
   const openEdit = (r) => {
@@ -442,6 +447,7 @@ export default function Outreach() {
       outcome: r.outcome || 'none',
       follow_up_date: r.follow_up_date || '',
       assigned_to_email: r.assigned_to_email || '',
+      creator_email: r.creator_email || '',
       creator_department: r.creator_department || org?.department || '',
     })
     setModal(true)
@@ -453,16 +459,22 @@ export default function Outreach() {
   const save = async () => {
     setSaving(true)
     const nextStatus = normalizeStatus(form.status)
-    const nextAssignee = String(form.assigned_to_email || editing?.assigned_to_email || '').toLowerCase().trim()
+    const creatorEmail = String(editing?.creator_email || form.creator_email || user?.email || '').toLowerCase().trim()
+    const nextAssignee = String(
+      form.assigned_to_email
+      || editing?.assigned_to_email
+      || (!editing ? creatorEmail : '')
+    ).toLowerCase().trim()
     const previousAssignee = String(editing?.assigned_to_email || '').toLowerCase().trim()
     const nextAssigneeProfile = staffDirectory.find((staffMember) => staffMember.user_email === nextAssignee)
+    const creatorProfile = staffDirectory.find((staffMember) => staffMember.user_email === creatorEmail)
     const noteMeta = {
       outcome: form.outcome || 'none',
       follow_up_date: form.follow_up_date || '',
       assigned_to_email: nextAssignee,
       assigned_to_name: nextAssigneeProfile?.full_name || editing?.assigned_to_name || '',
-      creator_email: editing?.creator_email || user?.email || '',
-      creator_department: editing?.creator_department || form.creator_department || org?.department || '',
+      creator_email: creatorEmail,
+      creator_department: editing?.creator_department || form.creator_department || creatorProfile?.department || org?.department || '',
       reminder_notice_key: editing?.reminder_notice_key || '',
       history: [
         buildHistoryEntry({
@@ -711,7 +723,7 @@ export default function Outreach() {
       follow_up_date: row.follow_up_date || '',
       assigned_to_email: safeAssignee,
       assigned_to_name: staffMember?.full_name || '',
-      creator_email: row.creator_email || user?.email || '',
+      creator_email: row.creator_email || '',
       creator_department: row.creator_department || '',
       reminder_notice_key: '',
       history: [
