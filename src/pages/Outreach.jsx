@@ -978,7 +978,8 @@ export default function Outreach() {
         const lockKey = `${recipient}:${noticeKey}`
         const claimKey = buildOutreachDigestClaimKey(recipient, weekStart)
         reminderLock.current.add(lockKey)
-        let updateFailed = false
+        let rowUpdateFailed = false
+        let sendFailed = false
         let claimAcquired = false
 
         try {
@@ -1064,7 +1065,7 @@ export default function Outreach() {
                 updated_at: updatedAt,
               })
             } else {
-              updateFailed = true
+              rowUpdateFailed = true
             }
           }
 
@@ -1073,17 +1074,17 @@ export default function Outreach() {
               recipient,
               week_start: weekStart,
               notice_key: noticeKey,
-              status: updateFailed ? 'sent_with_partial_row_update' : 'sent',
+              status: rowUpdateFailed ? 'sent_with_partial_row_update' : 'sent',
               lead_ids: digestRows.map((row) => row.id),
               sent_at: updatedAt,
             },
             updated_at: updatedAt,
           }).eq('key', claimKey)
         } catch {
-          updateFailed = true
+          sendFailed = true
         }
 
-        if (updateFailed) {
+        if (sendFailed) {
           if (claimAcquired) {
             await supabase.from('portal_settings').delete().eq('key', claimKey)
           }
