@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { sendPortalSms } from '../utils/sms'
 import { logAction } from '../utils/audit'
+import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
 import {
   acquireMicrosoftCalendarToken,
   fetchMicrosoftCalendars,
@@ -445,6 +446,17 @@ export default function Appointments() {
     }
 
     await logAction(user?.email, user?.name, 'staff_meeting_created', assignedStaff.full_name, data?.id, payload)
+    if (data?.id) {
+      await enqueueMicrosoftCalendarSyncJob({
+        staffEmail: assignedStaff.user_email,
+        jobType: 'meeting_upsert',
+        sourceTable: 'staff_meetings',
+        sourceId: data.id,
+        payload: {
+          trigger: 'portal_meeting_created',
+        },
+      })
+    }
     setMeetingForm({
       ...EMPTY_MEETING,
       staff_email: meetingForm.staff_email,
@@ -517,6 +529,15 @@ export default function Appointments() {
       deliveryIssues.push('No staff phone number is saved on the HR profile.')
     }
     await logAction(user?.email, user?.name, 'staff_meeting_cancelled', meeting.staff_name, meeting.id, meeting)
+    await enqueueMicrosoftCalendarSyncJob({
+      staffEmail: meeting.staff_email,
+      jobType: 'meeting_cancel',
+      sourceTable: 'staff_meetings',
+      sourceId: meeting.id,
+      payload: {
+        trigger: 'portal_meeting_cancelled',
+      },
+    })
     setSaving(false)
     setDetailAppt(null)
     if (deliveryIssues.length) {

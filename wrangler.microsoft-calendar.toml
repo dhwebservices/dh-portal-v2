@@ -1,0 +1,6 @@
+name = "dh-portal-microsoft-calendar-sync"
+main = "workers/microsoft-calendar-sync.js"
+compatibility_date = "2026-05-03"
+
+[triggers]
+crons = ["*/5 * * * *"]

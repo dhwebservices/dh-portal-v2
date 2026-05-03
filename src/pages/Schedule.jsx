@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { StaffPicker } from '../components/StaffPicker'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const WEEKDAYS = DAYS.slice(0, 5)
@@ -176,6 +177,20 @@ export default function Schedule() {
           portalUrl: PORTAL_URL,
         }).catch(() => {})
       }
+
+      if (data?.id) {
+        await enqueueMicrosoftCalendarSyncJob({
+          staffEmail: targetEmail,
+          jobType: 'schedule_upsert',
+          sourceTable: 'schedules',
+          sourceId: data.id,
+          payload: {
+            trigger: submit ? 'schedule_submitted' : 'schedule_saved',
+            submitted: !!submit,
+            week_start: weekStart,
+          },
+        })
+      }
     }
     setSaving(false)
   }
@@ -227,6 +242,17 @@ export default function Schedule() {
     // Unlock for editing — don't wipe the data
     if (recordId) {
       await supabase.from('schedules').update({ submitted: false, updated_at: new Date().toISOString() }).eq('id', recordId)
+      await enqueueMicrosoftCalendarSyncJob({
+        staffEmail: targetEmail,
+        jobType: 'schedule_upsert',
+        sourceTable: 'schedules',
+        sourceId: recordId,
+        payload: {
+          trigger: 'schedule_unsubmitted',
+          submitted: false,
+          week_start: weekStart,
+        },
+      })
     }
     setSubmitted(false)
   }
