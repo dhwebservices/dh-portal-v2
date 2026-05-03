@@ -6,6 +6,7 @@ import { sendManagedNotification } from '../utils/notificationPreferences'
 import { sendPortalSms } from '../utils/sms'
 import { logAction } from '../utils/audit'
 import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
+import { buildLifecycleStateMap, isSchedulableStaffEmail, normalizeStaffEmail } from '../utils/staffDirectory'
 import {
   acquireMicrosoftCalendarToken,
   fetchMicrosoftCalendars,
@@ -141,23 +142,53 @@ export default function Appointments() {
     setLoading(true)
     const from = days[0], to = days[6]
     const weekKey = getScheduleWeekStart(from)
-    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }, { data: meetingRows }] = await Promise.all([
+    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }, { data: meetingRows }, { data: lifecycleRows }] = await Promise.all([
       supabase.from('hr_profiles').select('user_email,full_name,role,bookable,phone').order('full_name'),
       supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
       supabase.from('schedules').select('user_email,user_name,week_start,submitted,week_data').eq('week_start', weekKey).eq('submitted', true),
       supabase.from('staff_availability').select('*').gte('date', from).lte('date', to),
       supabase.from('appointments').select('*').gte('date', from).lte('date', to).neq('status','cancelled'),
       supabase.from('staff_meetings').select('*').gte('date', from).lte('date', to).neq('status','cancelled').order('date').order('start_time'),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
     ])
 
-    const profileMap = new Map((profiles || []).map((item) => [String(item.user_email || '').toLowerCase(), item]))
+    const lifecycleStateMap = buildLifecycleStateMap(lifecycleRows || [])
+    const profileMap = new Map(
+      (profiles || [])
+        .filter((item) => isSchedulableStaffEmail(item.user_email, lifecycleStateMap))
+        .map((item) => [normalizeStaffEmail(item.user_email), item])
+    )
     const bookableEmails = new Set()
 
     for (const item of profiles || []) {
-      if (item.bookable) bookableEmails.add(String(item.user_email || '').toLowerCase())
+      const email = normalizeStaffEmail(item.user_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      if (item.bookable) bookableEmails.add(email)
     }
     for (const item of perms || []) {
-      if (item.bookable_staff) bookableEmails.add(String(item.user_email || '').toLowerCase())
+      const email = normalizeStaffEmail(item.user_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      if (item.bookable_staff) bookableEmails.add(email)
+    }
+    for (const item of schedules || []) {
+      const email = normalizeStaffEmail(item.user_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      if (item.week_data) bookableEmails.add(email)
+    }
+    for (const item of avail || []) {
+      const email = normalizeStaffEmail(item.staff_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      bookableEmails.add(email)
+    }
+    for (const item of appts || []) {
+      const email = normalizeStaffEmail(item.staff_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      bookableEmails.add(email)
+    }
+    for (const item of meetingRows || []) {
+      const email = normalizeStaffEmail(item.staff_email)
+      if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
+      bookableEmails.add(email)
     }
 
     const staff = Array.from(bookableEmails)
@@ -172,8 +203,9 @@ export default function Appointments() {
       })
       .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
     const directory = (profiles || [])
+      .filter((profile) => isSchedulableStaffEmail(profile.user_email, lifecycleStateMap))
       .map((profile) => ({
-        user_email: String(profile.user_email || '').toLowerCase(),
+        user_email: normalizeStaffEmail(profile.user_email),
         full_name: profile.full_name || profile.user_email,
         role: profile.role || null,
         phone: profile.phone || '',
@@ -184,8 +216,8 @@ export default function Appointments() {
     const explicitAvailability = avail || []
     const explicitKeys = new Set(
       explicitAvailability
-        .filter((item) => item.staff_email && item.date)
-        .map((item) => `${String(item.staff_email).toLowerCase()}::${item.date}`)
+        .filter((item) => item.staff_email && item.date && isSchedulableStaffEmail(item.staff_email, lifecycleStateMap))
+        .map((item) => `${normalizeStaffEmail(item.staff_email)}::${item.date}`)
     )
 
     const scheduleMap = new Map(
@@ -220,9 +252,9 @@ export default function Appointments() {
 
     setBookableStaff(staff)
     setStaffDirectory(directory)
-    setAvailability([...explicitAvailability, ...derivedAvailability])
-    setAppointments(appts || [])
-    setMeetings(meetingRows || [])
+    setAvailability([...explicitAvailability.filter((item) => isSchedulableStaffEmail(item.staff_email, lifecycleStateMap)), ...derivedAvailability])
+    setAppointments((appts || []).filter((item) => isSchedulableStaffEmail(item.staff_email, lifecycleStateMap)))
+    setMeetings((meetingRows || []).filter((item) => isSchedulableStaffEmail(item.staff_email, lifecycleStateMap)))
     setLoading(false)
   }, [days, anchor])
 

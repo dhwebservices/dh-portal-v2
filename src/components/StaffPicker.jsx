@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../utils/supabase'
+import { buildLifecycleStateMap, isSchedulableStaffEmail } from '../utils/staffDirectory'
 
 /**
  * StaffPicker - searchable dropdown that selects from hr_profiles
@@ -19,17 +20,20 @@ export function StaffPicker({ value, onChange, placeholder = 'Select staff membe
 
   useEffect(() => {
     setLoading(true)
-    supabase.from('hr_profiles').select('user_email,full_name,role').order('full_name',{ascending:true})
-      .then(({ data }) => {
+    Promise.all([
+      supabase.from('hr_profiles').select('user_email,full_name,role').order('full_name',{ascending:true}),
+      supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
+    ])
+      .then(([profilesRes, lifecycleRes]) => {
+        const data = profilesRes?.data || []
+        const lifecycleStateMap = buildLifecycleStateMap(lifecycleRes?.data || [])
         // Deduplicate by normalised email (lowercase), keep first occurrence
         // Filter out system/service accounts that aren't real staff
-        const SYSTEM = ['hr@','clients@','log@','legal@','noreply@','admin@','test@','outreachlog@']
         const seen = new Set()
-        const deduped = (data||[])
+        const deduped = (data || [])
           .filter(s => {
             const em = (s.user_email||'').toLowerCase()
-            // Skip system accounts
-            if (SYSTEM.some(sys => em.startsWith(sys))) return false
+            if (!isSchedulableStaffEmail(em, lifecycleStateMap)) return false
             // Skip if we've already got this person (case-insensitive)
             if (seen.has(em)) return false
             seen.add(em)
@@ -41,6 +45,10 @@ export function StaffPicker({ value, onChange, placeholder = 'Select staff membe
             role: s.role || '',
           }))
         setStaff(deduped)
+        setLoading(false)
+      })
+      .catch(() => {
+        setStaff([])
         setLoading(false)
       })
   }, [])
