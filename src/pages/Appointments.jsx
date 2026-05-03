@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { sendPortalSms } from '../utils/sms'
 import { logAction } from '../utils/audit'
+import {
+  acquireMicrosoftCalendarToken,
+  fetchMicrosoftCalendars,
+  fetchMicrosoftCalendarView,
+} from '../utils/microsoftCalendar'
 
 const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
@@ -98,6 +104,7 @@ const EMPTY_MEETING = {
 
 export default function Appointments() {
   const { user, isAdmin } = useAuth()
+  const { instance, accounts } = useMsal()
   const [tab, setTab] = useState('calendar')
   const [anchor, setAnchor] = useState(() => new Date().toISOString().split('T')[0])
   const [staffFilter, setStaffFilter] = useState('all')
@@ -114,8 +121,20 @@ export default function Appointments() {
   const [meetingSaving, setMeetingSaving] = useState(false)
   const [meetingFeedback, setMeetingFeedback] = useState('')
   const [saving, setSaving] = useState(false)
+  const [microsoftCalendars, setMicrosoftCalendars] = useState([])
+  const [selectedMicrosoftCalendar, setSelectedMicrosoftCalendar] = useState('')
+  const [microsoftEvents, setMicrosoftEvents] = useState([])
+  const [microsoftStatus, setMicrosoftStatus] = useState('idle')
+  const [microsoftError, setMicrosoftError] = useState('')
 
   const days = useMemo(() => weekDays(anchor), [anchor])
+  const microsoftAccount = useMemo(() => {
+    const userEmail = String(user?.email || '').toLowerCase()
+    return accounts.find((account) => String(account.username || '').toLowerCase() === userEmail)
+      || instance.getActiveAccount?.()
+      || accounts[0]
+      || null
+  }, [accounts, instance, user?.email])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -207,6 +226,68 @@ export default function Appointments() {
   }, [days, anchor])
 
   useEffect(() => { load() }, [load])
+
+  const loadMicrosoftCalendars = useCallback(async () => {
+    if (!microsoftAccount) {
+      setMicrosoftCalendars([])
+      setMicrosoftEvents([])
+      setMicrosoftStatus('unavailable')
+      setMicrosoftError('No Microsoft account is active in this portal session.')
+      return
+    }
+
+    setMicrosoftStatus('loading')
+    setMicrosoftError('')
+    try {
+      const accessToken = await acquireMicrosoftCalendarToken(instance, microsoftAccount)
+      const calendars = await fetchMicrosoftCalendars(accessToken)
+      setMicrosoftCalendars(calendars)
+      const defaultCalendar = calendars.find((calendar) => calendar.isDefaultCalendar) || calendars[0]
+      setSelectedMicrosoftCalendar((current) => current || defaultCalendar?.id || '')
+      setMicrosoftStatus('ready')
+    } catch (error) {
+      setMicrosoftCalendars([])
+      setMicrosoftEvents([])
+      setMicrosoftStatus('error')
+      setMicrosoftError(error?.message || 'Could not load Microsoft calendars.')
+    }
+  }, [instance, microsoftAccount])
+
+  useEffect(() => {
+    loadMicrosoftCalendars()
+  }, [loadMicrosoftCalendars])
+
+  const loadMicrosoftEvents = useCallback(async () => {
+    if (!microsoftAccount || !selectedMicrosoftCalendar) {
+      setMicrosoftEvents([])
+      return
+    }
+
+    setMicrosoftStatus('loading')
+    setMicrosoftError('')
+    try {
+      const startIso = new Date(`${days[0]}T00:00:00`).toISOString()
+      const endIso = new Date(`${days[6]}T23:59:59`).toISOString()
+      const accessToken = await acquireMicrosoftCalendarToken(instance, microsoftAccount)
+      const events = await fetchMicrosoftCalendarView(accessToken, {
+        calendarId: selectedMicrosoftCalendar,
+        startIso,
+        endIso,
+      })
+      setMicrosoftEvents(events)
+      setMicrosoftStatus('ready')
+    } catch (error) {
+      setMicrosoftEvents([])
+      setMicrosoftStatus('error')
+      setMicrosoftError(error?.message || 'Could not load Microsoft calendar events.')
+    }
+  }, [days, instance, microsoftAccount, selectedMicrosoftCalendar])
+
+  useEffect(() => {
+    if (selectedMicrosoftCalendar) {
+      loadMicrosoftEvents()
+    }
+  }, [loadMicrosoftEvents, selectedMicrosoftCalendar])
 
   const prevWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()-7); setAnchor(d.toISOString().split('T')[0]) }
   const nextWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()+7); setAnchor(d.toISOString().split('T')[0]) }
@@ -468,8 +549,9 @@ export default function Appointments() {
       bookedToday,
       weekMeetings: weekMeetings.length,
       meetingsToday: todayMeetings.length,
+      microsoftWeekEvents: microsoftEvents.length,
     }
-  }, [appointments, meetings, visibleStaff, availability, today, days])
+  }, [appointments, meetings, visibleStaff, availability, today, days, microsoftEvents])
 
   const todayOverview = useMemo(() => {
     return visibleStaff.map((staffMember) => {
@@ -485,6 +567,11 @@ export default function Appointments() {
     })
   }, [visibleStaff, availability, appointments, meetings, today])
 
+  const selectedMicrosoftCalendarMeta = useMemo(
+    () => microsoftCalendars.find((calendar) => calendar.id === selectedMicrosoftCalendar) || null,
+    [microsoftCalendars, selectedMicrosoftCalendar]
+  )
+
   return (
     <div className="fade-in">
       <div className="page-hd">
@@ -498,6 +585,7 @@ export default function Appointments() {
           ['Booked today', weeklySummary.bookedToday, 'Confirmed appointments'],
           ['Week bookings', weeklySummary.weekBookings, 'Current week confirmed'],
           ['Meetings today', weeklySummary.meetingsToday, 'Internal calendar items'],
+          ['MS events', weeklySummary.microsoftWeekEvents, selectedMicrosoftCalendarMeta?.name || 'Current Microsoft calendar'],
         ].map(([label, value, hint]) => (
           <div key={label} className="stat-card">
             <div className="stat-val">{value}</div>
@@ -513,6 +601,17 @@ export default function Appointments() {
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
+
+      <MicrosoftCalendarPanel
+        calendars={microsoftCalendars}
+        selectedCalendar={selectedMicrosoftCalendar}
+        setSelectedCalendar={setSelectedMicrosoftCalendar}
+        events={microsoftEvents}
+        status={microsoftStatus}
+        error={microsoftError}
+        onReloadCalendars={loadMicrosoftCalendars}
+        onReloadEvents={loadMicrosoftEvents}
+      />
 
       {tab === 'calendar' && (
         <>
@@ -647,7 +746,7 @@ export default function Appointments() {
 
           {/* Legend */}
           <div style={{ display:'flex', gap:16, marginTop:16, fontSize:11, color:'var(--faint)' }}>
-            {[['#dcfce7','#166534','Available'],['#dbeafe','#1d4ed8','Has bookings'],['#fee2e2','#991b1b','Unavailable']].map(([bg,c,l]) => (
+            {[['#dcfce7','#166534','Available'],['#dbeafe','#1d4ed8','Has bookings'],['#fee2e2','#991b1b','Unavailable'],['#fff7ed','#c2410c','Microsoft calendar shown above']].map(([bg,c,l]) => (
               <div key={l} style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <div style={{ width:12, height:12, borderRadius:3, background:bg, border:'1px solid ' + c }}/>
                 <span>{l}</span>
@@ -665,6 +764,8 @@ export default function Appointments() {
         <MeetingsPanel
           staffDirectory={staffDirectory}
           meetings={meetings}
+          microsoftEvents={microsoftEvents}
+          microsoftCalendarName={selectedMicrosoftCalendarMeta?.name || ''}
           form={meetingForm}
           setForm={setMeetingForm}
           onSave={saveMeeting}
@@ -808,7 +909,96 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
   )
 }
 
-function MeetingsPanel({ staffDirectory, meetings, form, setForm, onSave, onCancelMeeting, saving, feedback }) {
+function MicrosoftCalendarPanel({
+  calendars,
+  selectedCalendar,
+  setSelectedCalendar,
+  events,
+  status,
+  error,
+  onReloadCalendars,
+  onReloadEvents,
+}) {
+  const hasCalendars = calendars.length > 0
+  const isLoading = status === 'loading'
+
+  return (
+    <div className="card card-pad" style={{ marginBottom:20, display:'grid', gap:14 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Microsoft Calendar</div>
+          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>
+            Shows the Outlook calendars your signed-in Microsoft account can access for the selected week.
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          <button className="btn btn-outline btn-sm" onClick={onReloadCalendars} disabled={isLoading}>
+            {isLoading ? 'Connecting...' : 'Refresh calendars'}
+          </button>
+          <button className="btn btn-outline btn-sm" onClick={onReloadEvents} disabled={isLoading || !selectedCalendar}>
+            Refresh events
+          </button>
+        </div>
+      </div>
+
+      <div className="fg">
+        <div>
+          <label className="lbl">Microsoft calendar</label>
+          <select className="inp" value={selectedCalendar} onChange={(event) => setSelectedCalendar(event.target.value)} disabled={!hasCalendars || isLoading}>
+            <option value="">{hasCalendars ? 'Choose calendar' : 'No Microsoft calendars found'}</option>
+            {calendars.map((calendar) => (
+              <option key={calendar.id} value={calendar.id}>
+                {calendar.name}{calendar.isDefaultCalendar ? ' (Default)' : ''}{calendar.ownerName ? ` · ${calendar.ownerName}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display:'flex', alignItems:'flex-end' }}>
+          <div style={{ padding:'12px 14px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)', width:'100%' }}>
+            <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Status</div>
+            <div style={{ marginTop:6, fontSize:14, color:'var(--text)', fontWeight:600 }}>
+              {status === 'ready' ? `${events.length} event${events.length === 1 ? '' : 's'} loaded` : status === 'loading' ? 'Loading Microsoft Calendar…' : status === 'error' ? 'Connection issue' : 'Waiting for Microsoft session'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error ? (
+        <div style={{ padding:'10px 12px', border:'1px solid #fca5a5', background:'#fef2f2', color:'#991b1b', borderRadius:8, fontSize:13 }}>
+          {error}
+        </div>
+      ) : null}
+
+      <div style={{ display:'grid', gap:10 }}>
+        {events.length ? events.map((event) => (
+          <a
+            key={event.id}
+            href={event.webLink || '#'}
+            target={event.webLink ? '_blank' : undefined}
+            rel={event.webLink ? 'noreferrer' : undefined}
+            style={{ display:'grid', gap:4, padding:'14px 15px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', textDecoration:'none' }}
+          >
+            <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{event.title}</div>
+              <span className="badge badge-grey">{formatDate(event.date)}</span>
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <span className="badge badge-grey">{event.timeLabel}</span>
+              {event.location ? <span className="badge badge-grey">{event.location}</span> : null}
+              {event.organizer ? <span className="badge badge-grey">Organiser: {event.organizer}</span> : null}
+            </div>
+          </a>
+        )) : (
+          <div style={{ padding:'18px 16px', border:'1px dashed var(--border)', borderRadius:12, color:'var(--faint)', fontSize:13 }}>
+            {isLoading ? 'Loading Microsoft events for this week…' : 'No Microsoft Calendar events were found for this week.'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MeetingsPanel({ staffDirectory, meetings, microsoftEvents, microsoftCalendarName, form, setForm, onSave, onCancelMeeting, saving, feedback }) {
   const sf = (key, value) => setForm((current) => ({ ...current, [key]: value }))
   const upcoming = [...meetings]
     .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
@@ -868,6 +1058,34 @@ function MeetingsPanel({ staffDirectory, meetings, form, setForm, onSave, onCanc
               {upcoming.length === 0 ? <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No meetings added yet</td></tr> : null}
             </tbody>
           </table>
+        </div>
+        <div style={{ padding:'18px', borderTop:'1px solid var(--border)', display:'grid', gap:10 }}>
+          <div>
+            <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>Microsoft Calendar events</div>
+            <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+              {microsoftCalendarName ? `Showing ${microsoftCalendarName}.` : 'Showing the selected Microsoft calendar.'}
+            </div>
+          </div>
+          {microsoftEvents.length ? microsoftEvents.map((event) => (
+            <a
+              key={event.id}
+              href={event.webLink || '#'}
+              target={event.webLink ? '_blank' : undefined}
+              rel={event.webLink ? 'noreferrer' : undefined}
+              style={{ display:'grid', gap:4, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', textDecoration:'none' }}
+            >
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{event.title}</div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <span className="badge badge-grey">{formatDate(event.date)}</span>
+                <span className="badge badge-grey">{event.timeLabel}</span>
+                {event.location ? <span className="badge badge-grey">{event.location}</span> : null}
+              </div>
+            </a>
+          )) : (
+            <div style={{ padding:'14px', border:'1px dashed var(--border)', borderRadius:10, fontSize:13, color:'var(--faint)' }}>
+              No Microsoft events are loaded for this week.
+            </div>
+          )}
         </div>
       </div>
     </div>

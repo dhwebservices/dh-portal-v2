@@ -10,3 +10,7 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: ['openid', 'profile', 'email', 'User.Read'],
 }
+
+export const microsoftCalendarReadRequest = {
+  scopes: ['Calendars.Read'],
+}
