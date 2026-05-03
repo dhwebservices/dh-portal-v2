@@ -231,30 +231,44 @@ export async function buildStaffSignDocumentPdfBlob(doc = {}) {
       useCORS: true,
       backgroundColor: '#f3f1ec',
     })
+    if (!canvas?.width || !canvas?.height) {
+      throw new Error('Could not render the document into a signed PDF.')
+    }
     const pdf = new jsPDF('p', 'pt', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = pdf.internal.pageSize.getHeight()
     const imgWidth = pdfWidth - 40
     const imgHeight = (canvas.height * imgWidth) / canvas.width
+    if (!Number.isFinite(imgHeight) || imgHeight <= 0) {
+      throw new Error('Could not calculate the signed PDF page size.')
+    }
     const pageHeight = pdfHeight - 40
     let remainingHeight = imgHeight
-    let position = 20
     let sourceY = 0
     const pageCanvas = globalThis.document.createElement('canvas')
     const ctx = pageCanvas.getContext('2d')
+    if (!ctx) {
+      throw new Error('Could not prepare the signed PDF canvas.')
+    }
+    const sliceHeightPxBase = Math.max(1, Math.floor((pageHeight * canvas.width) / imgWidth))
+    let pageIndex = 0
 
-    while (remainingHeight > 0) {
-      const sliceHeightPx = Math.min(canvas.height - sourceY, Math.floor((pageHeight * canvas.width) / imgWidth))
+    while (remainingHeight > 0 && sourceY < canvas.height) {
+      const sliceHeightPx = Math.max(1, Math.min(canvas.height - sourceY, sliceHeightPxBase))
       pageCanvas.width = canvas.width
       pageCanvas.height = sliceHeightPx
       ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height)
       ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx)
       const sliceData = pageCanvas.toDataURL('image/jpeg', 0.98)
       const renderedHeight = (sliceHeightPx * imgWidth) / canvas.width
-      pdf.addImage(sliceData, 'JPEG', 20, position, imgWidth, renderedHeight)
+      if (!Number.isFinite(renderedHeight) || renderedHeight <= 0) {
+        throw new Error('Could not render a page of the signed PDF.')
+      }
+      if (pageIndex > 0) pdf.addPage()
+      pdf.addImage(sliceData, 'JPEG', 20, 20, imgWidth, renderedHeight)
       sourceY += sliceHeightPx
       remainingHeight -= renderedHeight
-      if (remainingHeight > 0) pdf.addPage()
+      pageIndex += 1
     }
 
     return pdf.output('blob')

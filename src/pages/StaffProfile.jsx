@@ -322,7 +322,8 @@ export default function StaffProfile() {
     managerSignatureTitle: '',
     notes: '',
   })
-  const [signDocumentSaving, setSignDocumentSaving] = useState(false)
+  const [signDocumentIssuing, setSignDocumentIssuing] = useState(false)
+  const [signDocumentActionId, setSignDocumentActionId] = useState('')
   const [signDocumentError, setSignDocumentError] = useState('')
   const [signDocumentSuccess, setSignDocumentSuccess] = useState('')
   const [selectedSignDocumentFile, setSelectedSignDocumentFile] = useState(null)
@@ -2106,7 +2107,7 @@ export default function StaffProfile() {
       return
     }
 
-    setSignDocumentSaving(true)
+    setSignDocumentIssuing(true)
     setSignDocumentError('')
     setSignDocumentSuccess('')
 
@@ -2204,7 +2205,7 @@ export default function StaffProfile() {
       console.error('Staff sign document issue failed:', error)
       setSignDocumentError(error.message || 'Could not issue the document.')
     } finally {
-      setSignDocumentSaving(false)
+      setSignDocumentIssuing(false)
     }
   }
 
@@ -2251,7 +2252,7 @@ export default function StaffProfile() {
   }
 
   const resendSignDocumentReminder = async (documentRecord) => {
-    setSignDocumentSaving(true)
+    setSignDocumentActionId(documentRecord?.id || '')
     setSignDocumentError('')
     setSignDocumentSuccess('')
     try {
@@ -2278,13 +2279,13 @@ export default function StaffProfile() {
       console.error('Staff sign document reminder failed:', error)
       setSignDocumentError(error.message || 'Could not resend the reminder.')
     } finally {
-      setSignDocumentSaving(false)
+      setSignDocumentActionId('')
     }
   }
 
   const voidSignDocument = async (documentRecord) => {
     if (!confirm(`Void ${documentRecord.title || 'this document'}?`)) return
-    setSignDocumentSaving(true)
+    setSignDocumentActionId(documentRecord?.id || '')
     setSignDocumentError('')
     setSignDocumentSuccess('')
     try {
@@ -2311,7 +2312,7 @@ export default function StaffProfile() {
       console.error('Staff sign document void failed:', error)
       setSignDocumentError(error.message || 'Could not void the document.')
     } finally {
-      setSignDocumentSaving(false)
+      setSignDocumentActionId('')
     }
   }
 
@@ -4495,8 +4496,8 @@ export default function StaffProfile() {
                     Create a document outside onboarding, paste the HTML body or include a supporting file, and send it straight to this staff member for digital agreement.
                   </div>
                 </div>
-                <button className="btn btn-primary btn-sm" onClick={issueSignDocumentToStaff} disabled={signDocumentSaving}>
-                  {signDocumentSaving ? 'Issuing...' : 'Send for signature'}
+                <button className="btn btn-primary btn-sm" onClick={issueSignDocumentToStaff} disabled={signDocumentIssuing || !!signDocumentActionId}>
+                  {signDocumentIssuing ? 'Issuing...' : 'Send for signature'}
                 </button>
               </div>
 
@@ -4539,7 +4540,7 @@ export default function StaffProfile() {
                   accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
                   onChange={(e) => setSelectedSignDocumentFile(e.target.files?.[0] || null)}
                 />
-                <button className="btn btn-outline btn-sm" onClick={() => signDocumentFileRef.current?.click()} disabled={signDocumentSaving}>
+                <button className="btn btn-outline btn-sm" onClick={() => signDocumentFileRef.current?.click()} disabled={signDocumentIssuing}>
                   {selectedSignDocumentFile ? 'Change attachment' : 'Attach file'}
                 </button>
                 <span style={{ fontSize:12, color:selectedSignDocumentFile ? 'var(--text)' : 'var(--sub)' }}>
@@ -4611,10 +4612,14 @@ export default function StaffProfile() {
                             {documentRecord.final_document_path || documentRecord.final_document_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignedSignDocumentFile(documentRecord)}>Open signed PDF</button> : null}
                             {documentRecord.reference_file_path || documentRecord.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openSignDocumentReferenceFile(documentRecord)}>Open attachment</button> : null}
                             {documentRecord.status === 'awaiting_staff_signature' ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => resendSignDocumentReminder(documentRecord)} disabled={signDocumentSaving}>Resend reminder</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => resendSignDocumentReminder(documentRecord)} disabled={signDocumentIssuing || !!signDocumentActionId}>
+                                {signDocumentActionId === documentRecord.id ? 'Sending...' : 'Resend reminder'}
+                              </button>
                             ) : null}
                             {documentRecord.status !== 'completed' && documentRecord.status !== 'voided' ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => voidSignDocument(documentRecord)} disabled={signDocumentSaving}>Void</button>
+                              <button className="btn btn-outline btn-sm" onClick={() => voidSignDocument(documentRecord)} disabled={signDocumentIssuing || !!signDocumentActionId}>
+                                {signDocumentActionId === documentRecord.id ? 'Voiding...' : 'Void'}
+                              </button>
                             ) : null}
                           </div>
                         </div>
