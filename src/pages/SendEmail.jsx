@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
+import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 
 const FROM_OPTIONS = [
   { value: 'clients', label: 'Client Services', address: 'clients@dhwebsiteservices.co.uk' },
@@ -13,6 +14,7 @@ export default function SendEmail() {
   const { user } = useAuth()
   const [outreach,   setOutreach]   = useState([])
   const [clients,    setClients]    = useState([])
+  const [staff,      setStaff]      = useState([])
   const [templates,  setTemplates]  = useState([])
   const [form, setForm] = useState({ to: '', subject: '', body: '', template_id: '', from_key: 'clients' })
   const [sending, setSending] = useState(false)
@@ -26,6 +28,9 @@ export default function SendEmail() {
       .then(({ data }) => setOutreach(data || []))
     supabase.from('clients').select('name,email').order('name')
       .then(({ data }) => setClients(data || []))
+    loadActivePortalStaffAudience()
+      .then((rows) => setStaff(rows || []))
+      .catch(() => setStaff([]))
     supabase.from('email_templates').select('*').order('name')
       .then(({ data }) => setTemplates(data || []))
   }, [])
@@ -134,6 +139,15 @@ export default function SendEmail() {
                 <optgroup label="👤 Clients">
                   {clients.map(c => (
                     <option key={c.email} value={c.email}>{c.name} ({c.email})</option>
+                  ))}
+                </optgroup>
+              )}
+              {staff.length > 0 && (
+                <optgroup label="🧑 Staff">
+                  {staff.map(member => (
+                    <option key={member.email} value={member.email}>
+                      {member.name} ({member.email}){member.role ? ` — ${member.role}` : ''}
+                    </option>
                   ))}
                 </optgroup>
               )}

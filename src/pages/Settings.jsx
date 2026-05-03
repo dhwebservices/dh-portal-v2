@@ -3,10 +3,9 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
+import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
-const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'clientservices@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@', 'support@']
-
 export default function Settings() {
   const { user, isAdmin } = useAuth()
   const [tab, setTab]     = useState('general')
@@ -120,24 +119,7 @@ export default function Settings() {
 
     if (shouldEmailRelease) {
       try {
-        const { data: profiles } = await supabase
-          .from('hr_profiles')
-          .select('user_email,full_name')
-          .order('full_name')
-
-        const seen = new Set()
-        const recipients = (profiles || [])
-          .map((row) => ({
-            email: String(row.user_email || '').toLowerCase().trim(),
-            name: row.full_name || row.user_email || 'there',
-          }))
-          .filter((row) => row.email)
-          .filter((row) => !SYSTEM_EMAIL_PREFIXES.some((prefix) => row.email.startsWith(prefix)))
-          .filter((row) => {
-            if (seen.has(row.email)) return false
-            seen.add(row.email)
-            return true
-          })
+        const recipients = await loadActivePortalStaffAudience()
 
         const subject = `${nextPayload.title || 'What’s New'}${nextPayload.version ? ` — v${nextPayload.version}` : ''}`
         const cardsHtml = nextPayload.cards.map((card) => `

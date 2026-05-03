@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { Modal } from '../components/Modal'
 import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
+import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 
 const STATUS_OPTS = [
   { value:'operational', label:'Operational', color:'var(--green)' },
@@ -95,35 +96,7 @@ export default function Maintenance() {
 
     if (shouldNotifyStaff) {
       try {
-        const [{ data: profiles }, { data: permissionRows }] = await Promise.all([
-          supabase.from('hr_profiles').select('user_email,full_name'),
-          supabase.from('user_permissions').select('user_email,permissions'),
-        ])
-
-        const ownerEmails = new Set(['david@dhwebsiteservices.co.uk'])
-        const adminEmails = new Set(
-          (permissionRows || [])
-            .filter((row) => row.permissions?.admin === true)
-            .map((row) => String(row.user_email || '').toLowerCase())
-        )
-
-        const seenEmails = new Set()
-        const recipients = (profiles || [])
-          .map((row) => ({
-            email: String(row.user_email || '').toLowerCase().trim(),
-            name: row.full_name || row.user_email || 'there',
-          }))
-          .filter((row) => row.email)
-          .filter((row) => !ownerEmails.has(row.email) && !adminEmails.has(row.email))
-          .filter((row) => {
-            const local = row.email.split('@')[0]
-            return !['hr', 'clients', 'clientservices', 'noreply', 'support'].includes(local)
-          })
-          .filter((row) => {
-            if (seenEmails.has(row.email)) return false
-            seenEmails.add(row.email)
-            return true
-          })
+        const recipients = await loadActivePortalStaffAudience()
 
         const subject = 'DH Staff Portal Under Maintenance'
         const message = `
