@@ -888,6 +888,9 @@ export default function Dashboard() {
 
               if (claimError) return
 
+              let sendFailed = false
+              const sentAt = new Date().toISOString()
+
               try {
                 await sendManagedNotification({
                   userEmail: adminEmail,
@@ -917,19 +920,28 @@ export default function Dashboard() {
                   fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
                   forceDelivery: 'email',
                 })
+              } catch {
+                sendFailed = true
+              }
 
+              if (sendFailed) {
+                await supabase.from('portal_settings').delete().eq('key', claimKey)
+                return
+              }
+
+              try {
                 await supabase.from('portal_settings').update({
                   value: {
                     recipient: adminEmail,
                     week_start: weekStart,
                     status: 'sent',
                     lead_ids: queueAlert.map((lead) => lead.id),
-                    sent_at: new Date().toISOString(),
+                    sent_at: sentAt,
                   },
-                  updated_at: new Date().toISOString(),
+                  updated_at: sentAt,
                 }).eq('key', claimKey)
               } catch {
-                await supabase.from('portal_settings').delete().eq('key', claimKey)
+                // Keep the claim so a successful email send does not replay on the next refresh.
               }
             })())
             alreadySent.add(key)
