@@ -21,6 +21,7 @@ const CALL_OUTCOMES = [
   ['converted', 'Converted'],
 ]
 const NOTES_META_PREFIX = '[dh-outreach-meta]'
+const OUTREACH_DIGEST_CLAIM_PREFIX = 'outreach_digest_notice:'
 const EMPTY = {
   business_name: '',
   contact_name: '',
@@ -104,6 +105,10 @@ function buildOutreachNotes(plainNotes, meta = {}) {
   const metaBlock = `${NOTES_META_PREFIX} ${JSON.stringify(safeMeta)}`
   const body = String(plainNotes || '').trim()
   return body ? `${metaBlock}\n${body}` : metaBlock
+}
+
+function buildOutreachDigestClaimKey(recipient = '', weekStart = '') {
+  return `${OUTREACH_DIGEST_CLAIM_PREFIX}${String(recipient || '').toLowerCase().trim()}:${String(weekStart || '').trim()}`
 }
 
 function buildHistoryEntry({ action, value, actor }) {
@@ -971,10 +976,33 @@ export default function Outreach() {
         if (!digestRows.length) continue
 
         const lockKey = `${recipient}:${noticeKey}`
+        const claimKey = buildOutreachDigestClaimKey(recipient, weekStart)
         reminderLock.current.add(lockKey)
         let updateFailed = false
+        let claimAcquired = false
 
         try {
+          const claimCreatedAt = new Date().toISOString()
+          const { error: claimError } = await supabase.from('portal_settings').insert([{
+            key: claimKey,
+            value: {
+              recipient,
+              week_start: weekStart,
+              notice_key: noticeKey,
+              status: 'sending',
+              lead_ids: digestRows.map((row) => row.id),
+              created_at: claimCreatedAt,
+            },
+            updated_at: claimCreatedAt,
+          }])
+
+          if (claimError) {
+            reminderLock.current.delete(lockKey)
+            continue
+          }
+
+          claimAcquired = true
+
           await sendManagedNotification({
             userEmail: recipient,
             userName: staffNameMap.get(recipient) || recipient,
@@ -1039,11 +1067,26 @@ export default function Outreach() {
               updateFailed = true
             }
           }
+
+          await supabase.from('portal_settings').update({
+            value: {
+              recipient,
+              week_start: weekStart,
+              notice_key: noticeKey,
+              status: updateFailed ? 'sent_with_partial_row_update' : 'sent',
+              lead_ids: digestRows.map((row) => row.id),
+              sent_at: updatedAt,
+            },
+            updated_at: updatedAt,
+          }).eq('key', claimKey)
         } catch {
           updateFailed = true
         }
 
         if (updateFailed) {
+          if (claimAcquired) {
+            await supabase.from('portal_settings').delete().eq('key', claimKey)
+          }
           reminderLock.current.delete(lockKey)
         }
       }
