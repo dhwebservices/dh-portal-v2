@@ -43,7 +43,6 @@ import {
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
-const DASHBOARD_OUTREACH_ALERT_CLAIM_PREFIX = 'dashboard_outreach_alert:'
 const WORKFLOW_AUTO_RUN_KEY = 'dh-portal:workflow-auto-run-at'
 const WORKFLOW_AUTO_RUN_INTERVAL_MS = 60 * 60 * 1000
 const WORKFLOW_AUTO_RUN_POLL_MS = 5 * 60 * 1000
@@ -83,10 +82,6 @@ function formatPresenceTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function buildDashboardOutreachAlertClaimKey(email = '', weekStart = '') {
-  return `${DASHBOARD_OUTREACH_ALERT_CLAIM_PREFIX}${String(email || '').toLowerCase().trim()}:${String(weekStart || '').trim()}`
 }
 
 function normalizeOutreachStatus(value = '') {
@@ -865,88 +860,6 @@ export default function Dashboard() {
         )
         const adminEmail = String(user?.email || '').toLowerCase()
         const escalationJobs = []
-
-        const queueAlert = nextFollowUps.filter((lead) => lead.overdue).slice(0, 3)
-        if (queueAlert.length) {
-          const title = `Weekly outreach follow-up digest (${weekStart})`
-          const key = `${adminEmail}|${title}|/outreach?filter=follow_up_queue`
-          if (!alreadySent.has(key)) {
-            escalationJobs.push((async () => {
-              const claimKey = buildDashboardOutreachAlertClaimKey(adminEmail, weekStart)
-              const createdAt = new Date().toISOString()
-              const { error: claimError } = await supabase.from('portal_settings').insert([{
-                key: claimKey,
-                value: {
-                  recipient: adminEmail,
-                  week_start: weekStart,
-                  status: 'sending',
-                  lead_ids: queueAlert.map((lead) => lead.id),
-                  created_at: createdAt,
-                },
-                updated_at: createdAt,
-              }])
-
-              if (claimError) return
-
-              let sendFailed = false
-              const sentAt = new Date().toISOString()
-
-              try {
-                await sendManagedNotification({
-                  userEmail: adminEmail,
-                  userName: user?.name || adminEmail,
-                  category: 'urgent',
-                  type: 'warning',
-                  title,
-                  message: `${queueAlert.length} outreach follow-up item${queueAlert.length === 1 ? '' : 's'} need attention this week.`,
-                  link: '/outreach?filter=follow_up_queue',
-                  emailSubject: `Weekly outreach follow-up digest — ${queueAlert.length} item${queueAlert.length === 1 ? '' : 's'}`,
-                  emailHtml: `
-                    <p>Hi ${(user?.name || adminEmail).split(' ')[0] || 'there'},</p>
-                    <p>Here is this week's outreach follow-up digest.</p>
-                    <ul>
-                      ${queueAlert.map((lead) => `
-                        <li>
-                          <strong>${lead.business_name || lead.contact_name || 'Untitled lead'}</strong>
-                          ${lead.assigned_to_name ? ` — assigned to ${lead.assigned_to_name}` : ''}
-                          ${lead.follow_up_date ? ` — due ${formatDayLabel(lead.follow_up_date)}` : ' — overdue follow-up'}
-                          ${lead.email ? ` — ${lead.email}` : ''}
-                        </li>
-                      `).join('')}
-                    </ul>
-                    <p><a href="https://staff.dhwebsiteservices.co.uk/outreach?filter=follow_up_queue" style="display:inline-block;background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;">Open follow-up queue</a></p>
-                  `,
-                  sentBy: 'DH Portal',
-                  fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-                  forceDelivery: 'email',
-                })
-              } catch {
-                sendFailed = true
-              }
-
-              if (sendFailed) {
-                await supabase.from('portal_settings').delete().eq('key', claimKey)
-                return
-              }
-
-              try {
-                await supabase.from('portal_settings').update({
-                  value: {
-                    recipient: adminEmail,
-                    week_start: weekStart,
-                    status: 'sent',
-                    lead_ids: queueAlert.map((lead) => lead.id),
-                    sent_at: sentAt,
-                  },
-                  updated_at: sentAt,
-                }).eq('key', claimKey)
-              } catch {
-                // Keep the claim so a successful email send does not replay on the next refresh.
-              }
-            })())
-            alreadySent.add(key)
-          }
-        }
 
         if (agingLeave.length) {
           const title = 'Leave approvals are aging'
