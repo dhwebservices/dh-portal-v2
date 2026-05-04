@@ -24,16 +24,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-shell" style={{ minHeight:'100vh', background:'linear-gradient(180deg, var(--page-tint) 0%, var(--bg) 26%, var(--bg) 100%)', display:'flex', flexDirection:'column' }}>
-      <nav className="login-nav" style={{ height:64, borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'rgba(255,255,255,0.82)', backdropFilter:'blur(18px)', position:'sticky', top:0, zIndex:20 }}>
+    <div className="login-shell" style={{ minHeight:'100vh', background:'linear-gradient(180deg, var(--page-tint) 0%, var(--bg) 22%, var(--bg) 100%)', display:'flex', flexDirection:'column' }}>
+      <nav className="login-nav" style={{ height:72, borderBottom:'1px solid rgba(var(--accent-rgb),0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'color-mix(in srgb, var(--bg) 84%, transparent)', backdropFilter:'blur(18px)', position:'sticky', top:0, zIndex:20 }}>
         <div className="login-nav-brand" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <img src="/dh-logo.png" alt="DH Website Services" className="login-nav-logo" style={{ height:26, width:'auto', display:'block' }} />
           <div className="login-nav-copy">
             <div className="login-nav-title" style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, letterSpacing:'-0.03em', color:'var(--text)' }}>
               DH <span style={{ color:'var(--accent)' }}>Website Services</span>
             </div>
-            <div className="login-nav-subtitle" style={{ fontSize:11, color:'var(--faint)', letterSpacing:'0.12em', textTransform:'uppercase', marginTop:2 }}>
-              DH Workplace Staff Login Portal
+            <div className="login-nav-subtitle" style={{ fontSize:12, color:'var(--faint)', marginTop:3 }}>
+              Staff portal
             </div>
           </div>
         </div>
@@ -42,50 +42,54 @@ export default function LoginPage() {
         </button>
       </nav>
 
-      <div className="login-page-grid" style={{ flex:1, display:'grid', gridTemplateColumns:'1.05fr 0.95fr', gap:28, alignItems:'stretch', padding:'32px 24px 24px' }}>
-        <section className="login-brand-panel" style={{ border:'1px solid var(--border)', borderRadius:28, overflow:'hidden', background:'linear-gradient(135deg, var(--page-tint-strong) 0%, var(--panel-tint) 36%, var(--bg2) 100%)', position:'relative', minHeight:520 }}>
-          <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle at top right, rgba(var(--accent-rgb),0.18), transparent 28%), radial-gradient(circle at bottom left, rgba(var(--accent-rgb),0.1), transparent 24%)' }} />
-          <div className="login-brand-inner" style={{ position:'relative', padding:'clamp(28px,4vw,56px)', display:'flex', flexDirection:'column', justifyContent:'space-between', height:'100%' }}>
+      <div className="login-page-grid" style={{ flex:1, display:'grid', gridTemplateColumns:'1.08fr 0.92fr', gap:36, alignItems:'center', padding:'36px 24px 28px' }}>
+        <section className="login-brand-panel" style={{ position:'relative', minHeight:520 }}>
+          <div style={{ position:'absolute', inset:'7% 18% auto 0', height:220, borderRadius:28, background:'radial-gradient(circle at center, rgba(var(--accent-rgb),0.16), rgba(var(--accent-rgb),0.03) 58%, transparent 72%)', filter:'blur(4px)' }} />
+          <div className="login-brand-inner" style={{ position:'relative', padding:'clamp(20px,3vw,40px) clamp(8px,1vw,12px) clamp(24px,3vw,32px) 0', display:'flex', flexDirection:'column', justifyContent:'space-between', height:'100%' }}>
             <div>
-              <div className="login-brand-badge" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:999, border:'1px solid var(--accent-border)', background:'var(--accent-soft)', fontSize:12, color:'var(--accent)', fontWeight:600, marginBottom:22 }}>
-                Staff access
+              <div className="login-brand-badge" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:999, background:'rgba(var(--accent-rgb),0.08)', fontSize:12, color:'var(--accent)', fontWeight:600, marginBottom:22 }}>
+                Microsoft-secured access
               </div>
-              <h1 className="login-brand-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(34px,5vw,64px)', fontWeight:600, letterSpacing:'-0.04em', lineHeight:0.96, color:'var(--text)', marginBottom:18 }}>
-                DH Workplace
+              <h1 className="login-brand-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(34px,5vw,62px)', fontWeight:600, letterSpacing:'-0.05em', lineHeight:0.96, color:'var(--text)', marginBottom:18, maxWidth:620 }}>
+                Staff tools,
                 <br />
-                Staff Login Portal
+                one calm entry point
               </h1>
               <p className="login-brand-body" style={{ maxWidth:560, fontSize:16, lineHeight:1.7, color:'var(--sub)', marginBottom:28 }}>
-                Access the DH Website Services internal workspace for outreach, HR, schedules, notifications, client operations, and staff tools from one secure Microsoft sign-in.
+                Sign in once with your DH Website Services Microsoft account to open HR, schedules, outreach, recruiting, documents, and day-to-day operations.
               </p>
-              <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+              <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:14 }}>
                 {[
-                  ['Outreach workspace', 'Follow-ups, appointments, proposals, and conversions.'],
-                  ['HR & staff tools', 'Onboarding, documents, leave, and permissions.'],
-                  ['Recruiting workspace', 'Hiring pipeline, job posts, applicant review, and status updates.'],
-                  ['Daily operations', 'Dashboard, notifications, schedules, and support.'],
+                  ['Outreach and follow-up', 'Appointments, lead handling, proposals, and client conversations.'],
+                  ['People operations', 'Onboarding, leave, documents, permissions, and HR records.'],
+                  ['Hiring and interviews', 'Job posts, applicants, interview scheduling, and review.'],
                 ].map(([title, body]) => (
-                  <div key={title} className="login-feature-card" style={{ padding:'16px 16px 14px', border:'1px solid var(--border)', borderRadius:18, background:'rgba(255,255,255,0.6)' }}>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:6 }}>{title}</div>
-                    <div style={{ fontSize:12.5, lineHeight:1.6, color:'var(--sub)' }}>{body}</div>
+                  <div key={title} className="login-feature-card" style={{ padding:'0 0 14px', borderBottom:'1px solid rgba(var(--accent-rgb),0.12)' }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:6 }}>{title}</div>
+                    <div style={{ fontSize:13, lineHeight:1.65, color:'var(--sub)' }}>{body}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="login-brand-tags" style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:28 }}>
-              {['Microsoft-secured sign-in', 'Single staff identity', 'Internal workspace only'].map((item) => (
-                <span key={item} style={{ padding:'8px 12px', borderRadius:999, background:'var(--card)', border:'1px solid var(--border)', fontSize:12, color:'var(--sub)' }}>
-                  {item}
-                </span>
+            <div className="login-brand-tags" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:12, marginTop:32, maxWidth:620 }}>
+              {[
+                ['One identity', 'Access is linked to your Microsoft staff account.'],
+                ['Role aware', 'Permissions and onboarding state load automatically after sign-in.'],
+                ['Internal only', 'This portal is reserved for current DH Website Services staff.'],
+              ].map(([title, body]) => (
+                <div key={title} style={{ paddingTop:10, borderTop:'1px solid rgba(var(--accent-rgb),0.12)' }}>
+                  <div style={{ fontSize:12, color:'var(--faint)', marginBottom:6 }}>{title}</div>
+                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.55 }}>{body}</div>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
         <section className="login-form-pane" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="login-form-card" style={{ width:'100%', maxWidth:480, padding:'32px clamp(22px,3vw,36px)', border:'1px solid var(--border)', borderRadius:28, background:'var(--card)', boxShadow:'0 22px 70px rgba(10,16,28,0.08)' }}>
-            <div className="login-form-mark" style={{ width:84, height:84, borderRadius:24, background:'linear-gradient(180deg, var(--accent-soft), rgba(var(--accent-rgb),0.18))', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px' }}>
+          <div className="login-form-card" style={{ width:'100%', maxWidth:460, padding:'34px clamp(24px,3vw,38px)', border:'1px solid rgba(var(--accent-rgb),0.12)', borderRadius:20, background:'color-mix(in srgb, var(--card) 94%, var(--page-tint))', boxShadow:'0 8px 26px rgba(10,16,28,0.05)' }}>
+            <div className="login-form-mark" style={{ width:76, height:76, borderRadius:20, background:'linear-gradient(180deg, rgba(var(--accent-rgb),0.12), rgba(var(--accent-rgb),0.04))', border:'1px solid rgba(var(--accent-rgb),0.16)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px' }}>
               <img src="/dh-logo-icon.png" alt="DH logo" style={{ width:50, height:50, objectFit:'contain' }} />
             </div>
             <div className="login-form-copy" style={{ textAlign:'center', marginBottom:26 }}>
@@ -93,7 +97,7 @@ export default function LoginPage() {
                 Sign in to continue
               </div>
               <div className="login-form-body" style={{ fontSize:15, color:'var(--sub)', lineHeight:1.7 }}>
-                Use your DH Website Services Microsoft account to access the DH Workplace staff portal.
+                Use your DH Website Services Microsoft account to open the internal staff portal.
               </div>
             </div>
 
@@ -107,7 +111,7 @@ export default function LoginPage() {
                 background: loading ? 'var(--bg3)' : 'var(--accent)',
                 color: loading ? 'var(--sub)' : '#fff',
                 border:'none',
-                borderRadius:18,
+                borderRadius:14,
                 fontSize:15,
                 fontWeight:600,
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -137,15 +141,15 @@ export default function LoginPage() {
             </button>
 
             <div className="login-form-notes" style={{ display:'grid', gap:12, marginTop:20 }}>
-              <div className="login-note-card" style={{ padding:'14px 16px', borderRadius:16, background:'var(--bg2)', border:'1px solid var(--border)' }}>
-                <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Access note</div>
+              <div className="login-note-card" style={{ padding:'14px 16px', borderRadius:14, background:'var(--bg2)', border:'1px solid rgba(var(--accent-rgb),0.08)' }}>
+                <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', marginBottom:6 }}>Access note</div>
                 <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
                   Sign in with your `@dhwebsiteservices.co.uk` Microsoft account. Staff, recruiting, web-manager permissions, and onboarding access are handled automatically once you log in.
                 </div>
               </div>
               <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'var(--faint)' }}>
-                <span>Secure internal workspace</span>
-                <span>Staff access only</span>
+                <span>Microsoft SSO</span>
+                <span>Internal staff access</span>
               </div>
             </div>
           </div>
@@ -154,7 +158,7 @@ export default function LoginPage() {
 
       <div className="login-footer" style={{ padding:'18px 24px 24px', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', color:'var(--faint)', fontSize:12 }}>
         <span>© 2026 DH Website Services</span>
-        <span>DH Workplace Staff Login Portal</span>
+        <span>Staff portal</span>
       </div>
     </div>
   )

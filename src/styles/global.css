@@ -809,6 +809,10 @@ button { cursor: pointer; font-family: inherit; }
     min-height: 0 !important;
   }
 
+  .login-brand-tags {
+    grid-template-columns: 1fr !important;
+  }
+
   .login-form-pane {
     align-items: stretch !important;
   }
@@ -868,8 +872,8 @@ button { cursor: pointer; font-family: inherit; }
 
   .login-form-card {
     padding: 22px 18px !important;
-    border-radius: 22px !important;
-    box-shadow: 0 8px 30px rgba(10,16,28,0.06) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 24px rgba(10,16,28,0.05) !important;
   }
 
   .login-form-mark {
@@ -891,7 +895,7 @@ button { cursor: pointer; font-family: inherit; }
 
   .login-primary-btn {
     min-height: 52px;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
     font-size: 15px !important;
   }
 
@@ -901,7 +905,7 @@ button { cursor: pointer; font-family: inherit; }
   }
 
   .login-note-label {
-    letter-spacing: 0.04em !important;
+    letter-spacing: 0 !important;
     text-transform: none !important;
   }
 
