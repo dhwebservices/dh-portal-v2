@@ -1,4 +1,5 @@
 import { normalizeEmail } from './hrProfileSync'
+import { sanitizeHtml } from './sanitizeHtml'
 
 export function buildStaffSignDocumentKey(id = '') {
   return `staff_sign_document:${id}`
@@ -85,9 +86,10 @@ export function buildStaffSignDocumentMergeFields({
 }
 
 export function renderStaffSignDocumentHtml(templateHtml = '', fields = {}) {
-  return String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+  const merged = String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
     return String(fields?.[key] ?? '')
   })
+  return sanitizeHtml(merged)
 }
 
 function escapeHtml(value = '') {

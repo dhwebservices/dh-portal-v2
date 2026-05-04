@@ -4,7 +4,7 @@ export const msalConfig = {
     authority: 'https://login.microsoftonline.com/c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
     redirectUri: typeof window !== 'undefined' ? window.location.origin : 'https://staff.dhwebsiteservices.co.uk',
   },
-  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
 }
 
 export const loginRequest = {

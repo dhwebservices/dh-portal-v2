@@ -1,4 +1,5 @@
 import { normalizeClientEmail } from './clientAccounts'
+import { sanitizeHtml } from './sanitizeHtml'
 
 export function buildClientContractTemplateKey(id = '') {
   return `client_contract_template:${id}`
@@ -126,9 +127,10 @@ export function buildClientContractMergeFields({
 }
 
 export function renderClientContractHtml(templateHtml = '', fields = {}) {
-  return String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+  const merged = String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
     return String(fields?.[key] ?? '')
   })
+  return sanitizeHtml(merged)
 }
 
 export function buildClientContractFileName(contract = {}) {

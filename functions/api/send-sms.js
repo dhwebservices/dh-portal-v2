@@ -1,5 +1,12 @@
 const CLICKSEND_SMS_URL = 'https://rest.clicksend.com/v3/sms/send'
 const DEFAULT_PROVIDER = 'clicksend'
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://staff.dhwebsiteservices.co.uk',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
+const MAX_RECIPIENTS = 50
+const MAX_MESSAGE_LENGTH = 1200
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -35,6 +42,20 @@ function basicAuth(username, password) {
   return `Basic ${btoa(`${username}:${password}`)}`
 }
 
+function getAllowedOrigins(env) {
+  const configured = String(env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  return new Set(configured.length ? configured : DEFAULT_ALLOWED_ORIGINS)
+}
+
+function isAllowedOrigin(request, env) {
+  const origin = request.headers.get('origin')
+  if (!origin) return false
+  return getAllowedOrigins(env).has(origin)
+}
+
 async function insertLogs(env, rows) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !rows.length) return
 
@@ -52,6 +73,10 @@ async function insertLogs(env, rows) {
 
 export async function onRequestPost(context) {
   let payload
+
+  if (!isAllowedOrigin(context.request, context.env)) {
+    return json({ error: 'Origin is not allowed.' }, 403)
+  }
 
   try {
     payload = await context.request.json()
@@ -71,12 +96,16 @@ export async function onRequestPost(context) {
   const prepared = messages
     .map((message) => ({
       to: normalizePhone(message?.phone),
-      body: String(message?.message || '').trim(),
+      body: String(message?.message || '').trim().slice(0, MAX_MESSAGE_LENGTH),
       name: String(message?.name || '').trim(),
       email: String(message?.email || '').toLowerCase().trim(),
       category: String(message?.category || payload?.category || 'general').trim() || 'general',
     }))
     .filter((message) => message.to && message.body)
+
+  if (prepared.length > MAX_RECIPIENTS) {
+    return json({ error: `Too many SMS recipients. Maximum ${MAX_RECIPIENTS} per request.` }, 400)
+  }
 
   if (!prepared.length) {
     return json({ error: 'No valid SMS messages to send.' }, 400)

@@ -1,4 +1,5 @@
 import { normalizeEmail } from './hrProfileSync'
+import { sanitizeHtml } from './sanitizeHtml'
 
 export function buildContractTemplateKey(id = '') {
   return `contract_template:${id}`
@@ -91,9 +92,10 @@ export function buildContractMergeFields({ profile = {}, orgRecord = {}, templat
 }
 
 export function renderContractHtml(templateHtml = '', fields = {}) {
-  return String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+  const merged = String(templateHtml || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
     return String(fields?.[key] ?? '')
   })
+  return sanitizeHtml(merged)
 }
 
 export function buildContractFileName(contract = {}) {

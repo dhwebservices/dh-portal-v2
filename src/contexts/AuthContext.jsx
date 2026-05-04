@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
+import { logSecurityEvent } from '../utils/audit'
 import {
   applyPortalAppearance,
   buildPreferenceSettingKey,
@@ -336,18 +337,20 @@ export function AuthProvider({ children }) {
         setLoading(false)
       })
 
-    // Log login - fire and forget, never block the app
-    const now = new Date().toISOString()
-    // audit_log insert - ignore errors
-    supabase.from('audit_log').insert([{
-      user_email: normalizedEmail,
-      user_name:  account.name || normalizedEmail,
-      action:     'user_login',
-      target:     'session',
-      target_id:  null,
-      details:    {},
-      created_at: now,
-    }]).then(() => {}).catch(() => {})
+    logSecurityEvent({
+      userEmail: normalizedEmail,
+      userName: account.name || normalizedEmail,
+      action: 'user_login',
+      target: 'session',
+      scope: 'authentication',
+      outcome: 'success',
+      riskLevel: 'low',
+      details: {
+        auth_provider: 'microsoft',
+        cache_location: 'sessionStorage',
+        is_previewing: false,
+      },
+    }).catch(() => {})
     return () => clearTimeout(timeout)
   }, [normalizedEmail, account?.name])
 
@@ -430,21 +433,77 @@ export function AuthProvider({ children }) {
   const startPreviewAs = async ({ email, name } = {}) => {
     const safeEmail = String(email || '').toLowerCase().trim()
     if (!safeEmail) throw new Error('No staff email supplied for preview.')
-    if (!realIsDirector && !realIsDepartmentManager) throw new Error('Only Directors and Department Managers can use preview mode.')
+    if (!realIsDirector && !realIsDepartmentManager) {
+      logSecurityEvent({
+        userEmail: normalizedEmail,
+        userName: account?.name || normalizedEmail,
+        action: 'impersonation_denied',
+        target: 'preview_mode',
+        targetId: safeEmail,
+        scope: 'authorization',
+        outcome: 'denied',
+        riskLevel: 'high',
+        details: {
+          reason: 'insufficient_role',
+        },
+      }).catch(() => {})
+      throw new Error('Only Directors and Department Managers can use preview mode.')
+    }
 
     const nextPreview = await loadPortalIdentity(safeEmail, name)
     if (!realIsDirector && !canPreviewStaffMember({ user_email: safeEmail, department: nextPreview.org?.department }, nextPreview.org)) {
+      logSecurityEvent({
+        userEmail: normalizedEmail,
+        userName: account?.name || normalizedEmail,
+        action: 'impersonation_denied',
+        target: 'preview_mode',
+        targetId: safeEmail,
+        scope: 'authorization',
+        outcome: 'denied',
+        riskLevel: 'high',
+        details: {
+          reason: 'outside_department_scope',
+          target_department: nextPreview.org?.department || '',
+        },
+      }).catch(() => {})
       throw new Error('That staff member sits outside your department scope.')
     }
 
     setPreviewState(nextPreview)
     applyPortalAppearance(nextPreview.preferences)
+    logSecurityEvent({
+      userEmail: normalizedEmail,
+      userName: account?.name || normalizedEmail,
+      action: 'impersonation_started',
+      target: 'preview_mode',
+      targetId: safeEmail,
+      scope: 'admin_access',
+      outcome: 'success',
+      riskLevel: 'high',
+      details: {
+        preview_target_name: nextPreview.user?.name || safeEmail,
+      },
+    }).catch(() => {})
     return nextPreview
   }
 
   const stopPreviewAs = () => {
+    const previousTarget = previewState?.user
     setPreviewState(null)
     applyPortalAppearance(preferences)
+    logSecurityEvent({
+      userEmail: normalizedEmail,
+      userName: account?.name || normalizedEmail,
+      action: 'impersonation_stopped',
+      target: 'preview_mode',
+      targetId: previousTarget?.email || null,
+      scope: 'admin_access',
+      outcome: 'success',
+      riskLevel: 'medium',
+      details: {
+        preview_target_name: previousTarget?.name || previousTarget?.email || '',
+      },
+    }).catch(() => {})
   }
 
   const updatePreferences = async (patch, options = {}) => {
