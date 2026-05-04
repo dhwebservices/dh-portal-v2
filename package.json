@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "docs:generate": "node scripts/generate-docs.mjs",
     "docs:check": "node scripts/generate-docs.mjs --check",
-    "security:audit": "npm audit --omit=dev --audit-level=high"
+    "security:audit": "npm audit --omit=dev --audit-level=high",
+    "security:check": "node scripts/security-check.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^3.10.0",

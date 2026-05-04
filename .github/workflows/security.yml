@@ -24,5 +24,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Static security guardrails
+        run: npm run security:check
+
       - name: Production dependency audit
         run: npm run security:audit

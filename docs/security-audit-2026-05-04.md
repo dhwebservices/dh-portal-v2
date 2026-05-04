@@ -69,10 +69,14 @@
   - origin allowlist and request caps added
 - `public/_headers`
   - CSP and standard security headers added
+- `scripts/security-check.mjs`
+  - static guardrails added for approved `dangerouslySetInnerHTML`, approved `localStorage`, and basic hardcoded-secret pattern detection
+- `.github/workflows/security.yml`
+  - now runs both build and static repo guardrails before dependency audit
 
 ## Remaining Work
 - Redesign Supabase access model so sensitive tables are not directly writable/readable from untrusted browser code.
 - Replace `allow_all` RLS policies with explicit role/ownership policies after backend trust boundaries exist.
 - Add Cloudflare-side rate limiting and WAF rules for sensitive routes and worker endpoints.
 - Review Microsoft Entra app registration, redirect URIs, scopes, and conditional access settings.
-- Add secret scanning and security CI in GitHub.
+- Expand static scanning into table-specific authorization tests once worker/API mediation exists.
