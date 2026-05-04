@@ -17,6 +17,18 @@ function json(body, status = 200) {
   })
 }
 
+function authorizeManualRun(request, secretValue, headerName) {
+  const expectedToken = String(secretValue || '').trim()
+  if (!expectedToken) {
+    return json({ error: 'Manual run secret is not configured.' }, 503)
+  }
+  const providedToken = request.headers.get(headerName) || ''
+  if (providedToken !== expectedToken) {
+    return json({ error: 'Unauthorized.' }, 401)
+  }
+  return null
+}
+
 async function supabaseFetch(env, path, options = {}) {
   const response = await fetch(`${env.SUPABASE_URL}${path}`, {
     ...options,
@@ -635,6 +647,8 @@ export default {
       return json({ ok: true, worker: 'microsoft-calendar-sync' })
     }
     if (url.pathname === '/run-sync' && request.method === 'POST') {
+      const authError = authorizeManualRun(request, env.MICROSOFT_CALENDAR_SYNC_SECRET, 'x-calendar-sync-secret')
+      if (authError) return authError
       try {
         const results = await runSync(env)
         return json({ ok: true, results })

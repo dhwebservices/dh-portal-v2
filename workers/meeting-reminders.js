@@ -15,6 +15,18 @@ function json(body, status = 200) {
   })
 }
 
+function authorizeManualRun(request, secretValue, headerName) {
+  const expectedToken = String(secretValue || '').trim()
+  if (!expectedToken) {
+    return json({ error: 'Manual run secret is not configured.' }, 503)
+  }
+  const providedToken = request.headers.get(headerName) || ''
+  if (providedToken !== expectedToken) {
+    return json({ error: 'Unauthorized.' }, 401)
+  }
+  return null
+}
+
 function normalizePhone(value = '') {
   const raw = String(value || '').trim()
   const cleaned = raw.replace(/[^\d+]/g, '')
@@ -301,12 +313,8 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/run') {
-      const expectedToken = String(env.MEETING_REMINDER_SECRET || '').trim()
-      const providedToken = request.headers.get('x-reminder-secret') || ''
-
-      if (expectedToken && providedToken !== expectedToken) {
-        return json({ error: 'Unauthorized.' }, 401)
-      }
+      const authError = authorizeManualRun(request, env.MEETING_REMINDER_SECRET, 'x-reminder-secret')
+      if (authError) return authError
 
       try {
         const result = await runMeetingReminders(env)

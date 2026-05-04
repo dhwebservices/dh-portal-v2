@@ -67,6 +67,10 @@
   - login and impersonation events now logged with security context
 - `functions/api/send-sms.js`
   - origin allowlist and request caps added
+- `workers/meeting-reminders.js`
+  - manual `/run` trigger now requires a configured shared secret and fails closed if the secret is missing
+- `workers/microsoft-calendar-sync.js`
+  - manual `/run-sync` trigger now requires a configured shared secret and fails closed if the secret is missing
 - `public/_headers`
   - CSP and standard security headers added
 - `scripts/security-check.mjs`
@@ -80,3 +84,4 @@
 - Add Cloudflare-side rate limiting and WAF rules for sensitive routes and worker endpoints.
 - Review Microsoft Entra app registration, redirect URIs, scopes, and conditional access settings.
 - Expand static scanning into table-specific authorization tests once worker/API mediation exists.
+- Move more privileged browser-triggered actions behind worker routes with equivalent secret/auth controls.
