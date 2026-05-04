@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { logAction } from '../utils/audit'
+import { fetchAuditLogs } from '../utils/auditApi'
 
 const ACTION_COLORS = {
   outreach_added: 'var(--accent)',
@@ -348,9 +349,9 @@ export default function Reports() {
     setPeopleLoading(true)
     try {
       const weekStart = getWeekStart()
-      const [{ data: profiles }, { data: logs }, { data: schedules }, { data: onboarding }] = await Promise.all([
+      const [{ data: profiles }, logs, { data: schedules }, { data: onboarding }] = await Promise.all([
         supabase.from('hr_profiles').select('user_email,full_name,role,department,manager_name,last_seen').not('user_email', 'is', null),
-        supabase.from('audit_log').select('user_email,created_at').eq('action', 'user_login').order('created_at', { ascending: false }),
+        fetchAuditLogs({ select: 'user_email,created_at', action: 'user_login', limit: 500 }),
         supabase.from('schedules').select('user_email,user_name,week_data').eq('week_start', weekStart).eq('submitted', true),
         supabase.from('onboarding_submissions').select('user_email,status').order('submitted_at', { ascending: false }),
       ])
@@ -555,21 +556,14 @@ export default function Reports() {
 
   async function loadLogs() {
     setLogsLoading(true)
-    let query = supabase
-      .from('audit_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE - 1)
-
-    if (logSearch) {
-      query = query.or(`user_name.ilike.%${logSearch}%,action.ilike.%${logSearch}%,target.ilike.%${logSearch}%`)
-    }
-    if (logFilter !== 'all') {
-      query = query.ilike('action', `%${logFilter}%`)
-    }
-
-    const { data } = await query
-    setLogs(data || [])
+    const rows = await fetchAuditLogs({
+      select: '*',
+      limit: LOG_PAGE_SIZE,
+      offset: logPage * LOG_PAGE_SIZE,
+      search: logSearch || '',
+      action_like: logFilter !== 'all' ? logFilter : '',
+    })
+    setLogs(rows || [])
     setLogsLoading(false)
   }
 

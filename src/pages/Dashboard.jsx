@@ -24,6 +24,7 @@ import { Modal } from '../components/Modal'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { createTrainingRecord } from '../utils/peopleOps'
 import { executeWorkflowRun, buildWorkflowPreviewRows, loadWorkflowAutomationData } from '../utils/workflowAutomation'
+import { fetchAuditLogs } from '../utils/auditApi'
 import {
   ACCENT_SCHEMES,
   CONTRAST_OPTIONS,
@@ -644,7 +645,7 @@ export default function Dashboard() {
           ? supabase.from('tasks').select('*').neq('status', 'done').order('due_date', { ascending: true }).limit(8)
           : supabase.from('tasks').select('*').ilike('assigned_to_email', user?.email || '').neq('status', 'done').order('due_date', { ascending: true }).limit(8),
         supabase.from('commissions').select('commission_amount,status'),
-        supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(8),
+        fetchAuditLogs({ select: 'user_name,action,target,created_at', limit: 8 }),
         supabase.from('notifications').select('*').ilike('user_email', user?.email || '').eq('read', false).order('created_at', { ascending: false }).limit(6),
         supabase.from('hr_profiles').select('user_email,full_name,role,last_seen').gte('last_seen', activeCutoff).order('last_seen', { ascending: false }).limit(8),
         supabase.from('schedules').select('user_email,user_name,week_data,submitted').eq('week_start', weekStart).eq('submitted', true),
@@ -671,7 +672,7 @@ export default function Dashboard() {
       const ticketCount = get(2, { count: 0 }).count || 0
       const taskRows = get(3, { data: [] }).data || []
       const commissions = get(4, { data: [] }).data || []
-      const activity = get(5, { data: [] }).data || []
+      const activity = get(5, []) || []
       const unreadRows = get(6, { data: [] }).data || []
       const activeRows = get(7, { data: [] }).data || []
       const scheduleRows = get(8, { data: [] }).data || []

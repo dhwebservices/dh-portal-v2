@@ -1,5 +1,3 @@
-import { supabase } from './supabase'
-
 function normalizeAuditValue(value, maxLength = 240) {
   const text = String(value ?? '').trim()
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
@@ -7,7 +5,12 @@ function normalizeAuditValue(value, maxLength = 240) {
 
 export async function logAction(userEmail, userName, action, target, targetId, details = {}) {
   try {
-    await supabase.from('audit_log').insert([{
+    await fetch('/api/audit-log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
       user_email: userEmail,
       user_name: userName,
       action,
@@ -15,7 +18,8 @@ export async function logAction(userEmail, userName, action, target, targetId, d
       target_id: targetId ? String(targetId) : null,
       details,
       created_at: new Date().toISOString(),
-    }])
+      }),
+    })
   } catch (e) {
     console.warn('Audit log failed:', e)
   }

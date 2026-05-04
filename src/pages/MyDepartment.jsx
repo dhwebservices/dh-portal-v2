@@ -21,6 +21,7 @@ import { enrichTask } from '../utils/taskMetadata'
 import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
 import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 import { listJobPosts } from '../utils/recruiting'
+import { fetchAuditLogs } from '../utils/auditApi'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -195,7 +196,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, { data: auditRows }, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }, jobData] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, auditRows, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }, jobData] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -206,7 +207,7 @@ export default function MyDepartment() {
       supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('portal_settings').select('key,value').like('key', 'department_announcement:%'),
-      supabase.from('audit_log').select('user_name,action,target,created_at').order('created_at', { ascending: false }).limit(120),
+      fetchAuditLogs({ select: 'user_name,action,target,created_at', limit: 120 }),
       supabase.from('hr_leave').select('id,user_email,user_name,leave_type,start_date,end_date,status').eq('status', 'approved').order('start_date', { ascending: true }),
       supabase.from('staff_documents').select('staff_email,name,type,file_url,file_path,created_at'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_compliance:%'),

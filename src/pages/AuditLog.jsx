@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search } from 'lucide-react'
 import { supabase } from '../utils/supabase'
+import { fetchAuditLogs } from '../utils/auditApi'
 
 function formatPresenceAge(value) {
   if (!value) return 'Unknown'
@@ -20,7 +21,7 @@ export default function AuditLog() {
     async function load() {
       const activeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
       const [{ data: logRows }, { data: activeRows }] = await Promise.all([
-        supabase.from('audit_log').select('*').order('created_at', { ascending:false }).limit(200),
+        fetchAuditLogs({ select: '*', limit: 200 }),
         supabase.from('hr_profiles').select('user_email,full_name,role,department,last_seen').gte('last_seen', activeCutoff).order('last_seen', { ascending:false }).limit(24),
       ])
       setLogs(logRows || [])

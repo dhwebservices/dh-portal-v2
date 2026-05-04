@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
+import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
@@ -173,7 +174,7 @@ export default function Settings() {
     const reason = requireReason('audit log deletion')
     if (!reason) return
     const cutoff = new Date(Date.now() - 90 * 86400000).toISOString()
-    await supabase.from('audit_log').delete().lt('created_at', cutoff)
+    await clearAuditLogs(cutoff)
     await logAction(user?.email, user?.name, 'audit_log_cleared', 'audit_log', null, { cutoff, reason })
     setSuccess('Settings saved')
   }
