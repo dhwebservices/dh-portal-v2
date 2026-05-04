@@ -73,10 +73,18 @@
   - manual `/run-sync` trigger now requires a configured shared secret and fails closed if the secret is missing
 - `functions/api/enqueue-calendar-sync.js`
   - calendar sync job queue writes now go through a same-origin Pages function with service-role mediation instead of direct browser writes
+- `functions/api/sms-logs.js`
+  - SMS log reads now go through a same-origin Pages function with service-role mediation instead of direct browser reads
 - `src/utils/microsoftCalendarSyncQueue.js`
   - frontend queue helper no longer writes directly to `microsoft_calendar_sync_jobs`
+- `src/utils/smsLogs.js`
+  - frontend SMS Centre log fetches now call the mediated API instead of querying `sms_logs` directly
+- `src/pages/SmsCentre.jsx`
+  - SMS Centre log loading now uses the mediated API path
 - `scripts/2026-05-04-lock-microsoft-calendar-sync-jobs.sql`
   - drops the public `allow_all` policy from the calendar sync job queue table so anon/authenticated browser roles cannot write to it directly
+- `scripts/2026-05-04-lock-sms-logs.sql`
+  - drops the public `allow_all` policy from the SMS log table so anon/authenticated browser roles cannot read or write it directly
 - `public/_headers`
   - CSP and standard security headers added
 - `scripts/security-check.mjs`

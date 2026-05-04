@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../utils/supabase'
 import { normalizePortalPhone, sendPortalSms } from '../utils/sms'
+import { fetchSmsLogs } from '../utils/smsLogs'
 import { useAuth } from '../contexts/AuthContext'
 
 const TEMPLATE_OPTIONS = [
@@ -91,11 +92,16 @@ export default function SmsCentre() {
   const [portalLink, setPortalLink] = useState('/notifications')
   const [status, setStatus] = useState({ type: '', text: '' })
 
+  const loadSmsLogs = async () => {
+    const rows = await fetchSmsLogs(12)
+    setLogs(rows)
+  }
+
   useEffect(() => {
     let mounted = true
     Promise.all([
       supabase.from('hr_profiles').select('id,user_email,full_name,department,role,phone').order('full_name'),
-      supabase.from('sms_logs').select('recipient_name,recipient_phone,category,status,created_at,sender_id,message').order('created_at', { ascending: false }).limit(12),
+      fetchSmsLogs(12),
     ]).then(([staffResult, logsResult]) => {
       if (!mounted) return
       const nextStaff = (staffResult.data || [])
@@ -109,7 +115,7 @@ export default function SmsCentre() {
         }))
         .filter((row) => row.email && row.phone)
       setStaff(nextStaff)
-      setLogs(logsResult.data || [])
+      setLogs(logsResult || [])
       setLoading(false)
     }).catch((error) => {
       console.error('SMS centre load error:', error)
@@ -203,13 +209,7 @@ export default function SmsCentre() {
         },
       })
 
-      const { data: refreshedLogs } = await supabase
-        .from('sms_logs')
-        .select('recipient_name,recipient_phone,category,status,created_at,sender_id,message')
-        .order('created_at', { ascending: false })
-        .limit(12)
-
-      setLogs(refreshedLogs || [])
+      await loadSmsLogs()
       setStatus({ type: 'success', text: `Sent ${result.count || selectedRecipients.length} SMS update${(result.count || selectedRecipients.length) === 1 ? '' : 's'}.` })
     } catch (error) {
       console.error('SMS centre send error:', error)
