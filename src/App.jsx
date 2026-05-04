@@ -1,13 +1,14 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
+import { logSecurityEvent } from './utils/audit'
 
 function lazyRetry(importer, key) {
   return lazy(async () => {
@@ -158,11 +159,39 @@ function MaintenanceWall({ children }) {
 }
 
 function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
-  const { can, loading, isOnboarding } = useAuth()
+  const { can, loading, isOnboarding, user } = useAuth()
+  const location = useLocation()
+  const loggedDeniedRef = useRef('')
+  const allowed = !permKey || can(permKey)
+
+  useEffect(() => {
+    if (loading || allowed) {
+      loggedDeniedRef.current = ''
+      return
+    }
+    const deniedKey = `${user?.email || 'unknown'}:${permKey || 'unknown'}:${location.pathname}`
+    if (loggedDeniedRef.current === deniedKey) return
+    loggedDeniedRef.current = deniedKey
+    logSecurityEvent({
+      userEmail: user?.email || '',
+      userName: user?.name || user?.email || '',
+      action: 'route_access_denied',
+      target: 'route_guard',
+      targetId: location.pathname,
+      scope: 'authorization',
+      outcome: 'denied',
+      riskLevel: 'medium',
+      details: {
+        permission_key: permKey || '',
+        path: location.pathname,
+        reason: 'missing_permission',
+      },
+    }).catch(() => {})
+  }, [allowed, loading, location.pathname, permKey, user?.email, user?.name])
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (isOnboarding && !allowDuringOnboarding) return <HROnboarding />
-  if (!permKey || can(permKey)) return children
+  if (allowed) return children
 
   return (
     <div className="fade-in">
@@ -179,11 +208,39 @@ function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
 }
 
 function WebManagerGate({ children }) {
-  const { can, loading, isOnboarding, isAdmin } = useAuth()
+  const { can, loading, isOnboarding, isAdmin, user } = useAuth()
+  const location = useLocation()
+  const loggedDeniedRef = useRef('')
+  const allowed = isAdmin || can('website_editor') || can('clientmgmt')
+
+  useEffect(() => {
+    if (loading || allowed) {
+      loggedDeniedRef.current = ''
+      return
+    }
+    const deniedKey = `${user?.email || 'unknown'}:web-manager:${location.pathname}`
+    if (loggedDeniedRef.current === deniedKey) return
+    loggedDeniedRef.current = deniedKey
+    logSecurityEvent({
+      userEmail: user?.email || '',
+      userName: user?.name || user?.email || '',
+      action: 'route_access_denied',
+      target: 'route_guard',
+      targetId: location.pathname,
+      scope: 'authorization',
+      outcome: 'denied',
+      riskLevel: 'medium',
+      details: {
+        permission_key: 'website_editor|clientmgmt|admin',
+        path: location.pathname,
+        reason: 'missing_web_manager_access',
+      },
+    }).catch(() => {})
+  }, [allowed, loading, location.pathname, user?.email, user?.name])
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (isOnboarding) return <HROnboarding />
-  if (isAdmin || can('website_editor') || can('clientmgmt')) return children
+  if (allowed) return children
 
   return (
     <div className="fade-in">
