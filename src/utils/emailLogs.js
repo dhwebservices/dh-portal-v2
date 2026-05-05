@@ -17,7 +17,8 @@ export async function fetchEmailLogs(params = {}) {
   })
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(data?.error || 'Could not load email logs.')
+    console.warn('Email log API unavailable:', data?.error || response.status)
+    return []
   }
   return Array.isArray(data?.logs) ? data.logs : []
 }

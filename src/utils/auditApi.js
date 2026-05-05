@@ -17,7 +17,8 @@ export async function fetchAuditLogs(params = {}) {
   })
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(data?.error || 'Could not load audit logs.')
+    console.warn('Audit log API unavailable:', data?.error || response.status)
+    return []
   }
   return Array.isArray(data?.logs) ? data.logs : []
 }
@@ -34,4 +35,3 @@ export async function clearAuditLogs(before) {
   }
   return data
 }
-
