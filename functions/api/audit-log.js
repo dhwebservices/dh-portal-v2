@@ -117,23 +117,23 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   if (!isAllowedOrigin(context.request, context.env)) {
-    return json({ error: 'Origin is not allowed.' }, 403)
+    return json({ ok: false, accepted: false, error: 'Origin is not allowed.' })
   }
 
   if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return json({ error: 'Audit log is not configured.' }, 500)
+    return json({ ok: false, accepted: false, error: 'Audit log is not configured.' })
   }
 
   let payload
   try {
     payload = await context.request.json()
   } catch {
-    return json({ error: 'Invalid request body.' }, 400)
+    return json({ ok: false, accepted: false, error: 'Invalid request body.' })
   }
 
   const row = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : null
   if (!row) {
-    return json({ error: 'Invalid audit payload.' }, 400)
+    return json({ ok: false, accepted: false, error: 'Invalid audit payload.' })
   }
 
   try {
@@ -145,7 +145,7 @@ export async function onRequestPost(context) {
     return json({ ok: true })
   } catch (error) {
     console.warn('Audit log write failed:', error)
-    return json({ error: error?.message || 'audit_log_write_failed' }, 500)
+    return json({ ok: false, accepted: false, error: error?.message || 'audit_log_write_failed' })
   }
 }
 
