@@ -2708,12 +2708,19 @@ export default function StaffProfile() {
                   {portalAccessLocked ? 'Suspended' : 'Allowed'}
                 </span>
                 <button
-                  onClick={() => setAccountSecurityRecord((current) => buildAccountLockRecord(current, {
-                    locked: !current.portal_access_locked,
-                    reason: current.lock_reason || 'Portal access suspended by admin.',
-                    actorEmail: user?.email || '',
-                    actorName: user?.name || '',
-                  }))}
+                  onClick={() => setAccountSecurityRecord((current) => {
+                    const nextLocked = !current.portal_access_locked
+                    const nextRecord = buildAccountLockRecord(current, {
+                      locked: nextLocked,
+                      reason: current.lock_reason || 'Portal access suspended by admin.',
+                      actorEmail: user?.email || '',
+                      actorName: user?.name || '',
+                    })
+                    return nextLocked ? buildSessionRevokeRecord(nextRecord, {
+                      actorEmail: user?.email || '',
+                      actorName: user?.name || '',
+                    }) : nextRecord
+                  })}
                   style={{ width:40, height:22, borderRadius:11, background: portalAccessLocked ? 'var(--red)' : 'var(--bg3)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}
                 >
                   <div style={{ position:'absolute', top:2, left: portalAccessLocked ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
@@ -3047,12 +3054,19 @@ export default function StaffProfile() {
                           <div style={{ fontSize:11, color:'var(--sub)' }}>Prevents this user from opening any portal area until restored.</div>
                         </div>
                         <button
-                          onClick={() => setAccountSecurityRecord((current) => buildAccountLockRecord(current, {
-                            locked: !current.portal_access_locked,
-                            reason: current.lock_reason || 'Portal access suspended by admin.',
-                            actorEmail: user?.email || '',
-                            actorName: user?.name || '',
-                          }))}
+                          onClick={() => setAccountSecurityRecord((current) => {
+                            const nextLocked = !current.portal_access_locked
+                            const nextRecord = buildAccountLockRecord(current, {
+                              locked: nextLocked,
+                              reason: current.lock_reason || 'Portal access suspended by admin.',
+                              actorEmail: user?.email || '',
+                              actorName: user?.name || '',
+                            })
+                            return nextLocked ? buildSessionRevokeRecord(nextRecord, {
+                              actorEmail: user?.email || '',
+                              actorName: user?.name || '',
+                            }) : nextRecord
+                          })}
                           style={{ width:40, height:22, borderRadius:11, background: portalAccessLocked ? 'var(--red)' : 'var(--bg3)', border:'none', position:'relative', flexShrink:0 }}
                         >
                           <div style={{ position:'absolute', top:2, left: portalAccessLocked ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>

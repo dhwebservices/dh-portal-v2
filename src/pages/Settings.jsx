@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { sendEmail } from '../utils/email'
+import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
 import { logAction } from '../utils/audit'
 import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
@@ -131,7 +131,7 @@ export default function Settings() {
           </div>
         `).join('')
 
-        await Promise.allSettled(recipients.map((recipient) => sendEmail('send_email', {
+        await sendPacedEmailBroadcast(recipients, (recipient) => sendEmail('send_email', {
           to: recipient.email,
           to_name: recipient.name,
           subject,
@@ -144,7 +144,7 @@ export default function Settings() {
           sent_by: user?.name || 'System',
           from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
           log_outreach: false,
-        })))
+        }))
       } catch (error) {
         console.error('Whats new email send failed:', error)
       }

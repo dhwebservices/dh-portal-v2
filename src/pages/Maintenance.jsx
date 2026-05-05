@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { Modal } from '../components/Modal'
-import { sendEmail } from '../utils/email'
+import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 
@@ -106,9 +106,9 @@ export default function Maintenance() {
           <p>You will be able to log in again once maintenance has been completed.</p>
         `
 
-        await Promise.allSettled(
-          recipients.map((recipient) =>
-            sendEmail('send_email', {
+        await sendPacedEmailBroadcast(
+          recipients,
+          (recipient) => sendEmail('send_email', {
               to: recipient.email,
               to_name: recipient.name,
               subject,
@@ -117,7 +117,6 @@ export default function Maintenance() {
               from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
               log_outreach: false,
             })
-          )
         )
       } catch (err) {
         console.error('Maintenance notification send failed:', err)

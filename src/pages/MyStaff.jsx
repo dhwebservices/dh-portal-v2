@@ -320,11 +320,15 @@ export default function MyStaff() {
           }
         }
         if (mode === 'suspend') {
+          const lockedRecord = buildAccountLockRecord(current, {
+            locked: true,
+            reason: current.lock_reason || 'Portal access suspended by admin.',
+            actorEmail: user?.email || '',
+            actorName: user?.name || '',
+          })
           return {
             key: buildAccountSecurityKey(safeEmail),
-            value: { value: buildAccountLockRecord(current, {
-              locked: true,
-              reason: current.lock_reason || 'Portal access suspended by admin.',
+            value: { value: buildSessionRevokeRecord(lockedRecord, {
               actorEmail: user?.email || '',
               actorName: user?.name || '',
             }) },

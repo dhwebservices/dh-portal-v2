@@ -85,6 +85,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     orgResult,
     workspaceResult,
     departmentCatalogResult,
+    accountSecurityResult,
   ] = await Promise.all([
     supabase
       .from('user_permissions')
@@ -121,6 +122,11 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       .select('value')
       .eq('key', buildDepartmentCatalogKey())
       .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildAccountSecurityKey(safeEmail))
+      .maybeSingle(),
   ])
 
   const hrProfile = hrResult?.data || {}
@@ -129,6 +135,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
   const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
   const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
+  const accountSecurityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
   const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
     email: safeEmail,
     department: hrProfile?.department,
@@ -155,6 +162,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     perms: OWNER_EMAILS.has(safeEmail) ? null : safePerms,
     isAdmin: OWNER_EMAILS.has(safeEmail) || permissionsData?.permissions?.admin === true || nextOrg.role_scope === 'director',
     isOnboarding: permissionsData?.onboarding === true,
+    accountSecurity: mergeAccountSecurityRecord(accountSecurityRaw),
     lifecycle: mergeLifecycleRecord(lifecycleRaw),
     org: {
       ...nextOrg,
@@ -404,6 +412,41 @@ export function AuthProvider({ children }) {
     const onFocus = () => refreshSecurity()
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshSecurity()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [normalizedEmail])
+
+  useEffect(() => {
+    if (!normalizedEmail) return undefined
+
+    const refreshMaintenance = () => {
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', 'portal_maintenance')
+        .maybeSingle()
+        .then(({ data }) => {
+          const raw = data?.value?.value ?? data?.value ?? {}
+          setMaintenance({
+            enabled: raw?.enabled === true,
+            message: raw?.message || '',
+            eta: raw?.eta || '',
+          })
+        })
+        .catch(() => {})
+    }
+
+    refreshMaintenance()
+    const interval = setInterval(refreshMaintenance, ACTIVE_HEARTBEAT_MS)
+    const onFocus = () => refreshMaintenance()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshMaintenance()
     }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)

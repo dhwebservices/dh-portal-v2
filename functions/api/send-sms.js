@@ -50,8 +50,20 @@ function getAllowedOrigins(env) {
   return new Set(configured.length ? configured : DEFAULT_ALLOWED_ORIGINS)
 }
 
-function isAllowedOrigin(request, env) {
+function resolveRequestOrigin(request) {
   const origin = request.headers.get('origin')
+  if (origin) return origin
+  const referer = request.headers.get('referer')
+  if (!referer) return ''
+  try {
+    return new URL(referer).origin
+  } catch {
+    return ''
+  }
+}
+
+function isAllowedOrigin(request, env) {
+  const origin = resolveRequestOrigin(request)
   if (!origin) return false
   return getAllowedOrigins(env).has(origin)
 }
