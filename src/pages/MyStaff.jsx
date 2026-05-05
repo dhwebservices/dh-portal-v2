@@ -91,6 +91,7 @@ export default function MyStaff() {
   const [orgMap, setOrgMap] = useState({})
   const [selectedUsers, setSelectedUsers] = useState([])
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [bulkPermissionRole, setBulkPermissionRole] = useState('Staff')
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
@@ -165,7 +166,7 @@ export default function MyStaff() {
       supabase.from('portal_settings').select('key,value').like('key', 'staff_org:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'account_security:%'),
     ])
-    const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding } })
+    const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding, bookable_staff: p.bookable_staff === true } })
     setPermsMap(pm)
     const hm = {}; (hrd||[]).forEach(p => { hm[p.user_email?.toLowerCase()] = p })
     ;(onboard || []).forEach((submission) => {
@@ -356,6 +357,33 @@ export default function MyStaff() {
     }
   }
 
+  const applyBulkPermissions = async () => {
+    if (!selectedUsers.length) return
+    const preset = ROLE_DEFAULTS[bulkPermissionRole]
+    if (!preset) return
+    setBulkSaving(true)
+    try {
+      const rows = selectedUsers.map((safeEmail) => {
+        const existing = permsMap[safeEmail] || {}
+        return {
+          user_email: safeEmail,
+          permissions: { ...preset },
+          onboarding: existing.onboarding === true,
+          bookable_staff: existing.bookable_staff === true,
+          updated_at: new Date().toISOString(),
+        }
+      })
+      const { error } = await supabase.from('user_permissions').upsert(rows, { onConflict: 'user_email' })
+      if (error) throw error
+      await load()
+      clearSelectedUsers()
+    } catch (error) {
+      alert(error?.message || 'Could not update permissions.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd">
@@ -421,18 +449,36 @@ export default function MyStaff() {
       )}
 
       {selectedUsers.length > 0 && (
-        <div className="card" style={{ padding:'14px 16px', marginBottom:18, display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+        <div className="card" style={{ padding:'14px 16px', marginBottom:18, display:'grid', gap:14 }}>
           <div>
             <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Bulk access control</div>
             <div style={{ marginTop:6, fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
               {selectedUsers.length} staff account{selectedUsers.length === 1 ? '' : 's'} selected.
             </div>
           </div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('relogin')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Force re-login'}</button>
-            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('suspend')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Suspend access'}</button>
-            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('restore')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Restore access'}</button>
-            <button className="btn btn-outline btn-sm" onClick={clearSelectedUsers} disabled={bulkSaving}>Clear</button>
+          <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-end', flexWrap:'wrap' }}>
+            <div style={{ display:'grid', gap:8, minWidth:'min(100%, 320px)' }}>
+              <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Batch permissions</div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                <select className="inp" value={bulkPermissionRole} onChange={(e) => setBulkPermissionRole(e.target.value)} style={{ minWidth:220 }}>
+                  {Object.keys(ROLE_DEFAULTS).map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+                <button className="btn btn-primary btn-sm" onClick={applyBulkPermissions} disabled={bulkSaving}>
+                  {bulkSaving ? 'Saving...' : `Apply ${bulkPermissionRole} permissions`}
+                </button>
+              </div>
+              <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>
+                Replaces the selected users&apos; page permissions with the chosen preset and keeps their current onboarding flag.
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('relogin')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Force re-login'}</button>
+              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('suspend')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Suspend access'}</button>
+              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('restore')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Restore access'}</button>
+              <button className="btn btn-outline btn-sm" onClick={clearSelectedUsers} disabled={bulkSaving}>Clear</button>
+            </div>
           </div>
         </div>
       )}
