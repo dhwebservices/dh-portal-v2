@@ -58,24 +58,13 @@ export default function SendEmail() {
         from_name: 'DH Website Services — ' + selectedFrom.label,
         from_email: selectedFrom.address,
         sent_by: user?.name || user?.email,
+        sent_by_email: user?.email,
+        log_email: true,
+        log_body: form.body,
+        log_from_address: 'DH Website Services <' + selectedFrom.address + '>',
+        template_id: form.template_id || null,
       })
       if (result.ok) {
-        // Log email to email_log
-        try {
-          await supabase.from('email_log').insert([{
-            sent_by: user?.name || user?.email,
-            sent_by_email: user?.email,
-            sent_to: [form.to],
-            subject: form.subject,
-            body: form.body,
-            from_address: 'DH Website Services <' + selectedFrom.address + '>',
-            template_used: form.template_id || null,
-            sent_at: new Date().toISOString(),
-          }])
-        } catch {
-          // Email log failure should not block a successful send.
-        }
-
         // Mark outreach contact as contacted
         const match = outreach.find(o => o.contact_email === form.to)
         if (match) {

@@ -6,6 +6,7 @@ import { Modal } from '../components/Modal'
 import { logAction } from '../utils/audit'
 import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { fetchEmailLogs } from '../utils/emailLogs'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
 const FILTERS = ['all', 'assigned_to_me', 'due_today', 'follow_up_queue', 'overdue', 'hot', 'recent', 'converted', 'not_interested']
@@ -390,9 +391,9 @@ export default function Outreach() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: contacts }, { data: emailLog }, { data: apptData }, { data: clientData }, { data: profileData }, { data: permData }] = await Promise.all([
+    const [{ data: contacts }, emailLog, { data: apptData }, { data: clientData }, { data: profileData }, { data: permData }] = await Promise.all([
       supabase.from('outreach').select('*').order('created_at', { ascending: false }),
-      supabase.from('email_log').select('*').order('sent_at', { ascending: false }).limit(200),
+      fetchEmailLogs({ limit: 200 }),
       supabase.from('appointments').select('*').order('created_at', { ascending: false }).limit(120),
       supabase.from('clients').select('*').order('created_at', { ascending: false }).limit(120),
       supabase.from('hr_profiles').select('user_email,full_name,role,bookable').order('full_name'),

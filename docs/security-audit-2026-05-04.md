@@ -77,10 +77,18 @@
   - SMS log reads now go through a same-origin Pages function with service-role mediation instead of direct browser reads
 - `functions/api/audit-log.js`
   - audit log reads, writes, and retention clears now go through a same-origin Pages function with service-role mediation instead of direct browser table access
+- `functions/api/send-email.js`
+  - shared email sends now go through a same-origin Pages function, with optional server-side `email_log` writes and outreach auto-log handling
+- `functions/api/email-log.js`
+  - email log reads now go through a same-origin Pages function with service-role mediation instead of direct browser reads
 - `src/utils/microsoftCalendarSyncQueue.js`
   - frontend queue helper no longer writes directly to `microsoft_calendar_sync_jobs`
 - `src/utils/smsLogs.js`
   - frontend SMS Centre log fetches now call the mediated API instead of querying `sms_logs` directly
+- `src/utils/email.js`
+  - frontend email sends now call the mediated API instead of posting to the worker URL directly
+- `src/utils/emailLogs.js`
+  - centralized email log read helper added for UI screens
 - `src/utils/audit.js`
   - audit writes now go through the mediated API path instead of direct browser writes to `audit_log`
 - `src/utils/auditApi.js`
@@ -94,19 +102,31 @@
 - `src/pages/Reports.jsx`
 - `src/pages/Settings.jsx`
   - no longer query or delete `audit_log` directly from the browser
+- `src/pages/SendEmail.jsx`
+  - manual staff email sends now request server-side logging instead of inserting into `email_log` directly from the browser
+- `src/pages/Outreach.jsx`
+- `src/pages/MyDepartment.jsx`
+- `src/pages/MyTeam.jsx`
+  - no longer query `email_log` directly from the browser
+- `src/pages/Appointments.jsx`
+- `src/pages/StaffProfile.jsx`
+- `src/pages/WebManager.jsx`
+  - direct browser posts to the email worker were removed in favor of the mediated email API
 - `scripts/2026-05-04-lock-microsoft-calendar-sync-jobs.sql`
   - drops the public `allow_all` policy from the calendar sync job queue table so anon/authenticated browser roles cannot write to it directly
 - `scripts/2026-05-04-lock-sms-logs.sql`
   - drops the public `allow_all` policy from the SMS log table so anon/authenticated browser roles cannot read or write it directly
 - `scripts/2026-05-04-lock-audit-log.sql`
   - drops the public `allow_all` policy from `audit_log` so anon/authenticated browser roles cannot read, write, or clear it directly
+- `scripts/2026-05-05-lock-email-log.sql`
+  - drops the public `allow_all` policy from `email_log` so anon/authenticated browser roles cannot read or write it directly
 - `scripts/2026-05-05-lock-microsoft-calendar-private-tables.sql`
   - drops the public `allow_all` policies from `microsoft_calendar_connections` and `microsoft_calendar_sync_links`, which are worker-only tables
 - `public/_headers`
   - CSP and standard security headers added
 - `scripts/security-check.mjs`
   - static guardrails added for approved `dangerouslySetInnerHTML`, approved `localStorage`, and basic hardcoded-secret pattern detection
-  - frontend guardrails now also block direct browser access to isolated tables (`audit_log`, `sms_logs`, and Microsoft calendar sync tables)
+  - frontend guardrails now also block direct browser access to isolated tables (`audit_log`, `email_log`, `sms_logs`, and Microsoft calendar sync tables)
 - `.github/workflows/security.yml`
   - now runs both build and static repo guardrails before dependency audit
 

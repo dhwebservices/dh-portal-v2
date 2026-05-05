@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { PaymentsHub } from '../components/PaymentsHub'
+import { sendEmail } from '../utils/email'
 
 const GCLESS_BASE = 'https://api.gocardless.com'
 const PLANS = [
@@ -169,20 +170,13 @@ function ClientProfile({ client, onBack }) {
 
       // Send invoice email
       try {
-        await fetch('https://dh-email-worker.aged-silence-66a7.workers.dev', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'invoice_issued',
-            data: {
-              to_email:    client.email,
-              client_name: client.name,
-              invoice_number: invForm.invoice_number || 'N/A',
-              description: invForm.description,
-              amount:      invForm.amount,
-              due_date:    invForm.due_date || 'N/A',
-            }
-          })
+        await sendEmail('invoice_issued', {
+          to_email: client.email,
+          client_name: client.name,
+          invoice_number: invForm.invoice_number || 'N/A',
+          description: invForm.description,
+          amount: invForm.amount,
+          due_date: invForm.due_date || 'N/A',
         })
       } catch(e) { console.warn('Email send failed:', e) }
 

@@ -22,6 +22,7 @@ import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRec
 import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 import { listJobPosts } from '../utils/recruiting'
 import { fetchAuditLogs } from '../utils/auditApi'
+import { fetchEmailLogs } from '../utils/emailLogs'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -196,7 +197,7 @@ export default function MyDepartment() {
       }
     } catch (_) {}
 
-    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, { data: emailData }, { data: taskData }, { data: announcementSettings }, auditRows, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }, jobData] = await Promise.all([
+    const [{ data: hrd }, { data: onboarding }, { data: lifecycleSettings }, { data: orgSettings }, { data: catalogRow }, { data: requestSettings }, { data: outreachData }, emailData, { data: taskData }, { data: announcementSettings }, auditRows, { data: leaveData }, { data: docsData }, { data: complianceSettings }, { data: contractSettings }, { data: trainingSettings }, jobData] = await Promise.all([
       supabase.from('hr_profiles').select('*').order('full_name'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
@@ -204,7 +205,7 @@ export default function MyDepartment() {
       supabase.from('portal_settings').select('value').eq('key', buildDepartmentCatalogKey()).maybeSingle(),
       supabase.from('portal_settings').select('key,value').like('key', 'department_request:%'),
       supabase.from('outreach').select('id,created_at,notes,added_by'),
-      supabase.from('email_log').select('id,sent_at,sent_by,sent_by_email'),
+      fetchEmailLogs({ select: 'id,sent_at,sent_by,sent_by_email', limit: 250 }),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('portal_settings').select('key,value').like('key', 'department_announcement:%'),
       fetchAuditLogs({ select: 'user_name,action,target,created_at', limit: 120 }),

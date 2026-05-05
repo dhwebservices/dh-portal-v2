@@ -7,13 +7,12 @@ import { sendPortalSms } from '../utils/sms'
 import { logAction } from '../utils/audit'
 import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
 import { buildLifecycleStateMap, isSchedulableStaffEmail, normalizeStaffEmail } from '../utils/staffDirectory'
+import { sendEmail } from '../utils/email'
 import {
   acquireMicrosoftCalendarToken,
   fetchMicrosoftCalendars,
   fetchMicrosoftCalendarView,
 } from '../utils/microsoftCalendar'
-
-const WORKER = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const HOURS = Array.from({ length: 32 }, (_, i) => {
   const h = Math.floor(i / 2) + 9
@@ -344,7 +343,7 @@ export default function Appointments() {
     setSaving(true)
     await supabase.from('appointments').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', appt.id)
     // Email client
-    fetch(WORKER, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'outreach_contact', data:{
+    sendEmail('outreach_contact', {
       to_email: appt.client_email,
       contact_name: appt.client_name,
       subject: 'Your call on ' + appt.date + ' has been cancelled',
@@ -357,7 +356,7 @@ export default function Appointments() {
         '',
         'Please rebook at https://dhwebsiteservices.co.uk/contact or call 02920024218.',
       ].join('<br/>'),
-    }})}).catch(()=>{})
+    }).catch(()=>{})
     setSaving(false); setDetailAppt(null); load()
   }
 

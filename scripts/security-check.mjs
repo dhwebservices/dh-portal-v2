@@ -36,6 +36,7 @@ const sensitiveStorageFiles = [
 
 const isolatedBrowserTables = [
   'audit_log',
+  'email_log',
   'sms_logs',
   'microsoft_calendar_sync_jobs',
   'microsoft_calendar_connections',
