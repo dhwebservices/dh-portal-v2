@@ -518,6 +518,7 @@ export function AuthProvider({ children }) {
   const effectivePerms = previewState?.perms ?? perms
   const effectiveIsAdmin = previewState?.isAdmin ?? isAdmin
   const effectiveIsOnboarding = previewState?.isOnboarding ?? isOnboarding
+  const effectiveAccountSecurity = previewState?.accountSecurity || accountSecurity
   const effectiveLifecycle = previewState?.lifecycle || lifecycle
   const effectiveOrg = previewState?.org || org
   const effectiveWorkspace = previewState?.workspace || workspace
@@ -532,7 +533,7 @@ export function AuthProvider({ children }) {
   const realIsDepartmentManager = !realIsDirector && realManagedDepartments.length > 0
 
   const can = (key) => {
-    if (accountSecurity.portal_access_locked) return false
+    if (effectiveAccountSecurity.portal_access_locked) return false
     if (TERMINATED_STATES.has(effectiveLifecycle?.state)) return false
     const isExplicitlyAllowed = effectivePerms?.[key] === true
     const isExplicitlyDenied = effectivePerms?.[key] === false
@@ -699,8 +700,8 @@ export function AuthProvider({ children }) {
       managedDepartments,
       isOnboarding: effectiveIsOnboarding,
       maintenance,
-      accountSecurity,
-      portalAccessLocked: accountSecurity.portal_access_locked === true,
+      accountSecurity: effectiveAccountSecurity,
+      portalAccessLocked: effectiveAccountSecurity.portal_access_locked === true,
       lifecycle: effectiveLifecycle,
       org: effectiveOrg,
       workspace: effectiveWorkspace,
