@@ -17,6 +17,7 @@
 - Privileged authorization is largely enforced in React rather than by a trusted backend boundary.
   - Impact: hidden UI is not a security control; direct API/database requests remain the real control plane.
   - Required fix: server-enforced authorization for sensitive mutations.
+  - Status: partially improved in repo by redirect-based route blocking, account suspension enforcement, and forced session re-auth controls at the portal layer. This still does not replace backend authorization.
 
 - Impersonation / preview mode is a sensitive admin capability and needed stronger security logging.
   - Status: partially remediated in repo by structured security audit events for preview start, stop, and denied attempts.
@@ -65,6 +66,16 @@
   - structured security event helper added
 - `src/contexts/AuthContext.jsx`
   - login and impersonation events now logged with security context
+  - account security state now enforces suspended portal access and forced session re-authentication
+- `src/utils/accountSecurity.js`
+  - centralized account lock and session revocation helpers added
+- `src/App.jsx`
+  - unauthorized route access now redirects away instead of mounting disabled pages
+  - suspended accounts are blocked by a dedicated portal lock screen
+- `src/pages/MyStaff.jsx`
+  - bulk staff controls added for forced re-login, suspend access, and restore access
+- `src/pages/StaffProfile.jsx`
+  - per-user portal suspension and session reset controls added to the staff permissions surface
 - `functions/api/send-sms.js`
   - origin allowlist and request caps added
 - `workers/meeting-reminders.js`

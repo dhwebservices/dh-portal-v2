@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
 import { logSecurityEvent } from '../utils/audit'
@@ -30,6 +30,15 @@ import {
   inferWorkspaceFromProfile,
   resolveWorkspaceHomeRoute,
 } from '../utils/workspaces'
+import {
+  buildAccountSecurityKey,
+  clearSessionStartedAt,
+  createDefaultAccountSecurityRecord,
+  mergeAccountSecurityRecord,
+  readSessionStartedAt,
+  shouldForceSessionReauth,
+  touchSessionStartedAt,
+} from '../utils/accountSecurity'
 
 const Ctx = createContext(null)
 const ACTIVE_HEARTBEAT_MS = 60 * 1000
@@ -158,7 +167,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
 }
 
 export function AuthProvider({ children }) {
-  const { accounts } = useMsal()
+  const { accounts, instance } = useMsal()
   const account = accounts[0]
   const normalizedEmail = account?.username?.toLowerCase?.() || null
   const [perms, setPerms]           = useState(null)
@@ -166,11 +175,23 @@ export function AuthProvider({ children }) {
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [lifecycle, setLifecycle] = useState(mergeLifecycleRecord())
+  const [accountSecurity, setAccountSecurity] = useState(createDefaultAccountSecurityRecord())
   const [org, setOrg] = useState(mergeOrgRecord())
   const [workspace, setWorkspace] = useState('self_service')
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
   const [previewState, setPreviewState] = useState(null)
   const [loading, setLoading]       = useState(true)
+  const logoutRedirectingRef = useRef(false)
+  const suspensionLoggedRef = useRef('')
+  const [sessionStartedAt, setSessionStartedAt] = useState('')
+
+  useEffect(() => {
+    if (!normalizedEmail) {
+      setSessionStartedAt('')
+      return
+    }
+    setSessionStartedAt(touchSessionStartedAt(normalizedEmail))
+  }, [normalizedEmail])
 
   useEffect(() => {
     if (!normalizedEmail) return
@@ -251,8 +272,13 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', buildDepartmentCatalogKey())
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildAccountSecurityKey(normalizedEmail))
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult]) => {
+      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult, accountSecurityResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         const hrProfile = hrResult?.data || {}
@@ -273,6 +299,8 @@ export function AuthProvider({ children }) {
         applyPortalAppearance(nextPreferences)
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
         setLifecycle(mergeLifecycleRecord(lifecycleRaw))
+        const securityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
+        setAccountSecurity(mergeAccountSecurityRecord(securityRaw))
         const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
         const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
         const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
@@ -316,6 +344,7 @@ export function AuthProvider({ children }) {
         setIsOnboarding(false)
         setMaintenance({ enabled: false, message: '', eta: '' })
         setLifecycle(mergeLifecycleRecord())
+        setAccountSecurity(createDefaultAccountSecurityRecord())
         setOrg(hydrateManagedDepartments(mergeOrgRecord({}, {
           email: normalizedEmail,
           isDirector: isDirectorEmail(normalizedEmail),
@@ -354,6 +383,88 @@ export function AuthProvider({ children }) {
     return () => clearTimeout(timeout)
   }, [normalizedEmail, account?.name])
 
+  useEffect(() => {
+    if (!normalizedEmail) return undefined
+
+    const refreshSecurity = () => {
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildAccountSecurityKey(normalizedEmail))
+        .maybeSingle()
+        .then(({ data }) => {
+          const raw = data?.value?.value ?? data?.value ?? {}
+          setAccountSecurity(mergeAccountSecurityRecord(raw))
+        })
+        .catch(() => {})
+    }
+
+    refreshSecurity()
+    const interval = setInterval(refreshSecurity, ACTIVE_HEARTBEAT_MS)
+    const onFocus = () => refreshSecurity()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshSecurity()
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [normalizedEmail])
+
+  useEffect(() => {
+    if (!normalizedEmail || !account) return
+    if (accountSecurity.portal_access_locked) {
+      const logKey = `${normalizedEmail}:${accountSecurity.lock_updated_at || 'locked'}`
+      if (suspensionLoggedRef.current !== logKey) {
+        suspensionLoggedRef.current = logKey
+        logSecurityEvent({
+          userEmail: normalizedEmail,
+          userName: account.name || normalizedEmail,
+          action: 'portal_access_locked',
+          target: 'session',
+          scope: 'authorization',
+          outcome: 'denied',
+          riskLevel: 'high',
+          details: {
+            reason: accountSecurity.lock_reason || '',
+            lock_updated_at: accountSecurity.lock_updated_at || '',
+          },
+        }).catch(() => {})
+      }
+      return
+    }
+    suspensionLoggedRef.current = ''
+  }, [account?.name, accountSecurity.lock_reason, accountSecurity.lock_updated_at, accountSecurity.portal_access_locked, normalizedEmail])
+
+  useEffect(() => {
+    if (!normalizedEmail || !account || !sessionStartedAt) return
+    if (!shouldForceSessionReauth(sessionStartedAt, accountSecurity)) return
+    if (logoutRedirectingRef.current) return
+
+    logoutRedirectingRef.current = true
+    clearSessionStartedAt(normalizedEmail)
+    setPreviewState(null)
+    logSecurityEvent({
+      userEmail: normalizedEmail,
+      userName: account.name || normalizedEmail,
+      action: 'session_revoked',
+      target: 'session',
+      scope: 'authentication',
+      outcome: 'forced_logout',
+      riskLevel: 'high',
+      details: {
+        required_session_after: accountSecurity.required_session_after || '',
+        revoked_at: accountSecurity.session_revoked_at || '',
+      },
+    }).catch(() => {})
+    instance.logoutRedirect({ account }).catch(() => {
+      logoutRedirectingRef.current = false
+    })
+  }, [account, accountSecurity, instance, normalizedEmail, sessionStartedAt])
+
   const realUser = account ? {
     email:    normalizedEmail,
     name:     account.name || normalizedEmail,
@@ -378,6 +489,7 @@ export function AuthProvider({ children }) {
   const realIsDepartmentManager = !realIsDirector && realManagedDepartments.length > 0
 
   const can = (key) => {
+    if (accountSecurity.portal_access_locked) return false
     if (TERMINATED_STATES.has(effectiveLifecycle?.state)) return false
     const isExplicitlyAllowed = effectivePerms?.[key] === true
     const isExplicitlyDenied = effectivePerms?.[key] === false
@@ -544,6 +656,8 @@ export function AuthProvider({ children }) {
       managedDepartments,
       isOnboarding: effectiveIsOnboarding,
       maintenance,
+      accountSecurity,
+      portalAccessLocked: accountSecurity.portal_access_locked === true,
       lifecycle: effectiveLifecycle,
       org: effectiveOrg,
       workspace: effectiveWorkspace,

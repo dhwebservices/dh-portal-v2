@@ -142,6 +142,28 @@ function LifecycleLock() {
   )
 }
 
+function AccountSuspendedLock() {
+  const { accountSecurity } = useAuth()
+  return (
+    <div className="fade-in" style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', background:'var(--bg2)' }}>
+      <div className="card card-pad" style={{ maxWidth:640, width:'100%', textAlign:'center', border:'2px solid var(--red)' }}>
+        <div style={{ fontSize:44, marginBottom:12 }}>⛔</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:30, fontWeight:400, color:'var(--text)', marginBottom:10 }}>
+          Portal Access Suspended
+        </div>
+        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:14 }}>
+          This account has been suspended from the staff portal. Contact DH Website Services if you believe this is incorrect.
+        </div>
+        {accountSecurity?.lock_reason ? (
+          <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', fontSize:13, color:'var(--text)', lineHeight:1.6 }}>
+            {accountSecurity.lock_reason}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 // Wraps any page — if user is in onboarding mode, show only the onboarding form
 function OnboardingWall({ children }) {
   const { isOnboarding, loading } = useAuth()
@@ -151,11 +173,19 @@ function OnboardingWall({ children }) {
 }
 
 function MaintenanceWall({ children }) {
-  const { maintenance, isAdmin, lifecycle, loading } = useAuth()
+  const { maintenance, isAdmin, lifecycle, portalAccessLocked, loading } = useAuth()
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
+  if (portalAccessLocked) return <AccountSuspendedLock />
   if (TERMINATED_STATES.has(lifecycle?.state)) return <LifecycleLock />
   if (maintenance?.enabled && !isAdmin) return <MaintenanceLock />
   return children
+}
+
+function RouteAccessRedirect() {
+  const { workspaceHome, isOnboarding } = useAuth()
+  if (isOnboarding) return <HROnboarding />
+  const target = workspaceHome || '/dashboard'
+  return <Navigate to={target} replace />
 }
 
 function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
@@ -192,19 +222,7 @@ function PermissionGate({ permKey, children, allowDuringOnboarding = false }) {
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (isOnboarding && !allowDuringOnboarding) return <HROnboarding />
   if (allowed) return children
-
-  return (
-    <div className="fade-in">
-      <div className="card card-pad" style={{ maxWidth: 560 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize: 24, fontWeight: 400, marginBottom: 8, color: 'var(--text)' }}>
-          Access disabled
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--sub)', lineHeight: 1.6 }}>
-          This page is disabled for this staff profile. Re-enable it from the permissions tab in My Staff if access is needed.
-        </div>
-      </div>
-    </div>
-  )
+  return <RouteAccessRedirect />
 }
 
 function WebManagerGate({ children }) {
@@ -241,19 +259,7 @@ function WebManagerGate({ children }) {
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
   if (isOnboarding) return <HROnboarding />
   if (allowed) return children
-
-  return (
-    <div className="fade-in">
-      <div className="card card-pad" style={{ maxWidth: 560 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize: 24, fontWeight: 400, marginBottom: 8, color: 'var(--text)' }}>
-          Access disabled
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--sub)', lineHeight: 1.6 }}>
-          This page is disabled for this staff profile. Re-enable it from the permissions tab in My Staff if access is needed.
-        </div>
-      </div>
-    </div>
-  )
+  return <RouteAccessRedirect />
 }
 
 function DesktopCursor() {

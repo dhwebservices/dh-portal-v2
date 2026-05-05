@@ -112,6 +112,13 @@ import {
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
 import { openSecureDocument } from '../utils/fileAccess'
+import {
+  buildAccountLockRecord,
+  buildAccountSecurityKey,
+  buildSessionRevokeRecord,
+  createDefaultAccountSecurityRecord,
+  mergeAccountSecurityRecord,
+} from '../utils/accountSecurity'
 
 function formatTimelineDate(value) {
   if (!value) return 'Unknown time'
@@ -278,6 +285,7 @@ export default function StaffProfile() {
   const [editPerms, setEditPerms] = useState({ ...ROLE_DEFAULTS.Staff })
   const [onboarding, setOnboarding] = useState(false)
   const [bookable, setBookable]   = useState(false)
+  const [accountSecurityRecord, setAccountSecurityRecord] = useState(() => createDefaultAccountSecurityRecord())
   const [commissions, setComms]   = useState([])
   const [docs, setDocs]           = useState([])
   const [uploading, setUploading] = useState(false)
@@ -500,6 +508,11 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildComplianceSettingKey(email))
         .maybeSingle()
+      const { data: accountSecuritySetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildAccountSecurityKey(email))
+        .maybeSingle()
       const { data: departmentCatalogSetting } = await supabase
         .from('portal_settings')
         .select('value')
@@ -550,6 +563,7 @@ export default function StaffProfile() {
       const orgRaw = orgSetting?.value?.value ?? orgSetting?.value ?? {}
       const workspaceRaw = workspaceSetting?.value?.value ?? workspaceSetting?.value ?? {}
       const complianceRaw = complianceSetting?.value?.value ?? complianceSetting?.value ?? {}
+      const accountSecurityRaw = accountSecuritySetting?.value?.value ?? accountSecuritySetting?.value ?? {}
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
       setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
@@ -576,6 +590,7 @@ export default function StaffProfile() {
       setOriginalOrgRecord(hydratedOrg)
       setPrimaryWorkspace(normalizeWorkspace(workspaceRaw?.primary_workspace ?? workspaceRaw))
       setComplianceRecord(mergeComplianceRecord(complianceRaw))
+      setAccountSecurityRecord(mergeAccountSecurityRecord(accountSecurityRaw))
       const nextTemplates = (templateRows || [])
         .map((row) => createContractTemplate({
           id: String(row.key || '').replace('contract_template:', ''),
@@ -821,6 +836,15 @@ export default function StaffProfile() {
       const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
       const savedPerm = await upsertEmailScopedRow('user_permissions', email, permPayload)
       if (savedPerm?.id) setPermId(savedPerm.id)
+
+      const nextAccountSecurity = mergeAccountSecurityRecord(accountSecurityRecord)
+      const { error: accountSecurityError } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildAccountSecurityKey(email),
+          value: { value: nextAccountSecurity },
+        }, { onConflict: 'key' })
+      if (accountSecurityError) throw new Error('Account security save failed: ' + accountSecurityError.message)
 
       const normalizedPrimaryWorkspace = normalizeWorkspace(primaryWorkspace)
       if (normalizedPrimaryWorkspace) {
@@ -2316,6 +2340,7 @@ export default function StaffProfile() {
   const getInitials = n => (n || email || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
+  const portalAccessLocked = accountSecurityRecord.portal_access_locked === true
   const lifecycle = getLifecycleMeta(lifecycleRecord, { onboarding, startDate: profile.start_date, contractType: profile.contract_type })
   const offboardingCompletedCount = OFFBOARDING_ITEMS.filter(([key]) => lifecycleRecord.offboarding?.[key]).length
   const offboardingTotalCount = OFFBOARDING_ITEMS.length
@@ -2616,6 +2641,7 @@ export default function StaffProfile() {
                 <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
                 {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
                 {bookable ? <span className="badge badge-blue">Bookable</span> : null}
+                {portalAccessLocked ? <span className="badge badge-red">Suspended</span> : null}
                 <span className="badge badge-grey">{email}</span>
               </div>
             </div>
@@ -2671,6 +2697,48 @@ export default function StaffProfile() {
                   <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
                 </button>
               </div>
+            </div>
+            <div className="staff-profile-toggle-card">
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Suspend portal access</div>
+                <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:4 }}>Blocks this staff account from opening the portal until access is restored.</div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:16 }}>
+                <span style={{ fontSize:12, color: portalAccessLocked ? 'var(--red)' : 'var(--green)', fontWeight:600 }}>
+                  {portalAccessLocked ? 'Suspended' : 'Allowed'}
+                </span>
+                <button
+                  onClick={() => setAccountSecurityRecord((current) => buildAccountLockRecord(current, {
+                    locked: !current.portal_access_locked,
+                    reason: current.lock_reason || 'Portal access suspended by admin.',
+                    actorEmail: user?.email || '',
+                    actorName: user?.name || '',
+                  }))}
+                  style={{ width:40, height:22, borderRadius:11, background: portalAccessLocked ? 'var(--red)' : 'var(--bg3)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}
+                >
+                  <div style={{ position:'absolute', top:2, left: portalAccessLocked ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                </button>
+              </div>
+            </div>
+            <div className="staff-profile-toggle-card" style={{ alignItems:'stretch' }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Session reset</div>
+                <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:4 }}>Force this user to go back through Microsoft sign-in on their next heartbeat or page change.</div>
+                <div style={{ fontSize:11, color:'var(--sub)', marginTop:8 }}>
+                  {accountSecurityRecord.session_revoked_at
+                    ? `Last forced re-login: ${new Date(accountSecurityRecord.session_revoked_at).toLocaleString('en-GB')}`
+                    : 'No forced re-login recorded yet.'}
+                </div>
+              </div>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setAccountSecurityRecord((current) => buildSessionRevokeRecord(current, {
+                  actorEmail: user?.email || '',
+                  actorName: user?.name || '',
+                }))}
+              >
+                Force re-login
+              </button>
             </div>
             <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save staff profile'}</button>
           </div>
@@ -2973,7 +3041,70 @@ export default function StaffProfile() {
                           <div style={{ position:'absolute', top:2, left: bookable ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
                         </button>
                       </label>
+                      <label style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Suspend portal access</div>
+                          <div style={{ fontSize:11, color:'var(--sub)' }}>Prevents this user from opening any portal area until restored.</div>
+                        </div>
+                        <button
+                          onClick={() => setAccountSecurityRecord((current) => buildAccountLockRecord(current, {
+                            locked: !current.portal_access_locked,
+                            reason: current.lock_reason || 'Portal access suspended by admin.',
+                            actorEmail: user?.email || '',
+                            actorName: user?.name || '',
+                          }))}
+                          style={{ width:40, height:22, borderRadius:11, background: portalAccessLocked ? 'var(--red)' : 'var(--bg3)', border:'none', position:'relative', flexShrink:0 }}
+                        >
+                          <div style={{ position:'absolute', top:2, left: portalAccessLocked ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                        </button>
+                      </label>
                     </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Session controls</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.6, marginBottom:10 }}>
+                      Force a fresh Microsoft login for this staff member or suspend access entirely at the account layer.
+                    </div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={() => setAccountSecurityRecord((current) => buildSessionRevokeRecord(current, {
+                          actorEmail: user?.email || '',
+                          actorName: user?.name || '',
+                        }))}
+                      >
+                        Force re-login
+                      </button>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={() => setAccountSecurityRecord((current) => buildAccountLockRecord(current, {
+                          locked: false,
+                          reason: '',
+                          actorEmail: user?.email || '',
+                          actorName: user?.name || '',
+                        }))}
+                      >
+                        Restore access
+                      </button>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--faint)', marginTop:8, lineHeight:1.5 }}>
+                      {accountSecurityRecord.session_revoked_at
+                        ? `Last forced re-login: ${new Date(accountSecurityRecord.session_revoked_at).toLocaleString('en-GB')}`
+                        : 'No session reset recorded yet.'}
+                    </div>
+                  </div>
+
+                  <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Suspension reason</div>
+                    <textarea
+                      className="inp"
+                      rows={3}
+                      value={accountSecurityRecord.lock_reason || ''}
+                      onChange={(e) => setAccountSecurityRecord((current) => ({ ...current, lock_reason: e.target.value }))}
+                      placeholder="Reason displayed if this account is suspended."
+                      style={{ resize:'vertical' }}
+                    />
                   </div>
 
                   <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>

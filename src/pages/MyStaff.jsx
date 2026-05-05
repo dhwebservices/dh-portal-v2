@@ -7,6 +7,13 @@ import { useMsal } from '@azure/msal-react'
 import { mergeHrProfileWithOnboarding, normalizeEmail, pickBestProfileRow } from '../utils/hrProfileSync'
 import { getLifecycleLabel, mergeLifecycleRecord, TERMINATED_STATES } from '../utils/staffLifecycle'
 import { mergeOrgRecord } from '../utils/orgStructure'
+import {
+  buildAccountLockRecord,
+  buildAccountSecurityKey,
+  buildSessionRevokeRecord,
+  createDefaultAccountSecurityRecord,
+  mergeAccountSecurityRecord,
+} from '../utils/accountSecurity'
 
 function isRecentlyActive(value) {
   if (!value) return false
@@ -75,12 +82,15 @@ const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', 
 export default function MyStaff() {
   const navigate = useNavigate()
   const { instance, accounts } = useMsal()
-  const { isDirector, isDepartmentManager, canViewScopedStaff, canPreviewStaffMember, managedDepartments, startPreviewAs, isPreviewing, previewTarget } = useAuth()
+  const { user, isDirector, isDepartmentManager, canViewScopedStaff, canPreviewStaffMember, managedDepartments, startPreviewAs, isPreviewing, previewTarget } = useAuth()
   const [msUsers, setMsUsers]   = useState([])
   const [profiles, setProfiles] = useState({})
   const [permsMap, setPermsMap] = useState({})
+  const [accountSecurityMap, setAccountSecurityMap] = useState({})
   const [lifecycleMap, setLifecycleMap] = useState({})
   const [orgMap, setOrgMap] = useState({})
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
@@ -147,12 +157,13 @@ export default function MyStaff() {
       }
     } catch(e) { setError('Could not load Azure users: ' + e.message) }
 
-    const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }, { data: orgSettings }] = await Promise.all([
+    const [{ data: pd }, { data: hrd }, { data: onboard }, { data: lifecycleSettings }, { data: orgSettings }, { data: accountSecuritySettings }] = await Promise.all([
       supabase.from('user_permissions').select('*'),
       supabase.from('hr_profiles').select('*'),
       supabase.from('onboarding_submissions').select('*'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_org:%'),
+      supabase.from('portal_settings').select('key,value').like('key', 'account_security:%'),
     ])
     const pm = {}; (pd||[]).forEach(p => { pm[p.user_email?.toLowerCase()] = { perms: p.permissions, onboarding: p.onboarding } })
     setPermsMap(pm)
@@ -184,6 +195,13 @@ export default function MyStaff() {
       })
     })
     setOrgMap(om)
+    const sm = {}
+    ;(accountSecuritySettings || []).forEach((row) => {
+      const key = String(row.key || '').replace('account_security:', '').toLowerCase().trim()
+      if (!key) return
+      sm[key] = mergeAccountSecurityRecord(row.value?.value ?? row.value ?? {})
+    })
+    setAccountSecurityMap(sm)
     setLoading(false)
   }
 
@@ -277,6 +295,63 @@ export default function MyStaff() {
     }
   }
 
+  const toggleSelectedUser = (email) => {
+    const safeEmail = normalizeEmail(email)
+    setSelectedUsers((current) => current.includes(safeEmail)
+      ? current.filter((item) => item !== safeEmail)
+      : [...current, safeEmail])
+  }
+
+  const clearSelectedUsers = () => setSelectedUsers([])
+
+  const applyBulkSecurity = async (mode) => {
+    if (!selectedUsers.length) return
+    setBulkSaving(true)
+    try {
+      const rows = selectedUsers.map((safeEmail) => {
+        const current = accountSecurityMap[safeEmail] || createDefaultAccountSecurityRecord()
+        if (mode === 'relogin') {
+          return {
+            key: buildAccountSecurityKey(safeEmail),
+            value: { value: buildSessionRevokeRecord(current, {
+              actorEmail: user?.email || '',
+              actorName: user?.name || '',
+            }) },
+          }
+        }
+        if (mode === 'suspend') {
+          return {
+            key: buildAccountSecurityKey(safeEmail),
+            value: { value: buildAccountLockRecord(current, {
+              locked: true,
+              reason: current.lock_reason || 'Portal access suspended by admin.',
+              actorEmail: user?.email || '',
+              actorName: user?.name || '',
+            }) },
+          }
+        }
+        return {
+          key: buildAccountSecurityKey(safeEmail),
+          value: { value: buildAccountLockRecord(current, {
+            locked: false,
+            reason: '',
+            actorEmail: user?.email || '',
+            actorName: user?.name || '',
+          }) },
+        }
+      })
+
+      const { error } = await supabase.from('portal_settings').upsert(rows, { onConflict: 'key' })
+      if (error) throw error
+      await load()
+      clearSelectedUsers()
+    } catch (error) {
+      alert(error?.message || 'Could not update account access.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   return (
     <div className="fade-in">
       <div className="page-hd">
@@ -341,6 +416,23 @@ export default function MyStaff() {
         </div>
       )}
 
+      {selectedUsers.length > 0 && (
+        <div className="card" style={{ padding:'14px 16px', marginBottom:18, display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+          <div>
+            <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Bulk access control</div>
+            <div style={{ marginTop:6, fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
+              {selectedUsers.length} staff account{selectedUsers.length === 1 ? '' : 's'} selected.
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('relogin')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Force re-login'}</button>
+            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('suspend')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Suspend access'}</button>
+            <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('restore')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Restore access'}</button>
+            <button className="btn btn-outline btn-sm" onClick={clearSelectedUsers} disabled={bulkSaving}>Clear</button>
+          </div>
+        </div>
+      )}
+
       {error && <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)', marginBottom:16 }}>{error}</div>}
 
       {loading ? (
@@ -371,6 +463,8 @@ export default function MyStaff() {
             const colour = colourFor(userEmail)
             const canImpersonate = (isDirector || isDepartmentManager) && canPreviewStaffMember(profile, targetOrg)
             const isCurrentImpersonation = isPreviewing && previewTarget?.email?.toLowerCase?.() === userEmail
+            const securityRecord = accountSecurityMap[userEmail] || createDefaultAccountSecurityRecord()
+            const portalAccessLocked = securityRecord.portal_access_locked === true
             const lifecycleState = lifecycle.state || (isOnboarding ? 'onboarding' : 'active')
             const lifecycleTone = lifecycleState === 'terminated' || lifecycleState === 'termination_approved' || lifecycleState === 'left' || lifecycleState === 'archived'
               ? 'red'
@@ -388,12 +482,21 @@ export default function MyStaff() {
                 onMouseOver={e => { e.currentTarget.style.borderColor=colour; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${colour}22` }}
                 onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
               >
+                <label style={{ position:'absolute', top:14, left:14, zIndex:2, display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, borderRadius:999, background:'var(--card)', border:'1px solid var(--border)', cursor:'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.includes(userEmail)}
+                    onChange={() => toggleSelectedUser(userEmail)}
+                    style={{ width:14, height:14 }}
+                  />
+                </label>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
                   <div style={{ width:64, height:64, borderRadius:18, background:colour+'18', border:`1px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:600, color:colour, fontFamily:'var(--font-display)', flexShrink:0 }}>
                     {getInitials(u.name)}
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
                     <span className={`badge badge-${lifecycleTone}`}>{getLifecycleLabel(lifecycleState)}</span>
+                    {portalAccessLocked ? <span className="badge badge-red">Suspended</span> : null}
                     <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>{formatPresenceLabel(profile.last_seen)}</span>
                   </div>
                 </div>
