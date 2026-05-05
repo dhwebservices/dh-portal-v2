@@ -81,7 +81,7 @@ export async function onRequestGet(context) {
   }
 
   if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return json({ error: 'Email log is not configured.' }, 500)
+    return json({ logs: [], configured: false, error: 'Email log is not configured.' })
   }
 
   try {
@@ -99,6 +99,6 @@ export async function onRequestGet(context) {
     return json({ logs: Array.isArray(rows) ? rows : [] })
   } catch (error) {
     console.warn('Email log fetch failed:', error)
-    return json({ error: error?.message || 'email_log_fetch_failed' }, 500)
+    return json({ logs: [], configured: false, error: error?.message || 'email_log_fetch_failed' })
   }
 }
