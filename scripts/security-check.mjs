@@ -34,6 +34,14 @@ const sensitiveStorageFiles = [
   'src/utils/supabase.js',
 ]
 
+const isolatedBrowserTables = [
+  'audit_log',
+  'sms_logs',
+  'microsoft_calendar_sync_jobs',
+  'microsoft_calendar_connections',
+  'microsoft_calendar_sync_links',
+]
+
 const secretPatterns = [
   { name: 'Stripe live secret', regex: /\bsk_live_[0-9A-Za-z]+\b/g },
   { name: 'Stripe restricted live secret', regex: /\brk_live_[0-9A-Za-z]+\b/g },
@@ -96,6 +104,23 @@ for (const filePath of repoFiles) {
     if (!allowedLocalStorageFiles.has(relativePath)) {
       const index = content.indexOf('localStorage')
       findings.push(formatFinding(relativePath, lineNumberAt(content, index), 'Unexpected localStorage usage outside approved non-sensitive UI preference files.'))
+    }
+  }
+
+  if (relativePath.startsWith('src/')) {
+    for (const tableName of isolatedBrowserTables) {
+      const directTablePattern = new RegExp(`from\\(['"\`]${tableName}['"\`]\\)`)
+      const restTablePattern = new RegExp(`/rest/v1/${tableName}\\b`)
+      const directMatch = content.match(directTablePattern)
+      const restMatch = content.match(restTablePattern)
+      if (directMatch) {
+        const index = content.indexOf(directMatch[0])
+        findings.push(formatFinding(relativePath, lineNumberAt(content, index), `Frontend must not access isolated table "${tableName}" directly.`))
+      }
+      if (restMatch) {
+        const index = content.indexOf(restMatch[0])
+        findings.push(formatFinding(relativePath, lineNumberAt(content, index), `Frontend must not call isolated table "${tableName}" via REST directly.`))
+      }
     }
   }
 

@@ -100,10 +100,13 @@
   - drops the public `allow_all` policy from the SMS log table so anon/authenticated browser roles cannot read or write it directly
 - `scripts/2026-05-04-lock-audit-log.sql`
   - drops the public `allow_all` policy from `audit_log` so anon/authenticated browser roles cannot read, write, or clear it directly
+- `scripts/2026-05-05-lock-microsoft-calendar-private-tables.sql`
+  - drops the public `allow_all` policies from `microsoft_calendar_connections` and `microsoft_calendar_sync_links`, which are worker-only tables
 - `public/_headers`
   - CSP and standard security headers added
 - `scripts/security-check.mjs`
   - static guardrails added for approved `dangerouslySetInnerHTML`, approved `localStorage`, and basic hardcoded-secret pattern detection
+  - frontend guardrails now also block direct browser access to isolated tables (`audit_log`, `sms_logs`, and Microsoft calendar sync tables)
 - `.github/workflows/security.yml`
   - now runs both build and static repo guardrails before dependency audit
 
