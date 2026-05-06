@@ -24,11 +24,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-shell" style={{ minHeight:'100vh', background:'linear-gradient(180deg, var(--page-tint) 0%, var(--bg) 22%, var(--bg) 100%)', display:'flex', flexDirection:'column' }}>
-      <nav className="login-nav" style={{ height:72, borderBottom:'1px solid rgba(var(--accent-rgb),0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'color-mix(in srgb, var(--bg) 84%, transparent)', backdropFilter:'blur(18px)', position:'sticky', top:0, zIndex:20 }}>
+    <div className="login-shell" style={{ minHeight:'100vh', background:'#fff', display:'flex', flexDirection:'column' }}>
+      <nav className="login-nav" style={{ height:76, borderBottom:'1px solid rgba(15,23,42,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', background:'#fff', position:'sticky', top:0, zIndex:20 }}>
         <div className="login-nav-brand" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <img src="/dh-logo.png" alt="DH Website Services" className="login-nav-logo" style={{ height:26, width:'auto', display:'block' }} />
-            <div className="login-nav-copy">
+          <div className="login-nav-copy">
             <div className="login-nav-title" style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, letterSpacing:'-0.03em', color:'var(--text)' }}>
               DH <span style={{ color:'var(--accent)' }}>Website Services</span>
             </div>
@@ -37,50 +37,68 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        <button className="login-theme-btn" onClick={toggleTheme} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:999, padding:'6px 12px', cursor:'pointer', fontSize:12, color:'var(--sub)', display:'flex', alignItems:'center', gap:6 }}>
+        <button className="login-theme-btn" onClick={toggleTheme} style={{ background:'#fff', border:'1px solid rgba(15,23,42,0.08)', borderRadius:999, padding:'7px 14px', cursor:'pointer', fontSize:12, color:'var(--sub)', display:'flex', alignItems:'center', gap:6 }}>
           {dark ? 'Light mode' : 'Dark mode'}
         </button>
       </nav>
 
-      <div className="login-page-grid" style={{ flex:1, display:'grid', gridTemplateColumns:'1.08fr 0.92fr', gap:36, alignItems:'center', padding:'36px 24px 28px' }}>
-        <section className="login-brand-panel" style={{ position:'relative', minHeight:520 }}>
-          <div style={{ position:'absolute', inset:'7% 18% auto 0', height:220, borderRadius:28, background:'radial-gradient(circle at center, rgba(var(--accent-rgb),0.16), rgba(var(--accent-rgb),0.03) 58%, transparent 72%)', filter:'blur(4px)' }} />
-          <div className="login-brand-inner" style={{ position:'relative', padding:'clamp(20px,3vw,40px) clamp(8px,1vw,12px) clamp(24px,3vw,32px) 0', display:'flex', flexDirection:'column', justifyContent:'space-between', height:'100%' }}>
+      <div style={{
+        flex: 1,
+        backgroundColor: '#fff',
+        backgroundImage: 'radial-gradient(rgba(24,34,48,0.08) 0.85px, transparent 0.85px)',
+        backgroundSize: '22px 22px',
+      }}>
+        <div className="login-page-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0,1.15fr) minmax(420px,0.85fr)', gap:64, alignItems:'center', padding:'64px 32px 36px', maxWidth:1480, width:'100%', margin:'0 auto' }}>
+        <section className="login-brand-panel" style={{ position:'relative', minHeight:560, display:'flex', alignItems:'center' }}>
+          <div style={{ position:'absolute', inset:'auto auto 10% 6%', width:260, height:260, borderRadius:'50%', background:'radial-gradient(circle, rgba(var(--accent-rgb),0.10), rgba(var(--accent-rgb),0.015) 64%, transparent 76%)', filter:'blur(18px)' }} />
+          <div className="login-brand-inner" style={{ position:'relative', padding:'0 20px 0 0', display:'flex', flexDirection:'column', justifyContent:'center', gap:40, width:'100%' }}>
             <div>
-              <div className="login-brand-badge" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:999, background:'rgba(var(--accent-rgb),0.08)', fontSize:12, color:'var(--accent)', fontWeight:600, marginBottom:22 }}>
-                Microsoft-secured access
+              <div className="login-brand-badge" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'9px 16px', borderRadius:999, background:'#fff', border:'1px solid rgba(15,23,42,0.08)', fontSize:13, color:'#475467', fontWeight:500, marginBottom:30, boxShadow:'0 4px 12px rgba(15,23,42,0.04)' }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:'#34C759', display:'inline-block' }} />
+                Microsoft-secured internal access
               </div>
-              <h1 className="login-brand-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(34px,5vw,62px)', fontWeight:600, letterSpacing:'-0.05em', lineHeight:0.96, color:'var(--text)', marginBottom:18, maxWidth:620 }}>
-                Staff tools,
+              <h1 className="login-brand-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(48px,6vw,88px)', fontWeight:600, letterSpacing:'-0.07em', lineHeight:0.93, color:'#111827', marginBottom:22, maxWidth:900 }}>
+                Your portal,
                 <br />
-                one calm entry point
+                <span style={{ color:'var(--accent)' }}>ready before your</span>
+                <br />
+                <span style={{ color:'var(--accent)' }}>next shift.</span>
               </h1>
-              <p className="login-brand-body" style={{ maxWidth:560, fontSize:16, lineHeight:1.7, color:'var(--sub)', marginBottom:28 }}>
-                One sign-in for HR, outreach, schedules, hiring, documents, and daily operations.
+              <p className="login-brand-body" style={{ maxWidth:660, fontSize:18, lineHeight:1.72, color:'#667085', marginBottom:34 }}>
+                Staff access for HR, outreach, schedules, hiring, documents, and daily operations. Faster to reach, easier to understand, and tied directly to your work account.
               </p>
-              <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:14 }}>
+              <div className="login-feature-grid" style={{ display:'flex', gap:14, flexWrap:'wrap', marginBottom:34 }}>
+                {['HR and documents', 'Client follow-up', 'Recruitment and interviews'].map((label) => (
+                  <div key={label} style={{ padding:'12px 18px', borderRadius:999, background:'#fff', border:'1px solid rgba(15,23,42,0.08)', color:'#344054', fontSize:14, boxShadow:'0 4px 10px rgba(15,23,42,0.03)' }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+              <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:28, maxWidth:920 }}>
                 {[
-                  ['Outreach and follow-up', 'Lead handling, proposals, appointments, and client conversations.'],
-                  ['People operations', 'Onboarding, leave, documents, and staff records.'],
-                  ['Hiring and interviews', 'Roles, applicants, interview scheduling, and review.'],
+                  ['People operations', 'Onboarding, leave, documents, and staff records in one place.'],
+                  ['Commercial workflow', 'Outreach, appointments, proposals, and client activity tracking.'],
+                  ['Hiring pipeline', 'Roles, applicants, interview scheduling, and review.'],
                 ].map(([title, body]) => (
-                  <div key={title} className="login-feature-card" style={{ padding:'0 0 14px', borderBottom:'1px solid rgba(var(--accent-rgb),0.12)' }}>
-                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:6 }}>{title}</div>
-                    <div style={{ fontSize:13, lineHeight:1.65, color:'var(--sub)' }}>{body}</div>
+                  <div key={title} className="login-feature-card" style={{ padding:'0 8px 0 0' }}>
+                    <div style={{ width:48, height:2, background:'rgba(var(--accent-rgb),0.28)', marginBottom:16 }} />
+                    <div style={{ fontSize:15, fontWeight:600, color:'#182230', marginBottom:8 }}>{title}</div>
+                    <div style={{ fontSize:13.5, lineHeight:1.72, color:'#667085' }}>{body}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="login-brand-tags" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:12, marginTop:32, maxWidth:620 }}>
+            <div className="login-brand-tags" style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:24, maxWidth:820, paddingTop:8 }}>
               {[
-                ['One identity', 'Your access follows your work account.'],
-                ['Role aware', 'Permissions and onboarding status load after sign-in.'],
-                ['Internal only', 'Reserved for current DH Website Services staff.'],
+                ['One identity', 'Microsoft work account'],
+                ['Role aware', 'Permissions load automatically'],
+                ['Internal only', 'Reserved for current staff'],
+                ['Fast access', 'One sign-in, no extra steps'],
               ].map(([title, body]) => (
-                <div key={title} style={{ paddingTop:10, borderTop:'1px solid rgba(var(--accent-rgb),0.12)' }}>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginBottom:6 }}>{title}</div>
-                  <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.55 }}>{body}</div>
+                <div key={title} style={{ borderTop:'1px solid rgba(15,23,42,0.08)', paddingTop:16 }}>
+                  <div style={{ fontSize:32, fontWeight:600, letterSpacing:'-0.05em', color:'#111827', marginBottom:4 }}>{title}</div>
+                  <div style={{ fontSize:13.5, color:'#98A2B3', lineHeight:1.6 }}>{body}</div>
                 </div>
               ))}
             </div>
@@ -88,16 +106,16 @@ export default function LoginPage() {
         </section>
 
         <section className="login-form-pane" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div className="login-form-card" style={{ width:'100%', maxWidth:460, padding:'34px clamp(24px,3vw,38px)', border:'1px solid rgba(var(--accent-rgb),0.12)', borderRadius:20, background:'color-mix(in srgb, var(--card) 94%, var(--page-tint))', boxShadow:'0 8px 26px rgba(10,16,28,0.05)' }}>
-            <div className="login-form-mark" style={{ width:76, height:76, borderRadius:20, background:'linear-gradient(180deg, rgba(var(--accent-rgb),0.12), rgba(var(--accent-rgb),0.04))', border:'1px solid rgba(var(--accent-rgb),0.16)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px' }}>
-              <img src="/dh-logo-icon.png" alt="DH logo" style={{ width:50, height:50, objectFit:'contain' }} />
+          <div className="login-form-card" style={{ width:'100%', maxWidth:452, padding:'44px 40px 36px', border:'1px solid rgba(15,23,42,0.08)', borderRadius:30, background:'rgba(255,255,255,0.96)', boxShadow:'0 18px 44px rgba(15,23,42,0.05)' }}>
+            <div className="login-form-mark" style={{ width:64, height:64, borderRadius:18, background:'#F8FBFF', border:'1px solid rgba(var(--accent-rgb),0.12)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 28px' }}>
+              <img src="/dh-logo-icon.png" alt="DH logo" style={{ width:42, height:42, objectFit:'contain' }} />
             </div>
-            <div className="login-form-copy" style={{ textAlign:'center', marginBottom:26 }}>
-              <div className="login-form-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(28px,4vw,40px)', fontWeight:600, letterSpacing:'-0.03em', color:'var(--text)', marginBottom:10 }}>
+            <div className="login-form-copy" style={{ textAlign:'center', marginBottom:28 }}>
+              <div className="login-form-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(30px,4vw,44px)', fontWeight:600, letterSpacing:'-0.04em', color:'#111827', marginBottom:12 }}>
                 Sign in to continue
               </div>
-              <div className="login-form-body" style={{ fontSize:15, color:'var(--sub)', lineHeight:1.7 }}>
-                Use your work Microsoft account to continue.
+              <div className="login-form-body" style={{ fontSize:15, color:'#667085', lineHeight:1.7 }}>
+                Use your work Microsoft account to enter the staff portal.
               </div>
             </div>
 
@@ -107,11 +125,11 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 width:'100%',
-                padding:'15px 22px',
+                padding:'16px 22px',
                 background: loading ? 'var(--bg3)' : 'var(--accent)',
                 color: loading ? 'var(--sub)' : '#fff',
                 border:'none',
-                borderRadius:14,
+                borderRadius:999,
                 fontSize:15,
                 fontWeight:600,
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -141,22 +159,23 @@ export default function LoginPage() {
             </button>
 
             <div className="login-form-notes" style={{ display:'grid', gap:12, marginTop:20 }}>
-              <div className="login-note-card" style={{ padding:'14px 16px', borderRadius:14, background:'var(--bg2)', border:'1px solid rgba(var(--accent-rgb),0.08)' }}>
+              <div className="login-note-card" style={{ padding:'16px 18px', borderRadius:18, background:'#F8FAFC', border:'1px solid rgba(15,23,42,0.05)' }}>
                 <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', marginBottom:6 }}>Access note</div>
-                <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
+                <div style={{ fontSize:13, color:'#667085', lineHeight:1.7 }}>
                   Use your `@dhwebsiteservices.co.uk` account. Access is applied automatically from your role and onboarding status.
                 </div>
               </div>
-              <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'var(--faint)' }}>
+              <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'#98A2B3' }}>
                 <span>Microsoft SSO</span>
                 <span>Role-based access</span>
               </div>
             </div>
           </div>
         </section>
+        </div>
       </div>
 
-      <div className="login-footer" style={{ padding:'18px 24px 24px', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', color:'var(--faint)', fontSize:12 }}>
+      <div className="login-footer" style={{ padding:'18px 32px 24px', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', color:'#98A2B3', fontSize:12 }}>
         <span>© 2026 DH Website Services</span>
         <span>Internal access</span>
       </div>
