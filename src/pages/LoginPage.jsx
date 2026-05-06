@@ -1,11 +1,40 @@
 import { useMsal } from '@azure/msal-react'
 import { loginRequest } from '../authConfig'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '../utils/supabase'
+
+const STATUS_META = {
+  operational: {
+    label: 'Operational',
+    color: '#12B76A',
+    background: 'rgba(18, 183, 106, 0.08)',
+    border: 'rgba(18, 183, 106, 0.16)',
+  },
+  degraded: {
+    label: 'Degraded',
+    color: '#F79009',
+    background: 'rgba(247, 144, 9, 0.08)',
+    border: 'rgba(247, 144, 9, 0.18)',
+  },
+  outage: {
+    label: 'Service issue',
+    color: '#F04438',
+    background: 'rgba(240, 68, 56, 0.08)',
+    border: 'rgba(240, 68, 56, 0.18)',
+  },
+  maintenance: {
+    label: 'Maintenance',
+    color: 'var(--accent)',
+    background: 'rgba(var(--accent-rgb), 0.08)',
+    border: 'rgba(var(--accent-rgb), 0.18)',
+  },
+}
 
 export default function LoginPage() {
   const { instance } = useMsal()
   const [loading, setLoading] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('dh-theme') === 'dark')
+  const [portalStatus, setPortalStatus] = useState(null)
 
   const login = async () => {
     setLoading(true)
@@ -22,6 +51,28 @@ export default function LoginPage() {
     localStorage.setItem('dh-theme', next)
     setDark(!dark)
   }
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadPortalStatus = async () => {
+      const { data } = await supabase
+        .from('maintenance_systems')
+        .select('name,status,note,updated_at')
+        .eq('name', 'Staff Portal')
+        .maybeSingle()
+
+      if (!mounted || !data) return
+      setPortalStatus(data)
+    }
+
+    loadPortalStatus()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const statusMeta = STATUS_META[portalStatus?.status] || STATUS_META.operational
 
   return (
     <div className="login-shell" style={{ minHeight:'100vh', background:'#fff', display:'flex', flexDirection:'column' }}>
@@ -42,6 +93,51 @@ export default function LoginPage() {
         </button>
       </nav>
 
+      {portalStatus && (
+        <div
+          style={{
+            background: statusMeta.background,
+            borderBottom: `1px solid ${statusMeta.border}`,
+            color: '#182230',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1480,
+              margin: '0 auto',
+              padding: '12px 32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: statusMeta.color,
+                  display: 'inline-block',
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Staff Portal status</span>
+              <span style={{ fontSize: 13, color: statusMeta.color, fontWeight: 600 }}>{statusMeta.label}</span>
+              {portalStatus.note ? (
+                <span style={{ fontSize: 13, color: '#667085' }}>{portalStatus.note}</span>
+              ) : null}
+            </div>
+            {portalStatus.updated_at ? (
+              <span style={{ fontSize: 12, color: '#667085' }}>
+                Updated {new Date(portalStatus.updated_at).toLocaleDateString('en-GB')}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       <div style={{
         flex: 1,
         backgroundColor: '#fff',
@@ -60,9 +156,9 @@ export default function LoginPage() {
               <h1 className="login-brand-title" style={{ fontFamily:'var(--font-display)', fontSize:'clamp(48px,6vw,88px)', fontWeight:600, letterSpacing:'-0.07em', lineHeight:0.93, color:'#111827', marginBottom:22, maxWidth:900 }}>
                 Your portal,
                 <br />
-                <span style={{ color:'var(--accent)' }}>ready before your</span>
+                ready before your
                 <br />
-                <span style={{ color:'var(--accent)' }}>next shift.</span>
+                next shift.
               </h1>
               <p className="login-brand-body" style={{ maxWidth:660, fontSize:18, lineHeight:1.72, color:'#667085', marginBottom:34 }}>
                 Staff access for HR, outreach, schedules, hiring, documents, and daily operations. Faster to reach, easier to understand, and tied directly to your work account.
@@ -87,20 +183,6 @@ export default function LoginPage() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="login-brand-tags" style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:24, maxWidth:820, paddingTop:8 }}>
-              {[
-                ['One identity', 'Microsoft work account'],
-                ['Role aware', 'Permissions load automatically'],
-                ['Internal only', 'Reserved for current staff'],
-                ['Fast access', 'One sign-in, no extra steps'],
-              ].map(([title, body]) => (
-                <div key={title} style={{ borderTop:'1px solid rgba(15,23,42,0.08)', paddingTop:16 }}>
-                  <div style={{ fontSize:32, fontWeight:600, letterSpacing:'-0.05em', color:'#111827', marginBottom:4 }}>{title}</div>
-                  <div style={{ fontSize:13.5, color:'#98A2B3', lineHeight:1.6 }}>{body}</div>
-                </div>
-              ))}
             </div>
           </div>
         </section>
@@ -163,6 +245,19 @@ export default function LoginPage() {
                 <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', marginBottom:6 }}>Access note</div>
                 <div style={{ fontSize:13, color:'#667085', lineHeight:1.7 }}>
                   Use your `@dhwebsiteservices.co.uk` account. Access is applied automatically from your role and onboarding status.
+                </div>
+              </div>
+              <div className="login-note-card" style={{ padding:'16px 18px', borderRadius:18, background:'#fff', border:'1px solid rgba(15,23,42,0.08)' }}>
+                <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', marginBottom:6 }}>Technical support</div>
+                <div style={{ fontSize:13, color:'#667085', lineHeight:1.7 }}>
+                  Any login or portal issues, contact David Hooper at{' '}
+                  <a href="mailto:mgmt@dhwebsiteservices.co.uk" style={{ color:'var(--accent)', textDecoration:'none', fontWeight:600 }}>
+                    mgmt@dhwebsiteservices.co.uk
+                  </a>{' '}
+                  or{' '}
+                  <a href="tel:07359587007" style={{ color:'var(--accent)', textDecoration:'none', fontWeight:600 }}>
+                    07359587007
+                  </a>.
                 </div>
               </div>
               <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'#98A2B3' }}>
