@@ -28,12 +28,12 @@ export default function LoginPage() {
       <nav className="login-nav" style={{ height:72, borderBottom:'1px solid rgba(var(--accent-rgb),0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'color-mix(in srgb, var(--bg) 84%, transparent)', backdropFilter:'blur(18px)', position:'sticky', top:0, zIndex:20 }}>
         <div className="login-nav-brand" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <img src="/dh-logo.png" alt="DH Website Services" className="login-nav-logo" style={{ height:26, width:'auto', display:'block' }} />
-          <div className="login-nav-copy">
+            <div className="login-nav-copy">
             <div className="login-nav-title" style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:600, letterSpacing:'-0.03em', color:'var(--text)' }}>
               DH <span style={{ color:'var(--accent)' }}>Website Services</span>
             </div>
             <div className="login-nav-subtitle" style={{ fontSize:12, color:'var(--faint)', marginTop:3 }}>
-              Staff portal
+              Internal access
             </div>
           </div>
         </div>
@@ -56,13 +56,13 @@ export default function LoginPage() {
                 one calm entry point
               </h1>
               <p className="login-brand-body" style={{ maxWidth:560, fontSize:16, lineHeight:1.7, color:'var(--sub)', marginBottom:28 }}>
-                Sign in once with your DH Website Services Microsoft account to open HR, schedules, outreach, recruiting, documents, and day-to-day operations.
+                One sign-in for HR, outreach, schedules, hiring, documents, and daily operations.
               </p>
               <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:14 }}>
                 {[
-                  ['Outreach and follow-up', 'Appointments, lead handling, proposals, and client conversations.'],
-                  ['People operations', 'Onboarding, leave, documents, permissions, and HR records.'],
-                  ['Hiring and interviews', 'Job posts, applicants, interview scheduling, and review.'],
+                  ['Outreach and follow-up', 'Lead handling, proposals, appointments, and client conversations.'],
+                  ['People operations', 'Onboarding, leave, documents, and staff records.'],
+                  ['Hiring and interviews', 'Roles, applicants, interview scheduling, and review.'],
                 ].map(([title, body]) => (
                   <div key={title} className="login-feature-card" style={{ padding:'0 0 14px', borderBottom:'1px solid rgba(var(--accent-rgb),0.12)' }}>
                     <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:6 }}>{title}</div>
@@ -74,9 +74,9 @@ export default function LoginPage() {
 
             <div className="login-brand-tags" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:12, marginTop:32, maxWidth:620 }}>
               {[
-                ['One identity', 'Access is linked to your Microsoft staff account.'],
-                ['Role aware', 'Permissions and onboarding state load automatically after sign-in.'],
-                ['Internal only', 'This portal is reserved for current DH Website Services staff.'],
+                ['One identity', 'Your access follows your work account.'],
+                ['Role aware', 'Permissions and onboarding status load after sign-in.'],
+                ['Internal only', 'Reserved for current DH Website Services staff.'],
               ].map(([title, body]) => (
                 <div key={title} style={{ paddingTop:10, borderTop:'1px solid rgba(var(--accent-rgb),0.12)' }}>
                   <div style={{ fontSize:12, color:'var(--faint)', marginBottom:6 }}>{title}</div>
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 Sign in to continue
               </div>
               <div className="login-form-body" style={{ fontSize:15, color:'var(--sub)', lineHeight:1.7 }}>
-                Use your DH Website Services Microsoft account to open the internal staff portal.
+                Use your work Microsoft account to continue.
               </div>
             </div>
 
@@ -144,12 +144,12 @@ export default function LoginPage() {
               <div className="login-note-card" style={{ padding:'14px 16px', borderRadius:14, background:'var(--bg2)', border:'1px solid rgba(var(--accent-rgb),0.08)' }}>
                 <div className="login-note-label" style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)', marginBottom:6 }}>Access note</div>
                 <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
-                  Sign in with your `@dhwebsiteservices.co.uk` Microsoft account. Staff, recruiting, web-manager permissions, and onboarding access are handled automatically once you log in.
+                  Use your `@dhwebsiteservices.co.uk` account. Access is applied automatically from your role and onboarding status.
                 </div>
               </div>
               <div className="login-form-meta" style={{ display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap', fontSize:12, color:'var(--faint)' }}>
                 <span>Microsoft SSO</span>
-                <span>Internal staff access</span>
+                <span>Role-based access</span>
               </div>
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function LoginPage() {
 
       <div className="login-footer" style={{ padding:'18px 24px 24px', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', color:'var(--faint)', fontSize:12 }}>
         <span>© 2026 DH Website Services</span>
-        <span>Staff portal</span>
+        <span>Internal access</span>
       </div>
     </div>
   )
