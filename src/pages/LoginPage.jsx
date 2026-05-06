@@ -170,19 +170,6 @@ export default function LoginPage() {
                   </div>
                 ))}
               </div>
-              <div className="login-feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:28, maxWidth:920 }}>
-                {[
-                  ['People operations', 'Onboarding, leave, documents, and staff records in one place.'],
-                  ['Commercial workflow', 'Outreach, appointments, proposals, and client activity tracking.'],
-                  ['Hiring pipeline', 'Roles, applicants, interview scheduling, and review.'],
-                ].map(([title, body]) => (
-                  <div key={title} className="login-feature-card" style={{ padding:'0 8px 0 0' }}>
-                    <div style={{ width:48, height:2, background:'rgba(var(--accent-rgb),0.28)', marginBottom:16 }} />
-                    <div style={{ fontSize:15, fontWeight:600, color:'#182230', marginBottom:8 }}>{title}</div>
-                    <div style={{ fontSize:13.5, lineHeight:1.72, color:'#667085' }}>{body}</div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </section>
