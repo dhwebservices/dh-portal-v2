@@ -52,6 +52,7 @@ const STARTER_PERMISSION_DEFAULTS = {
   hr_onboarding: true,
 }
 const STARTER_GUIDE_PUBLIC_URL = 'https://staff.dhwebsiteservices.co.uk/starter-guides/dh-sales-onboarding.pdf'
+const MICROSOFT_ACCOUNT_API_PATH = '/api/microsoft-account'
 
 function fileToBase64(arrayBuffer) {
   let binary = ''
@@ -524,10 +525,12 @@ export default function HROnboarding() {
   const [starterBusy, setStarterBusy] = useState(false)
   const [starterMessage, setStarterMessage] = useState('')
   const [starterPreview, setStarterPreview] = useState(null)
+  const [starterProvisioningEnabled, setStarterProvisioningEnabled] = useState(true)
   const [starterManagers, setStarterManagers] = useState([])
   const [starterDepartments, setStarterDepartments] = useState([])
   const [starterRoles, setStarterRoles] = useState([])
   const [starterContractTemplates, setStarterContractTemplates] = useState([])
+  const [starterProvisioningResult, setStarterProvisioningResult] = useState(null)
   const rtwRef = useRef()
   const [starterForm, setStarterForm] = useState({
     full_name: '',
@@ -816,6 +819,7 @@ export default function HROnboarding() {
       notes: '',
     })
     setStarterPreview(null)
+    setStarterProvisioningResult(null)
   }
 
   const validateStarterForm = () => {
@@ -1028,10 +1032,35 @@ export default function HROnboarding() {
     }
   }
 
+  const createMicrosoftStarterAccount = async () => {
+    const response = await fetch(MICROSOFT_ACCOUNT_API_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        displayName: starterForm.full_name.trim(),
+        userPrincipalName: normalizeEmail(starterForm.work_email),
+        password: starterForm.temp_password,
+        department: starterForm.department.trim(),
+        jobTitle: starterForm.job_title.trim(),
+        managerEmail: normalizeEmail(starterForm.manager_email),
+      }),
+    })
+
+    const result = await response.json().catch(() => null)
+    if (!response.ok || result?.error) {
+      throw new Error(result?.error || 'Microsoft account creation failed.')
+    }
+    setStarterProvisioningResult(result)
+    return result
+  }
+
   const createStarter = async ({ sendWelcomeEmail = false } = {}) => {
     setStarterBusy(true)
     setStarterMessage('')
     try {
+      if (starterProvisioningEnabled) {
+        await createMicrosoftStarterAccount()
+      }
       await createStarterRecords()
 
       if (sendWelcomeEmail) {
@@ -1060,8 +1089,8 @@ export default function HROnboarding() {
       setStarterPreview(null)
       setStarterMessage(
         sendWelcomeEmail
-          ? 'New starter created and welcome email sent.'
-          : 'New starter created. Welcome email has not been sent yet.'
+          ? `New starter created${starterProvisioningEnabled ? ', Microsoft 365 account provisioned,' : ''} and welcome email sent.`
+          : `New starter created${starterProvisioningEnabled ? ' and Microsoft 365 account provisioned' : ''}. Welcome email has not been sent yet.`
       )
       resetStarterForm()
     } catch (error) {
@@ -1593,6 +1622,21 @@ export default function HROnboarding() {
           {starterMessage ? (
             <div style={{ marginBottom:16, padding:'11px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', color:'var(--text)', fontSize:13.5 }}>
               {starterMessage}
+            </div>
+          ) : null}
+          <label style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, fontSize:13.5, color:'var(--text)' }}>
+            <input
+              type="checkbox"
+              checked={starterProvisioningEnabled}
+              onChange={(e) => setStarterProvisioningEnabled(e.target.checked)}
+              style={{ width:18, height:18, accentColor:'var(--accent)' }}
+            />
+            Create the Microsoft 365 account first using the work email and temporary password above.
+          </label>
+          {starterProvisioningResult?.user?.userPrincipalName ? (
+            <div style={{ marginBottom:16, padding:'11px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--green-bg)', color:'var(--text)', fontSize:13.5 }}>
+              Microsoft account ready: <strong>{starterProvisioningResult.user.userPrincipalName}</strong>
+              {starterProvisioningResult.licenseAssigned ? ' · default licence assigned' : ''}
             </div>
           ) : null}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:14 }}>
