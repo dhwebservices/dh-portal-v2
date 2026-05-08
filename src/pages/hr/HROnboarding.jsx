@@ -10,7 +10,7 @@ import {
   upsertEmailScopedRow,
 } from '../../utils/hrProfileSync'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
-import { DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
+import { buildLifecycleSettingKey, DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
 import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
 import {
   buildContractFileName,
@@ -22,6 +22,7 @@ import {
   renderContractHtml,
 } from '../../utils/contracts'
 import { openSecureDocument } from '../../utils/fileAccess'
+import { sendEmail } from '../../utils/email'
 
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
@@ -34,6 +35,91 @@ const STEPS = [
 ]
 
 const RTW_DOCS = ['UK Passport','British National (Overseas) Passport','EU/EEA Passport','BRP Card (Biometric Residence Permit)','UK Birth Certificate + NI evidence','Certificate of Naturalisation','Visa (specify type)','Other']
+const STARTER_PERMISSION_DEFAULTS = {
+  dashboard: true,
+  notifications: true,
+  my_profile: true,
+  search: true,
+  my_team: true,
+  mytasks: true,
+  schedule: true,
+  hr_leave: true,
+  hr_payslips: true,
+  hr_policies: true,
+  hr_onboarding: true,
+}
+
+function suggestWorkEmail(fullName = '') {
+  const safe = String(fullName || '')
+    .toLowerCase()
+    .replace(/[^a-z\s-]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (!safe.length) return ''
+  if (safe.length === 1) return `${safe[0]}@dhwebsiteservices.co.uk`
+  return `${safe[0]}.${safe[safe.length - 1]}@dhwebsiteservices.co.uk`
+}
+
+function buildStarterEmailContent(starter = {}) {
+  const portalUrl = 'https://staff.dhwebsiteservices.co.uk'
+  const firstName = String(starter.full_name || '').trim().split(' ')[0] || 'there'
+  const supportName = 'David Hooper'
+  const supportEmail = 'mgmt@dhwebsiteservices.co.uk'
+  const supportPhone = '07359587007'
+  const startDate = starter.start_date
+    ? new Date(starter.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'your agreed start date'
+
+  const subject = `Your DH Website Services login details`
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;color:#0f172a;line-height:1.7">
+      <p>Hi ${firstName},</p>
+      <p>Your staff account is ready for onboarding.</p>
+      <div style="margin:20px 0;padding:18px 20px;border:1px solid #dbe4f3;border-radius:16px;background:#f8fbff">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5b6b84;margin-bottom:10px">Account details</div>
+        <div><strong>Portal:</strong> <a href="${portalUrl}" style="color:#1f6feb;text-decoration:none">${portalUrl}</a></div>
+        <div><strong>Work email:</strong> ${starter.work_email}</div>
+        <div><strong>Temporary password:</strong> ${starter.temp_password}</div>
+      </div>
+      <p>When you sign in, Microsoft will ask you to change this password before continuing. After that, the portal will open your onboarding steps automatically.</p>
+      <div style="margin:20px 0;padding:18px 20px;border:1px solid #edf1f7;border-radius:16px;background:#ffffff">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5b6b84;margin-bottom:10px">Starter summary</div>
+        <div><strong>Job title:</strong> ${starter.job_title || 'To be confirmed'}</div>
+        <div><strong>Department:</strong> ${starter.department || 'To be confirmed'}</div>
+        <div><strong>Manager:</strong> ${starter.manager_name || starter.manager_email || 'To be confirmed'}</div>
+        <div><strong>Start date:</strong> ${startDate}</div>
+      </div>
+      <p>If you have any login or portal issues, contact ${supportName} at <a href="mailto:${supportEmail}" style="color:#1f6feb;text-decoration:none">${supportEmail}</a> or ${supportPhone}.</p>
+      <p>Regards,<br/>DH Website Services</p>
+    </div>
+  `.trim()
+
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    'Your staff account is ready for onboarding.',
+    '',
+    `Portal: ${portalUrl}`,
+    `Work email: ${starter.work_email}`,
+    `Temporary password: ${starter.temp_password}`,
+    '',
+    'When you sign in, Microsoft will ask you to change this password before continuing. After that, the portal will open your onboarding steps automatically.',
+    '',
+    `Job title: ${starter.job_title || 'To be confirmed'}`,
+    `Department: ${starter.department || 'To be confirmed'}`,
+    `Manager: ${starter.manager_name || starter.manager_email || 'To be confirmed'}`,
+    `Start date: ${startDate}`,
+    '',
+    `If you have any login or portal issues, contact ${supportName} at ${supportEmail} or ${supportPhone}.`,
+    '',
+    'Regards,',
+    'DH Website Services',
+  ].join('\n')
+
+  return { subject, html, text }
+}
 
 function completionForSubmission(submission = {}) {
   const required = ['full_name','dob','ni_number','address_line1','city','postcode','personal_email','personal_phone','emergency_name','emergency_phone','bank_name','sort_code','account_number','rtw_type','company_portal_confirmed']
@@ -357,7 +443,23 @@ export default function HROnboarding() {
   const [viewSub, setViewSub]         = useState(null)
   const [adminBusyEmail, setAdminBusyEmail] = useState('')
   const [adminMessage, setAdminMessage] = useState('')
+  const [starterBusy, setStarterBusy] = useState(false)
+  const [starterMessage, setStarterMessage] = useState('')
+  const [starterPreview, setStarterPreview] = useState(null)
   const rtwRef = useRef()
+  const [starterForm, setStarterForm] = useState({
+    full_name: '',
+    personal_email: '',
+    work_email: '',
+    temp_password: '',
+    job_title: '',
+    department: '',
+    start_date: '',
+    contract_type: 'Permanent',
+    manager_name: '',
+    manager_email: '',
+    notes: '',
+  })
 
   const [form, setForm] = useState({
     // Personal
@@ -377,6 +479,16 @@ export default function HROnboarding() {
   })
 
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const ssf = (k, v) => setStarterForm((current) => {
+    const next = { ...current, [k]: v }
+    if (k === 'full_name') {
+      const suggested = suggestWorkEmail(v)
+      if (!current.work_email || current.work_email === suggestWorkEmail(current.full_name)) {
+        next.work_email = suggested
+      }
+    }
+    return next
+  })
 
   const managedDepartmentKeys = managedDepartments.map((department) => String(department || '').trim().toLowerCase()).filter(Boolean)
 
@@ -507,6 +619,198 @@ export default function HROnboarding() {
       }))
     }
     setLoading(false)
+  }
+
+  const resetStarterForm = () => {
+    setStarterForm({
+      full_name: '',
+      personal_email: '',
+      work_email: '',
+      temp_password: '',
+      job_title: '',
+      department: '',
+      start_date: '',
+      contract_type: 'Permanent',
+      manager_name: '',
+      manager_email: '',
+      notes: '',
+    })
+    setStarterPreview(null)
+  }
+
+  const validateStarterForm = () => {
+    const required = [
+      ['full_name', 'Full name'],
+      ['personal_email', 'Personal email'],
+      ['work_email', 'Work email'],
+      ['temp_password', 'Temporary password'],
+      ['job_title', 'Job title'],
+      ['department', 'Department'],
+      ['start_date', 'Start date'],
+    ]
+    const missing = required.find(([key]) => !String(starterForm[key] || '').trim())
+    if (missing) throw new Error(`${missing[1]} is required.`)
+    if (!String(starterForm.personal_email).includes('@')) throw new Error('Personal email looks invalid.')
+    if (!String(starterForm.work_email).includes('@')) throw new Error('Work email looks invalid.')
+  }
+
+  const buildStarterPayload = () => {
+    const safeWorkEmail = normalizeEmail(starterForm.work_email)
+    const safeManagerEmail = normalizeEmail(starterForm.manager_email)
+    return {
+      user_email: safeWorkEmail,
+      user_name: starterForm.full_name.trim(),
+      full_name: starterForm.full_name.trim(),
+      preferred_name: '',
+      personal_email: starterForm.personal_email.trim(),
+      personal_phone: '',
+      job_title: starterForm.job_title.trim(),
+      department: starterForm.department.trim(),
+      start_date: starterForm.start_date,
+      contract_type: starterForm.contract_type.trim(),
+      hours_per_week: '',
+      manager_name: starterForm.manager_name.trim(),
+      manager_email: safeManagerEmail,
+      work_location: '',
+      company_portal_confirmed: false,
+      emergency_name: '',
+      emergency_relationship: '',
+      emergency_phone: '',
+      emergency_email: '',
+      bank_name: '',
+      account_name: '',
+      sort_code: '',
+      account_number: '',
+      payment_frequency: 'Monthly',
+      rtw_type: '',
+      rtw_document_url: '',
+      rtw_expiry: null,
+      rtw_notes: '',
+      contract_signed: false,
+      handbook_read: false,
+      data_consent: false,
+      photo_url: '',
+      additional_notes: starterForm.notes.trim(),
+      status: 'draft',
+      submitted_at: null,
+    }
+  }
+
+  const createStarterRecords = async () => {
+    validateStarterForm()
+
+    const now = new Date().toISOString()
+    const starterPayload = buildStarterPayload()
+    const safeWorkEmail = normalizeEmail(starterForm.work_email)
+    const orgRecord = mergeOrgRecord({
+      email: safeWorkEmail,
+      role_scope: 'staff',
+      department: starterForm.department.trim(),
+      reports_to_name: starterForm.manager_name.trim(),
+      reports_to_email: normalizeEmail(starterForm.manager_email),
+      notes: starterForm.notes.trim(),
+    }, {
+      email: safeWorkEmail,
+      department: starterForm.department.trim(),
+    })
+
+    const lifecycleRecord = {
+      state: 'onboarding',
+      contract_type: starterForm.contract_type.trim(),
+      notes: starterForm.notes.trim(),
+      updated_at: now,
+      updated_by_email: normalizeEmail(user?.email || ''),
+      updated_by_name: user?.name || user?.email || 'DH Portal',
+    }
+
+    await Promise.all([
+      ensureSubmissionSummary(starterPayload),
+      supabase.from('portal_settings').upsert({
+        key: buildOnboardingPayloadKey(safeWorkEmail),
+        value: { value: starterPayload },
+      }, { onConflict: 'key' }),
+      supabase.from('portal_settings').upsert({
+        key: buildStaffOrgKey(safeWorkEmail),
+        value: { value: orgRecord },
+      }, { onConflict: 'key' }),
+      supabase.from('portal_settings').upsert({
+        key: buildLifecycleSettingKey(safeWorkEmail),
+        value: { value: lifecycleRecord },
+      }, { onConflict: 'key' }),
+      upsertEmailScopedRow('hr_profiles', safeWorkEmail, {
+        user_email: safeWorkEmail,
+        full_name: starterForm.full_name.trim(),
+        role: starterForm.job_title.trim(),
+        department: starterForm.department.trim(),
+        contract_type: starterForm.contract_type.trim(),
+        start_date: starterForm.start_date,
+        personal_email: starterForm.personal_email.trim(),
+        manager_name: starterForm.manager_name.trim(),
+        manager_email: normalizeEmail(starterForm.manager_email),
+        hr_notes: starterForm.notes.trim(),
+        updated_at: now,
+      }),
+      upsertEmailScopedRow('user_permissions', safeWorkEmail, {
+        permissions: { ...STARTER_PERMISSION_DEFAULTS },
+        onboarding: true,
+        bookable_staff: false,
+        updated_at: now,
+      }),
+    ])
+
+    return starterPayload
+  }
+
+  const previewStarterEmail = async () => {
+    try {
+      validateStarterForm()
+      const emailContent = buildStarterEmailContent(starterForm)
+      setStarterPreview(emailContent)
+      setStarterMessage('')
+    } catch (error) {
+      setStarterMessage(error.message || 'Could not build the welcome email preview.')
+    }
+  }
+
+  const createStarter = async ({ sendWelcomeEmail = false } = {}) => {
+    setStarterBusy(true)
+    setStarterMessage('')
+    try {
+      await createStarterRecords()
+
+      if (sendWelcomeEmail) {
+        const emailContent = buildStarterEmailContent(starterForm)
+        const result = await sendEmail('custom_email', {
+          to: starterForm.personal_email.trim(),
+          to_name: starterForm.full_name.trim(),
+          from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+          sent_by: user?.name || user?.email || 'DH Portal',
+          sent_by_email: normalizeEmail(user?.email || ''),
+          log_email: true,
+          log_body: emailContent.text,
+        })
+        if (!result?.ok) {
+          throw new Error(result?.error || 'Welcome email failed to send.')
+        }
+      }
+
+      await load()
+      setStarterPreview(null)
+      setStarterMessage(
+        sendWelcomeEmail
+          ? 'New starter created and welcome email sent.'
+          : 'New starter created. Welcome email has not been sent yet.'
+      )
+      resetStarterForm()
+    } catch (error) {
+      console.error('Starter setup failed:', error)
+      setStarterMessage(error.message || 'Could not create the starter record.')
+    } finally {
+      setStarterBusy(false)
+    }
   }
 
   const uploadRTW = async (file) => {
@@ -1006,6 +1310,90 @@ export default function HROnboarding() {
         </div>
       )}
 
+      {isReviewer && (
+        <div className="card card-pad" style={{ marginBottom:24 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>
+                New starter
+              </div>
+              <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>Create portal onboarding and preview the welcome email</div>
+              <div style={{ marginTop:8, fontSize:14, color:'var(--sub)', lineHeight:1.7, maxWidth:760 }}>
+                This sets up the HR profile, onboarding draft, role defaults, and lifecycle state for a new starter. Microsoft 365 account creation still needs to be completed separately in admin before they can sign in.
+              </div>
+            </div>
+            <div style={{ padding:'10px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', minWidth:220 }}>
+              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Technical contact</div>
+              <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>
+                David Hooper<br />
+                <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a><br />
+                07359587007
+              </div>
+            </div>
+          </div>
+          {starterMessage ? (
+            <div style={{ marginBottom:16, padding:'11px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', color:'var(--text)', fontSize:13.5 }}>
+              {starterMessage}
+            </div>
+          ) : null}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:14 }}>
+            <div>
+              <label className="lbl">Full name *</label>
+              <input className="inp" value={starterForm.full_name} onChange={(e) => ssf('full_name', e.target.value)} placeholder="New starter full name" />
+            </div>
+            <div>
+              <label className="lbl">Personal email *</label>
+              <input className="inp" type="email" value={starterForm.personal_email} onChange={(e) => ssf('personal_email', e.target.value)} placeholder="Where the welcome email should go" />
+            </div>
+            <div>
+              <label className="lbl">Work email *</label>
+              <input className="inp" type="email" value={starterForm.work_email} onChange={(e) => ssf('work_email', e.target.value)} placeholder="staff.name@dhwebsiteservices.co.uk" />
+            </div>
+            <div>
+              <label className="lbl">Temporary password *</label>
+              <input className="inp" value={starterForm.temp_password} onChange={(e) => ssf('temp_password', e.target.value)} placeholder="Sent in the welcome email" />
+            </div>
+            <div>
+              <label className="lbl">Job title *</label>
+              <input className="inp" value={starterForm.job_title} onChange={(e) => ssf('job_title', e.target.value)} placeholder="Role title" />
+            </div>
+            <div>
+              <label className="lbl">Department *</label>
+              <input className="inp" value={starterForm.department} onChange={(e) => ssf('department', e.target.value)} placeholder="Assigned department" />
+            </div>
+            <div>
+              <label className="lbl">Start date *</label>
+              <input className="inp" type="date" value={starterForm.start_date} onChange={(e) => ssf('start_date', e.target.value)} />
+            </div>
+            <div>
+              <label className="lbl">Contract type</label>
+              <input className="inp" value={starterForm.contract_type} onChange={(e) => ssf('contract_type', e.target.value)} placeholder="Permanent, part-time, casual..." />
+            </div>
+            <div>
+              <label className="lbl">Manager name</label>
+              <input className="inp" value={starterForm.manager_name} onChange={(e) => ssf('manager_name', e.target.value)} placeholder="Reporting manager" />
+            </div>
+            <div>
+              <label className="lbl">Manager email</label>
+              <input className="inp" type="email" value={starterForm.manager_email} onChange={(e) => ssf('manager_email', e.target.value)} placeholder="manager@dhwebsiteservices.co.uk" />
+            </div>
+            <div style={{ gridColumn:'1 / -1' }}>
+              <label className="lbl">Internal notes</label>
+              <textarea className="inp" rows={3} value={starterForm.notes} onChange={(e) => ssf('notes', e.target.value)} style={{ resize:'vertical' }} placeholder="Optional onboarding context, licence notes, or setup reminders." />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop:18 }}>
+            <button className="btn btn-outline" onClick={previewStarterEmail} disabled={starterBusy}>Preview welcome email</button>
+            <button className="btn btn-ghost" onClick={() => createStarter({ sendWelcomeEmail: false })} disabled={starterBusy}>
+              {starterBusy ? 'Saving...' : 'Create starter record'}
+            </button>
+            <button className="btn btn-primary" onClick={() => createStarter({ sendWelcomeEmail: true })} disabled={starterBusy}>
+              {starterBusy ? 'Working...' : 'Create and send'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {isReviewer && submissions.length > 0 && (
         <div className="card" style={{ overflow:'hidden', marginBottom:24 }}>
           <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)' }}>
@@ -1462,6 +1850,41 @@ export default function HROnboarding() {
                   )}
                 </div>
               </aside>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+
+      {starterPreview && createPortal((
+        <div className="modal-bg" onClick={() => setStarterPreview(null)}>
+          <div className="modal-box" style={{ maxWidth:780 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Welcome email preview</div>
+                <div style={{ marginTop:6, fontSize:13, color:'var(--sub)' }}>
+                  This is the email that will be sent to {starterForm.personal_email || 'the starter'}.
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setStarterPreview(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ display:'grid', gap:16 }}>
+              <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:'14px 16px', background:'var(--bg2)' }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Email subject</div>
+                <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{starterPreview.subject}</div>
+              </div>
+              <div style={{ border:'1px solid var(--border)', borderRadius:18, padding:'20px 22px', background:'#fff' }}>
+                <div dangerouslySetInnerHTML={{ __html: starterPreview.html }} />
+              </div>
+              <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:'14px 16px', background:'var(--bg2)' }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Plain text fallback</div>
+                <pre style={{ margin:0, whiteSpace:'pre-wrap', fontFamily:'var(--font-mono)', fontSize:12, color:'var(--sub)' }}>{starterPreview.text}</pre>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-outline" onClick={() => setStarterPreview(null)} disabled={starterBusy}>Close</button>
+              <button className="btn btn-primary" onClick={() => createStarter({ sendWelcomeEmail: true })} disabled={starterBusy}>
+                {starterBusy ? 'Sending...' : 'Create and send'}
+              </button>
             </div>
           </div>
         </div>
