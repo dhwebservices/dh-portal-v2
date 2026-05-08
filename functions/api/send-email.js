@@ -85,6 +85,7 @@ function normalizeEmailPayload(type, data = {}) {
     originalType: type,
     data: {
       to: data.to || data.to_email,
+      cc: data.cc,
       from_email: data.from_email,
       subject: data.subject,
       html: data.html || (data.text ? data.text.replace(/\n/g, '<br/>') : ''),
@@ -92,6 +93,7 @@ function normalizeEmailPayload(type, data = {}) {
       reply_to: data.reply_to || data.from_email || undefined,
       to_name: data.to_name,
       from_name: data.from_name,
+      attachments: Array.isArray(data.attachments) ? data.attachments : undefined,
     },
   }
 }

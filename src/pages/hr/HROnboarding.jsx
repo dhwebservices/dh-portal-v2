@@ -13,9 +13,12 @@ import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { buildLifecycleSettingKey, DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
 import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
 import {
+  buildContractMergeFields,
+  buildContractTemplateKey,
   buildContractFileName,
   buildContractPdfBlob,
   buildStaffContractKey,
+  createContractTemplate,
   createPortalSignature,
   createStaffContract,
   getContractStatusLabel,
@@ -48,6 +51,17 @@ const STARTER_PERMISSION_DEFAULTS = {
   hr_policies: true,
   hr_onboarding: true,
 }
+const STARTER_GUIDE_PUBLIC_URL = 'https://staff.dhwebsiteservices.co.uk/starter-guides/dh-sales-onboarding.pdf'
+
+function fileToBase64(arrayBuffer) {
+  let binary = ''
+  const bytes = new Uint8Array(arrayBuffer)
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+  return btoa(binary)
+}
 
 function suggestWorkEmail(fullName = '') {
   const safe = String(fullName || '')
@@ -65,57 +79,121 @@ function suggestWorkEmail(fullName = '') {
 function buildStarterEmailContent(starter = {}) {
   const portalUrl = 'https://staff.dhwebsiteservices.co.uk'
   const firstName = String(starter.full_name || '').trim().split(' ')[0] || 'there'
-  const supportName = 'David Hooper'
-  const supportEmail = 'mgmt@dhwebsiteservices.co.uk'
-  const supportPhone = '07359587007'
-  const startDate = starter.start_date
-    ? new Date(starter.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-    : 'your agreed start date'
-
+  const managerName = starter.manager_name || 'Your manager'
+  const managerEmail = starter.manager_email || ''
+  const managerPhone = starter.manager_phone || ''
   const subject = `Your DH Website Services login details`
   const html = `
     <div style="font-family:Inter,Arial,sans-serif;color:#0f172a;line-height:1.7">
       <p>Hi ${firstName},</p>
-      <p>Your staff account is ready for onboarding.</p>
-      <div style="margin:20px 0;padding:18px 20px;border:1px solid #dbe4f3;border-radius:16px;background:#f8fbff">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5b6b84;margin-bottom:10px">Account details</div>
-        <div><strong>Portal:</strong> <a href="${portalUrl}" style="color:#1f6feb;text-decoration:none">${portalUrl}</a></div>
-        <div><strong>Work email:</strong> ${starter.work_email}</div>
-        <div><strong>Temporary password:</strong> ${starter.temp_password}</div>
-      </div>
-      <p>When you sign in, Microsoft will ask you to change this password before continuing. After that, the portal will open your onboarding steps automatically.</p>
-      <div style="margin:20px 0;padding:18px 20px;border:1px solid #edf1f7;border-radius:16px;background:#ffffff">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#5b6b84;margin-bottom:10px">Starter summary</div>
-        <div><strong>Job title:</strong> ${starter.job_title || 'To be confirmed'}</div>
-        <div><strong>Department:</strong> ${starter.department || 'To be confirmed'}</div>
-        <div><strong>Manager:</strong> ${starter.manager_name || starter.manager_email || 'To be confirmed'}</div>
-        <div><strong>Start date:</strong> ${startDate}</div>
-      </div>
-      <p>If you have any login or portal issues, contact ${supportName} at <a href="mailto:${supportEmail}" style="color:#1f6feb;text-decoration:none">${supportEmail}</a> or ${supportPhone}.</p>
-      <p>Regards,<br/>DH Website Services</p>
+      <p>Please see attached our Sales Guide for Outreach Staff.</p>
+      <p>Your DH Website Services account has now been created successfully.</p>
+      <p><strong>Login Details</strong><br/>
+      Username: ${starter.work_email}<br/>
+      Password: ${starter.temp_password}<br/>
+      <em>(Please ensure you copy the password exactly as shown.)</em></p>
+      <p>To access company systems, you will first need to install Microsoft Company Portal on your device. This allows secure access to company applications and services.</p>
+      <p>Please note that enrolling your device as a “company device” does not mean the company owns or has full control over your personal device. This setup only allows us to manage access to business applications and company data for security purposes.</p>
+      <p><strong>Setup Instructions</strong></p>
+      <ol>
+        <li>Download Microsoft Company Portal
+          <ul>
+            <li>iPhone/iPad: App Store</li>
+            <li>Android: Google Play Store</li>
+            <li>Windows/Mac: <a href="https://portal.manage.microsoft.com" style="color:#1f6feb;text-decoration:none">https://portal.manage.microsoft.com</a></li>
+          </ul>
+        </li>
+        <li>Open the Company Portal application</li>
+        <li>Sign in using your DH Website Services email address</li>
+        <li>Complete device registration. Follow the on-screen instructions fully to complete the enrolment process. Access to company systems will not be granted until setup has been completed successfully.</li>
+      </ol>
+      <p>Once Company Portal has been installed, please also download:</p>
+      <ul>
+        <li>Microsoft Authenticator</li>
+        <li>Microsoft Outlook</li>
+      </ul>
+      <p>You can then sign into Outlook using the login details above.</p>
+      <p>I will also CC this email to your work email address. If you could reply from your work account once logged in, just to confirm access is working correctly, that would be appreciated.</p>
+      <p><strong>Staff Portal Access:</strong></p>
+      <p>Once logged in successfully, please visit:<br/>
+      <a href="${portalUrl}" style="color:#1f6feb;text-decoration:none">${portalUrl}</a></p>
+      <p>Select “Microsoft Login” and sign in using your work email address.</p>
+      <p>Please complete the onboarding form as soon as possible. You will be required to upload:</p>
+      <ul>
+        <li>Your passport or valid ID document</li>
+        <li>Bank details matching your legal name</li>
+      </ul>
+      <p>Please ensure all submitted information matches exactly, otherwise approval may be delayed.</p>
+      <p>Your company email signature should already be active and will automatically appear when creating new emails.</p>
+      <p>You will also shortly receive a separate email providing access to our company phone line system through bOnline.</p>
+      <p><strong>Your manager will be:</strong></p>
+      <p>${managerName}<br/>
+      Email: ${managerEmail || 'To be confirmed'}${managerPhone ? `<br/>Phone: ${managerPhone}` : ''}</p>
+      <p>You can reach out to ${managerName.split(' ')[0] || 'them'} with any questions about getting started or anything in general.</p>
+      <p>If you experience any issues during setup or onboarding, please let me know.</p>
+      <p>Kind Regards,<br/>David<br/><br/>Director</p>
+      <p style="font-size:13px;color:#64748b">If the PDF attachment does not appear in your email client, use this guide link instead: <a href="${STARTER_GUIDE_PUBLIC_URL}" style="color:#1f6feb;text-decoration:none">${STARTER_GUIDE_PUBLIC_URL}</a></p>
     </div>
   `.trim()
 
   const text = [
     `Hi ${firstName},`,
     '',
-    'Your staff account is ready for onboarding.',
+    'Please see attached our Sales Guide for Outreach Staff.',
     '',
-    `Portal: ${portalUrl}`,
-    `Work email: ${starter.work_email}`,
-    `Temporary password: ${starter.temp_password}`,
+    'Your DH Website Services account has now been created successfully.',
     '',
-    'When you sign in, Microsoft will ask you to change this password before continuing. After that, the portal will open your onboarding steps automatically.',
+    'Login Details',
+    `Username: ${starter.work_email}`,
+    `Password: ${starter.temp_password}`,
+    '(Please ensure you copy the password exactly as shown.)',
     '',
-    `Job title: ${starter.job_title || 'To be confirmed'}`,
-    `Department: ${starter.department || 'To be confirmed'}`,
-    `Manager: ${starter.manager_name || starter.manager_email || 'To be confirmed'}`,
-    `Start date: ${startDate}`,
+    'To access company systems, you will first need to install Microsoft Company Portal on your device. This allows secure access to company applications and services.',
     '',
-    `If you have any login or portal issues, contact ${supportName} at ${supportEmail} or ${supportPhone}.`,
+    'Please note that enrolling your device as a "company device" does not mean the company owns or has full control over your personal device. This setup only allows us to manage access to business applications and company data for security purposes.',
     '',
-    'Regards,',
-    'DH Website Services',
+    'Setup Instructions',
+    '1. Download Microsoft Company Portal',
+    '- iPhone/iPad: App Store',
+    '- Android: Google Play Store',
+    '- Windows/Mac: https://portal.manage.microsoft.com',
+    '2. Open the Company Portal application',
+    '3. Sign in using your DH Website Services email address',
+    '4. Complete device registration. Follow the on-screen instructions fully to complete the enrolment process. Access to company systems will not be granted until setup has been completed successfully.',
+    '',
+    'Once Company Portal has been installed, please also download:',
+    '- Microsoft Authenticator',
+    '- Microsoft Outlook',
+    '',
+    'You can then sign into Outlook using the login details above.',
+    'I will also CC this email to your work email address. If you could reply from your work account once logged in, just to confirm access is working correctly, that would be appreciated.',
+    '',
+    'Staff Portal Access:',
+    portalUrl,
+    '',
+    'Select “Microsoft Login” and sign in using your work email address.',
+    'Please complete the onboarding form as soon as possible. You will be required to upload:',
+    '- Your passport or valid ID document',
+    '- Bank details matching your legal name',
+    '',
+    'Please ensure all submitted information matches exactly, otherwise approval may be delayed.',
+    'Your company email signature should already be active and will automatically appear when creating new emails.',
+    'You will also shortly receive a separate email providing access to our company phone line system through bOnline.',
+    '',
+    'Your manager will be:',
+    managerName,
+    `Email: ${managerEmail || 'To be confirmed'}`,
+    ...(managerPhone ? [`Phone: ${managerPhone}`] : []),
+    '',
+    `You can reach out to ${managerName.split(' ')[0] || 'them'} with any questions about getting started or anything in general.`,
+    'If you experience any issues during setup or onboarding, please let me know.',
+    '',
+    'Kind Regards,',
+    'David',
+    '',
+    'Director',
+    '',
+    `Guide link: ${STARTER_GUIDE_PUBLIC_URL}`,
   ].join('\n')
 
   return { subject, html, text }
@@ -446,6 +524,10 @@ export default function HROnboarding() {
   const [starterBusy, setStarterBusy] = useState(false)
   const [starterMessage, setStarterMessage] = useState('')
   const [starterPreview, setStarterPreview] = useState(null)
+  const [starterManagers, setStarterManagers] = useState([])
+  const [starterDepartments, setStarterDepartments] = useState([])
+  const [starterRoles, setStarterRoles] = useState([])
+  const [starterContractTemplates, setStarterContractTemplates] = useState([])
   const rtwRef = useRef()
   const [starterForm, setStarterForm] = useState({
     full_name: '',
@@ -456,8 +538,10 @@ export default function HROnboarding() {
     department: '',
     start_date: '',
     contract_type: 'Permanent',
+    contract_template_id: '',
     manager_name: '',
     manager_email: '',
+    manager_phone: '',
     notes: '',
   })
 
@@ -486,6 +570,37 @@ export default function HROnboarding() {
       if (!current.work_email || current.work_email === suggestWorkEmail(current.full_name)) {
         next.work_email = suggested
       }
+    }
+    if (k === 'manager_email') {
+      const selectedManager = starterManagers.find((item) => item.email === normalizeEmail(v))
+      next.manager_name = selectedManager?.name || ''
+      next.manager_phone = selectedManager?.phone || ''
+    }
+    if (k === 'department') {
+      const selectedDepartment = starterDepartments.find((item) => item.name === v)
+      if (selectedDepartment?.manager_email) {
+        const selectedManager = starterManagers.find((item) => item.email === normalizeEmail(selectedDepartment.manager_email))
+        next.manager_email = selectedDepartment.manager_email
+        next.manager_name = selectedManager?.name || selectedDepartment.manager_name || ''
+        next.manager_phone = selectedManager?.phone || ''
+      }
+    }
+    if (k === 'job_title') {
+      const roleMatch = starterRoles.find((role) => role.title === v)
+      if (roleMatch?.contractType) next.contract_type = roleMatch.contractType
+      const nextContractType = roleMatch?.contractType || current.contract_type || next.contract_type
+      const matchedTemplate = starterContractTemplates.find((template) => {
+        const templateName = String(template.name || '').trim().toLowerCase()
+        const templateType = String(template.contract_type || '').trim().toLowerCase()
+        const roleTitle = String(v || '').trim().toLowerCase()
+        const roleType = String(nextContractType || '').trim().toLowerCase()
+        return (templateName && templateName === roleTitle) || (templateType && templateType === roleType)
+      }) || starterContractTemplates.find((template) => String(template.contract_type || '').trim().toLowerCase() === String(nextContractType || '').trim().toLowerCase()) || null
+      next.contract_template_id = matchedTemplate?.id || ''
+    }
+    if (k === 'contract_template_id') {
+      const template = starterContractTemplates.find((item) => item.id === v)
+      if (template?.contract_type) next.contract_type = template.contract_type
     }
     return next
   })
@@ -534,6 +649,10 @@ export default function HROnboarding() {
       { data: orgSetting },
       { data: payloadSettings },
       { data: contractSettings },
+      { data: reviewerProfiles },
+      { data: departmentCatalogSetting },
+      { data: permissionRows },
+      { data: contractTemplateSettings },
     ] = await Promise.all([
       isReviewer ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', currentEmail).maybeSingle(),
@@ -541,6 +660,10 @@ export default function HROnboarding() {
       supabase.from('portal_settings').select('value').eq('key', buildStaffOrgKey(currentEmail)).maybeSingle(),
       supabase.from('portal_settings').select('key,value').like('key', 'onboarding_payload:%'),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_contract:%'),
+      isReviewer ? supabase.from('hr_profiles').select('user_email,full_name,phone,role,department,contract_type,manager_name,manager_email').order('full_name') : Promise.resolve({ data:[] }),
+      isReviewer ? supabase.from('portal_settings').select('value').eq('key', 'department_catalog').maybeSingle() : Promise.resolve({ data:null }),
+      isReviewer ? supabase.from('user_permissions').select('user_email,permissions,onboarding') : Promise.resolve({ data:[] }),
+      isReviewer ? supabase.from('portal_settings').select('key,value').like('key', 'contract_template:%') : Promise.resolve({ data:[] }),
     ])
     const profile = Array.isArray(profileRows) ? profileRows[0] || {} : (profileRows || {})
     const orgRecord = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
@@ -561,6 +684,61 @@ export default function HROnboarding() {
       String(row.key || '').replace('onboarding_payload:', '').toLowerCase(),
       row.value?.value ?? row.value ?? {},
     ]))
+    if (isReviewer) {
+      const permissionMap = {}
+      ;(permissionRows || []).forEach((row) => {
+        permissionMap[normalizeEmail(row.user_email)] = row
+      })
+      const managerList = (reviewerProfiles || [])
+        .map((row) => {
+          const safeEmail = normalizeEmail(row.user_email)
+          return {
+            email: safeEmail,
+            name: row.full_name || safeEmail,
+            phone: row.phone || '',
+            department: row.department || '',
+            isManager: !!row.manager_name || !!row.manager_email || permissionMap[safeEmail]?.permissions?.my_team === true || permissionMap[safeEmail]?.permissions?.my_department === true || permissionMap[safeEmail]?.permissions?.staff === true,
+          }
+        })
+        .filter((row) => row.email)
+      setStarterManagers(managerList.filter((row) => row.isManager).sort((a, b) => a.name.localeCompare(b.name)))
+
+      const departmentCatalog = Array.isArray(departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? null)
+        ? (departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? [])
+        : []
+      const departmentOptions = departmentCatalog
+        .filter((item) => item?.active !== false && item?.name)
+        .map((item) => ({
+          name: item.name,
+          manager_email: normalizeEmail(item.manager_email || ''),
+          manager_name: item.manager_name || '',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setStarterDepartments(departmentOptions)
+
+      const roleOptions = [...new Map(
+        (reviewerProfiles || [])
+          .filter((row) => String(row.role || '').trim())
+          .map((row) => {
+            const title = String(row.role || '').trim()
+            return [title.toLowerCase(), {
+              title,
+              contractType: String(row.contract_type || '').trim(),
+              department: String(row.department || '').trim(),
+            }]
+          })
+      ).values()].sort((a, b) => a.title.localeCompare(b.title))
+      setStarterRoles(roleOptions)
+
+      const templates = (contractTemplateSettings || [])
+        .map((row) => createContractTemplate({
+          id: String(row.key || '').replace('contract_template:', ''),
+          ...(row.value?.value ?? row.value ?? {}),
+        }))
+        .filter((item) => item.active !== false)
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setStarterContractTemplates(templates)
+    }
     const summaryEmailSet = new Set((all || []).map((submission) => normalizeEmail(submission.user_email)))
     const orphanPayloads = Object.entries(payloadMap)
       .filter(([email, payload]) => email && !summaryEmailSet.has(email) && payload?.status && payload.status !== 'draft')
@@ -631,8 +809,10 @@ export default function HROnboarding() {
       department: '',
       start_date: '',
       contract_type: 'Permanent',
+      contract_template_id: '',
       manager_name: '',
       manager_email: '',
+      manager_phone: '',
       notes: '',
     })
     setStarterPreview(null)
@@ -647,6 +827,7 @@ export default function HROnboarding() {
       ['job_title', 'Job title'],
       ['department', 'Department'],
       ['start_date', 'Start date'],
+      ['manager_email', 'Manager'],
     ]
     const missing = required.find(([key]) => !String(starterForm[key] || '').trim())
     if (missing) throw new Error(`${missing[1]} is required.`)
@@ -671,6 +852,7 @@ export default function HROnboarding() {
       hours_per_week: '',
       manager_name: starterForm.manager_name.trim(),
       manager_email: safeManagerEmail,
+      manager_phone: starterForm.manager_phone.trim(),
       work_location: '',
       company_portal_confirmed: false,
       emergency_name: '',
@@ -758,6 +940,66 @@ export default function HROnboarding() {
       }),
     ])
 
+    const activeTemplate = starterContractTemplates.find((item) => item.id === starterForm.contract_template_id)
+    if (activeTemplate) {
+      const contractProfile = {
+        full_name: starterForm.full_name.trim(),
+        role: starterForm.job_title.trim(),
+        department: starterForm.department.trim(),
+        contract_type: starterForm.contract_type.trim(),
+        start_date: starterForm.start_date,
+        manager_name: starterForm.manager_name.trim(),
+        manager_email: normalizeEmail(starterForm.manager_email),
+      }
+      const contractOrg = mergeOrgRecord({
+        email: safeWorkEmail,
+        role_scope: 'staff',
+        department: starterForm.department.trim(),
+        reports_to_name: starterForm.manager_name.trim(),
+        reports_to_email: normalizeEmail(starterForm.manager_email),
+      }, { email: safeWorkEmail, department: starterForm.department.trim() })
+      const managerSignature = createPortalSignature({
+        name: user?.name || normalizeEmail(user?.email || ''),
+        title: activeTemplate.manager_title_default || 'Director',
+        email: normalizeEmail(user?.email || ''),
+      })
+      const contract = createStaffContract({
+        template_id: activeTemplate.id,
+        template_name: activeTemplate.name,
+        contract_type: activeTemplate.contract_type || starterForm.contract_type.trim(),
+        subject: activeTemplate.subject || 'Employment contract',
+        staff_email: safeWorkEmail,
+        staff_name: starterForm.full_name.trim(),
+        staff_role: starterForm.job_title.trim(),
+        staff_department: starterForm.department.trim(),
+        manager_email: normalizeEmail(starterForm.manager_email),
+        manager_name: starterForm.manager_name.trim(),
+        manager_title: activeTemplate.manager_title_default || 'Director',
+        status: 'awaiting_staff_signature',
+        notes: starterForm.notes.trim(),
+        merge_fields: buildContractMergeFields({
+          profile: contractProfile,
+          orgRecord: contractOrg,
+          template: activeTemplate,
+          managerTitle: activeTemplate.manager_title_default || 'Director',
+          staffEmail: safeWorkEmail,
+        }),
+        template_html: activeTemplate.content_html,
+        template_reference_file_url: activeTemplate.reference_file_url,
+        template_reference_file_path: activeTemplate.reference_file_path,
+        template_reference_file_name: activeTemplate.reference_file_name,
+        manager_signature: managerSignature,
+        issued_at: managerSignature.signed_at,
+        manager_signed_at: managerSignature.signed_at,
+        updated_at: now,
+        created_at: now,
+      })
+      await supabase.from('portal_settings').upsert({
+        key: buildStaffContractKey(contract.id),
+        value: { value: contract },
+      }, { onConflict: 'key' })
+    }
+
     return starterPayload
   }
 
@@ -772,6 +1014,20 @@ export default function HROnboarding() {
     }
   }
 
+  const loadStarterGuideAttachment = async () => {
+    const response = await fetch('/starter-guides/dh-sales-onboarding.pdf')
+    if (!response.ok) {
+      throw new Error('Could not load the onboarding guide attachment.')
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    return {
+      filename: 'DH Sales Onboarding.pdf',
+      content: fileToBase64(arrayBuffer),
+      type: 'application/pdf',
+      disposition: 'attachment',
+    }
+  }
+
   const createStarter = async ({ sendWelcomeEmail = false } = {}) => {
     setStarterBusy(true)
     setStarterMessage('')
@@ -780,13 +1036,16 @@ export default function HROnboarding() {
 
       if (sendWelcomeEmail) {
         const emailContent = buildStarterEmailContent(starterForm)
+        const guideAttachment = await loadStarterGuideAttachment()
         const result = await sendEmail('custom_email', {
           to: starterForm.personal_email.trim(),
+          cc: [normalizeEmail(starterForm.work_email)],
           to_name: starterForm.full_name.trim(),
           from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
           subject: emailContent.subject,
           html: emailContent.html,
           text: emailContent.text,
+          attachments: [guideAttachment],
           sent_by: user?.name || user?.email || 'DH Portal',
           sent_by_email: normalizeEmail(user?.email || ''),
           log_email: true,
@@ -1355,11 +1614,17 @@ export default function HROnboarding() {
             </div>
             <div>
               <label className="lbl">Job title *</label>
-              <input className="inp" value={starterForm.job_title} onChange={(e) => ssf('job_title', e.target.value)} placeholder="Role title" />
+              <select className="inp" value={starterForm.job_title} onChange={(e) => ssf('job_title', e.target.value)}>
+                <option value="">Select role title</option>
+                {starterRoles.map((role) => <option key={role.title} value={role.title}>{role.title}</option>)}
+              </select>
             </div>
             <div>
               <label className="lbl">Department *</label>
-              <input className="inp" value={starterForm.department} onChange={(e) => ssf('department', e.target.value)} placeholder="Assigned department" />
+              <select className="inp" value={starterForm.department} onChange={(e) => ssf('department', e.target.value)}>
+                <option value="">Select department</option>
+                {starterDepartments.map((department) => <option key={department.name} value={department.name}>{department.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="lbl">Start date *</label>
@@ -1367,15 +1632,29 @@ export default function HROnboarding() {
             </div>
             <div>
               <label className="lbl">Contract type</label>
-              <input className="inp" value={starterForm.contract_type} onChange={(e) => ssf('contract_type', e.target.value)} placeholder="Permanent, part-time, casual..." />
+              <input className="inp" value={starterForm.contract_type} readOnly />
             </div>
             <div>
-              <label className="lbl">Manager name</label>
-              <input className="inp" value={starterForm.manager_name} onChange={(e) => ssf('manager_name', e.target.value)} placeholder="Reporting manager" />
+              <label className="lbl">Manager *</label>
+              <select className="inp" value={starterForm.manager_email} onChange={(e) => ssf('manager_email', e.target.value)}>
+                <option value="">Select manager</option>
+                {starterManagers.map((manager) => <option key={manager.email} value={manager.email}>{manager.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="lbl">Manager email</label>
-              <input className="inp" type="email" value={starterForm.manager_email} onChange={(e) => ssf('manager_email', e.target.value)} placeholder="manager@dhwebsiteservices.co.uk" />
+              <input className="inp" type="email" value={starterForm.manager_email} readOnly />
+            </div>
+            <div>
+              <label className="lbl">Manager phone</label>
+              <input className="inp" value={starterForm.manager_phone} readOnly />
+            </div>
+            <div>
+              <label className="lbl">Contract template</label>
+              <select className="inp" value={starterForm.contract_template_id} onChange={(e) => ssf('contract_template_id', e.target.value)}>
+                <option value="">No template matched</option>
+                {starterContractTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+              </select>
             </div>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="lbl">Internal notes</label>
