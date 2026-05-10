@@ -1616,18 +1616,24 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   justify-content: center;
 }
 
-.staff-onboarding-hero {
+.staff-onboarding-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.52fr);
-  gap: 28px;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 820px);
+  gap: 54px;
   align-items: start;
-  padding: 24px 0 32px;
-  margin-bottom: 30px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
+}
+
+.staff-onboarding-hero {
+  position: sticky;
+  top: 22px;
+  display: grid;
+  gap: 28px;
+  align-content: start;
+  padding-top: 8px;
 }
 
 .staff-onboarding-hero-copy {
-  max-width: 760px;
+  max-width: 420px;
 }
 
 .staff-onboarding-kicker {
@@ -1645,27 +1651,27 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .staff-onboarding-hero h2 {
   margin: 18px 0 14px;
-  max-width: 13ch;
-  font-size: clamp(44px, 5vw, 72px);
-  line-height: 0.96;
+  max-width: 9ch;
+  font-size: clamp(38px, 4.4vw, 60px);
+  line-height: 0.98;
   letter-spacing: -0.05em;
   font-weight: 700;
   color: #101828;
 }
 
 .staff-onboarding-hero p {
-  max-width: 720px;
+  max-width: 380px;
   margin: 0;
-  font-size: 19px;
-  line-height: 1.7;
+  font-size: 17px;
+  line-height: 1.72;
   color: #667085;
 }
 
 .staff-onboarding-hero-meta {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   align-self: start;
-  padding-top: 10px;
+  padding-top: 4px;
 }
 
 .staff-onboarding-hero-meta div {
@@ -1698,9 +1704,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-shell {
-  max-width: 1220px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 0 34px 56px;
+  padding: 0 40px 56px;
 }
 
 .staff-onboarding-alert {
@@ -1730,8 +1736,12 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   background: color-mix(in srgb, white 88%, var(--amber-bg) 12%);
 }
 
+.staff-onboarding-main {
+  min-width: 0;
+}
+
 .staff-onboarding-progress {
-  width: min(100%, 980px);
+  width: 100%;
   margin-bottom: 24px;
 }
 
@@ -1782,7 +1792,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  width: min(100%, 980px);
+  width: 100%;
   margin-bottom: 26px;
 }
 
@@ -1811,7 +1821,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-panel {
-  width: min(100%, 980px);
+  width: 100%;
   padding: 0 0 8px;
 }
 
@@ -1901,9 +1911,17 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 @media (max-width: 980px) {
-  .staff-onboarding-hero {
+  .staff-onboarding-layout {
     grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .staff-onboarding-hero {
+    position: static;
     gap: 18px;
+    padding-top: 0;
+    padding-bottom: 24px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
   }
 
   .staff-onboarding-hero h2 {

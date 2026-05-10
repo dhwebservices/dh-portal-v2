@@ -1602,29 +1602,6 @@ export default function HROnboarding() {
         <div><h1 className="page-title">Onboarding</h1><p className="page-sub">Staff onboarding forms and submissions</p></div>
       </div>
 
-      {/* Welcome banner for onboarding users */}
-      {isOnboarding && !mySubmission?.status?.match(/submitted|approved/) && (
-        <section className="staff-onboarding-hero">
-          <div className="staff-onboarding-hero-copy">
-            <span className="staff-onboarding-kicker">New starter setup</span>
-            <h2>Welcome to DH Website Services, {user?.name?.split(' ')[0] || 'there'}.</h2>
-            <p>
-              Complete your onboarding details, upload your right-to-work document, and sign your contract once it has been issued. Your submission goes to your assigned manager for approval.
-            </p>
-          </div>
-          <div className="staff-onboarding-hero-meta">
-            <div>
-              <span>Account</span>
-              <strong>{user?.email || 'Work account'}</strong>
-            </div>
-            <div>
-              <span>Status</span>
-              <strong>{mySubmission?.status === 'rejected' ? 'Needs revision' : 'In progress'}</strong>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Admin panel */}
       {isReviewer && (
         <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(6, minmax(0,1fr))', gap:14, marginBottom:20 }}>
@@ -1825,40 +1802,66 @@ export default function HROnboarding() {
             </div>
           )}
 
-          <div className="staff-onboarding-progress">
-            <div className="staff-onboarding-progress-head">
-              <div>
-                <span>Form completion</span>
-                <strong>Step {step + 1} of {STEPS.length}</strong>
+          <div className="staff-onboarding-layout">
+            <aside className="staff-onboarding-hero">
+              <div className="staff-onboarding-hero-copy">
+                <span className="staff-onboarding-kicker">New starter setup</span>
+                <h2>Welcome to DH Website Services, {user?.name?.split(' ')[0] || 'there'}.</h2>
+                <p>
+                  Complete your onboarding details, upload your right-to-work document, and sign your contract once it has been issued.
+                </p>
               </div>
-              <strong className={pct === 100 ? 'is-complete' : ''}>{pct}%</strong>
-            </div>
-            <div className="staff-onboarding-progress-rail">
-              <div style={{ width:`${pct}%` }}/>
-            </div>
-          </div>
-
-          <div className="staff-onboarding-step-nav" role="tablist" aria-label="Onboarding steps">
-            {STEPS.map((s,i) => (
-              <button
-                key={s.key}
-                onClick={() => setStep(i)}
-                className={`staff-onboarding-step-chip ${step===i ? 'is-active' : ''}`}
-                type="button"
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="staff-onboarding-panel">
-            <div className="staff-onboarding-panel-head">
-              <div>
-                <span>{STEPS[step].label}</span>
-                <h3>{STEP_INTRO[STEPS[step].key]?.title || STEPS[step].label}</h3>
+              <div className="staff-onboarding-hero-meta">
+                <div>
+                  <span>Account</span>
+                  <strong>{user?.email || 'Work account'}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>{mySubmission?.status === 'rejected' ? 'Needs revision' : 'In progress'}</strong>
+                </div>
+                <div>
+                  <span>Approval flow</span>
+                  <strong>Submitted to your assigned manager</strong>
+                </div>
               </div>
-              <p>{STEP_INTRO[STEPS[step].key]?.description}</p>
-            </div>
+            </aside>
+
+            <div className="staff-onboarding-main">
+              <div className="staff-onboarding-progress">
+                <div className="staff-onboarding-progress-head">
+                  <div>
+                    <span>Form completion</span>
+                    <strong>Step {step + 1} of {STEPS.length}</strong>
+                  </div>
+                  <strong className={pct === 100 ? 'is-complete' : ''}>{pct}%</strong>
+                </div>
+                <div className="staff-onboarding-progress-rail">
+                  <div style={{ width:`${pct}%` }}/>
+                </div>
+              </div>
+
+              <div className="staff-onboarding-step-nav" role="tablist" aria-label="Onboarding steps">
+                {STEPS.map((s,i) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setStep(i)}
+                    className={`staff-onboarding-step-chip ${step===i ? 'is-active' : ''}`}
+                    type="button"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="staff-onboarding-panel">
+                <div className="staff-onboarding-panel-head">
+                  <div>
+                    <span>{STEPS[step].label}</span>
+                    <h3>{STEP_INTRO[STEPS[step].key]?.title || STEPS[step].label}</h3>
+                  </div>
+                  <p>{STEP_INTRO[STEPS[step].key]?.description}</p>
+                </div>
             {step === 0 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <div className="fg">
@@ -2097,6 +2100,8 @@ export default function HROnboarding() {
                       {saving ? 'Submitting...' : '✓ Submit Onboarding'}
                     </button>
                 }
+              </div>
+            </div>
               </div>
             </div>
           </div>
