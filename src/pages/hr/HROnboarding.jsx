@@ -36,6 +36,36 @@ const STEPS = [
   { key:'rtw',        label:'Right to Work'       },
   { key:'contract',   label:'Contract & Sign Off' },
 ]
+const STEP_INTRO = {
+  personal: {
+    title: 'Personal information',
+    description: 'Use the name shown on your passport or official ID so payroll and right-to-work checks match first time.',
+  },
+  address: {
+    title: 'Address and contact details',
+    description: 'Add the personal contact details HR should use for onboarding and employment records.',
+  },
+  employment: {
+    title: 'Employment details',
+    description: 'These role details are set by DH Website Services. Check them before you continue.',
+  },
+  emergency: {
+    title: 'Emergency contact',
+    description: 'This information is only used if HR or your manager needs to reach someone urgently.',
+  },
+  bank: {
+    title: 'Bank details',
+    description: 'Your payroll details are stored securely and only used for salary payments.',
+  },
+  rtw: {
+    title: 'Right to work',
+    description: 'Upload the document HR needs to confirm your right to work in the UK before your start date.',
+  },
+  contract: {
+    title: 'Contract and sign-off',
+    description: 'Review your contract, complete the final declarations, and submit the form once everything is in place.',
+  },
+}
 
 const RTW_DOCS = ['UK Passport','British National (Overseas) Passport','EU/EEA Passport','BRP Card (Biometric Residence Permit)','UK Birth Certificate + NI evidence','Certificate of Naturalisation','Visa (specify type)','Other']
 const STARTER_PERMISSION_DEFAULTS = {
@@ -1574,16 +1604,25 @@ export default function HROnboarding() {
 
       {/* Welcome banner for onboarding users */}
       {isOnboarding && !mySubmission?.status?.match(/submitted|approved/) && (
-        <div style={{ background:'linear-gradient(135deg, var(--accent-soft) 0%, var(--bg2) 100%)', border:'1px solid var(--accent-border)', borderRadius:14, padding:'24px 28px', marginBottom:24, display:'flex', gap:20, alignItems:'flex-start' }}>
-          <div style={{ fontSize:36, flexShrink:0 }}>👋</div>
-          <div>
-            <div style={{ fontSize:20, fontWeight:600, color:'var(--text)', marginBottom:6 }}>Welcome to DH Website Services, {user?.name?.split(' ')[0]}!</div>
-            <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.6 }}>
-              Please complete your onboarding form below. Your assigned manager and department are shown for reference, and your submission will go to your department manager for approval.
-              Install Microsoft Company Portal before submitting, then upload your right-to-work documents and final confirmations.
+        <section className="staff-onboarding-hero">
+          <div className="staff-onboarding-hero-copy">
+            <span className="staff-onboarding-kicker">New starter setup</span>
+            <h2>Welcome to DH Website Services, {user?.name?.split(' ')[0] || 'there'}.</h2>
+            <p>
+              Complete your onboarding details, upload your right-to-work document, and sign your contract once it has been issued. Your submission goes to your assigned manager for approval.
+            </p>
+          </div>
+          <div className="staff-onboarding-hero-meta">
+            <div>
+              <span>Account</span>
+              <strong>{user?.email || 'Work account'}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{mySubmission?.status === 'rejected' ? 'Needs revision' : 'In progress'}</strong>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Admin panel */}
@@ -1778,38 +1817,50 @@ export default function HROnboarding() {
 
       {/* Staff form */}
       {!isReviewer && (!mySubmission || mySubmission.status === 'draft' || mySubmission.status === 'rejected') ? (
-        <div>
+        <div className="staff-onboarding-shell">
           {mySubmission?.status === 'rejected' && (
-            <div style={{ padding:'12px 16px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:8, marginBottom:20, fontSize:13, color:'var(--red)' }}>
-              Your previous submission was rejected. Please review and resubmit.
-              {mySubmission.admin_notes && <div style={{ marginTop:6, fontWeight:500 }}>Notes: {mySubmission.admin_notes}</div>}
+            <div className="staff-onboarding-alert staff-onboarding-alert-error">
+              <div>Your previous submission was rejected. Review the notes below, make the changes, and resubmit.</div>
+              {mySubmission.admin_notes && <div><strong>Notes:</strong> {mySubmission.admin_notes}</div>}
             </div>
           )}
 
-          {/* Progress bar */}
-          <div className="card card-pad" style={{ marginBottom:20 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <span style={{ fontSize:13, fontWeight:500 }}>Form completion</span>
-              <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color: pct===100?'var(--green)':'var(--accent)' }}>{pct}%</span>
+          <div className="staff-onboarding-progress">
+            <div className="staff-onboarding-progress-head">
+              <div>
+                <span>Form completion</span>
+                <strong>Step {step + 1} of {STEPS.length}</strong>
+              </div>
+              <strong className={pct === 100 ? 'is-complete' : ''}>{pct}%</strong>
             </div>
-            <div style={{ height:6, background:'var(--bg3)', borderRadius:3, overflow:'hidden' }}>
-              <div style={{ height:'100%', background: pct===100?'var(--green)':'var(--accent)', borderRadius:3, width:`${pct}%`, transition:'width 0.4s ease' }}/>
+            <div className="staff-onboarding-progress-rail">
+              <div style={{ width:`${pct}%` }}/>
             </div>
           </div>
 
-          {/* Step tabs */}
-          <div style={{ display:'flex', gap:4, marginBottom:24, background:'var(--bg2)', borderRadius:10, padding:4, flexWrap:'wrap' }}>
+          <div className="staff-onboarding-step-nav" role="tablist" aria-label="Onboarding steps">
             {STEPS.map((s,i) => (
-              <button key={s.key} onClick={() => setStep(i)} style={{ flex:1, minWidth:90, padding:'7px 10px', borderRadius:7, border:'none', background: step===i ? 'var(--card)' : 'transparent', color: step===i ? 'var(--text)' : 'var(--faint)', fontSize:12, fontWeight: step===i ? 500 : 400, cursor:'pointer', transition:'all 0.15s', boxShadow: step===i ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', whiteSpace:'nowrap' }}>
+              <button
+                key={s.key}
+                onClick={() => setStep(i)}
+                className={`staff-onboarding-step-chip ${step===i ? 'is-active' : ''}`}
+                type="button"
+              >
                 {s.label}
               </button>
             ))}
           </div>
 
-          <div className="card card-pad" style={{ maxWidth:640, marginBottom:20 }}>
+          <div className="staff-onboarding-panel">
+            <div className="staff-onboarding-panel-head">
+              <div>
+                <span>{STEPS[step].label}</span>
+                <h3>{STEP_INTRO[STEPS[step].key]?.title || STEPS[step].label}</h3>
+              </div>
+              <p>{STEP_INTRO[STEPS[step].key]?.description}</p>
+            </div>
             {step === 0 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Personal Information</h3>
                 <div className="fg">
                   <div><label className="lbl">Legal Full Name *</label><input className="inp" value={form.full_name} onChange={e=>sf('full_name',e.target.value)} placeholder="As on passport/ID"/></div>
                   <div><label className="lbl">Preferred Name</label><input className="inp" value={form.preferred_name} onChange={e=>sf('preferred_name',e.target.value)} placeholder="What you like to be called"/></div>
@@ -1828,7 +1879,6 @@ export default function HROnboarding() {
 
             {step === 1 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Address & Contact Details</h3>
                 <div className="fg">
                   <div className="fc"><label className="lbl">Address Line 1 *</label><input className="inp" value={form.address_line1} onChange={e=>sf('address_line1',e.target.value)} placeholder="House number and street"/></div>
                   <div className="fc"><label className="lbl">Address Line 2</label><input className="inp" value={form.address_line2} onChange={e=>sf('address_line2',e.target.value)} placeholder="Apartment, flat, etc."/></div>
@@ -1842,8 +1892,7 @@ export default function HROnboarding() {
 
             {step === 2 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Employment Details</h3>
-                <div style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div className="staff-onboarding-note">
                   <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
                     These employment details are set by DH Website Services. If anything looks wrong, contact your department manager before submitting.
                   </div>
@@ -1863,7 +1912,7 @@ export default function HROnboarding() {
                   <div><label className="lbl">Manager Name</label><input className="inp" value={form.manager_name || employmentContext.manager_name} readOnly /></div>
                   <div><label className="lbl">Manager Email</label><input className="inp" value={form.manager_email || employmentContext.manager_email} readOnly /></div>
                   <div className="fc" style={{ marginTop:8 }}>
-                    <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${form.company_portal_confirmed?'var(--green)':'var(--border)'}`, background:form.company_portal_confirmed?'var(--green-bg)':'transparent', transition:'all 0.15s' }}>
+                    <label className={`staff-onboarding-check ${form.company_portal_confirmed ? 'is-checked' : ''}`}>
                       <input type="checkbox" checked={form.company_portal_confirmed} onChange={e=>sf('company_portal_confirmed',e.target.checked)} style={{ width:18,height:18,accentColor:'var(--green)',flexShrink:0,marginTop:1 }}/>
                       <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
                         I have installed <strong>Microsoft Company Portal</strong> on my work device and confirmed I can access it.
@@ -1879,7 +1928,6 @@ export default function HROnboarding() {
 
             {step === 3 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Emergency Contact</h3>
                 <p style={{ fontSize:13, color:'var(--sub)' }}>Who should we contact in an emergency? This information is kept confidential.</p>
                 <div className="fg">
                   <div><label className="lbl">Full Name *</label><input className="inp" value={form.emergency_name} onChange={e=>sf('emergency_name',e.target.value)}/></div>
@@ -1892,8 +1940,7 @@ export default function HROnboarding() {
 
             {step === 4 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Bank Details</h3>
-                <div style={{ padding:'10px 14px', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:7, fontSize:13, color:'var(--accent)' }}>
+                <div className="staff-onboarding-note is-blue">
                   Your bank details are stored securely and only accessible by HR/admin. They are used solely for payroll purposes.
                 </div>
                 <div className="fg">
@@ -1912,7 +1959,6 @@ export default function HROnboarding() {
 
             {step === 5 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Right to Work</h3>
                 <p style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>Under UK law, we are required to check your right to work before employment begins. Please provide one of the documents below.</p>
                 <div className="fg">
                   <div className="fc"><label className="lbl">Document Type *</label>
@@ -1957,7 +2003,7 @@ export default function HROnboarding() {
                     ) : null}
                   </div>
                 </div>
-                <div style={{ padding:'12px 14px', background:'var(--bg2)', borderRadius:8, fontSize:12, color:'var(--sub)', lineHeight:1.7 }}>
+                <div className="staff-onboarding-note">
                   <strong>Acceptable documents include:</strong> UK/EU passport, BRP card, UK birth certificate with NI evidence. Documents will be reviewed by HR within 2 working days. If you have any questions, contact your manager.
                 </div>
               </div>
@@ -1965,9 +2011,8 @@ export default function HROnboarding() {
 
             {step === 6 && (
               <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <h3 style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:400, marginBottom:4 }}>Contract & Sign Off</h3>
                 {staffContract ? (
-                  <div style={{ padding:'16px 18px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                  <div className="staff-onboarding-contract-shell">
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap', marginBottom:10 }}>
                       <div>
                         <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{staffContract.template_name || 'Employment contract'}</div>
@@ -1977,7 +2022,7 @@ export default function HROnboarding() {
                       </div>
                       {contractStatusLabel ? <span className={`badge badge-${contractStatusLabel[1]}`}>{contractStatusLabel[0]}</span> : null}
                     </div>
-                    <div style={{ padding:'16px 18px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)', color:'var(--text)', lineHeight:1.75, fontSize:14 }}>
+                    <div className="staff-onboarding-contract-preview">
                       <div dangerouslySetInnerHTML={{ __html: renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}) }} />
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
@@ -1996,7 +2041,7 @@ export default function HROnboarding() {
                     ) : null}
                   </div>
                 ) : (
-                  <div style={{ padding:'16px 18px', border:'1px solid var(--amber)', borderRadius:12, background:'var(--amber-bg)' }}>
+                  <div className="staff-onboarding-alert staff-onboarding-alert-warn">
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
                       <div>
                         <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>No contract issued yet</div>
@@ -2013,7 +2058,7 @@ export default function HROnboarding() {
                     ['handbook_read', 'I have read and understood the DH Website Services staff handbook and policies'],
                     ['data_consent', 'I consent to DH Website Services storing and processing my personal data in accordance with GDPR and the company Privacy Policy'],
                   ].map(([k, label]) => (
-                    <label key={k} style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${form[k]?'var(--green)':'var(--border)'}`, background:form[k]?'var(--green-bg)':'transparent', transition:'all 0.15s' }}>
+                    <label key={k} className={`staff-onboarding-check ${form[k] ? 'is-checked' : ''}`}>
                       <input type="checkbox" checked={form[k]} onChange={e=>sf(k,e.target.checked)} style={{ width:18,height:18,accentColor:'var(--green)',flexShrink:0,marginTop:1 }}/>
                       <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>{label}</span>
                     </label>
@@ -2040,8 +2085,8 @@ export default function HROnboarding() {
             )}
 
             {/* Navigation */}
-            <div style={{ display:'flex', gap:8, marginTop:20, justifyContent:'space-between' }}>
-              <div style={{ display:'flex', gap:8 }}>
+            <div className="staff-onboarding-actions">
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {step > 0 && <button className="btn btn-outline" onClick={() => setStep(s=>s-1)}>← Back</button>}
                 <button className="btn btn-ghost" onClick={saveDraft} disabled={saving}>Save Draft</button>
               </div>
