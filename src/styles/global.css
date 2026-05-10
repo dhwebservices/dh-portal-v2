@@ -1618,11 +1618,11 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .staff-onboarding-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.7fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.52fr);
   gap: 28px;
-  align-items: end;
-  padding: 10px 0 28px;
-  margin-bottom: 24px;
+  align-items: start;
+  padding: 24px 0 32px;
+  margin-bottom: 30px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
 }
 
@@ -1644,10 +1644,10 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-hero h2 {
-  margin: 18px 0 12px;
-  max-width: 10ch;
-  font-size: clamp(48px, 6vw, 86px);
-  line-height: 0.98;
+  margin: 18px 0 14px;
+  max-width: 13ch;
+  font-size: clamp(44px, 5vw, 72px);
+  line-height: 0.96;
   letter-spacing: -0.05em;
   font-weight: 700;
   color: #101828;
@@ -1698,7 +1698,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-shell {
-  max-width: 1180px;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 0 34px 56px;
 }
 
 .staff-onboarding-alert {
@@ -1729,6 +1731,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-progress {
+  width: min(100%, 980px);
   margin-bottom: 24px;
 }
 
@@ -1779,6 +1782,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  width: min(100%, 980px);
   margin-bottom: 26px;
 }
 
@@ -1807,7 +1811,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-panel {
-  width: min(100%, 780px);
+  width: min(100%, 980px);
   padding: 0 0 8px;
 }
 
@@ -1832,6 +1836,11 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   font-size: 15px;
   line-height: 1.75;
   color: #667085;
+}
+
+.staff-onboarding-panel .fg {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
 }
 
 .staff-onboarding-note {
@@ -1902,7 +1911,16 @@ textarea.inp { resize: vertical; line-height: 1.6; }
     font-size: clamp(38px, 12vw, 58px);
   }
 
+  .staff-onboarding-shell {
+    padding: 0 18px 40px;
+  }
+
   .staff-onboarding-panel {
+    width: 100%;
+  }
+
+  .staff-onboarding-progress,
+  .staff-onboarding-step-nav {
     width: 100%;
   }
 
@@ -1957,6 +1975,10 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 @media (max-width: 720px) {
+  .staff-onboarding-panel .fg {
+    grid-template-columns: 1fr;
+  }
+
   .staff-onboarding-step-nav {
     gap: 6px;
   }
