@@ -1618,22 +1618,23 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .staff-onboarding-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 820px);
-  gap: 54px;
+  grid-template-columns: 1fr;
+  gap: 24px;
   align-items: start;
 }
 
 .staff-onboarding-hero {
-  position: sticky;
-  top: 22px;
+  position: static;
   display: grid;
-  gap: 28px;
-  align-content: start;
-  padding-top: 8px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 36px;
+  align-items: start;
+  padding: 4px 0 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
 }
 
 .staff-onboarding-hero-copy {
-  max-width: 420px;
+  max-width: 980px;
 }
 
 .staff-onboarding-kicker {
@@ -1650,39 +1651,35 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .staff-onboarding-hero h2 {
-  margin: 18px 0 14px;
-  max-width: 9ch;
-  font-size: clamp(38px, 4.4vw, 60px);
-  line-height: 0.98;
-  letter-spacing: -0.05em;
+  margin: 14px 0 10px;
+  max-width: 18ch;
+  font-size: clamp(28px, 2.8vw, 42px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
   font-weight: 700;
   color: #101828;
 }
 
 .staff-onboarding-hero p {
-  max-width: 380px;
+  max-width: 760px;
   margin: 0;
-  font-size: 17px;
-  line-height: 1.72;
+  font-size: 15px;
+  line-height: 1.7;
   color: #667085;
 }
 
 .staff-onboarding-hero-meta {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
   align-self: start;
-  padding-top: 4px;
+  padding-top: 38px;
 }
 
 .staff-onboarding-hero-meta div {
   display: grid;
   gap: 6px;
-  padding: 14px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 90%, white 10%);
-}
-
-.staff-onboarding-hero-meta div:last-child {
-  border-bottom: none;
+  padding: 0;
 }
 
 .staff-onboarding-hero-meta span,
@@ -1917,16 +1914,21 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   }
 
   .staff-onboarding-hero {
-    position: static;
+    grid-template-columns: 1fr;
     gap: 18px;
     padding-top: 0;
     padding-bottom: 24px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
   }
 
   .staff-onboarding-hero h2 {
     max-width: none;
     font-size: clamp(38px, 12vw, 58px);
+  }
+
+  .staff-onboarding-hero-meta {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-top: 0;
   }
 
   .staff-onboarding-shell {
