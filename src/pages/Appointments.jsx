@@ -8,6 +8,7 @@ import { logAction } from '../utils/audit'
 import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
 import { buildLifecycleStateMap, isSchedulableStaffEmail, normalizeStaffEmail } from '../utils/staffDirectory'
 import { sendEmail } from '../utils/email'
+import { buildBookingLink } from '../utils/bookingLinks'
 import {
   acquireMicrosoftCalendarToken,
   fetchMicrosoftCalendars,
@@ -127,6 +128,7 @@ export default function Appointments() {
   const [microsoftEvents, setMicrosoftEvents] = useState([])
   const [microsoftStatus, setMicrosoftStatus] = useState('idle')
   const [microsoftError, setMicrosoftError] = useState('')
+  const [shareFeedback, setShareFeedback] = useState('')
 
   const days = useMemo(() => weekDays(anchor), [anchor])
   const microsoftAccount = useMemo(() => {
@@ -320,6 +322,18 @@ export default function Appointments() {
       loadMicrosoftEvents()
     }
   }, [loadMicrosoftEvents, selectedMicrosoftCalendar])
+
+  const copyBookingLink = useCallback(async (staffMember) => {
+    if (!staffMember?.full_name || !staffMember?.user_email) return
+    try {
+      await navigator.clipboard.writeText(buildBookingLink(staffMember.full_name, staffMember.user_email))
+      setShareFeedback(`Copied booking link for ${staffMember.full_name}.`)
+      window.setTimeout(() => setShareFeedback(''), 2400)
+    } catch {
+      setShareFeedback('Could not copy the booking link from this browser.')
+      window.setTimeout(() => setShareFeedback(''), 2400)
+    }
+  }, [])
 
   const prevWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()-7); setAnchor(d.toISOString().split('T')[0]) }
   const nextWeek = () => { const d = new Date(anchor); d.setDate(d.getDate()+7); setAnchor(d.toISOString().split('T')[0]) }
@@ -623,6 +637,11 @@ export default function Appointments() {
     () => microsoftCalendars.find((calendar) => calendar.id === selectedMicrosoftCalendar) || null,
     [microsoftCalendars, selectedMicrosoftCalendar]
   )
+  const shareableStaff = useMemo(() => {
+    if (isAdmin) return visibleStaff
+    const currentEmail = String(user?.email || '').toLowerCase()
+    return visibleStaff.filter((staffMember) => staffMember.user_email === currentEmail)
+  }, [isAdmin, user?.email, visibleStaff])
 
   return (
     <div className="fade-in">
@@ -649,7 +668,7 @@ export default function Appointments() {
 
       {/* Tabs */}
       <div className="tabs" style={{ marginBottom:24 }}>
-        {[['calendar','Calendar'],['bookings','All Bookings'],['meetings','Meetings']].map(([k,l]) => (
+        {[['calendar','Calendar'],['bookings','All Bookings'],['meetings','Meetings'],['links','Booking Links']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
         ))}
       </div>
@@ -827,6 +846,15 @@ export default function Appointments() {
         />
       )}
 
+      {tab === 'links' && (
+        <BookingLinksPanel
+          staff={shareableStaff}
+          feedback={shareFeedback}
+          onCopy={copyBookingLink}
+          isAdmin={isAdmin}
+        />
+      )}
+
       {/* Slot modal — manage a specific staff member's day */}
       {slotModal && (
         <DaySlotModal
@@ -848,6 +876,57 @@ export default function Appointments() {
       {/* Appointment detail panel */}
       {detailAppt && (
         <ApptDetail appt={detailAppt} onClose={() => setDetailAppt(null)} onCancel={detailAppt._type === 'meeting' ? cancelMeeting : cancelAppt} saving={saving}/>
+      )}
+    </div>
+  )
+}
+
+function BookingLinksPanel({ staff, feedback, onCopy, isAdmin }) {
+  return (
+    <div className="card card-pad" style={{ display:'grid', gap:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Shareable booking links</div>
+          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>
+            {isAdmin
+              ? 'Copy a direct booking page for any bookable staff member.'
+              : 'Share your direct booking page so clients can book time with you without portal access.'}
+          </div>
+        </div>
+        <span className="badge badge-grey">{staff.length} active link{staff.length === 1 ? '' : 's'}</span>
+      </div>
+
+      {feedback ? (
+        <div style={{ padding:'10px 12px', border:'1px solid #bfdbfe', background:'#eff6ff', color:'#1d4ed8', borderRadius:10, fontSize:13 }}>
+          {feedback}
+        </div>
+      ) : null}
+
+      {staff.length ? (
+        <div style={{ display:'grid', gap:12 }}>
+          {staff.map((staffMember) => {
+            const url = buildBookingLink(staffMember.full_name, staffMember.user_email)
+            return (
+              <div key={staffMember.user_email} style={{ display:'grid', gap:12, padding:'16px 18px', border:'1px solid var(--border)', borderRadius:16, background:'var(--bg2)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{staffMember.full_name}</div>
+                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{staffMember.role || 'Bookable staff'}</div>
+                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={() => onCopy(staffMember)}>Copy link</button>
+                </div>
+                <div style={{ display:'grid', gap:6 }}>
+                  <div style={{ fontSize:10, fontFamily:'var(--font-mono)', letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Booking URL</div>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ fontSize:13, color:'var(--accent)', wordBreak:'break-all' }}>{url}</a>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={{ padding:'18px 16px', border:'1px dashed var(--border)', borderRadius:14, color:'var(--faint)', fontSize:13 }}>
+          No bookable staff are available for share links yet. Mark staff as bookable in their profile or permissions first.
+        </div>
       )}
     </div>
   )

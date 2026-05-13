@@ -82,6 +82,7 @@ const RecruitingApplicationProfile = lazyRetry(() => import('./pages/RecruitingA
 const RecruitingBoard = lazyRetry(() => import('./pages/RecruitingBoard'), 'recruiting-board')
 const RecruitingSettings = lazyRetry(() => import('./pages/RecruitingSettings'), 'recruiting-settings')
 const Appointments = lazyRetry(() => import('./pages/Appointments'), 'appointments')
+const PublicBookingPage = lazyRetry(() => import('./pages/PublicBookingPage'), 'public-booking')
 const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list')
 const AuditLog = lazyRetry(() => import('./pages/AuditLog'), 'audit-log')
 const Settings = lazyRetry(() => import('./pages/Settings'), 'settings')
@@ -492,6 +493,7 @@ function AuthenticatedApp() {
     <AuthProvider>
       <Suspense fallback={<RouteLoader />}>
         <Routes>
+          <Route path="/book/:slug"     element={<PublicBookingPage />} />
           <Route path="/"              element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
           <Route path="/workspace"     element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
           <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
@@ -511,7 +513,10 @@ export default function App() {
         <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
         <UnauthenticatedTemplate>
           <Suspense fallback={<RouteLoader />}>
-            <Routes><Route path="*" element={<LoginPage />} /></Routes>
+            <Routes>
+              <Route path="/book/:slug" element={<PublicBookingPage />} />
+              <Route path="*" element={<LoginPage />} />
+            </Routes>
           </Suspense>
         </UnauthenticatedTemplate>
       </BrowserRouter>
