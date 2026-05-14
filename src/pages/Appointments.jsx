@@ -892,6 +892,9 @@ function BookingLinksPanel({ staff, feedback, onCopy, isAdmin }) {
               ? 'Copy a direct booking page for any bookable staff member.'
               : 'Share your direct booking page so clients can book time with you without portal access.'}
           </div>
+          <div style={{ fontSize:12, color:'var(--faint)', marginTop:8 }}>
+            Staff can block individual days and 30-minute time slots from the main Calendar tab by clicking a day badge for their row.
+          </div>
         </div>
         <span className="badge badge-grey">{staff.length} active link{staff.length === 1 ? '' : 's'}</span>
       </div>
@@ -1224,17 +1227,50 @@ function MeetingsPanel({ staffDirectory, meetings, microsoftEvents, microsoftCal
 }
 
 function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onClose, onSave, onCancelAppt, onCancelMeeting, isAdmin, currentUser }) {
+  const seededSlots = Array.isArray(avail?.slots) && avail.slots.length
+    ? [...avail.slots].sort()
+    : buildWindowSlots('09:00', '17:00')
   const [isAvailable, setIsAvailable] = useState(avail ? avail.is_available : true)
+  const [availableSlots, setAvailableSlots] = useState(seededSlots)
+  const [windowStart, setWindowStart] = useState(seededSlots[0] || '09:00')
+  const [windowEnd, setWindowEnd] = useState(addMins(seededSlots[seededSlots.length - 1] || '16:30', 30))
   const [saving, setSaving] = useState(false)
 
   const canEdit = isAdmin || currentUser?.email?.toLowerCase() === staffEmail?.toLowerCase()
+  const hasPersistedRow = avail && !String(avail.id || '').startsWith('schedule:')
+  const slotChoices = useMemo(() => buildWindowSlots(windowStart, windowEnd), [windowStart, windowEnd])
+
+  const regenerateSlots = () => {
+    const rebuilt = buildWindowSlots(windowStart, windowEnd)
+    setAvailableSlots(rebuilt)
+    setIsAvailable(rebuilt.length > 0)
+  }
+
+  const toggleSlot = (slot) => {
+    setAvailableSlots((current) => {
+      const next = current.includes(slot)
+        ? current.filter((item) => item !== slot)
+        : [...current, slot].sort()
+      if (!next.length) setIsAvailable(false)
+      else setIsAvailable(true)
+      return next
+    })
+  }
 
   const save = async () => {
     setSaving(true)
-    if (avail) {
-      await supabase.from('staff_availability').update({ is_available: isAvailable, updated_at: new Date().toISOString() }).eq('id', avail.id)
+    const payload = {
+      staff_email: staffEmail,
+      staff_name: staffName,
+      date,
+      is_available: isAvailable && availableSlots.length > 0,
+      slots: isAvailable ? availableSlots : [],
+      updated_at: new Date().toISOString(),
+    }
+    if (hasPersistedRow) {
+      await supabase.from('staff_availability').update(payload).eq('id', avail.id)
     } else {
-      await supabase.from('staff_availability').insert([{ staff_email: staffEmail, staff_name: staffName, date, is_available: isAvailable, slots: [] }])
+      await supabase.from('staff_availability').insert([payload])
     }
     setSaving(false); onSave(); onClose()
   }
@@ -1264,7 +1300,48 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onC
                   </button>
                 ))}
               </div>
-              <button className="btn btn-primary" onClick={save} disabled={saving} style={{ marginTop:12, width:'100%', justifyContent:'center' }}>
+              <div className="fg" style={{ marginTop:12 }}>
+                <div>
+                  <label className="lbl">Window start</label>
+                  <input className="inp" type="time" value={windowStart} onChange={(e) => setWindowStart(e.target.value)} />
+                </div>
+                <div>
+                  <label className="lbl">Window end</label>
+                  <input className="inp" type="time" value={windowEnd} onChange={(e) => setWindowEnd(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:8, alignItems:'center', marginTop:12, marginBottom:10 }}>
+                <div style={{ fontSize:12, color:'var(--sub)' }}>Pick which 30-minute times should stay bookable.</div>
+                <button type="button" className="btn btn-outline btn-sm" onClick={regenerateSlots}>Reset from window</button>
+              </div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                {slotChoices.map((slot) => {
+                  const active = availableSlots.includes(slot)
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleSlot(slot)}
+                      style={{
+                        padding:'8px 10px',
+                        borderRadius:999,
+                        border:`1px solid ${active ? '#2563eb' : 'var(--border)'}`,
+                        background: active ? '#eff6ff' : 'var(--bg2)',
+                        color: active ? '#1d4ed8' : 'var(--sub)',
+                        cursor:'pointer',
+                        fontSize:12,
+                        fontWeight:600,
+                      }}
+                    >
+                      {slot}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize:12, color:'var(--faint)', marginTop:10 }}>
+                Existing appointments and meetings will still block matching times automatically on the public booking page.
+              </div>
+              <button className="btn btn-primary" onClick={save} disabled={saving} style={{ marginTop:14, width:'100%', justifyContent:'center' }}>
                 {saving ? 'Saving...' : 'Save Availability'}
               </button>
             </div>

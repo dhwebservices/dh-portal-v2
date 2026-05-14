@@ -67,6 +67,8 @@ export default function PublicBookingPage() {
     () => availability.find((item) => item.date === selectedDate) || availability[0] || null,
     [availability, selectedDate]
   )
+  const hasAvailability = availability.length > 0
+  const hasSelectedSlot = !!selectedDate && !!selectedTime && !!selectedDay?.slots?.includes(selectedTime)
 
   useEffect(() => {
     if (!selectedDay) return
@@ -155,6 +157,11 @@ export default function PublicBookingPage() {
               <h2>Booking link unavailable</h2>
               <p>{error}</p>
             </div>
+          ) : !hasAvailability ? (
+            <div className="public-booking-state">
+              <h2>No times available right now</h2>
+              <p>This staff member does not currently have any open booking slots. Please check back later or contact the team directly.</p>
+            </div>
           ) : (
             <>
               <div className="public-booking-section-head">
@@ -179,18 +186,22 @@ export default function PublicBookingPage() {
                 ))}
               </div>
 
-              <div className="public-booking-slots">
-                {(selectedDay?.slots || []).map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    className={`public-booking-slot ${selectedTime === slot ? 'is-active' : ''}`}
-                    onClick={() => setSelectedTime(slot)}
-                  >
-                    {slot}
-                  </button>
-                ))}
-              </div>
+              {(selectedDay?.slots || []).length ? (
+                <div className="public-booking-slots">
+                  {(selectedDay?.slots || []).map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={`public-booking-slot ${selectedTime === slot ? 'is-active' : ''}`}
+                      onClick={() => setSelectedTime(slot)}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="public-booking-message is-error">No open times remain on this day. Choose another date.</div>
+              )}
 
               <form className="public-booking-form" onSubmit={submitBooking}>
                 <div className="public-booking-section-head">
@@ -230,9 +241,9 @@ export default function PublicBookingPage() {
                 <div className="public-booking-actions">
                   <div className="public-booking-summary">
                     <span>Selected slot</span>
-                    <strong>{selectedDate && selectedTime ? `${prettyDate(selectedDate)} · ${selectedTime}` : 'Choose a time'}</strong>
+                    <strong>{hasSelectedSlot ? `${prettyDate(selectedDate)} · ${selectedTime}` : 'Choose a time first'}</strong>
                   </div>
-                  <button className="btn btn-primary" disabled={saving || !selectedDate || !selectedTime}>
+                  <button className="btn btn-primary" disabled={saving || !hasSelectedSlot}>
                     {saving ? 'Booking...' : 'Book call'}
                   </button>
                 </div>
