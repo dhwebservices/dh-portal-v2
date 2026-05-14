@@ -123,12 +123,29 @@ function isSchedulableStaffEmail(email = '', lifecycleStateMap = new Map()) {
   return !['terminated', 'termination_approved', 'left', 'archived'].includes(state)
 }
 
+function resolveSupabaseConfig(env) {
+  const url = String(env.SUPABASE_URL || env.VITE_SUPABASE_URL || '').trim()
+  const key = String(
+    env.SUPABASE_SERVICE_ROLE_KEY
+    || env.SUPABASE_ANON_KEY
+    || env.VITE_SUPABASE_ANON_KEY
+    || env.VITE_SUPABASE_ANON
+    || ''
+  ).trim()
+  return { url, key }
+}
+
 async function supabaseFetch(env, path, options = {}) {
-  const response = await fetch(`${env.SUPABASE_URL}${path}`, {
+  const { url, key } = resolveSupabaseConfig(env)
+  if (!url || !key) {
+    throw new Error('Booking service is not configured.')
+  }
+
+  const response = await fetch(`${url}${path}`, {
     ...options,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },
@@ -275,7 +292,8 @@ export async function onRequestGet(context) {
   if (!isAllowedOrigin(context.request, context.env)) {
     return json({ error: 'Origin is not allowed.' }, 403)
   }
-  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const { url, key } = resolveSupabaseConfig(context.env)
+  if (!url || !key) {
     return json({ error: 'Booking service is not configured.' }, 500)
   }
 
@@ -308,7 +326,8 @@ export async function onRequestPost(context) {
   if (!isAllowedOrigin(context.request, context.env)) {
     return json({ error: 'Origin is not allowed.' }, 403)
   }
-  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const { url, key } = resolveSupabaseConfig(context.env)
+  if (!url || !key) {
     return json({ error: 'Booking service is not configured.' }, 500)
   }
 
