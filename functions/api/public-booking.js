@@ -184,7 +184,7 @@ async function resolveBookableStaff(env, slug) {
   const [profiles, permissions, lifecycleRows] = await Promise.all([
     supabaseFetch(env, '/rest/v1/hr_profiles?select=user_email,full_name,role,phone,bookable&order=full_name.asc'),
     supabaseFetch(env, '/rest/v1/user_permissions?select=user_email,bookable_staff'),
-    supabaseFetch(env, '/rest/v1/portal_settings?select=key,value&key=like.staff_lifecycle:%'),
+    supabaseFetch(env, '/rest/v1/portal_settings?select=key,value'),
   ])
 
   const lifecycleMap = buildLifecycleStateMap(lifecycleRows || [])
