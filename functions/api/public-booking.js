@@ -126,13 +126,13 @@ function isSchedulableStaffEmail(email = '', lifecycleStateMap = new Map()) {
 }
 
 function resolveSupabaseConfig(env) {
-  const url = String(env.SUPABASE_URL || env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim()
+  const url = String(env.SUPABASE_URL || DEFAULT_SUPABASE_URL || env.VITE_SUPABASE_URL).trim()
   const key = String(
     env.SUPABASE_SERVICE_ROLE_KEY
+    || DEFAULT_SUPABASE_ANON_KEY
     || env.SUPABASE_ANON_KEY
     || env.VITE_SUPABASE_ANON_KEY
     || env.VITE_SUPABASE_ANON
-    || DEFAULT_SUPABASE_ANON_KEY
     || ''
   ).trim()
   return { url, key }
@@ -235,7 +235,7 @@ function formatDate(dateStr) {
 async function loadPublicAvailability(env, staffEmail, today, end, weekStarts, lifecycleMap) {
   const encodedEmail = encodeURIComponent(staffEmail)
   const [availRows, appointmentRows, meetingRows, scheduleRows] = await Promise.all([
-    supabaseFetch(env, `/rest/v1/staff_availability?select=staff_email,date,is_available,start_time,end_time,slots&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}`),
+    supabaseFetch(env, `/rest/v1/staff_availability?select=*&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}`),
     supabaseFetch(env, `/rest/v1/appointments?select=staff_email,date,start_time,status&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
     supabaseFetch(env, `/rest/v1/staff_meetings?select=staff_email,date,start_time,status&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
     supabaseFetch(env, `/rest/v1/schedules?select=user_email,week_start,submitted,week_data&user_email=eq.${encodedEmail}&submitted=eq.true&week_start=in.(${weekStarts.join(',')})`),
