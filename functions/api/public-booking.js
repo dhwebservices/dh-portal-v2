@@ -181,10 +181,14 @@ async function resolveBookableStaff(env, slug) {
     Array.from({ length: 14 }, (_, index) => getScheduleWeekStart(isoLocalDate(addDays(new Date(), index))))
   ))
 
-  const [profiles, permissions, lifecycleRows] = await Promise.all([
+  const [profiles, permissions, lifecycleRows, schedules, availabilityRows, appointmentRows, meetingRows] = await Promise.all([
     supabaseFetch(env, '/rest/v1/hr_profiles?select=user_email,full_name,role,phone,bookable&order=full_name.asc'),
     supabaseFetch(env, '/rest/v1/user_permissions?select=user_email,bookable_staff'),
     supabaseFetch(env, '/rest/v1/portal_settings?select=key,value'),
+    supabaseFetch(env, `/rest/v1/schedules?select=user_email,week_start,submitted,week_data&submitted=eq.true&week_start=in.(${weekStarts.join(',')})`),
+    supabaseFetch(env, `/rest/v1/staff_availability?select=staff_email,date,is_available&date=gte.${today}&date=lte.${end}`),
+    supabaseFetch(env, `/rest/v1/appointments?select=staff_email,date,status&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
+    supabaseFetch(env, `/rest/v1/staff_meetings?select=staff_email,date,status&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
   ])
 
   const lifecycleMap = buildLifecycleStateMap(lifecycleRows || [])
@@ -199,6 +203,26 @@ async function resolveBookableStaff(env, slug) {
     const email = normalizeStaffEmail(item.user_email)
     if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
     if (item.bookable_staff) bookableEmails.add(email)
+  }
+  for (const item of schedules || []) {
+    const email = normalizeStaffEmail(item.user_email)
+    if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
+    if (item.week_data) bookableEmails.add(email)
+  }
+  for (const item of availabilityRows || []) {
+    const email = normalizeStaffEmail(item.staff_email)
+    if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
+    bookableEmails.add(email)
+  }
+  for (const item of appointmentRows || []) {
+    const email = normalizeStaffEmail(item.staff_email)
+    if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
+    bookableEmails.add(email)
+  }
+  for (const item of meetingRows || []) {
+    const email = normalizeStaffEmail(item.staff_email)
+    if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
+    bookableEmails.add(email)
   }
 
   const staffRows = (profiles || [])
