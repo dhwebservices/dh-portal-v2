@@ -5,6 +5,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ]
 
 const DEFAULT_EMAIL_WORKER_URL = 'https://dh-email-worker.aged-silence-66a7.workers.dev'
+const DEFAULT_SUPABASE_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -124,12 +126,13 @@ function isSchedulableStaffEmail(email = '', lifecycleStateMap = new Map()) {
 }
 
 function resolveSupabaseConfig(env) {
-  const url = String(env.SUPABASE_URL || env.VITE_SUPABASE_URL || '').trim()
+  const url = String(env.SUPABASE_URL || env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim()
   const key = String(
     env.SUPABASE_SERVICE_ROLE_KEY
     || env.SUPABASE_ANON_KEY
     || env.VITE_SUPABASE_ANON_KEY
     || env.VITE_SUPABASE_ANON
+    || DEFAULT_SUPABASE_ANON_KEY
     || ''
   ).trim()
   return { url, key }
