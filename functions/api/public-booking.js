@@ -404,7 +404,6 @@ export async function onRequestPost(context) {
       status: 'confirmed',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      source: 'public_booking_link',
     }
 
     const created = await supabaseFetch(context.env, '/rest/v1/appointments', {
