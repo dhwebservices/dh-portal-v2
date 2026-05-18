@@ -39,6 +39,16 @@ import {
   shouldForceSessionReauth,
   touchSessionStartedAt,
 } from '../utils/accountSecurity'
+import {
+  applyLifecycleAccessPolicy,
+  applyTemporaryPermissions,
+  buildLifecycleAccessPolicyKey,
+  buildTemporaryPermissionKey,
+  createDefaultLifecycleAccessPolicy,
+  createDefaultTemporaryPermissionRecord,
+  mergeLifecycleAccessPolicy,
+  mergeTemporaryPermissionRecord,
+} from '../utils/staffAccess'
 
 const Ctx = createContext(null)
 const ACTIVE_HEARTBEAT_MS = 60 * 1000
@@ -57,6 +67,10 @@ const BASE_PERMISSIONS = {
   recruiting_board: false,
   recruiting_settings: false,
   hr_profiles: false,
+  pdf_workspace: true,
+  pdf_shared_view: false,
+  pdf_shared_edit: false,
+  pdf_shared_admin: false,
   shop_orders_view: false,
   shop_orders_edit: false,
   shop_products_view: false,
@@ -86,6 +100,8 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     workspaceResult,
     departmentCatalogResult,
     accountSecurityResult,
+    temporaryPermissionsResult,
+    lifecycleAccessPolicyResult,
   ] = await Promise.all([
     supabase
       .from('user_permissions')
@@ -127,6 +143,16 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       .select('value')
       .eq('key', buildAccountSecurityKey(safeEmail))
       .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildTemporaryPermissionKey(safeEmail))
+      .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildLifecycleAccessPolicyKey(safeEmail))
+      .maybeSingle(),
   ])
 
   const hrProfile = hrResult?.data || {}
@@ -136,13 +162,19 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
   const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
   const accountSecurityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
+  const temporaryPermissionRaw = temporaryPermissionsResult?.data?.value?.value ?? temporaryPermissionsResult?.data?.value ?? {}
+  const lifecycleAccessPolicyRaw = lifecycleAccessPolicyResult?.data?.value?.value ?? lifecycleAccessPolicyResult?.data?.value ?? {}
   const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
     email: safeEmail,
     department: hrProfile?.department,
     isDirector: isDirectorEmail(safeEmail),
   }), departmentCatalogRaw, safeEmail)
   const permissionsData = permissionsResult?.data
-  const safePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
+  const temporaryPermissionRecord = mergeTemporaryPermissionRecord(temporaryPermissionRaw)
+  const lifecycleAccessPolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicyRaw)
+  const basePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
+  const safePerms = applyTemporaryPermissions(basePerms, temporaryPermissionRecord)
+  const lifecycleRecord = mergeLifecycleRecord(lifecycleRaw)
   const nextWorkspace = inferWorkspaceFromProfile({
     explicitWorkspace: workspaceRaw?.primary_workspace ?? workspaceRaw,
     hrProfile,
@@ -161,9 +193,11 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     },
     perms: OWNER_EMAILS.has(safeEmail) ? null : safePerms,
     isAdmin: OWNER_EMAILS.has(safeEmail) || permissionsData?.permissions?.admin === true || nextOrg.role_scope === 'director',
-    isOnboarding: permissionsData?.onboarding === true,
-    accountSecurity: mergeAccountSecurityRecord(accountSecurityRaw),
-    lifecycle: mergeLifecycleRecord(lifecycleRaw),
+    isOnboarding: lifecycleAccessPolicy.enforce_onboarding_mode
+      ? lifecycleRecord.state === 'onboarding'
+      : permissionsData?.onboarding === true,
+    accountSecurity: applyLifecycleAccessPolicy(mergeAccountSecurityRecord(accountSecurityRaw), lifecycleRecord, lifecycleAccessPolicy),
+    lifecycle: lifecycleRecord,
     org: {
       ...nextOrg,
       reports_to_email: nextOrg.reports_to_email || String(hrProfile?.manager_email || '').toLowerCase().trim(),
@@ -184,6 +218,8 @@ export function AuthProvider({ children }) {
   const [maintenance, setMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [lifecycle, setLifecycle] = useState(mergeLifecycleRecord())
   const [accountSecurity, setAccountSecurity] = useState(createDefaultAccountSecurityRecord())
+  const [temporaryPermissionRecord, setTemporaryPermissionRecord] = useState(createDefaultTemporaryPermissionRecord())
+  const [lifecycleAccessPolicy, setLifecycleAccessPolicy] = useState(createDefaultLifecycleAccessPolicy())
   const [org, setOrg] = useState(mergeOrgRecord())
   const [workspace, setWorkspace] = useState('self_service')
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
@@ -285,8 +321,18 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', buildAccountSecurityKey(normalizedEmail))
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildTemporaryPermissionKey(normalizedEmail))
+        .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildLifecycleAccessPolicyKey(normalizedEmail))
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult, accountSecurityResult]) => {
+      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult, accountSecurityResult, temporaryPermissionsResult, lifecycleAccessPolicyResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         const hrProfile = hrResult?.data || {}
@@ -306,9 +352,14 @@ export function AuthProvider({ children }) {
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
-        setLifecycle(mergeLifecycleRecord(lifecycleRaw))
+        const nextLifecycle = mergeLifecycleRecord(lifecycleRaw)
+        setLifecycle(nextLifecycle)
         const securityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
-        setAccountSecurity(mergeAccountSecurityRecord(securityRaw))
+        const nextTemporaryPermissions = mergeTemporaryPermissionRecord(temporaryPermissionsResult?.data?.value?.value ?? temporaryPermissionsResult?.data?.value ?? {})
+        const nextLifecycleAccessPolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicyResult?.data?.value?.value ?? lifecycleAccessPolicyResult?.data?.value ?? {})
+        setTemporaryPermissionRecord(nextTemporaryPermissions)
+        setLifecycleAccessPolicy(nextLifecycleAccessPolicy)
+        setAccountSecurity(applyLifecycleAccessPolicy(mergeAccountSecurityRecord(securityRaw), nextLifecycle, nextLifecycleAccessPolicy))
         const orgRaw = orgResult?.data?.value?.value ?? orgResult?.data?.value ?? {}
         const workspaceRaw = workspaceResult?.data?.value?.value ?? workspaceResult?.data?.value ?? {}
         const departmentCatalogRaw = departmentCatalogResult?.data?.value?.value ?? departmentCatalogResult?.data?.value ?? []
@@ -323,7 +374,8 @@ export function AuthProvider({ children }) {
           reports_to_name: nextOrg.reports_to_name || hrProfile?.manager_name || '',
         })
 
-        const safePerms = !error && data ? sanitizePermissions(data.permissions) : { ...BASE_PERMISSIONS }
+        const basePerms = !error && data ? sanitizePermissions(data.permissions) : { ...BASE_PERMISSIONS }
+        const safePerms = applyTemporaryPermissions(basePerms, nextTemporaryPermissions)
         setWorkspace(inferWorkspaceFromProfile({
           explicitWorkspace: workspaceRaw?.primary_workspace ?? workspaceRaw,
           hrProfile,
@@ -337,7 +389,7 @@ export function AuthProvider({ children }) {
         if (!error && data) {
           setPerms(isOwner ? null : safePerms)
           setIsAdmin(isOwner || data.permissions?.admin === true || nextOrg.role_scope === 'director')
-          setIsOnboarding(data.onboarding === true)
+          setIsOnboarding(nextLifecycleAccessPolicy.enforce_onboarding_mode ? nextLifecycle.state === 'onboarding' : data.onboarding === true)
         } else {
           setPerms(isOwner ? null : { ...BASE_PERMISSIONS })
           setIsAdmin(isOwner || nextOrg.role_scope === 'director')
@@ -353,6 +405,8 @@ export function AuthProvider({ children }) {
         setMaintenance({ enabled: false, message: '', eta: '' })
         setLifecycle(mergeLifecycleRecord())
         setAccountSecurity(createDefaultAccountSecurityRecord())
+        setTemporaryPermissionRecord(createDefaultTemporaryPermissionRecord())
+        setLifecycleAccessPolicy(createDefaultLifecycleAccessPolicy())
         setOrg(hydrateManagedDepartments(mergeOrgRecord({}, {
           email: normalizedEmail,
           isDirector: isDirectorEmail(normalizedEmail),
@@ -402,7 +456,7 @@ export function AuthProvider({ children }) {
         .maybeSingle()
         .then(({ data }) => {
           const raw = data?.value?.value ?? data?.value ?? {}
-          setAccountSecurity(mergeAccountSecurityRecord(raw))
+          setAccountSecurity(applyLifecycleAccessPolicy(mergeAccountSecurityRecord(raw), lifecycle, lifecycleAccessPolicy))
         })
         .catch(() => {})
     }
@@ -420,7 +474,7 @@ export function AuthProvider({ children }) {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [normalizedEmail])
+  }, [normalizedEmail, lifecycle, lifecycleAccessPolicy])
 
   useEffect(() => {
     if (!normalizedEmail) return undefined

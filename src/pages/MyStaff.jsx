@@ -38,7 +38,7 @@ const ALL_PAGES = [
   {key:'clients',label:'Onboarded Clients'},{key:'clientmgmt',label:'Client Portal'},
   {key:'support',label:'Support'},{key:'competitor',label:'Competitor Lookup'},
   {key:'domains',label:'Domain Checker'},{key:'proposals',label:'Proposal Builder'},
-  {key:'sendemail',label:'Send Email'},{key:'sms_manager',label:'SMS Manager'},{key:'appointments',label:'Appointments'},
+  {key:'sendemail',label:'Send Email'},{key:'sms_manager',label:'SMS Manager'},{key:'pdf_workspace',label:'PDF Workspace'},{key:'pdf_shared_view',label:'PDF Shared View'},{key:'pdf_shared_edit',label:'PDF Shared Edit'},{key:'pdf_shared_admin',label:'PDF Shared Admin'},{key:'appointments',label:'Appointments'},
   {key:'tasks',label:'Manage Tasks'},
   {key:'mytasks',label:'My Tasks'},{key:'schedule',label:'Schedule'},
   {key:'my_department',label:'My Department'},
@@ -71,9 +71,9 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Admin:    Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings','pdf_shared_admin'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','staff','manager_board','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit','pdf_shared_view','pdf_shared_edit','pdf_shared_admin'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies','pdf_workspace'].includes(p.key)).map(p => [p.key, true])),
 }
 
 const EMPTY_PROFILE = { full_name:'', role:'', department:'', contract_type:'', start_date:'', phone:'', personal_email:'', address:'', manager_name:'', hr_notes:'', bank_name:'', account_name:'', sort_code:'', account_number:'' }

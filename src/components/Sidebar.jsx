@@ -26,6 +26,7 @@ const SECTIONS = [
       { to: '/client-pipeline', icon: 'chart', label: 'Client Pipeline', desc: 'Lifecycle & risk stages', key: 'clients' },
       { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  },
       { to: '/web-manager', icon: 'globe',  label: 'Web Manager',       desc: 'Websites & public site', key: 'website_editor' },
+      { to: '/pdf-workspace', icon: 'doc',  label: 'PDF Workspace',     desc: 'Internal PDF tools', key: 'pdf_workspace' },
       { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     },
       { to: '/knowledge-base', icon: 'doc', label: 'Knowledge Base',    desc: 'Help articles & playbooks', key: 'support' },
       { to: '/competitor',  icon: 'search', label: 'Competitor Lookup', desc: 'Research & compare', key: 'competitor'  },

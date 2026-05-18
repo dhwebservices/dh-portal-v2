@@ -112,6 +112,8 @@ import {
 import { sendEmail } from '../utils/email'
 import { buildStaff360Timeline, buildStaffProfileCompleteness, formatProfileTimelineDate } from '../utils/profileTimeline'
 import { openSecureDocument } from '../utils/fileAccess'
+import { fetchAuditLogs } from '../utils/auditApi'
+import { logAction, logSecurityEvent } from '../utils/audit'
 import {
   buildAccountLockRecord,
   buildAccountSecurityKey,
@@ -119,6 +121,17 @@ import {
   createDefaultAccountSecurityRecord,
   mergeAccountSecurityRecord,
 } from '../utils/accountSecurity'
+import {
+  applyLifecycleAccessPolicy,
+  buildLifecycleAccessPolicyKey,
+  buildTemporaryPermissionKey,
+  createDefaultLifecycleAccessPolicy,
+  createDefaultTemporaryPermissionRecord,
+  getLifecycleLockReason,
+  mergeLifecycleAccessPolicy,
+  mergeTemporaryPermissionRecord,
+  shouldLifecycleLockPortal,
+} from '../utils/staffAccess'
 
 function formatTimelineDate(value) {
   if (!value) return 'Unknown time'
@@ -162,6 +175,10 @@ const ALL_PAGES = [
   {key:'proposals',     label:'Proposal Builder',   group:'Business'},
   {key:'sendemail',     label:'Send Email',         group:'Business'},
   {key:'sms_manager',   label:'SMS Manager',        group:'Business', category:'Comms', desc:'Access to the staff SMS centre and bulk text alerts'},
+  {key:'pdf_workspace', label:'PDF Workspace',      group:'Business', category:'Documents', desc:'Personal PDF tools and internal PDF workspace'},
+  {key:'pdf_shared_view', label:'PDF Shared View',  group:'Business', category:'Documents', desc:'View shared PDF libraries and company templates'},
+  {key:'pdf_shared_edit', label:'PDF Shared Edit',  group:'Business', category:'Documents', desc:'Create, move, and edit PDFs in shared libraries'},
+  {key:'pdf_shared_admin', label:'PDF Shared Admin',group:'Business', category:'Documents', desc:'Manage PDF shared libraries, folder structures, and access'},
   {key:'tasks',         label:'Manage Tasks',       group:'Tasks'},
   {key:'mytasks',       label:'My Tasks',           group:'Tasks'},
   {key:'schedule',      label:'Schedule',           group:'Tasks'},
@@ -204,9 +221,9 @@ const ALL_PAGES = [
 
 const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit'].includes(p.key)).map(p => [p.key, true])),
-  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings','pdf_shared_admin'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit','pdf_shared_view','pdf_shared_edit','pdf_shared_admin'].includes(p.key)).map(p => [p.key, true])),
+  ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies','pdf_workspace'].includes(p.key)).map(p => [p.key, true])),
 }
 
 const PERMISSION_GROUPS = ['Home', 'Business', 'Tasks', 'HR', 'Hiring', 'Shop', 'Admin']
@@ -283,9 +300,17 @@ export default function StaffProfile() {
   const [profile, setProfile]     = useState({})
   const [profileId, setProfileId] = useState(null)
   const [editPerms, setEditPerms] = useState({ ...ROLE_DEFAULTS.Staff })
+  const [originalEditPerms, setOriginalEditPerms] = useState({ ...ROLE_DEFAULTS.Staff })
   const [onboarding, setOnboarding] = useState(false)
+  const [originalOnboarding, setOriginalOnboarding] = useState(false)
   const [bookable, setBookable]   = useState(false)
+  const [originalBookable, setOriginalBookable] = useState(false)
   const [accountSecurityRecord, setAccountSecurityRecord] = useState(() => createDefaultAccountSecurityRecord())
+  const [originalAccountSecurityRecord, setOriginalAccountSecurityRecord] = useState(() => createDefaultAccountSecurityRecord())
+  const [temporaryPermissionRecord, setTemporaryPermissionRecord] = useState(() => createDefaultTemporaryPermissionRecord())
+  const [originalTemporaryPermissionRecord, setOriginalTemporaryPermissionRecord] = useState(() => createDefaultTemporaryPermissionRecord())
+  const [lifecycleAccessPolicy, setLifecycleAccessPolicy] = useState(() => createDefaultLifecycleAccessPolicy())
+  const [originalLifecycleAccessPolicy, setOriginalLifecycleAccessPolicy] = useState(() => createDefaultLifecycleAccessPolicy())
   const [commissions, setComms]   = useState([])
   const [docs, setDocs]           = useState([])
   const [uploading, setUploading] = useState(false)
@@ -296,6 +321,8 @@ export default function StaffProfile() {
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
+  const [accessAuditRows, setAccessAuditRows] = useState([])
+  const [accessAuditLoading, setAccessAuditLoading] = useState(false)
   const [sendingNotification, setSendingNotification] = useState(false)
   const [notificationSaved, setNotificationSaved] = useState(false)
   const [notificationSavedMessage, setNotificationSavedMessage] = useState('')
@@ -306,6 +333,8 @@ export default function StaffProfile() {
   const [portalPrefsSaving, setPortalPrefsSaving] = useState(false)
   const [portalPrefsSaved, setPortalPrefsSaved] = useState(false)
   const [lifecycleRecord, setLifecycleRecord] = useState(() => mergeLifecycleRecord())
+  const [lifecycleSaving, setLifecycleSaving] = useState(false)
+  const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [orgRecord, setOrgRecord] = useState(() => mergeOrgRecord())
   const [originalOrgRecord, setOriginalOrgRecord] = useState(() => mergeOrgRecord())
   const [primaryWorkspace, setPrimaryWorkspace] = useState('')
@@ -383,8 +412,6 @@ export default function StaffProfile() {
   })
   const [peopleOpsSaving, setPeopleOpsSaving] = useState(false)
   const [peopleOpsSaved, setPeopleOpsSaved] = useState(false)
-  const [lifecycleSaving, setLifecycleSaving] = useState(false)
-  const [lifecycleSaved, setLifecycleSaved] = useState(false)
   const [deletingStaff, setDeletingStaff] = useState(false)
   const [customNotification, setCustomNotification] = useState({
     title: '',
@@ -513,6 +540,16 @@ export default function StaffProfile() {
         .select('value')
         .eq('key', buildAccountSecurityKey(email))
         .maybeSingle()
+      const { data: temporaryPermissionSetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildTemporaryPermissionKey(email))
+        .maybeSingle()
+      const { data: lifecycleAccessPolicySetting } = await supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildLifecycleAccessPolicyKey(email))
+        .maybeSingle()
       const { data: departmentCatalogSetting } = await supabase
         .from('portal_settings')
         .select('value')
@@ -564,13 +601,16 @@ export default function StaffProfile() {
       const workspaceRaw = workspaceSetting?.value?.value ?? workspaceSetting?.value ?? {}
       const complianceRaw = complianceSetting?.value?.value ?? complianceSetting?.value ?? {}
       const accountSecurityRaw = accountSecuritySetting?.value?.value ?? accountSecuritySetting?.value ?? {}
+      const temporaryPermissionRaw = temporaryPermissionSetting?.value?.value ?? temporaryPermissionSetting?.value ?? {}
+      const lifecycleAccessPolicyRaw = lifecycleAccessPolicySetting?.value?.value ?? lifecycleAccessPolicySetting?.value ?? {}
       const departmentCatalogRaw = departmentCatalogSetting?.value?.value ?? departmentCatalogSetting?.value ?? []
       setPortalPrefs(mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, preferenceRaw))
-      setLifecycleRecord(mergeLifecycleRecord(lifecycleRaw, {
+      const mergedLifecycle = mergeLifecycleRecord(lifecycleRaw, {
         onboarding: !!perm?.data?.onboarding,
         startDate: mergedProfile.start_date,
         contractType: mergedProfile.contract_type,
-      }))
+      })
+      setLifecycleRecord(mergedLifecycle)
       const nextOrg = mergeOrgRecord(orgRaw, {
         email,
         department: mergedProfile.department,
@@ -590,7 +630,15 @@ export default function StaffProfile() {
       setOriginalOrgRecord(hydratedOrg)
       setPrimaryWorkspace(normalizeWorkspace(workspaceRaw?.primary_workspace ?? workspaceRaw))
       setComplianceRecord(mergeComplianceRecord(complianceRaw))
-      setAccountSecurityRecord(mergeAccountSecurityRecord(accountSecurityRaw))
+      const mergedLifecyclePolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicyRaw)
+      const mergedTemporaryPermissions = mergeTemporaryPermissionRecord(temporaryPermissionRaw)
+      const baseAccountSecurity = mergeAccountSecurityRecord(accountSecurityRaw)
+      setLifecycleAccessPolicy(mergedLifecyclePolicy)
+      setOriginalLifecycleAccessPolicy(mergedLifecyclePolicy)
+      setTemporaryPermissionRecord(mergedTemporaryPermissions)
+      setOriginalTemporaryPermissionRecord(mergedTemporaryPermissions)
+      setAccountSecurityRecord(applyLifecycleAccessPolicy(baseAccountSecurity, mergedLifecycle, mergedLifecyclePolicy))
+      setOriginalAccountSecurityRecord(baseAccountSecurity)
       const nextTemplates = (templateRows || [])
         .map((row) => createContractTemplate({
           id: String(row.key || '').replace('contract_template:', ''),
@@ -736,11 +784,23 @@ export default function StaffProfile() {
 
       if (perm?.data) {
         setPermId(perm.data.id)
-        setEditPerms(perm.data.permissions && Object.keys(perm.data.permissions).length ? perm.data.permissions : { ...ROLE_DEFAULTS.Staff })
-        setOnboarding(!!perm.data.onboarding)
-        setBookable(perm.data.bookable_staff === true)
+        const nextPerms = perm.data.permissions && Object.keys(perm.data.permissions).length ? perm.data.permissions : { ...ROLE_DEFAULTS.Staff }
+        const nextOnboarding = !!perm.data.onboarding
+        const nextBookable = perm.data.bookable_staff === true
+        setEditPerms(nextPerms)
+        setOriginalEditPerms(nextPerms)
+        setOnboarding(nextOnboarding)
+        setOriginalOnboarding(nextOnboarding)
+        setBookable(nextBookable)
+        setOriginalBookable(nextBookable)
       } else {
         setPermId(null)
+        setEditPerms({ ...ROLE_DEFAULTS.Staff })
+        setOriginalEditPerms({ ...ROLE_DEFAULTS.Staff })
+        setOnboarding(false)
+        setOriginalOnboarding(false)
+        setBookable(false)
+        setOriginalBookable(false)
       }
 
       setComms(comms?.data || [])
@@ -752,10 +812,35 @@ export default function StaffProfile() {
         .order('created_at', { ascending: false })
         .limit(12)
       setNotificationHistory(notificationRows || [])
+      await refreshAccessAudit()
     } catch (err) {
       console.error('Load error:', err)
     }
     setLoading(false)
+  }
+
+  const refreshAccessAudit = async () => {
+    setAccessAuditLoading(true)
+    try {
+      const [accessRows, sessionRows] = await Promise.all([
+        fetchAuditLogs({ target_id: email, limit: 24 }),
+        fetchAuditLogs({ user_email: email, action_like: 'session', limit: 12 }),
+      ])
+      const mergedRows = [...accessRows, ...sessionRows]
+        .filter(Boolean)
+        .reduce((acc, row) => {
+          if (!row?.id || acc.some((item) => item.id === row.id)) return acc
+          acc.push(row)
+          return acc
+        }, [])
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      setAccessAuditRows(mergedRows)
+    } catch (error) {
+      console.warn('Could not load access audit timeline:', error)
+      setAccessAuditRows([])
+    } finally {
+      setAccessAuditLoading(false)
+    }
   }
 
   const loadMsUsers = async () => {
@@ -779,6 +864,19 @@ export default function StaffProfile() {
   const save = async () => {
     setSaving(true)
     try {
+      const nextLifecyclePolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicy)
+      const nextLifecycle = mergeLifecycleRecord(lifecycleRecord, {
+        onboarding,
+        startDate: profile.start_date,
+        contractType: profile.contract_type,
+      })
+      const effectiveOnboarding = nextLifecyclePolicy.enforce_onboarding_mode
+        ? nextLifecycle.state === 'onboarding'
+        : onboarding
+      const lifecycleBlocksBookable = nextLifecyclePolicy.remove_bookable_when_inactive
+        && (TERMINATED_STATES.has(nextLifecycle.state) || nextLifecycle.state === 'paused' || nextLifecycle.state === 'restricted')
+      const effectiveBookable = lifecycleBlocksBookable ? false : bookable
+      const nextTemporaryPermissions = mergeTemporaryPermissionRecord(temporaryPermissionRecord)
       const preparedOrgRecord = mergeOrgRecord({
         ...orgRecord,
         email,
@@ -833,11 +931,11 @@ export default function StaffProfile() {
       if (savedProfile?.id) setProfileId(savedProfile.id)
       if (!requiresDirectorApproval) setPrevMgr(profile.manager_email || '')
 
-      const permPayload = { permissions: editPerms, onboarding, bookable_staff: bookable, updated_at: new Date().toISOString() }
+      const permPayload = { permissions: editPerms, onboarding: effectiveOnboarding, bookable_staff: effectiveBookable, updated_at: new Date().toISOString() }
       const savedPerm = await upsertEmailScopedRow('user_permissions', email, permPayload)
       if (savedPerm?.id) setPermId(savedPerm.id)
 
-      const nextAccountSecurity = mergeAccountSecurityRecord(accountSecurityRecord)
+      const nextAccountSecurity = applyLifecycleAccessPolicy(mergeAccountSecurityRecord(accountSecurityRecord), nextLifecycle, nextLifecyclePolicy)
       const { error: accountSecurityError } = await supabase
         .from('portal_settings')
         .upsert({
@@ -845,6 +943,30 @@ export default function StaffProfile() {
           value: { value: nextAccountSecurity },
         }, { onConflict: 'key' })
       if (accountSecurityError) throw new Error('Account security save failed: ' + accountSecurityError.message)
+
+      if (nextTemporaryPermissions.enabled || nextTemporaryPermissions.starts_at || nextTemporaryPermissions.expires_at || Object.keys(nextTemporaryPermissions.permissions || {}).length) {
+        const { error: tempPermissionError } = await supabase
+          .from('portal_settings')
+          .upsert({
+            key: buildTemporaryPermissionKey(email),
+            value: { value: nextTemporaryPermissions },
+          }, { onConflict: 'key' })
+        if (tempPermissionError) throw new Error('Temporary permission save failed: ' + tempPermissionError.message)
+      } else {
+        const { error: tempPermissionDeleteError } = await supabase
+          .from('portal_settings')
+          .delete()
+          .eq('key', buildTemporaryPermissionKey(email))
+        if (tempPermissionDeleteError) throw new Error('Temporary permission save failed: ' + tempPermissionDeleteError.message)
+      }
+
+      const { error: lifecyclePolicyError } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildLifecycleAccessPolicyKey(email),
+          value: { value: nextLifecyclePolicy },
+        }, { onConflict: 'key' })
+      if (lifecyclePolicyError) throw new Error('Lifecycle access policy save failed: ' + lifecyclePolicyError.message)
 
       const normalizedPrimaryWorkspace = normalizeWorkspace(primaryWorkspace)
       if (normalizedPrimaryWorkspace) {
@@ -993,8 +1115,67 @@ export default function StaffProfile() {
         setPrevMgr(newMgr)
       }
 
+      const permissionChanged = JSON.stringify(editPerms) !== JSON.stringify(originalEditPerms)
+      const securityChanged = JSON.stringify(nextAccountSecurity) !== JSON.stringify(originalAccountSecurityRecord)
+      const temporaryChanged = JSON.stringify(nextTemporaryPermissions) !== JSON.stringify(originalTemporaryPermissionRecord)
+      const lifecyclePolicyChanged = JSON.stringify(nextLifecyclePolicy) !== JSON.stringify(originalLifecycleAccessPolicy)
+      const onboardingChanged = effectiveOnboarding !== originalOnboarding
+      const bookableChanged = effectiveBookable !== originalBookable
+
+      await Promise.allSettled([
+        (permissionChanged || onboardingChanged || bookableChanged)
+          ? logAction(user?.email, user?.name, 'staff_permissions_updated', 'staff_access', email, {
+              enabled_permissions: Object.keys(editPerms).filter((key) => editPerms[key]).length,
+              onboarding: effectiveOnboarding,
+              bookable_staff: effectiveBookable,
+            })
+          : Promise.resolve(),
+        securityChanged
+          ? logSecurityEvent({
+              userEmail: user?.email || '',
+              userName: user?.name || '',
+              action: nextAccountSecurity.portal_access_locked ? 'staff_access_suspended' : 'staff_access_restored',
+              target: 'staff_access',
+              targetId: email,
+              scope: 'staff_profile',
+              outcome: 'success',
+              riskLevel: nextAccountSecurity.portal_access_locked ? 'high' : 'medium',
+              details: {
+                staff_email: email,
+                reason: nextAccountSecurity.lock_reason || '',
+              },
+            })
+          : Promise.resolve(),
+        temporaryChanged
+          ? logAction(user?.email, user?.name, 'staff_temporary_permissions_updated', 'staff_access', email, {
+              preset: nextTemporaryPermissions.preset || '',
+              enabled: nextTemporaryPermissions.enabled === true,
+              starts_at: nextTemporaryPermissions.starts_at || '',
+              expires_at: nextTemporaryPermissions.expires_at || '',
+              reason: nextTemporaryPermissions.reason || '',
+            })
+          : Promise.resolve(),
+        lifecyclePolicyChanged
+          ? logAction(user?.email, user?.name, 'staff_lifecycle_access_policy_updated', 'staff_access', email, nextLifecyclePolicy)
+          : Promise.resolve(),
+      ])
+
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      setEditPerms(permPayload.permissions)
+      setOriginalEditPerms(permPayload.permissions)
+      setOnboarding(effectiveOnboarding)
+      setOriginalOnboarding(effectiveOnboarding)
+      setBookable(effectiveBookable)
+      setOriginalBookable(effectiveBookable)
+      setLifecycleRecord(nextLifecycle)
+      setAccountSecurityRecord(nextAccountSecurity)
+      setOriginalAccountSecurityRecord(nextAccountSecurity)
+      setTemporaryPermissionRecord(nextTemporaryPermissions)
+      setOriginalTemporaryPermissionRecord(nextTemporaryPermissions)
+      setLifecycleAccessPolicy(nextLifecyclePolicy)
+      setOriginalLifecycleAccessPolicy(nextLifecyclePolicy)
+      await refreshAccessAudit()
     } catch (err) {
       console.error('Save error:', err)
       alert('Save failed: ' + err.message)
@@ -2341,6 +2522,10 @@ export default function StaffProfile() {
   const displayName = profile.full_name || email
   const activePreset = detectPreset(editPerms)
   const portalAccessLocked = accountSecurityRecord.portal_access_locked === true
+  const activeTemporaryPermission = mergeTemporaryPermissionRecord(temporaryPermissionRecord)
+  const lifecycleDrivenLock = shouldLifecycleLockPortal(lifecycleRecord, lifecycleAccessPolicy)
+  const lastSeenLabel = profile.last_seen ? formatTimelineDate(profile.last_seen) : 'No recent portal heartbeat'
+  const lastLoginEntry = accessAuditRows.find((row) => String(row.action || '').toLowerCase() === 'user_login')
   const lifecycle = getLifecycleMeta(lifecycleRecord, { onboarding, startDate: profile.start_date, contractType: profile.contract_type })
   const offboardingCompletedCount = OFFBOARDING_ITEMS.filter(([key]) => lifecycleRecord.offboarding?.[key]).length
   const offboardingTotalCount = OFFBOARDING_ITEMS.length

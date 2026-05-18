@@ -82,6 +82,7 @@ const RecruitingApplicationProfile = lazyRetry(() => import('./pages/RecruitingA
 const RecruitingBoard = lazyRetry(() => import('./pages/RecruitingBoard'), 'recruiting-board')
 const RecruitingSettings = lazyRetry(() => import('./pages/RecruitingSettings'), 'recruiting-settings')
 const Appointments = lazyRetry(() => import('./pages/Appointments'), 'appointments')
+const PDFWorkspace = lazyRetry(() => import('./pages/PDFWorkspace'), 'pdf-workspace')
 const PublicBookingPage = lazyRetry(() => import('./pages/PublicBookingPage'), 'public-booking')
 const MailingList = lazyRetry(() => import('./pages/MailingList'), 'mailing-list')
 const AuditLog = lazyRetry(() => import('./pages/AuditLog'), 'audit-log')
@@ -464,6 +465,7 @@ function PortalLayout() {
               <Route path="/recruiting/board" element={<PermissionGate permKey="recruiting_board"><RecruitingBoard /></PermissionGate>} />
               <Route path="/recruiting/settings" element={<PermissionGate permKey="recruiting_settings"><RecruitingSettings /></PermissionGate>} />
               <Route path="/appointments"    element={<PermissionGate permKey="appointments"><Appointments /></PermissionGate>} />
+              <Route path="/pdf-workspace"   element={<PermissionGate permKey="pdf_workspace"><PDFWorkspace /></PermissionGate>} />
               <Route path="/mailing-list"    element={<PermissionGate permKey="mailinglist"><MailingList /></PermissionGate>} />
               <Route path="/audit"           element={<PermissionGate permKey="audit"><AuditLog /></PermissionGate>} />
               <Route path="/settings"        element={<PermissionGate permKey="settings"><Settings /></PermissionGate>} />
