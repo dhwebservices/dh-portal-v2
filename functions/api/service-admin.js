@@ -1,5 +1,6 @@
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://staff.dhwebsiteservices.co.uk',
+  'https://dh-portal-v2.pages.dev',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ]
@@ -44,7 +45,14 @@ function resolveRequestOrigin(request) {
 function isAllowedOrigin(request, env) {
   const origin = resolveRequestOrigin(request)
   if (!origin) return false
-  return getAllowedOrigins(env).has(origin)
+  if (getAllowedOrigins(env).has(origin)) return true
+
+  try {
+    const { hostname, protocol } = new URL(origin)
+    return protocol === 'https:' && hostname.endsWith('.dh-portal-v2.pages.dev')
+  } catch {
+    return false
+  }
 }
 
 async function supabaseFetch(env, path, options = {}) {
