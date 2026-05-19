@@ -72,6 +72,7 @@ const BASE_PERMISSIONS = {
   recruiting_board: false,
   recruiting_settings: false,
   hr_profiles: false,
+  service_admin: false,
   pdf_workspace: true,
   pdf_shared_view: false,
   pdf_shared_edit: false,

@@ -87,6 +87,7 @@ const SECTIONS = [
       { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'manager_board' },
       { to: '/departments', icon: 'people', label: 'Departments', desc: 'Org structure & approvals', key: 'departments' },
       { to: '/admin-safeguards', icon: 'shield', label: 'Safeguards', desc: 'Data integrity checks', key: 'safeguards' },
+      { to: '/service-admin', icon: 'gear', label: 'Service Admin', desc: 'Platform control centre', key: 'service_admin' },
       { to: '/banners',   icon: 'bell',   label: 'Banners',       desc: 'Site banners',      key: 'banners'       },
       { to: '/audit',     icon: 'shield', label: 'Audit Log',     desc: 'Activity history',  key: 'audit'         },
       { to: '/maintenance',icon: 'wrench',label: 'Maintenance',   desc: 'System tools',      key: 'maintenance'   },

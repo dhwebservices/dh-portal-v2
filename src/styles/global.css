@@ -3759,6 +3759,429 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   line-height: 1.7;
 }
 
+.service-admin-page {
+  display: grid;
+  gap: 20px;
+}
+
+.service-admin-top-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.service-admin-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
+}
+
+.service-admin-banner.success {
+  border-color: rgba(34, 197, 94, 0.18);
+  background: rgba(240, 253, 244, 0.92);
+  color: #166534;
+}
+
+.service-admin-banner.error {
+  border-color: rgba(239, 68, 68, 0.18);
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+}
+
+.service-admin-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.service-admin-tab {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--sub);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all .18s ease;
+}
+
+.service-admin-tab:hover {
+  border-color: rgba(37, 99, 235, 0.22);
+  color: var(--text);
+}
+
+.service-admin-tab.is-active {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(239, 246, 255, 0.94);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.service-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.service-admin-grid.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.service-admin-main,
+.service-admin-side {
+  display: grid;
+  gap: 20px;
+}
+
+.service-admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.service-admin-stat,
+.service-admin-panel,
+.service-admin-section {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.05);
+}
+
+.service-admin-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 22px;
+}
+
+.service-admin-stat__label,
+.service-admin-section__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.service-admin-stat__value {
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.05;
+}
+
+.service-admin-stat__meta {
+  margin-top: 8px;
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.service-admin-section,
+.service-admin-panel {
+  padding: 22px 22px 24px;
+}
+
+.service-admin-section__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.service-admin-section__head h3,
+.service-admin-panel h3 {
+  margin: 6px 0 0;
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.service-admin-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.service-admin-action {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92));
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.service-admin-action:hover {
+  border-color: rgba(37, 99, 235, 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+}
+
+.service-admin-action strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.service-admin-action span {
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.service-admin-list {
+  display: grid;
+  gap: 10px;
+}
+
+.service-admin-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.service-admin-list__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.service-admin-list__row strong,
+.service-admin-table__title strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.service-admin-list__row div,
+.service-admin-table__title span {
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.service-admin-list__row--actionable {
+  gap: 22px;
+}
+
+.service-admin-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.service-admin-empty {
+  padding: 22px;
+  border: 1px dashed rgba(15, 23, 42, 0.12);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.service-admin-chip-stack {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.service-admin-link-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.service-admin-link {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.66);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.service-admin-link:hover {
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.service-admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.service-admin-form-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-admin-field {
+  display: grid;
+  gap: 8px;
+}
+
+.service-admin-field--full {
+  grid-column: 1 / -1;
+}
+
+.service-admin-field span {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.service-admin-field input,
+.service-admin-field select,
+.service-admin-field textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.service-admin-field--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.56);
+}
+
+.service-admin-field--toggle span:first-child {
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.service-admin-toggle {
+  width: 52px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  padding: 3px;
+  position: relative;
+  transition: background .18s ease;
+}
+
+.service-admin-toggle span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+  transform: translateX(0);
+  transition: transform .18s ease;
+}
+
+.service-admin-toggle.is-on {
+  background: rgba(37, 99, 235, 0.72);
+}
+
+.service-admin-toggle.is-on span {
+  transform: translateX(22px);
+}
+
+.service-admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.service-admin-table {
+  display: grid;
+  gap: 12px;
+}
+
+.service-admin-table__row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(150px, 180px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.62);
+}
+
+.service-admin-table__title {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 1320px) {
+  .service-admin-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .service-admin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 920px) {
+  .service-admin-section__head,
+  .service-admin-stat,
+  .service-admin-list__row,
+  .service-admin-row-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .service-admin-form-grid,
+  .service-admin-form-grid.compact,
+  .service-admin-action-grid,
+  .service-admin-stat-grid,
+  .service-admin-table__row {
+    grid-template-columns: 1fr;
+  }
+
+  .service-admin-top-actions,
+  .service-admin-actions,
+  .service-admin-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .service-admin-tab,
+  .service-admin-link,
+  .service-admin-action,
+  .service-admin-actions .btn,
+  .service-admin-top-actions .btn {
+    width: 100%;
+  }
+}
+
 @media (max-width: 1280px) {
   .pdf-workspace-shell {
     grid-template-columns: 220px minmax(0, 1fr) minmax(320px, 390px);
