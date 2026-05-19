@@ -413,6 +413,7 @@ function PortalUpdateWatcher() {
   const [progress, setProgress] = useState(0)
   const [progressMessage, setProgressMessage] = useState('')
   const [currentAsset, setCurrentAsset] = useState('')
+  const [updateError, setUpdateError] = useState('')
 
   useEffect(() => {
     if (!user?.email) return undefined
@@ -443,6 +444,7 @@ function PortalUpdateWatcher() {
             builtAt: payload?.built_at || '',
             assets: Array.isArray(manifest?.assets) ? manifest.assets : [],
           })
+          setUpdateError('')
         }
       } catch (_) {
         // ignore transient version polling failures
@@ -461,12 +463,27 @@ function PortalUpdateWatcher() {
     if (!updating) return undefined
     let cancelled = false
 
+    const isExpectedAssetMime = (file, contentType) => {
+      const normalized = String(contentType || '').toLowerCase()
+      if (file.endsWith('.js')) {
+        return normalized.includes('javascript')
+      }
+      if (file.endsWith('.css')) {
+        return normalized.includes('text/css')
+      }
+      if (file.endsWith('.html')) {
+        return normalized.includes('text/html')
+      }
+      return true
+    }
+
     const preloadAssets = async () => {
       try {
         const assets = Array.isArray(release?.assets) ? release.assets : []
         const totalKnownBytes = assets.reduce((sum, asset) => sum + (Number(asset.size) || 0), 0)
         let downloadedBytes = 0
 
+        setUpdateError('')
         setProgress(2)
         setProgressMessage('Preparing update package')
         setCurrentAsset('')
@@ -478,12 +495,27 @@ function PortalUpdateWatcher() {
           setProgressMessage(`Downloading ${index + 1} of ${assets.length}`)
           setCurrentAsset(asset.file)
 
-          const response = await fetch(assetUrl, {
-            cache: 'reload',
-            credentials: 'same-origin',
-          })
+          let response = null
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            response = await fetch(assetUrl, {
+              cache: 'no-store',
+              credentials: 'same-origin',
+            })
+            const contentType = response.headers.get('content-type') || ''
+            const assetReady = response.ok && isExpectedAssetMime(asset.file, contentType)
+            if (assetReady) break
+            if (attempt < 3) {
+              setProgressMessage(`Waiting for new build (${attempt + 1}/4)`)
+              await new Promise((resolve) => window.setTimeout(resolve, 1200))
+            }
+          }
+
           if (!response.ok) {
             throw new Error(`Asset download failed for ${asset.file}`)
+          }
+          const contentType = response.headers.get('content-type') || ''
+          if (!isExpectedAssetMime(asset.file, contentType)) {
+            throw new Error(`Asset ${asset.file} is not ready yet (${contentType || 'unknown content type'})`)
           }
 
           const contentLength = Number(response.headers.get('content-length') || asset.size || 0)
@@ -524,12 +556,11 @@ function PortalUpdateWatcher() {
         window.location.reload()
       } catch (error) {
         console.warn('Portal update preload failed:', error)
-        setProgressMessage('Could not pre-download all files. Reloading now.')
+        setUpdateError(error?.message || 'The new build is still propagating. Please try again in a moment.')
+        setProgressMessage('Update not ready yet')
         setCurrentAsset('')
-        setProgress(100)
-        window.setTimeout(() => {
-          window.location.reload()
-        }, 500)
+        setProgress(0)
+        setUpdating(false)
       }
     }
 
@@ -561,6 +592,11 @@ function PortalUpdateWatcher() {
           <span className="badge badge-blue">{release.version}</span>
           {release.builtAt ? <span className="badge badge-grey">{new Date(release.builtAt).toLocaleString('en-GB')}</span> : null}
         </div>
+        {updateError ? (
+          <div style={{ marginBottom:14, padding:'12px 14px', borderRadius:14, border:'1px solid rgba(198,40,40,0.16)', background:'rgba(198,40,40,0.06)', fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+            {updateError}
+          </div>
+        ) : null}
         {updating ? (
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
