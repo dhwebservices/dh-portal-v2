@@ -411,6 +411,8 @@ function PortalUpdateWatcher() {
   const [release, setRelease] = useState(null)
   const [updating, setUpdating] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [progressMessage, setProgressMessage] = useState('')
+  const [currentAsset, setCurrentAsset] = useState('')
 
   useEffect(() => {
     if (!user?.email) return undefined
@@ -430,10 +432,16 @@ function PortalUpdateWatcher() {
         if (!latestVersion || latestVersion === PORTAL_BUILD_VERSION) return
         const dismissKey = `portal-update-dismissed:${user.email}:${latestVersion}`
         if (dismissed.has(dismissKey) || window.sessionStorage.getItem(dismissKey) === '1') return
+        const manifestResponse = await fetch(`/update-manifest.json?ts=${Date.now()}`, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+        const manifest = manifestResponse.ok ? await manifestResponse.json().catch(() => null) : null
         if (!disposed) {
           setRelease({
             version: latestVersion,
             builtAt: payload?.built_at || '',
+            assets: Array.isArray(manifest?.assets) ? manifest.assets : [],
           })
         }
       } catch (_) {
@@ -451,19 +459,85 @@ function PortalUpdateWatcher() {
 
   useEffect(() => {
     if (!updating) return undefined
-    setProgress(0)
-    const startedAt = Date.now()
-    const interval = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt
-      const next = Math.min(100, Math.round((elapsed / 3500) * 100))
-      setProgress(next)
-      if (next >= 100) {
-        window.clearInterval(interval)
+    let cancelled = false
+
+    const preloadAssets = async () => {
+      try {
+        const assets = Array.isArray(release?.assets) ? release.assets : []
+        const totalKnownBytes = assets.reduce((sum, asset) => sum + (Number(asset.size) || 0), 0)
+        let downloadedBytes = 0
+
+        setProgress(2)
+        setProgressMessage('Preparing update package')
+        setCurrentAsset('')
+
+        for (let index = 0; index < assets.length; index += 1) {
+          if (cancelled) return
+          const asset = assets[index]
+          const assetUrl = `${asset.file}${asset.file.includes('?') ? '&' : '?'}v=${encodeURIComponent(release?.version || '')}`
+          setProgressMessage(`Downloading ${index + 1} of ${assets.length}`)
+          setCurrentAsset(asset.file)
+
+          const response = await fetch(assetUrl, {
+            cache: 'reload',
+            credentials: 'same-origin',
+          })
+          if (!response.ok) {
+            throw new Error(`Asset download failed for ${asset.file}`)
+          }
+
+          const contentLength = Number(response.headers.get('content-length') || asset.size || 0)
+          if (!response.body || typeof response.body.getReader !== 'function') {
+            await response.arrayBuffer()
+            downloadedBytes += contentLength
+          } else {
+            const reader = response.body.getReader()
+            let localBytes = 0
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              const chunkBytes = value?.byteLength || 0
+              localBytes += chunkBytes
+              const aggregate = downloadedBytes + localBytes
+              if (totalKnownBytes > 0) {
+                setProgress(Math.max(4, Math.min(92, Math.round((aggregate / totalKnownBytes) * 100))))
+              } else {
+                setProgress(Math.max(4, Math.min(92, Math.round(((index + 0.5) / Math.max(assets.length, 1)) * 100))))
+              }
+            }
+            downloadedBytes += localBytes || contentLength
+          }
+
+          if (totalKnownBytes > 0) {
+            setProgress(Math.max(4, Math.min(92, Math.round((downloadedBytes / totalKnownBytes) * 100))))
+          } else {
+            setProgress(Math.max(4, Math.min(92, Math.round(((index + 1) / Math.max(assets.length, 1)) * 100))))
+          }
+        }
+
+        if (cancelled) return
+        setProgressMessage('Installing update')
+        setCurrentAsset('Refreshing the portal shell')
+        setProgress(97)
+        await new Promise((resolve) => window.setTimeout(resolve, 450))
+        setProgress(100)
         window.location.reload()
+      } catch (error) {
+        console.warn('Portal update preload failed:', error)
+        setProgressMessage('Could not pre-download all files. Reloading now.')
+        setCurrentAsset('')
+        setProgress(100)
+        window.setTimeout(() => {
+          window.location.reload()
+        }, 500)
       }
-    }, 120)
-    return () => window.clearInterval(interval)
-  }, [updating])
+    }
+
+    preloadAssets()
+    return () => {
+      cancelled = true
+    }
+  }, [release, updating])
 
   if (!release) return null
 
@@ -490,12 +564,17 @@ function PortalUpdateWatcher() {
         {updating ? (
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Downloading update</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{progressMessage || 'Downloading update'}</div>
               <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--accent)' }}>{progress}%</div>
             </div>
             <div style={{ height:10, borderRadius:999, background:'var(--bg2)', overflow:'hidden', border:'1px solid var(--border)' }}>
               <div style={{ height:'100%', width:`${progress}%`, background:'linear-gradient(90deg, var(--accent), #7ab7ff)', transition:'width 120ms linear' }} />
             </div>
+            {currentAsset ? (
+              <div style={{ fontSize:12, color:'var(--sub)', marginTop:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {currentAsset}
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>

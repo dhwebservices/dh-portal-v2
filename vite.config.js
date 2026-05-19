@@ -7,13 +7,42 @@ const buildVersion = process.env.PORTAL_BUILD_VERSION || new Date().toISOString(
 function portalVersionPlugin(version) {
   return {
     name: 'portal-version-plugin',
-    generateBundle() {
+    generateBundle(_, bundle) {
+      const generatedAt = new Date().toISOString()
+      const assets = Object.entries(bundle)
+        .filter(([fileName, chunk]) => {
+          if (fileName.endsWith('.map')) return false
+          return (
+            fileName.endsWith('.js') ||
+            fileName.endsWith('.css') ||
+            fileName.endsWith('.html')
+          ) && (chunk.type === 'chunk' || chunk.type === 'asset')
+        })
+        .map(([fileName, chunk]) => ({
+          file: `/${fileName}`,
+          size:
+            chunk.type === 'asset'
+              ? typeof chunk.source === 'string'
+                ? Buffer.byteLength(chunk.source)
+                : chunk.source?.byteLength || 0
+              : Buffer.byteLength(chunk.code || ''),
+        }))
+
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify({
           version,
-          built_at: new Date().toISOString(),
+          built_at: generatedAt,
+        }, null, 2),
+      })
+      this.emitFile({
+        type: 'asset',
+        fileName: 'update-manifest.json',
+        source: JSON.stringify({
+          version,
+          built_at: generatedAt,
+          assets,
         }, null, 2),
       })
     },
