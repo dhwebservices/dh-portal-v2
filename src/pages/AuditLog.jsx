@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { fetchAuditLogs } from '../utils/auditApi'
+import { getPresenceMeta, mergeStaffPresenceRecord } from '../utils/staffPresence'
 
 function formatPresenceAge(value) {
   if (!value) return 'Unknown'
@@ -20,12 +21,22 @@ export default function AuditLog() {
   useEffect(() => {
     async function load() {
       const activeCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-      const [{ data: logRows }, { data: activeRows }] = await Promise.all([
+      const [{ data: logRows }, { data: activeRows }, { data: presenceRows }] = await Promise.all([
         fetchAuditLogs({ select: '*', limit: 200 }),
         supabase.from('hr_profiles').select('user_email,full_name,role,department,last_seen').gte('last_seen', activeCutoff).order('last_seen', { ascending:false }).limit(24),
+        supabase.from('portal_settings').select('key,value').like('key', 'staff_presence:%').limit(200),
       ])
+      const presenceMap = new Map(
+        (presenceRows || []).map((row) => {
+          const record = mergeStaffPresenceRecord(row.value?.value ?? row.value ?? {})
+          return [record.user_email, record]
+        }),
+      )
       setLogs(logRows || [])
-      setActiveUsers(activeRows || [])
+      setActiveUsers((activeRows || []).map((person) => ({
+        ...person,
+        presence: presenceMap.get(String(person.user_email || '').toLowerCase().trim()) || null,
+      })))
       setLoading(false)
     }
 
@@ -38,6 +49,14 @@ export default function AuditLog() {
     const q = search.toLowerCase()
     return !q || l.user_name?.toLowerCase().includes(q) || l.action?.toLowerCase().includes(q) || l.target?.toLowerCase().includes(q)
   })
+
+  const getPresenceLabel = (person) => {
+    const meta = getPresenceMeta(person?.presence?.status || 'online')
+    if (meta.key === 'online') return formatPresenceAge(person.last_seen)
+    return meta.label
+  }
+
+  const getPresenceTone = (person) => getPresenceMeta(person?.presence?.status || 'online').tone
 
   return (
     <div className="fade-in">
@@ -55,7 +74,7 @@ export default function AuditLog() {
           {activeUsers.length ? (
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
               {activeUsers.slice(0, 8).map((person) => (
-                <span key={person.user_email} className="badge badge-green" title={person.user_email}>
+                <span key={person.user_email} className={`badge badge-${getPresenceTone(person)}`} title={person.user_email}>
                   {person.full_name || person.user_email}
                 </span>
               ))}
@@ -76,7 +95,7 @@ export default function AuditLog() {
                   <td className="t-main">{person.full_name || person.user_email}</td>
                   <td>{person.role || 'Staff'}</td>
                   <td>{person.department || '—'}</td>
-                  <td><span className="badge badge-green">{formatPresenceAge(person.last_seen)}</span></td>
+                  <td><span className={`badge badge-${getPresenceTone(person)}`}>{getPresenceLabel(person)}</span></td>
                 </tr>
               ))}
             </tbody>

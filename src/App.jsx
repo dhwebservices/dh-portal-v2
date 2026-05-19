@@ -10,6 +10,8 @@ import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 import { logSecurityEvent } from './utils/audit'
 
+const PORTAL_BUILD_VERSION = typeof __PORTAL_BUILD_VERSION__ !== 'undefined' ? __PORTAL_BUILD_VERSION__ : 'dev'
+
 function lazyRetry(importer, key) {
   return lazy(async () => {
     const retryKey = `portal-lazy-retry:${key}`
@@ -404,6 +406,109 @@ function AmbientBackground() {
   )
 }
 
+function PortalUpdateWatcher() {
+  const { user } = useAuth()
+  const [release, setRelease] = useState(null)
+  const [updating, setUpdating] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    if (!user?.email) return undefined
+
+    let disposed = false
+    const dismissed = new Set()
+
+    const checkVersion = async () => {
+      try {
+        const response = await fetch(`/version.json?ts=${Date.now()}`, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+        if (!response.ok) return
+        const payload = await response.json()
+        const latestVersion = String(payload?.version || '').trim()
+        if (!latestVersion || latestVersion === PORTAL_BUILD_VERSION) return
+        const dismissKey = `portal-update-dismissed:${user.email}:${latestVersion}`
+        if (dismissed.has(dismissKey) || window.sessionStorage.getItem(dismissKey) === '1') return
+        if (!disposed) {
+          setRelease({
+            version: latestVersion,
+            builtAt: payload?.built_at || '',
+          })
+        }
+      } catch (_) {
+        // ignore transient version polling failures
+      }
+    }
+
+    checkVersion()
+    const interval = window.setInterval(checkVersion, 60 * 1000)
+    return () => {
+      disposed = true
+      window.clearInterval(interval)
+    }
+  }, [user?.email])
+
+  useEffect(() => {
+    if (!updating) return undefined
+    setProgress(0)
+    const startedAt = Date.now()
+    const interval = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt
+      const next = Math.min(100, Math.round((elapsed / 3500) * 100))
+      setProgress(next)
+      if (next >= 100) {
+        window.clearInterval(interval)
+        window.location.reload()
+      }
+    }, 120)
+    return () => window.clearInterval(interval)
+  }, [updating])
+
+  if (!release) return null
+
+  const dismissUpdate = () => {
+    const dismissKey = `portal-update-dismissed:${user?.email}:${release.version}`
+    window.sessionStorage.setItem(dismissKey, '1')
+    setRelease(null)
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(6,12,24,0.18)', backdropFilter:'blur(8px)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
+      <div className="card card-pad" style={{ maxWidth:520, width:'100%', border:'1px solid var(--accent-border)', boxShadow:'0 32px 90px rgba(22,34,61,0.14)' }}>
+        <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Portal update</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:30, lineHeight:1.05, color:'var(--text)', marginBottom:10 }}>
+          New portal update available
+        </div>
+        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:16 }}>
+          A newer version of the staff portal has been deployed. Update now to load the latest features and fixes.
+        </div>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+          <span className="badge badge-blue">{release.version}</span>
+          {release.builtAt ? <span className="badge badge-grey">{new Date(release.builtAt).toLocaleString('en-GB')}</span> : null}
+        </div>
+        {updating ? (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Downloading update</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--accent)' }}>{progress}%</div>
+            </div>
+            <div style={{ height:10, borderRadius:999, background:'var(--bg2)', overflow:'hidden', border:'1px solid var(--border)' }}>
+              <div style={{ height:'100%', width:`${progress}%`, background:'linear-gradient(90deg, var(--accent), #7ab7ff)', transition:'width 120ms linear' }} />
+            </div>
+          </div>
+        ) : null}
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+          {!updating ? <button className="btn btn-secondary" onClick={dismissUpdate}>Later</button> : null}
+          <button className="btn btn-primary" onClick={() => setUpdating(true)} disabled={updating}>
+            {updating ? 'Applying update...' : 'Update now'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PortalLayout() {
   return (
     <div className="app-layout">
@@ -412,6 +517,7 @@ function PortalLayout() {
       <div className="main-area">
         <AmbientBackground />
         <Header />
+        <PortalUpdateWatcher />
         <main className="main-content">
           <Suspense fallback={<RouteLoader />}>
             <Routes>

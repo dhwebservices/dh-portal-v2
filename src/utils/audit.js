@@ -4,24 +4,26 @@ function normalizeAuditValue(value, maxLength = 240) {
 }
 
 export async function logAction(userEmail, userName, action, target, targetId, details = {}) {
+  const payload = {
+    user_email: userEmail,
+    user_name: userName,
+    action,
+    target,
+    target_id: targetId ? String(targetId) : null,
+    details,
+    created_at: new Date().toISOString(),
+  }
   try {
-    await fetch('/api/audit-log', {
+    const response = await fetch('/api/audit-log', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-      user_email: userEmail,
-      user_name: userName,
-      action,
-      target,
-      target_id: targetId ? String(targetId) : null,
-      details,
-      created_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify(payload),
     })
+    if (!response.ok) throw new Error(`audit_log_http_${response.status}`)
   } catch (e) {
-    console.warn('Audit log failed:', e)
+    console.warn('Audit log API failed:', e)
   }
 }
 

@@ -2,7 +2,28 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
+const buildVersion = process.env.PORTAL_BUILD_VERSION || new Date().toISOString()
+
+function portalVersionPlugin(version) {
+  return {
+    name: 'portal-version-plugin',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({
+          version,
+          built_at: new Date().toISOString(),
+        }, null, 2),
+      })
+    },
+  }
+}
+
 export default defineConfig({
+  define: {
+    __PORTAL_BUILD_VERSION__: JSON.stringify(buildVersion),
+  },
   resolve: {
     alias: [
       {
@@ -11,7 +32,7 @@ export default defineConfig({
       },
     ],
   },
-  plugins: [react()],
+  plugins: [react(), portalVersionPlugin(buildVersion)],
   build: {
     rollupOptions: {
       output: {

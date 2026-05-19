@@ -49,6 +49,11 @@ import {
   mergeLifecycleAccessPolicy,
   mergeTemporaryPermissionRecord,
 } from '../utils/staffAccess'
+import {
+  buildStaffPresenceKey,
+  createDefaultStaffPresenceRecord,
+  mergeStaffPresenceRecord,
+} from '../utils/staffPresence'
 
 const Ctx = createContext(null)
 const ACTIVE_HEARTBEAT_MS = 60 * 1000
@@ -102,6 +107,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     accountSecurityResult,
     temporaryPermissionsResult,
     lifecycleAccessPolicyResult,
+    presenceResult,
   ] = await Promise.all([
     supabase
       .from('user_permissions')
@@ -153,6 +159,11 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
       .select('value')
       .eq('key', buildLifecycleAccessPolicyKey(safeEmail))
       .maybeSingle(),
+    supabase
+      .from('portal_settings')
+      .select('value')
+      .eq('key', buildStaffPresenceKey(safeEmail))
+      .maybeSingle(),
   ])
 
   const hrProfile = hrResult?.data || {}
@@ -164,6 +175,7 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   const accountSecurityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
   const temporaryPermissionRaw = temporaryPermissionsResult?.data?.value?.value ?? temporaryPermissionsResult?.data?.value ?? {}
   const lifecycleAccessPolicyRaw = lifecycleAccessPolicyResult?.data?.value?.value ?? lifecycleAccessPolicyResult?.data?.value ?? {}
+  const presenceRaw = presenceResult?.data?.value?.value ?? presenceResult?.data?.value ?? {}
   const nextOrg = hydrateManagedDepartments(mergeOrgRecord(orgRaw, {
     email: safeEmail,
     department: hrProfile?.department,
@@ -184,7 +196,6 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     isDirector: nextOrg.role_scope === 'director',
     isDepartmentManager: getManagedDepartments(nextOrg).length > 0 && nextOrg.role_scope !== 'director',
   })
-
   return {
     user: {
       email: safeEmail,
@@ -205,6 +216,10 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     },
     workspace: nextWorkspace,
     preferences: mergePortalPreferences(readStoredPortalPreferences(), preferenceRaw),
+    presence: mergeStaffPresenceRecord(presenceRaw, {
+      user_email: safeEmail,
+      user_name: hrProfile?.full_name || fallbackName || safeEmail,
+    }),
   }
 }
 
@@ -223,11 +238,17 @@ export function AuthProvider({ children }) {
   const [org, setOrg] = useState(mergeOrgRecord())
   const [workspace, setWorkspace] = useState('self_service')
   const [preferences, setPreferences] = useState(() => mergePortalPreferences(DEFAULT_PORTAL_PREFERENCES, readStoredPortalPreferences()))
+  const [presence, setPresence] = useState(createDefaultStaffPresenceRecord())
   const [previewState, setPreviewState] = useState(null)
   const [loading, setLoading]       = useState(true)
   const logoutRedirectingRef = useRef(false)
   const suspensionLoggedRef = useRef('')
+  const presenceRef = useRef(presence)
   const [sessionStartedAt, setSessionStartedAt] = useState('')
+
+  useEffect(() => {
+    presenceRef.current = presence
+  }, [presence])
 
   useEffect(() => {
     if (!normalizedEmail) {
@@ -242,12 +263,26 @@ export function AuthProvider({ children }) {
 
     const touchPresence = () => {
       const now = new Date().toISOString()
-      supabase.from('hr_profiles').upsert({
+      const nextPresence = mergeStaffPresenceRecord(presenceRef.current, {
         user_email: normalizedEmail,
-        full_name: account?.name || normalizedEmail,
+        user_name: account?.name || normalizedEmail,
         last_seen: now,
         updated_at: now,
-      }, { onConflict: 'user_email' }).then(() => {}).catch(() => {})
+      })
+      presenceRef.current = nextPresence
+      setPresence(nextPresence)
+      Promise.all([
+        supabase.from('hr_profiles').upsert({
+          user_email: normalizedEmail,
+          full_name: account?.name || normalizedEmail,
+          last_seen: now,
+          updated_at: now,
+        }, { onConflict: 'user_email' }),
+        supabase.from('portal_settings').upsert({
+          key: buildStaffPresenceKey(normalizedEmail),
+          value: { value: nextPresence },
+        }, { onConflict: 'key' }),
+      ]).then(() => {}).catch(() => {})
     }
 
     touchPresence()
@@ -331,8 +366,13 @@ export function AuthProvider({ children }) {
         .select('value')
         .eq('key', buildLifecycleAccessPolicyKey(normalizedEmail))
         .maybeSingle(),
+      supabase
+        .from('portal_settings')
+        .select('value')
+        .eq('key', buildStaffPresenceKey(normalizedEmail))
+        .maybeSingle(),
     ])
-      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult, accountSecurityResult, temporaryPermissionsResult, lifecycleAccessPolicyResult]) => {
+      .then(([permissionsResult, hrResult, maintenanceResult, preferenceResult, lifecycleResult, orgResult, workspaceResult, departmentCatalogResult, accountSecurityResult, temporaryPermissionsResult, lifecycleAccessPolicyResult, presenceResult]) => {
         clearTimeout(timeout)
         const { data, error } = permissionsResult
         const hrProfile = hrResult?.data || {}
@@ -354,6 +394,11 @@ export function AuthProvider({ children }) {
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
         const nextLifecycle = mergeLifecycleRecord(lifecycleRaw)
         setLifecycle(nextLifecycle)
+        const presenceRaw = presenceResult?.data?.value?.value ?? presenceResult?.data?.value ?? {}
+        setPresence(mergeStaffPresenceRecord(presenceRaw, {
+          user_email: normalizedEmail,
+          user_name: hrProfile?.full_name || account?.name || normalizedEmail,
+        }))
         const securityRaw = accountSecurityResult?.data?.value?.value ?? accountSecurityResult?.data?.value ?? {}
         const nextTemporaryPermissions = mergeTemporaryPermissionRecord(temporaryPermissionsResult?.data?.value?.value ?? temporaryPermissionsResult?.data?.value ?? {})
         const nextLifecycleAccessPolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicyResult?.data?.value?.value ?? lifecycleAccessPolicyResult?.data?.value ?? {})
@@ -411,6 +456,10 @@ export function AuthProvider({ children }) {
           email: normalizedEmail,
           isDirector: isDirectorEmail(normalizedEmail),
         }), [], normalizedEmail))
+        setPresence(createDefaultStaffPresenceRecord({
+          user_email: normalizedEmail,
+          user_name: account?.name || normalizedEmail,
+        }))
         setWorkspace(inferWorkspaceFromProfile({
           hrProfile: {},
           org: hydrateManagedDepartments(mergeOrgRecord({}, {
@@ -577,6 +626,7 @@ export function AuthProvider({ children }) {
   const effectiveOrg = previewState?.org || org
   const effectiveWorkspace = previewState?.workspace || workspace
   const effectivePreferences = previewState?.preferences || preferences
+  const effectivePresence = previewState?.presence || presence
 
   const managedDepartments = getManagedDepartments(effectiveOrg)
   const isDirector = isDirectorEmail(effectiveUser?.email) || effectiveOrg?.role_scope === 'director'
@@ -740,6 +790,32 @@ export function AuthProvider({ children }) {
     return nextPreferences
   }
 
+  const updatePresenceStatus = async ({ status = 'online', note = '' } = {}) => {
+    const targetEmail = String(normalizedEmail || '').toLowerCase().trim()
+    if (!targetEmail) return null
+    const now = new Date().toISOString()
+    const nextPresence = mergeStaffPresenceRecord(presenceRef.current, {
+      user_email: targetEmail,
+      user_name: account?.name || targetEmail,
+      status,
+      note,
+      updated_at: now,
+      last_seen: now,
+    })
+    setPresence(nextPresence)
+    presenceRef.current = nextPresence
+
+    const { error } = await supabase
+      .from('portal_settings')
+      .upsert({
+        key: buildStaffPresenceKey(targetEmail),
+        value: { value: nextPresence },
+      }, { onConflict: 'key' })
+
+    if (error) throw error
+    return nextPresence
+  }
+
   return (
     <Ctx.Provider value={{
       user: effectiveUser,
@@ -765,6 +841,8 @@ export function AuthProvider({ children }) {
         preferences: effectivePreferences,
         can,
       }),
+      presence: effectivePresence,
+      updatePresenceStatus,
       preferences: effectivePreferences,
       updatePreferences,
       isPreviewing: !!previewState,

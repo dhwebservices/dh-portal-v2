@@ -7,6 +7,13 @@ const DEFAULT_ALLOWED_ORIGINS = [
 const MAX_LIMIT = 500
 const DEFAULT_SELECT = 'id,user_email,user_name,action,target,target_id,details,created_at'
 
+function resolveSupabaseConfig(env) {
+  return {
+    url: env.SUPABASE_URL || env.VITE_SUPABASE_URL || '',
+    key: env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON || '',
+  }
+}
+
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -59,11 +66,12 @@ function normalizeSelect(value) {
 }
 
 async function supabaseFetch(env, path, options = {}) {
-  const response = await fetch(`${env.SUPABASE_URL}${path}`, {
+  const config = resolveSupabaseConfig(env)
+  const response = await fetch(`${config.url}${path}`, {
     ...options,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: config.key,
+      Authorization: `Bearer ${config.key}`,
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },
@@ -83,7 +91,8 @@ export async function onRequestGet(context) {
     return json({ error: 'Origin is not allowed.' }, 403)
   }
 
-  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const config = resolveSupabaseConfig(context.env)
+  if (!config.url || !config.key) {
     return json({ logs: [], configured: false, error: 'Audit log is not configured.' })
   }
 
@@ -94,6 +103,9 @@ export async function onRequestGet(context) {
     const offset = normalizeInteger(url.searchParams.get('offset'), 0, 5000)
     const action = String(url.searchParams.get('action') || '').trim()
     const actionLike = String(url.searchParams.get('action_like') || '').trim()
+    const target = String(url.searchParams.get('target') || '').trim()
+    const targetId = String(url.searchParams.get('target_id') || '').trim()
+    const userEmail = String(url.searchParams.get('user_email') || '').trim()
     const search = String(url.searchParams.get('search') || '').trim()
 
     const params = new URLSearchParams({
@@ -105,7 +117,10 @@ export async function onRequestGet(context) {
 
     if (action) params.set('action', `eq.${action}`)
     if (actionLike) params.set('action', `ilike.%${actionLike}%`)
-    if (search) params.set('or', `user_name.ilike.%${search}%,action.ilike.%${search}%,target.ilike.%${search}%`)
+    if (target) params.set('target', `eq.${target}`)
+    if (targetId) params.set('target_id', `eq.${targetId}`)
+    if (userEmail) params.set('user_email', `eq.${userEmail}`)
+    if (search) params.set('or', `user_email.ilike.%${search}%,user_name.ilike.%${search}%,action.ilike.%${search}%,target.ilike.%${search}%,target_id.ilike.%${search}%`)
 
     const rows = await supabaseFetch(context.env, `/rest/v1/audit_log?${params.toString()}`)
     return json({ logs: Array.isArray(rows) ? rows : [] })
@@ -120,7 +135,8 @@ export async function onRequestPost(context) {
     return json({ ok: false, accepted: false, error: 'Origin is not allowed.' })
   }
 
-  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const config = resolveSupabaseConfig(context.env)
+  if (!config.url || !config.key) {
     return json({ ok: false, accepted: false, error: 'Audit log is not configured.' })
   }
 
@@ -154,7 +170,8 @@ export async function onRequestDelete(context) {
     return json({ error: 'Origin is not allowed.' }, 403)
   }
 
-  if (!context.env.SUPABASE_URL || !context.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const config = resolveSupabaseConfig(context.env)
+  if (!config.url || !config.key) {
     return json({ error: 'Audit log is not configured.' }, 500)
   }
 

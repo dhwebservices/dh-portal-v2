@@ -33,11 +33,12 @@ import {
   describeWorkspacePreset,
   mergePortalPreferences,
 } from '../utils/portalPreferences'
+import { STAFF_PRESENCE_OPTIONS } from '../utils/staffPresence'
 
 const PROFILE_TABS = ['info', 'portal', 'alerts', 'hr', 'bank', 'docs', 'sign_docs', 'payslips']
 
 export default function MyProfile() {
-  const { user, preferences, updatePreferences } = useAuth()
+  const { user, preferences, updatePreferences, presence, updatePresenceStatus } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const normalizedEmail = user?.email?.toLowerCase?.() || ''
   const [profile, setProfile]   = useState({})
@@ -54,6 +55,9 @@ export default function MyProfile() {
   const [portalPrefs, setPortalPrefs] = useState(() => mergePortalPreferences(preferences))
   const [signingDocumentId, setSigningDocumentId] = useState('')
   const [signDocumentMessage, setSignDocumentMessage] = useState('')
+  const [presenceStatus, setPresenceStatus] = useState('online')
+  const [presenceNote, setPresenceNote] = useState('')
+  const [presenceSaving, setPresenceSaving] = useState(false)
 
   // All editable fields staff can update themselves
   const [form, setForm] = useState({
@@ -145,6 +149,11 @@ export default function MyProfile() {
     setPortalPrefs(mergePortalPreferences(preferences))
   }, [preferences])
 
+  useEffect(() => {
+    setPresenceStatus(presence?.status || 'online')
+    setPresenceNote(presence?.note || '')
+  }, [presence?.status, presence?.note])
+
   const save = async () => {
     setSaving(true)
     try {
@@ -200,6 +209,21 @@ export default function MyProfile() {
       alert('Could not save your portal preferences right now. Please try again.')
     } finally {
       setPrefsSaving(false)
+    }
+  }
+
+  const savePresence = async () => {
+    setPresenceSaving(true)
+    try {
+      await updatePresenceStatus({
+        status: presenceStatus,
+        note: presenceNote,
+      })
+    } catch (error) {
+      console.error('Presence update error:', error)
+      alert('Could not update your account status right now. Please try again.')
+    } finally {
+      setPresenceSaving(false)
     }
   }
 
@@ -436,6 +460,38 @@ export default function MyProfile() {
                 {prefsSaved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
                 <button className="btn btn-primary" onClick={savePortalPrefs} disabled={prefsSaving}>
                   {prefsSaving ? 'Saving...' : 'Save portal preferences'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom:18 }}>
+              <div className="lbl" style={{ marginBottom:8 }}>Account status</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10, marginBottom:12 }}>
+                {STAFF_PRESENCE_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => setPresenceStatus(option.key)}
+                    style={{
+                      padding:'13px 14px',
+                      borderRadius:12,
+                      border:`1px solid ${presenceStatus === option.key ? 'var(--accent-border)' : 'var(--border)'}`,
+                      background: presenceStatus === option.key ? 'var(--accent-soft)' : 'var(--card)',
+                      textAlign:'left',
+                    }}
+                  >
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{option.label}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:10 }} className="dashboard-personalise-grid">
+                <input
+                  className="inp"
+                  value={presenceNote}
+                  onChange={(e) => setPresenceNote(e.target.value)}
+                  placeholder="Optional note, like In client call or Heads down."
+                />
+                <button className="btn btn-primary" onClick={savePresence} disabled={presenceSaving}>
+                  {presenceSaving ? 'Updating...' : 'Update status'}
                 </button>
               </div>
             </div>

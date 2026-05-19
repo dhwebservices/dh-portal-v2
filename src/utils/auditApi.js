@@ -11,16 +11,20 @@ function buildQuery(params = {}) {
 
 export async function fetchAuditLogs(params = {}) {
   const query = buildQuery(params)
-  const response = await fetch(query ? `${AUDIT_LOG_API_PATH}?${query}` : AUDIT_LOG_API_PATH, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  })
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
+  try {
+    const response = await fetch(query ? `${AUDIT_LOG_API_PATH}?${query}` : AUDIT_LOG_API_PATH, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const data = await response.json().catch(() => null)
+    if (response.ok) {
+      return Array.isArray(data?.logs) ? data.logs : []
+    }
     console.warn('Audit log API unavailable:', data?.error || response.status)
-    return []
+  } catch (error) {
+    console.warn('Audit log API request failed:', error)
   }
-  return Array.isArray(data?.logs) ? data.logs : []
+  return []
 }
 
 export async function clearAuditLogs(before) {
