@@ -410,6 +410,7 @@ function AmbientBackground() {
 function PortalUpdateWatcher() {
   const { user } = useAuth()
   const [release, setRelease] = useState(null)
+  const [promptOpen, setPromptOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressMessage, setProgressMessage] = useState('')
@@ -420,7 +421,6 @@ function PortalUpdateWatcher() {
     if (!user?.email) return undefined
 
     let disposed = false
-    const dismissed = new Set()
 
     const checkVersion = async () => {
       try {
@@ -432,8 +432,7 @@ function PortalUpdateWatcher() {
         const payload = await response.json()
         const latestVersion = String(payload?.version || '').trim()
         if (!latestVersion || latestVersion === PORTAL_BUILD_VERSION) return
-        const dismissKey = `portal-update-dismissed:${user.email}:${latestVersion}`
-        if (dismissed.has(dismissKey) || window.sessionStorage.getItem(dismissKey) === '1') return
+        const deferKey = `portal-update-deferred:${user.email}:${latestVersion}`
         const manifestResponse = await fetch(`/update-manifest.json?ts=${Date.now()}`, {
           cache: 'no-store',
           credentials: 'same-origin',
@@ -445,6 +444,7 @@ function PortalUpdateWatcher() {
             builtAt: payload?.built_at || '',
             assets: Array.isArray(manifest?.assets) ? manifest.assets : [],
           })
+          setPromptOpen(window.sessionStorage.getItem(deferKey) !== '1')
           setUpdateError('')
         }
       } catch (_) {
@@ -573,55 +573,76 @@ function PortalUpdateWatcher() {
 
   if (!release) return null
 
-  const dismissUpdate = () => {
-    const dismissKey = `portal-update-dismissed:${user?.email}:${release.version}`
-    window.sessionStorage.setItem(dismissKey, '1')
-    setRelease(null)
+  const startUpdate = () => {
+    if (updating) return
+    setPromptOpen(true)
+    setUpdating(true)
+  }
+
+  const deferUpdate = () => {
+    const deferKey = `portal-update-deferred:${user?.email}:${release.version}`
+    window.sessionStorage.setItem(deferKey, '1')
+    setPromptOpen(false)
   }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(6,12,24,0.18)', backdropFilter:'blur(8px)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
-      <div className="card card-pad" style={{ maxWidth:520, width:'100%', border:'1px solid var(--accent-border)', boxShadow:'0 32px 90px rgba(22,34,61,0.14)' }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Portal update</div>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:30, lineHeight:1.05, color:'var(--text)', marginBottom:10 }}>
-          New portal update available
+    <>
+      <div className="portal-update-banner" role="status" aria-live="polite">
+        <div className="portal-update-banner__copy">
+          <span className="portal-update-banner__eyebrow">Update available</span>
+          <strong>Download the latest portal update</strong>
+          <span>Version {release.version} is ready and will keep showing until installed.</span>
         </div>
-        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:16 }}>
-          A newer version of the staff portal has been deployed. Update now to load the latest features and fixes.
-        </div>
-        <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
-          <span className="badge badge-blue">{release.version}</span>
-          {release.builtAt ? <span className="badge badge-grey">{new Date(release.builtAt).toLocaleString('en-GB')}</span> : null}
-        </div>
-        {updateError ? (
-          <div style={{ marginBottom:14, padding:'12px 14px', borderRadius:14, border:'1px solid rgba(198,40,40,0.16)', background:'rgba(198,40,40,0.06)', fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
-            {updateError}
-          </div>
-        ) : null}
-        {updating ? (
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{progressMessage || 'Downloading update'}</div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--accent)' }}>{progress}%</div>
+        <button className="btn btn-primary btn-sm" onClick={startUpdate} disabled={updating}>
+          {updating ? 'Updating...' : 'Download update'}
+        </button>
+      </div>
+
+      {promptOpen ? (
+        <div style={{ position:'fixed', inset:0, background:'rgba(6,12,24,0.18)', backdropFilter:'blur(8px)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
+          <div className="card card-pad" style={{ maxWidth:520, width:'100%', border:'1px solid var(--accent-border)', boxShadow:'0 32px 90px rgba(22,34,61,0.14)' }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Portal update</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:30, lineHeight:1.05, color:'var(--text)', marginBottom:10 }}>
+              New portal update available
             </div>
-            <div style={{ height:10, borderRadius:999, background:'var(--bg2)', overflow:'hidden', border:'1px solid var(--border)' }}>
-              <div style={{ height:'100%', width:`${progress}%`, background:'linear-gradient(90deg, var(--accent), #7ab7ff)', transition:'width 120ms linear' }} />
+            <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:16 }}>
+              A newer version of the staff portal has been deployed. Update now to load the latest features and fixes. If you choose later, a download banner will stay visible on every page until the update is installed.
             </div>
-            {currentAsset ? (
-              <div style={{ fontSize:12, color:'var(--sub)', marginTop:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                {currentAsset}
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+              <span className="badge badge-blue">{release.version}</span>
+              {release.builtAt ? <span className="badge badge-grey">{new Date(release.builtAt).toLocaleString('en-GB')}</span> : null}
+            </div>
+            {updateError ? (
+              <div style={{ marginBottom:14, padding:'12px 14px', borderRadius:14, border:'1px solid rgba(198,40,40,0.16)', background:'rgba(198,40,40,0.06)', fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+                {updateError}
               </div>
             ) : null}
+            {updating ? (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{progressMessage || 'Downloading update'}</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--accent)' }}>{progress}%</div>
+                </div>
+                <div style={{ height:10, borderRadius:999, background:'var(--bg2)', overflow:'hidden', border:'1px solid var(--border)' }}>
+                  <div style={{ height:'100%', width:`${progress}%`, background:'linear-gradient(90deg, var(--accent), #7ab7ff)', transition:'width 120ms linear' }} />
+                </div>
+                {currentAsset ? (
+                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {currentAsset}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              {!updating ? <button className="btn btn-secondary" onClick={deferUpdate}>Later</button> : null}
+              <button className="btn btn-primary" onClick={startUpdate} disabled={updating}>
+                {updating ? 'Applying update...' : 'Update now'}
+              </button>
+            </div>
           </div>
-        ) : null}
-        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-          {!updating ? <button className="btn btn-secondary" onClick={dismissUpdate}>Later</button> : null}
-          <button className="btn btn-primary" onClick={() => setUpdating(true)} disabled={updating}>
-            {updating ? 'Applying update...' : 'Update now'}
-          </button>
         </div>
-      </div>
-    </div>
+      ) : null}
+    </>
   )
 }
 
