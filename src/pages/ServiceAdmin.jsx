@@ -14,6 +14,29 @@ const TABS = [
 
 const STATUS_OPTIONS = ['operational', 'degraded', 'outage', 'maintenance', 'incident']
 
+const FEATURE_FLAG_PRESETS = [
+  ['booking_links', 'Staff shareable booking links', true],
+  ['pdf_workspace', 'Internal PDF Workspace', true],
+  ['public_booking', 'Public booking pages', true],
+  ['onboarding_redesign', 'New starter onboarding redesign', true],
+  ['release_popups', 'Portal update popups and banners', true],
+  ['microsoft_calendar_sync', 'Microsoft calendar two-way sync', false],
+  ['service_admin_v2', 'Service Admin control layer', true],
+]
+
+const CONFIG_CATEGORY_LABELS = {
+  branding: 'Branding',
+  support: 'Support contacts',
+  communications: 'Communications',
+  payments: 'Payments',
+  operational: 'Operational flags',
+  booking: 'Booking links',
+  onboarding: 'Onboarding defaults',
+  releases: 'Release updates',
+  governance: 'Governance',
+  security: 'Security',
+}
+
 function formatDateTime(value) {
   if (!value) return '—'
   const parsed = new Date(value)
@@ -146,8 +169,28 @@ export default function ServiceAdmin() {
     [safeguards]
   )
 
+  const groupedConfig = useMemo(() => {
+    const groups = new Map()
+    for (const item of overview?.configManager?.settings || []) {
+      const category = item.category || 'general'
+      if (!groups.has(category)) groups.set(category, [])
+      groups.get(category).push(item)
+    }
+    return Array.from(groups.entries())
+  }, [overview?.configManager?.settings])
+
+  const fillFlagPreset = ([key, description, enabled]) => {
+    setFlagForm({
+      key,
+      description,
+      enabled,
+      audience_scope: 'all_staff',
+      expires_at: '',
+    })
+  }
+
   const renderControlCenter = () => (
-    <div className="service-admin-grid">
+    <div className="service-admin-control-layout">
       <div className="service-admin-main">
         <div className="service-admin-stat-grid">
           <Card title="Portal maintenance" value={controlCenter.portalMaintenanceEnabled ? 'Enabled' : 'Off'} meta="Live staff access block" action="Toggle" onClick={() => setActiveTab('status')} />
@@ -209,7 +252,7 @@ export default function ServiceAdmin() {
         </div>
       </div>
 
-      <div className="service-admin-side">
+      <aside className="service-admin-side">
         <div className="service-admin-panel">
           <div className="service-admin-section__eyebrow">Live staff</div>
           <h3>Current presence</h3>
@@ -230,7 +273,7 @@ export default function ServiceAdmin() {
             <button className="service-admin-link" onClick={() => navigate('/audit')}>Open audit log</button>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   )
 
@@ -367,6 +410,13 @@ export default function ServiceAdmin() {
               <h3>Operational toggles</h3>
             </div>
           </div>
+          <div className="service-admin-preset-strip" aria-label="Feature flag presets">
+            {FEATURE_FLAG_PRESETS.map((preset) => (
+              <button key={preset[0]} type="button" className="service-admin-preset" onClick={() => fillFlagPreset(preset)}>
+                {preset[0].replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
           <div className="service-admin-form-grid compact">
             <label className="service-admin-field">
               <span>Key</span>
@@ -435,22 +485,32 @@ export default function ServiceAdmin() {
           <div className="service-admin-section__head">
             <div>
               <div className="service-admin-section__eyebrow">Typed settings</div>
-              <h3>Core configuration</h3>
+              <h3>Service configuration</h3>
             </div>
           </div>
-          <div className="service-admin-form-grid">
-            {(overview?.configManager?.settings || []).map((item) => (
-              <label key={item.key} className="service-admin-field">
-                <span>{item.label}</span>
-                {typeof item.value === 'boolean' ? (
-                  <select value={String(configDrafts[item.key])} onChange={(event) => setConfigDrafts((current) => ({ ...current, [item.key]: event.target.value === 'true' }))}>
-                    <option value="true">Enabled</option>
-                    <option value="false">Disabled</option>
-                  </select>
-                ) : (
-                  <input value={configDrafts[item.key] ?? ''} onChange={(event) => setConfigDrafts((current) => ({ ...current, [item.key]: event.target.value }))} />
-                )}
-              </label>
+          <div className="service-admin-config-groups">
+            {groupedConfig.map(([category, items]) => (
+              <section key={category} className="service-admin-config-group">
+                <div>
+                  <h4>{CONFIG_CATEGORY_LABELS[category] || category}</h4>
+                  <p>{items.length} setting{items.length === 1 ? '' : 's'}</p>
+                </div>
+                <div className="service-admin-form-grid">
+                  {items.map((item) => (
+                    <label key={item.key} className="service-admin-field">
+                      <span>{item.label}</span>
+                      {typeof item.value === 'boolean' ? (
+                        <select value={String(configDrafts[item.key])} onChange={(event) => setConfigDrafts((current) => ({ ...current, [item.key]: event.target.value === 'true' }))}>
+                          <option value="true">Enabled</option>
+                          <option value="false">Disabled</option>
+                        </select>
+                      ) : (
+                        <input value={configDrafts[item.key] ?? ''} onChange={(event) => setConfigDrafts((current) => ({ ...current, [item.key]: event.target.value }))} />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
           <div className="service-admin-actions">
@@ -491,6 +551,16 @@ export default function ServiceAdmin() {
                 <span>{formatDateTime(row.changed_at)}</span>
               </div>
             )) : <div className="service-admin-empty">No config history yet.</div>}
+          </div>
+        </div>
+        <div className="service-admin-panel">
+          <div className="service-admin-section__eyebrow">Managed here</div>
+          <h3>Settings you can now control</h3>
+          <div className="service-admin-note-list">
+            <span>Booking defaults and public booking toggles</span>
+            <span>Onboarding manager, department, and starter guide defaults</span>
+            <span>Email/SMS rates, support contacts, and update behaviour</span>
+            <span>Audit retention, session re-auth, and sensitive action rules</span>
           </div>
         </div>
       </div>

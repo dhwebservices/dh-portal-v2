@@ -44,12 +44,18 @@ function resolveRequestOrigin(request) {
 
 function isAllowedOrigin(request, env) {
   const origin = resolveRequestOrigin(request)
-  if (!origin) return false
+  if (!origin) return true
   if (getAllowedOrigins(env).has(origin)) return true
 
   try {
+    const requestOrigin = new URL(request.url).origin
+    if (origin === requestOrigin) return true
     const { hostname, protocol } = new URL(origin)
-    return protocol === 'https:' && hostname.endsWith('.dh-portal-v2.pages.dev')
+    return protocol === 'https:' && (
+      hostname === 'staff.dhwebsiteservices.co.uk' ||
+      hostname.endsWith('.dh-portal-v2.pages.dev') ||
+      hostname.endsWith('.pages.dev')
+    )
   } catch {
     return false
   }
@@ -328,11 +334,29 @@ async function fetchOverview(env) {
     { key: 'portal_tagline', label: 'Portal tagline', category: 'branding', value: settingsMap.get('portal_tagline')?.value ?? settingsMap.get('portal_tagline') ?? 'Internal access' },
     { key: 'support_email', label: 'Support email', category: 'support', value: settingsMap.get('support_email')?.value ?? settingsMap.get('support_email') ?? 'mgmt@dhwebsiteservices.co.uk' },
     { key: 'support_phone', label: 'Support phone', category: 'support', value: settingsMap.get('support_phone')?.value ?? settingsMap.get('support_phone') ?? '' },
+    { key: 'technical_contact_name', label: 'Technical contact', category: 'support', value: settingsMap.get('technical_contact_name')?.value ?? settingsMap.get('technical_contact_name') ?? 'David Hooper' },
+    { key: 'technical_contact_email', label: 'Technical contact email', category: 'support', value: settingsMap.get('technical_contact_email')?.value ?? settingsMap.get('technical_contact_email') ?? 'mgmt@dhwebsiteservices.co.uk' },
+    { key: 'technical_contact_phone', label: 'Technical contact phone', category: 'support', value: settingsMap.get('technical_contact_phone')?.value ?? settingsMap.get('technical_contact_phone') ?? '07359587007' },
     { key: 'from_name', label: 'Email from name', category: 'communications', value: settingsMap.get('from_name')?.value ?? settingsMap.get('from_name') ?? 'DH Website Services' },
     { key: 'email_footer', label: 'Email footer', category: 'communications', value: settingsMap.get('email_footer')?.value ?? settingsMap.get('email_footer') ?? '' },
+    { key: 'batch_email_rate_limit_per_second', label: 'Email batch rate limit/sec', category: 'communications', value: settingsMap.get('batch_email_rate_limit_per_second')?.value ?? settingsMap.get('batch_email_rate_limit_per_second') ?? '4' },
+    { key: 'batch_sms_rate_limit_per_second', label: 'SMS batch rate limit/sec', category: 'communications', value: settingsMap.get('batch_sms_rate_limit_per_second')?.value ?? settingsMap.get('batch_sms_rate_limit_per_second') ?? '2' },
     { key: 'gocardless_env', label: 'GoCardless environment', category: 'payments', value: settingsMap.get('gocardless_env')?.value ?? settingsMap.get('gocardless_env') ?? 'sandbox' },
     { key: 'notifications_email_enabled', label: 'Email notifications enabled', category: 'operational', value: settingsMap.get('notifications_email_enabled')?.value ?? settingsMap.get('notifications_email_enabled') ?? true },
     { key: 'notifications_sms_enabled', label: 'SMS notifications enabled', category: 'operational', value: settingsMap.get('notifications_sms_enabled')?.value ?? settingsMap.get('notifications_sms_enabled') ?? false },
+    { key: 'booking_links_enabled', label: 'Booking links enabled', category: 'booking', value: settingsMap.get('booking_links_enabled')?.value ?? settingsMap.get('booking_links_enabled') ?? true },
+    { key: 'booking_default_duration_minutes', label: 'Default booking length', category: 'booking', value: settingsMap.get('booking_default_duration_minutes')?.value ?? settingsMap.get('booking_default_duration_minutes') ?? '30' },
+    { key: 'booking_default_buffer_minutes', label: 'Default booking buffer', category: 'booking', value: settingsMap.get('booking_default_buffer_minutes')?.value ?? settingsMap.get('booking_default_buffer_minutes') ?? '15' },
+    { key: 'booking_max_calls_per_day', label: 'Max booking calls/day', category: 'booking', value: settingsMap.get('booking_max_calls_per_day')?.value ?? settingsMap.get('booking_max_calls_per_day') ?? '8' },
+    { key: 'onboarding_default_manager_email', label: 'Default onboarding manager', category: 'onboarding', value: settingsMap.get('onboarding_default_manager_email')?.value ?? settingsMap.get('onboarding_default_manager_email') ?? '' },
+    { key: 'onboarding_default_department', label: 'Default onboarding department', category: 'onboarding', value: settingsMap.get('onboarding_default_department')?.value ?? settingsMap.get('onboarding_default_department') ?? '' },
+    { key: 'onboarding_sales_guide_required', label: 'Attach sales guide by default', category: 'onboarding', value: settingsMap.get('onboarding_sales_guide_required')?.value ?? settingsMap.get('onboarding_sales_guide_required') ?? true },
+    { key: 'portal_update_popup_enabled', label: 'Update popup enabled', category: 'releases', value: settingsMap.get('portal_update_popup_enabled')?.value ?? settingsMap.get('portal_update_popup_enabled') ?? true },
+    { key: 'portal_update_banner_after_defer', label: 'Banner after defer', category: 'releases', value: settingsMap.get('portal_update_banner_after_defer')?.value ?? settingsMap.get('portal_update_banner_after_defer') ?? true },
+    { key: 'audit_retention_days', label: 'Audit retention days', category: 'governance', value: settingsMap.get('audit_retention_days')?.value ?? settingsMap.get('audit_retention_days') ?? '365' },
+    { key: 'terminated_staff_schedule_hidden', label: 'Hide terminated staff from schedules', category: 'governance', value: settingsMap.get('terminated_staff_schedule_hidden')?.value ?? settingsMap.get('terminated_staff_schedule_hidden') ?? true },
+    { key: 'sensitive_action_reason_required', label: 'Require reason for sensitive changes', category: 'security', value: settingsMap.get('sensitive_action_reason_required')?.value ?? settingsMap.get('sensitive_action_reason_required') ?? true },
+    { key: 'session_reauth_hours', label: 'Session re-auth hours', category: 'security', value: settingsMap.get('session_reauth_hours')?.value ?? settingsMap.get('session_reauth_hours') ?? '12' },
   ]
 
   const integrations = [
