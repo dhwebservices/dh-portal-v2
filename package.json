@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:build:mac": "tauri build --bundles app,dmg",
+    "desktop:install:mac": "npm run desktop:build:mac && rm -rf '/Applications/DH Staff Portal.app' && ditto 'src-tauri/target/release/bundle/macos/DH Staff Portal.app' '/Applications/DH Staff Portal.app'",
     "docs:generate": "node scripts/generate-docs.mjs",
     "docs:check": "node scripts/generate-docs.mjs --check",
     "security:audit": "npm audit --omit=dev --audit-level=high",
@@ -27,6 +31,7 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.1"
   }

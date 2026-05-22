@@ -35,12 +35,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('dh-theme') === 'dark')
   const [portalStatus, setPortalStatus] = useState(null)
+  const isDesktopApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('DHStaffPortalDesktop')
 
   const login = async () => {
     setLoading(true)
     try {
+      if (isDesktopApp) {
+        await instance.loginRedirect(loginRequest)
+        return
+      }
       await instance.loginPopup(loginRequest)
-    } catch {
+    } catch (error) {
+      if (!isDesktopApp) {
+        try {
+          await instance.loginRedirect(loginRequest)
+          return
+        } catch {
+          // Keep the login button available if both browser flows fail.
+        }
+      }
+      console.error('Microsoft sign-in failed:', error)
       setLoading(false)
     }
   }
@@ -49,7 +63,7 @@ export default function LoginPage() {
     const next = dark ? 'light' : 'dark'
     document.documentElement.setAttribute('data-theme', next)
     localStorage.setItem('dh-theme', next)
-    setDark(!dark)
+    setDark(next === 'dark')
   }
 
   useEffect(() => {
