@@ -10,7 +10,7 @@ import {
   upsertEmailScopedRow,
 } from '../../utils/hrProfileSync'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
-import { buildLifecycleSettingKey, DIRECTOR_EMAILS } from '../../utils/staffLifecycle'
+import { buildLifecycleSettingKey, DIRECTOR_EMAILS, mergeLifecycleRecord } from '../../utils/staffLifecycle'
 import { buildStaffOrgKey, getManagedDepartments, mergeOrgRecord } from '../../utils/orgStructure'
 import {
   buildContractMergeFields,
@@ -1440,15 +1440,45 @@ export default function HROnboarding() {
           ...updatedPayload,
           full_name: updatedPayload.full_name || updatedPayload.user_name,
         }, { overwrite: true })
-        await upsertEmailScopedRow('user_permissions', normalizedEmail, {
-          onboarding: false,
-          updated_at: new Date().toISOString(),
-        })
+        await Promise.all([
+          upsertEmailScopedRow('user_permissions', normalizedEmail, {
+            onboarding: false,
+            updated_at: new Date().toISOString(),
+          }),
+          supabase.from('portal_settings').upsert({
+            key: buildLifecycleSettingKey(normalizedEmail),
+            value: {
+              value: mergeLifecycleRecord({
+                state: 'active',
+                contract_type: updatedPayload.contract_type || targetSubmission.contract_type || '',
+                notes: updatedPayload.admin_notes || '',
+                updated_at: new Date().toISOString(),
+                updated_by_email: normalizeEmail(user?.email || ''),
+                updated_by_name: user?.name || user?.email || 'DH Portal',
+              }),
+            },
+          }, { onConflict: 'key' }),
+        ])
       } else if (status === 'rejected') {
-        await upsertEmailScopedRow('user_permissions', normalizedEmail, {
-          onboarding: true,
-          updated_at: new Date().toISOString(),
-        })
+        await Promise.all([
+          upsertEmailScopedRow('user_permissions', normalizedEmail, {
+            onboarding: true,
+            updated_at: new Date().toISOString(),
+          }),
+          supabase.from('portal_settings').upsert({
+            key: buildLifecycleSettingKey(normalizedEmail),
+            value: {
+              value: mergeLifecycleRecord({
+                state: 'onboarding',
+                contract_type: updatedPayload.contract_type || targetSubmission.contract_type || '',
+                notes: notes || updatedPayload.admin_notes || '',
+                updated_at: new Date().toISOString(),
+                updated_by_email: normalizeEmail(user?.email || ''),
+                updated_by_name: user?.name || user?.email || 'DH Portal',
+              }, { onboarding: true }),
+            },
+          }, { onConflict: 'key' }),
+        ])
       }
 
       await Promise.allSettled([

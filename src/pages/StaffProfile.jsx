@@ -386,6 +386,23 @@ export default function StaffProfile() {
     manager_notes: '',
     action_plan: '',
   })
+
+  const setOnboardingMode = (enabled) => {
+    const nextEnabled = typeof enabled === 'function' ? enabled(onboarding) : enabled
+    setOnboarding(nextEnabled)
+    setLifecycleRecord((current) => {
+      const currentState = current?.state || 'active'
+      const nextState = nextEnabled
+        ? 'onboarding'
+        : (currentState === 'onboarding' || currentState === 'invited' ? 'active' : currentState)
+      return mergeLifecycleRecord({ ...current, state: nextState }, {
+        onboarding: nextEnabled,
+        startDate: profile.start_date,
+        contractType: profile.contract_type,
+      })
+    })
+  }
+
   const [checkInForm, setCheckInForm] = useState({
     check_in_date: '',
     status: 'scheduled',
@@ -866,7 +883,13 @@ export default function StaffProfile() {
     setSaving(true)
     try {
       const nextLifecyclePolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicy)
-      const nextLifecycle = mergeLifecycleRecord(lifecycleRecord, {
+      const lifecycleForSave = {
+        ...lifecycleRecord,
+        state: onboarding
+          ? 'onboarding'
+          : (lifecycleRecord.state === 'onboarding' ? 'active' : lifecycleRecord.state),
+      }
+      const nextLifecycle = mergeLifecycleRecord(lifecycleForSave, {
         onboarding,
         startDate: profile.start_date,
         contractType: profile.contract_type,
@@ -2867,7 +2890,7 @@ export default function StaffProfile() {
                 <span style={{ fontSize:12, color: onboarding ? 'var(--amber)' : 'var(--green)', fontWeight:600 }}>
                   {onboarding ? 'Onboarding' : 'Active'}
                 </span>
-                <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+                <button onClick={() => setOnboardingMode(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
                   <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
                 </button>
               </div>
@@ -3221,7 +3244,7 @@ export default function StaffProfile() {
                           <div style={{ fontSize:13, fontWeight:500, color:'var(--text)' }}>Onboarding mode</div>
                           <div style={{ fontSize:11, color:'var(--sub)' }}>Restricts the portal to onboarding-safe access</div>
                         </div>
-                        <button onClick={() => setOnboarding(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', position:'relative', flexShrink:0 }}>
+                        <button onClick={() => setOnboardingMode(o => !o)} style={{ width:40, height:22, borderRadius:11, background: onboarding ? 'var(--amber)' : 'var(--green)', border:'none', position:'relative', flexShrink:0 }}>
                           <div style={{ position:'absolute', top:2, left: onboarding ? 2 : 20, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
                         </button>
                       </label>
@@ -3383,7 +3406,12 @@ export default function StaffProfile() {
               <div className="fg">
                 <div>
                   <label className="lbl">Lifecycle State</label>
-                  <select className="inp" value={lifecycleRecord.state} onChange={(e) => setLifecycleRecord((current) => mergeLifecycleRecord({ ...current, state: e.target.value }, { onboarding, startDate: profile.start_date, contractType: profile.contract_type }))}>
+                  <select className="inp" value={lifecycleRecord.state} onChange={(e) => {
+                    const nextState = e.target.value
+                    setLifecycleRecord((current) => mergeLifecycleRecord({ ...current, state: nextState }, { onboarding: nextState === 'onboarding' ? true : onboarding, startDate: profile.start_date, contractType: profile.contract_type }))
+                    if (nextState === 'onboarding') setOnboarding(true)
+                    else if (onboarding) setOnboarding(false)
+                  }}>
                     {LIFECYCLE_STATES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                   </select>
                 </div>
