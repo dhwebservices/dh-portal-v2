@@ -27,6 +27,13 @@ import {
 import { openSecureDocument } from '../../utils/fileAccess'
 import { sendEmail } from '../../utils/email'
 
+function assertSupabaseOk(result, label) {
+  if (result?.error) {
+    throw new Error(`${label}: ${result.error.message}`)
+  }
+  return result
+}
+
 const STEPS = [
   { key:'personal',   label:'Personal Info'       },
   { key:'address',    label:'Address & Contact'   },
@@ -939,7 +946,7 @@ export default function HROnboarding() {
       updated_by_name: user?.name || user?.email || 'DH Portal',
     }
 
-    await Promise.all([
+    const starterResults = await Promise.all([
       ensureSubmissionSummary(starterPayload),
       supabase.from('portal_settings').upsert({
         key: buildOnboardingPayloadKey(safeWorkEmail),
@@ -973,6 +980,16 @@ export default function HROnboarding() {
         updated_at: now,
       }),
     ])
+    starterResults.forEach((result, index) => {
+      assertSupabaseOk(result, [
+        'Onboarding summary save failed',
+        'Onboarding payload save failed',
+        'Staff org save failed',
+        'Lifecycle save failed',
+        'HR profile save failed',
+        'Permission save failed',
+      ][index] || 'New starter save failed')
+    })
 
     const activeTemplate = starterContractTemplates.find((item) => item.id === starterForm.contract_template_id)
     if (activeTemplate) {
@@ -1440,7 +1457,7 @@ export default function HROnboarding() {
           ...updatedPayload,
           full_name: updatedPayload.full_name || updatedPayload.user_name,
         }, { overwrite: true })
-        await Promise.all([
+        const approvalResults = await Promise.all([
           upsertEmailScopedRow('user_permissions', normalizedEmail, {
             onboarding: false,
             updated_at: new Date().toISOString(),
@@ -1459,8 +1476,11 @@ export default function HROnboarding() {
             },
           }, { onConflict: 'key' }),
         ])
+        approvalResults.forEach((result, index) => {
+          assertSupabaseOk(result, index === 0 ? 'Permission update failed' : 'Lifecycle update failed')
+        })
       } else if (status === 'rejected') {
-        await Promise.all([
+        const rejectionResults = await Promise.all([
           upsertEmailScopedRow('user_permissions', normalizedEmail, {
             onboarding: true,
             updated_at: new Date().toISOString(),
@@ -1479,6 +1499,9 @@ export default function HROnboarding() {
             },
           }, { onConflict: 'key' }),
         ])
+        rejectionResults.forEach((result, index) => {
+          assertSupabaseOk(result, index === 0 ? 'Permission update failed' : 'Lifecycle update failed')
+        })
       }
 
       await Promise.allSettled([

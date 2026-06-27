@@ -959,6 +959,21 @@ export default function StaffProfile() {
       const savedPerm = await upsertEmailScopedRow('user_permissions', email, permPayload)
       if (savedPerm?.id) setPermId(savedPerm.id)
 
+      const { error: lifecycleError } = await supabase
+        .from('portal_settings')
+        .upsert({
+          key: buildLifecycleSettingKey(email),
+          value: {
+            value: {
+              ...nextLifecycle,
+              updated_at: new Date().toISOString(),
+              updated_by_email: user?.email || '',
+              updated_by_name: user?.name || user?.email || 'DH Portal',
+            },
+          },
+        }, { onConflict: 'key' })
+      if (lifecycleError) throw new Error('Lifecycle save failed: ' + lifecycleError.message)
+
       const nextAccountSecurity = applyLifecycleAccessPolicy(mergeAccountSecurityRecord(accountSecurityRecord), nextLifecycle, nextLifecyclePolicy)
       const { error: accountSecurityError } = await supabase
         .from('portal_settings')

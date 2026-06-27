@@ -187,7 +187,13 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
   const lifecycleAccessPolicy = mergeLifecycleAccessPolicy(lifecycleAccessPolicyRaw)
   const basePerms = permissionsData ? sanitizePermissions(permissionsData.permissions) : { ...BASE_PERMISSIONS }
   const safePerms = applyTemporaryPermissions(basePerms, temporaryPermissionRecord)
-  const lifecycleRecord = mergeLifecycleRecord(lifecycleRaw)
+  const lifecycleRecord = mergeLifecycleRecord(lifecycleRaw, {
+    onboarding: permissionsData?.onboarding === true,
+    startDate: hrProfile?.start_date,
+    contractType: hrProfile?.contract_type,
+  })
+  const lifecycleSaysOnboarding = lifecycleRecord.state === 'onboarding'
+  const permissionsSayOnboarding = permissionsData?.onboarding === true
   const nextWorkspace = inferWorkspaceFromProfile({
     explicitWorkspace: workspaceRaw?.primary_workspace ?? workspaceRaw,
     hrProfile,
@@ -206,8 +212,8 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
     perms: OWNER_EMAILS.has(safeEmail) ? null : safePerms,
     isAdmin: OWNER_EMAILS.has(safeEmail) || permissionsData?.permissions?.admin === true || nextOrg.role_scope === 'director',
     isOnboarding: lifecycleAccessPolicy.enforce_onboarding_mode
-      ? lifecycleRecord.state === 'onboarding'
-      : permissionsData?.onboarding === true,
+      ? lifecycleSaysOnboarding || permissionsSayOnboarding
+      : permissionsSayOnboarding || lifecycleSaysOnboarding,
     accountSecurity: applyLifecycleAccessPolicy(mergeAccountSecurityRecord(accountSecurityRaw), lifecycleRecord, lifecycleAccessPolicy),
     lifecycle: lifecycleRecord,
     org: {
@@ -393,7 +399,13 @@ export function AuthProvider({ children }) {
         setPreferences(nextPreferences)
         applyPortalAppearance(nextPreferences)
         const lifecycleRaw = lifecycleResult?.data?.value?.value ?? lifecycleResult?.data?.value ?? {}
-        const nextLifecycle = mergeLifecycleRecord(lifecycleRaw)
+        const permissionsSayOnboarding = data?.onboarding === true
+        const nextLifecycle = mergeLifecycleRecord(lifecycleRaw, {
+          onboarding: permissionsSayOnboarding,
+          startDate: hrProfile?.start_date,
+          contractType: hrProfile?.contract_type,
+        })
+        const lifecycleSaysOnboarding = nextLifecycle.state === 'onboarding'
         setLifecycle(nextLifecycle)
         const presenceRaw = presenceResult?.data?.value?.value ?? presenceResult?.data?.value ?? {}
         setPresence(mergeStaffPresenceRecord(presenceRaw, {
@@ -435,11 +447,13 @@ export function AuthProvider({ children }) {
         if (!error && data) {
           setPerms(isOwner ? null : safePerms)
           setIsAdmin(isOwner || data.permissions?.admin === true || nextOrg.role_scope === 'director')
-          setIsOnboarding(nextLifecycleAccessPolicy.enforce_onboarding_mode ? nextLifecycle.state === 'onboarding' : data.onboarding === true)
+          setIsOnboarding(nextLifecycleAccessPolicy.enforce_onboarding_mode
+            ? lifecycleSaysOnboarding || permissionsSayOnboarding
+            : permissionsSayOnboarding || lifecycleSaysOnboarding)
         } else {
           setPerms(isOwner ? null : { ...BASE_PERMISSIONS })
           setIsAdmin(isOwner || nextOrg.role_scope === 'director')
-          setIsOnboarding(false)
+          setIsOnboarding(lifecycleSaysOnboarding)
         }
         setLoading(false)
       })
@@ -768,10 +782,12 @@ export function AuthProvider({ children }) {
   }
 
   const updatePreferences = async (patch, options = {}) => {
-    const targetEmail = String(options.email || normalizedEmail || '').toLowerCase().trim()
-    const basePreferences = previewState && targetEmail === previewState.user?.email ? previewState.preferences : preferences
+    const targetEmail = String(options.email || effectiveUser?.email || normalizedEmail || '').toLowerCase().trim()
+    const previewEmail = String(previewState?.user?.email || '').toLowerCase().trim()
+    const isPreviewTarget = !!previewState && targetEmail === previewEmail
+    const basePreferences = isPreviewTarget ? previewState.preferences : preferences
     const nextPreferences = mergePortalPreferences(basePreferences, patch)
-    if (previewState && targetEmail === previewState.user?.email) {
+    if (isPreviewTarget) {
       setPreviewState((current) => current ? { ...current, preferences: nextPreferences } : current)
     } else {
       setPreferences(nextPreferences)

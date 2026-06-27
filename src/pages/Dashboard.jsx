@@ -1886,12 +1886,6 @@ export default function Dashboard() {
       ) : null}
 
       <div className="surface-card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
-        <div className="surface-card-header">
-          <div>
-            <div className="section-kicker">Home snapshot</div>
-            <div className="section-note">The core numbers that shape your working day.</div>
-          </div>
-        </div>
         <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>
           <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
           <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
