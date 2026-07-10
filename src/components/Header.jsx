@@ -2,64 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase'
-
-const TITLES = {
-  '/dashboard':'Dashboard', '/my-profile':'My Profile',
-  '/search':'Search',
-  '/my-department':'My Department',
-  '/my-team':'View My Team',
-  '/recruiting':'Recruitment',
-  '/outreach':'Clients Contacted', '/clients':'Onboarded Clients',
-  '/client-mgmt':'Client Portal', '/support':'Support Tickets',
-  '/pdf-workspace':'PDF Workspace',
-  '/service-admin':'Service Admin',
-  '/tasks':'Manage Tasks', '/my-tasks':'My Tasks',
-  '/schedule':'Schedule', '/reports':'Reports',
-  '/manager-board':'Manager Board',
-  '/departments':'Departments',
-  '/contract-queue':'Contract Queue',
-  '/contract-templates':'Contract Templates',
-  '/org-chart':'Organisation Chart',
-  '/my-staff':'My Staff', '/proposals':'Proposal Builder',
-  '/send-email':'Send Email', '/email-templates':'Email Templates',
-  '/banners':'Banners', '/domains':'Domain Checker',
-  '/competitor':'Competitor Lookup', '/maintenance':'Maintenance',
-  '/hr/leave':'Leave', '/hr/timesheets':'Timesheets',
-  '/hr/payslips':'Payslips', '/hr/profiles':'HR Profiles',
-  '/hr/policies':'Policies', '/hr/documents':'HR Documents', '/hr/onboarding':'Onboarding',
-  '/audit':'Audit Log', '/settings':'Settings',
-  '/notifications':'Notifications',
-}
-
-const PAGE_NOTES = {
-  '/dashboard': { section: 'Home', note: 'Overview, priorities, and live portal activity' },
-  '/my-profile': { section: 'Account', note: 'Personal details, preferences, and portal setup' },
-  '/search': { section: 'Home', note: 'Search pages, staff, and client records' },
-  '/my-department': { section: 'Home', note: 'Department operations, staffing, and requests' },
-  '/my-team': { section: 'Home', note: 'Manager view of direct reports and workload' },
-  '/outreach': { section: 'Business', note: 'Leads, contact activity, and conversion follow-up' },
-  '/clients': { section: 'Business', note: 'Client relationships, records, and account health' },
-  '/client-mgmt': { section: 'Business', note: 'Client portal, contracts, invoices, and support' },
-  '/pdf-workspace': { section: 'Business', note: 'Personal PDFs, shared libraries, and internal document workflows' },
-  '/service-admin': { section: 'Admin', note: 'Platform control centre, releases, config, and recovery' },
-  '/support': { section: 'Business', note: 'Support queue and client issue handling' },
-  '/tasks': { section: 'Tasks', note: 'Task assignment, progress, and ownership' },
-  '/my-tasks': { section: 'Tasks', note: 'Your assigned work and due items' },
-  '/schedule': { section: 'Tasks', note: 'Availability, bookings, and calendar planning' },
-  '/my-staff': { section: 'HR', note: 'Staff records, permissions, and lifecycle controls' },
-  '/contract-queue': { section: 'HR', note: 'Issued contracts and signing progress' },
-  '/contract-templates': { section: 'HR', note: 'Template library for staff contracts' },
-  '/hr/profiles': { section: 'HR', note: 'Core staff records and employment details' },
-  '/recruiting': { section: 'Hiring', note: 'Roles, job overviews, and candidate pipelines' },
-  '/recruiting/jobs': { section: 'Hiring', note: 'Role publishing and requisition management' },
-  '/recruiting/applications': { section: 'Hiring', note: 'Application inbox and candidate review' },
-  '/recruiting/board': { section: 'Hiring', note: 'Pipeline movement across hiring stages' },
-  '/recruiting/settings': { section: 'Hiring', note: 'Questions, stages, and recruiting defaults' },
-  '/reports': { section: 'Admin', note: 'Operational reporting and portal analytics' },
-  '/departments': { section: 'Admin', note: 'Organisation structure and department setup' },
-  '/settings': { section: 'Account', note: 'Workspace, notifications, and personal preferences' },
-  '/notifications': { section: 'Home', note: 'Unread alerts, approvals, and updates' },
-}
+import { getRouteMeta } from './Sidebar'
 
 function BellIcon() {
   return (
@@ -117,12 +60,11 @@ function SparklesIcon() {
   )
 }
 
-function sectionAccent(section = '') {
-  const safe = String(section || '').toLowerCase()
-  if (safe === 'hiring') return { bg: 'rgba(26,86,219,0.1)', color: 'var(--accent)' }
-  if (safe === 'hr') return { bg: 'rgba(14,165,233,0.1)', color: 'var(--accent)' }
-  if (safe === 'admin') return { bg: 'rgba(15,23,42,0.08)', color: 'var(--text)' }
-  return { bg: 'rgba(26,86,219,0.08)', color: 'var(--accent)' }
+// Section badge is intentionally monochrome across all sections — matches the
+// nav rail decision (Sidebar.jsx) to rely on typography/spacing/active state
+// for hierarchy rather than colour-coding sections.
+function sectionAccent() {
+  return { bg: 'var(--accent-soft)', color: 'var(--accent)' }
 }
 
 function resolvePageMeta(pathname = '') {
@@ -138,11 +80,7 @@ function resolvePageMeta(pathname = '') {
   if (pathname.startsWith('/recruiting/applications/')) {
     return { title: 'Applicant Profile', section: 'Hiring', note: 'Candidate review, interview scheduling, and decisions' }
   }
-  return {
-    title: TITLES[pathname] || 'Portal',
-    section: PAGE_NOTES[pathname]?.section || 'Portal',
-    note: PAGE_NOTES[pathname]?.note || 'Operational workspace',
-  }
+  return getRouteMeta(pathname)
 }
 
 function NotificationDropdown({ notifs, pinnedAlerts, unread, openInbox, markAllRead, markReadAndOpen, markReadOnly }) {

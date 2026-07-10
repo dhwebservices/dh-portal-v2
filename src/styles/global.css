@@ -57,6 +57,11 @@
   --radius: 16px;
   --radius-sm: 10px;
   --radius-lg: 20px;
+
+  /* Elevation — 3 tiers, replaces per-page shadow recipes */
+  --shadow-sm: 0 10px 24px rgba(25, 40, 72, 0.035);
+  --shadow-md: 0 10px 30px rgba(25, 40, 72, 0.045);
+  --shadow-lg: 0 18px 42px rgba(25, 40, 72, 0.08);
 }
 
 [data-theme="dark"] {
@@ -86,6 +91,10 @@
   --amber-bg:  rgba(255,214,10,0.1);
   --blue:      #2997FF;
   --blue-bg:   rgba(41,151,255,0.1);
+
+  --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.38);
 }
 
 /* ── Base ── */
@@ -1026,7 +1035,7 @@ button { cursor: pointer; font-family: inherit; }
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(25, 40, 72, 0.04);
+  box-shadow: var(--shadow-md);
 }
 .card-pad { padding: 22px 24px; }
 
@@ -1038,9 +1047,9 @@ button { cursor: pointer; font-family: inherit; }
   gap: 20px;
   padding: 28px 30px;
   margin-bottom: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
-  box-shadow: 0 18px 42px rgba(32, 52, 96, 0.08);
+  box-shadow: var(--shadow-lg);
   background:
     radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.12), transparent 28%),
     radial-gradient(circle at bottom left, rgba(var(--accent-rgb), 0.06), transparent 26%),
@@ -1191,10 +1200,10 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-summary-card {
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
   background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, white 6%), color-mix(in srgb, var(--card) 88%, var(--page-tint) 12%));
-  box-shadow: 0 12px 28px rgba(30, 52, 94, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 .staff-profile-summary-label {
   font-family: var(--font-mono);
@@ -2119,7 +2128,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .empty p { font-size: 14px; line-height: 1.7; }
 
 /* ── Stat card ── */
-.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; transition: border-color 0.2s, background 0.2s; box-shadow: 0 10px 24px rgba(25, 40, 72, 0.035); }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; transition: border-color 0.2s, background 0.2s; box-shadow: var(--shadow-sm); }
 .stat-card:hover { border-color: var(--accent-border); }
 .stat-val  { font-size: clamp(26px,3vw,36px); font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
 .stat-lbl  { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 6px; }
@@ -2128,10 +2137,10 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .department-top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .department-hero {
   background:
-    radial-gradient(circle at top right, rgba(78, 112, 234, 0.16), transparent 32%),
+    radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.16), transparent 32%),
     linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--bg2) 90%, white 10%));
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   padding: 22px;
   display: grid;
   gap: 18px;
@@ -2604,8 +2613,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .surface-card {
   background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
   border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: 0 14px 30px rgba(25, 40, 72, 0.04);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .surface-card-header {
@@ -3488,9 +3497,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .pdf-workspace-view-btn,
 .pdf-workspace-folder-btn {
   width: 100%;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(248, 250, 252, 0.9);
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius);
   padding: 12px 14px;
   text-align: left;
   cursor: pointer;
@@ -3516,8 +3525,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .pdf-workspace-view-btn:hover,
 .pdf-workspace-folder-btn:hover,
 .pdf-workspace-doc-row:hover {
-  border-color: rgba(26, 86, 219, 0.22);
-  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--accent-border);
+  background: var(--card);
   transform: translateY(-1px);
 }
 

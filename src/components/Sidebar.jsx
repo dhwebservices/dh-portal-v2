@@ -10,24 +10,24 @@ const SECTIONS = [
   {
     id: 'home', label: 'Home', icon: 'grid',
     items: [
-      { to: '/dashboard',  icon: 'grid',   label: 'Dashboard',  desc: 'Overview & stats',     key: 'dashboard' },
-      { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'notifications' },
-      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'my_profile' },
-      { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'search' },
-      { to: '/my-department', icon: 'briefcase', label: 'My Department', desc: 'Team workspace', key: 'my_department' },
-      { to: '/my-team', icon: 'people', label: 'View My Team', desc: 'Team view', key: 'my_team' },
+      { to: '/dashboard',  icon: 'grid',   label: 'Dashboard',  desc: 'Overview & stats',     key: 'dashboard' , note: 'Overview, priorities, and live portal activity' },
+      { to: '/notifications', icon: 'bell', label: 'Notifications', desc: 'Inbox & alerts',    key: 'notifications' , note: 'Unread alerts, approvals, and updates' },
+      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',          key: 'my_profile' , note: 'Personal details, preferences, and portal setup' },
+      { to: '/search',     icon: 'search', label: 'Search',     desc: 'Find anything',         key: 'search' , note: 'Search pages, staff, and client records' },
+      { to: '/my-department', icon: 'briefcase', label: 'My Department', desc: 'Team workspace', key: 'my_department' , note: 'Department operations, staffing, and requests' },
+      { to: '/my-team', icon: 'people', label: 'View My Team', desc: 'Team view', key: 'my_team' , note: 'Manager view of direct reports and workload' },
     ]
   },
   {
     id: 'business', label: 'Business', icon: 'briefcase',
     items: [
-      { to: '/outreach',    icon: 'phone',  label: 'Clients Contacted', desc: 'Outreach log',       key: 'outreach'    },
-      { to: '/clients',     icon: 'people', label: 'Onboarded Clients', desc: 'Client list',        key: 'clients'     },
+      { to: '/outreach',    icon: 'phone',  label: 'Clients Contacted', desc: 'Outreach log',       key: 'outreach'    , note: 'Leads, contact activity, and conversion follow-up' },
+      { to: '/clients',     icon: 'people', label: 'Onboarded Clients', desc: 'Client list',        key: 'clients'     , note: 'Client relationships, records, and account health' },
       { to: '/client-pipeline', icon: 'chart', label: 'Client Pipeline', desc: 'Lifecycle & risk stages', key: 'clients' },
-      { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  },
+      { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  , note: 'Client portal, contracts, invoices, and support' },
       { to: '/web-manager', icon: 'globe',  label: 'Web Manager',       desc: 'Websites & public site', key: 'website_editor' },
-      { to: '/pdf-workspace', icon: 'doc',  label: 'PDF Workspace',     desc: 'Internal PDF tools', key: 'pdf_workspace' },
-      { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     },
+      { to: '/pdf-workspace', icon: 'doc',  label: 'PDF Workspace',     desc: 'Internal PDF tools', key: 'pdf_workspace' , note: 'Personal PDFs, shared libraries, and internal document workflows' },
+      { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     , note: 'Support queue and client issue handling' },
       { to: '/knowledge-base', icon: 'doc', label: 'Knowledge Base',    desc: 'Help articles & playbooks', key: 'support' },
       { to: '/competitor',  icon: 'search', label: 'Competitor Lookup', desc: 'Research & compare', key: 'competitor'  },
       { to: '/domains',     icon: 'link',   label: 'Domain Checker',    desc: 'Check domains',      key: 'domains'     },
@@ -41,9 +41,9 @@ const SECTIONS = [
   {
     id: 'tasks', label: 'Tasks', icon: 'check',
     items: [
-      { to: '/tasks',        icon: 'check', label: 'All Tasks',    desc: 'Manage all tasks',  key: 'tasks'        },
-      { to: '/my-tasks',     icon: 'check', label: 'My Tasks',     desc: 'Your task list',    key: 'mytasks'      },
-      { to: '/schedule',     icon: 'cal',   label: 'Schedule',     desc: 'Calendar view',     key: 'schedule'     },
+      { to: '/tasks',        icon: 'check', label: 'All Tasks',    desc: 'Manage all tasks',  key: 'tasks'        , note: 'Task assignment, progress, and ownership' },
+      { to: '/my-tasks',     icon: 'check', label: 'My Tasks',     desc: 'Your task list',    key: 'mytasks'      , note: 'Your assigned work and due items' },
+      { to: '/schedule',     icon: 'cal',   label: 'Schedule',     desc: 'Calendar view',     key: 'schedule'     , note: 'Availability, bookings, and calendar planning' },
       { to: '/appointments', icon: 'cal',   label: 'Appointments', desc: 'Book & manage',     key: 'appointments' },
     ]
   },
@@ -53,22 +53,22 @@ const SECTIONS = [
       { to: '/hr/timesheets', icon: 'clock',  label: 'Timesheets',    desc: 'Time tracking',     key: 'hr_timesheet'  },
       { to: '/hr/leave',      icon: 'cal',    label: 'Leave',         desc: 'Leave requests',    key: 'hr_leave'      },
       { to: '/hr/payslips',   icon: 'wallet', label: 'Payslips',      desc: 'Payroll docs',      key: 'hr_payslips'   },
-      { to: '/hr/profiles',   icon: 'people', label: 'HR Profiles',   desc: 'Core staff records', key: 'hr_profiles'  },
+      { to: '/hr/profiles',   icon: 'people', label: 'HR Profiles',   desc: 'Core staff records', key: 'hr_profiles'  , note: 'Core staff records and employment details' },
       { to: '/hr/policies',   icon: 'doc',    label: 'Policies',      desc: 'Policy library',    key: 'hr_policies'   },
       { to: '/hr/documents',  icon: 'doc',    label: 'Documents',     desc: 'Coverage & risks',  key: 'hr_documents'  },
       { to: '/hr/compliance-rules', icon: 'shield', label: 'Compliance Rules', desc: 'Required docs & training', key: 'hr_documents' },
       { to: '/hr/training-catalogue', icon: 'star', label: 'Training Catalogue', desc: 'Reusable training templates', key: 'hr_documents' },
       { to: '/hr/onboarding', icon: 'star',   label: 'Onboarding',    desc: 'New starters',      key: 'hr_onboarding' },
-      { to: '/contract-queue', icon: 'doc', label: 'Contract Queue', desc: 'Issued and signed contracts', key: 'contract_queue' },
-      { to: '/contract-templates', icon: 'doc', label: 'Contract Templates', desc: 'HR signable templates', key: 'contract_templates' },
-      { to: '/my-staff',      icon: 'people', label: 'My Staff',      desc: 'Staff management',  key: 'staff'         },
+      { to: '/contract-queue', icon: 'doc', label: 'Contract Queue', desc: 'Issued and signed contracts', key: 'contract_queue' , note: 'Issued contracts and signing progress' },
+      { to: '/contract-templates', icon: 'doc', label: 'Contract Templates', desc: 'HR signable templates', key: 'contract_templates' , note: 'Template library for staff contracts' },
+      { to: '/my-staff',      icon: 'people', label: 'My Staff',      desc: 'Staff management',  key: 'staff'         , note: 'Staff records, permissions, and lifecycle controls' },
       { to: '/org-chart',     icon: 'people', label: 'Org Chart',     desc: 'Live reporting lines', key: 'org_chart'   },
     ]
   },
   {
     id: 'hiring', label: 'Hiring', icon: 'briefcase',
     items: [
-      { to: '/recruiting', icon: 'briefcase', label: 'Recruitment', desc: 'Roles, overview, and applicants', key: 'recruiting_jobs' },
+      { to: '/recruiting', icon: 'briefcase', label: 'Recruitment', desc: 'Roles, overview, and applicants', key: 'recruiting_jobs' , note: 'Roles, job overviews, and candidate pipelines' },
     ]
   },
   {
@@ -82,28 +82,47 @@ const SECTIONS = [
   {
     id: 'admin', label: 'Admin', icon: 'shield',
     items: [
-      { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       },
+      { to: '/reports',   icon: 'chart',  label: 'Reports',       desc: 'Analytics & data',  key: 'reports'       , note: 'Operational reporting and portal analytics' },
       { to: '/workflow-automation', icon: 'zap', label: 'Workflow Automation', desc: 'Rules, triggers, and escalations', key: 'reports' },
       { to: '/manager-board', icon: 'briefcase', label: 'Manager Board', desc: 'Workload & escalations', key: 'manager_board' },
-      { to: '/departments', icon: 'people', label: 'Departments', desc: 'Org structure & approvals', key: 'departments' },
+      { to: '/departments', icon: 'people', label: 'Departments', desc: 'Org structure & approvals', key: 'departments' , note: 'Organisation structure and department setup' },
       { to: '/admin-safeguards', icon: 'shield', label: 'Safeguards', desc: 'Data integrity checks', key: 'safeguards' },
-      { to: '/service-admin', icon: 'gear', label: 'Service Admin', desc: 'Platform control centre', key: 'service_admin' },
+      { to: '/service-admin', icon: 'gear', label: 'Service Admin', desc: 'Platform control centre', key: 'service_admin' , note: 'Platform control centre, releases, config, and recovery' },
       { to: '/banners',   icon: 'bell',   label: 'Banners',       desc: 'Site banners',      key: 'banners'       },
       { to: '/audit',     icon: 'shield', label: 'Audit Log',     desc: 'Activity history',  key: 'audit'         },
       { to: '/maintenance',icon: 'wrench',label: 'Maintenance',   desc: 'System tools',      key: 'maintenance'   },
-      { to: '/settings',  icon: 'gear',   label: 'Settings',      desc: 'Preferences',       key: 'settings'      },
+      { to: '/settings',  icon: 'gear',   label: 'Settings',      desc: 'Preferences',       key: 'settings'      , note: 'Workspace, notifications, and personal preferences' },
     ]
   },
   {
     id: 'account', label: 'Account', icon: 'person',
     items: [
-      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',      key: 'my_profile' },
-      { to: '/settings',   icon: 'gear',   label: 'Settings',   desc: 'Preferences',       key: 'settings'  },
+      { to: '/my-profile', icon: 'person', label: 'My Profile', desc: 'Your account',      key: 'my_profile' , note: 'Personal details, preferences, and portal setup' },
+      { to: '/settings',   icon: 'gear',   label: 'Settings',   desc: 'Preferences',       key: 'settings'  , note: 'Workspace, notifications, and personal preferences' },
     ]
   },
 ]
 
-const ALL_PAGES = SECTIONS.flatMap(s => s.items.map(i => ({ ...i, section: s.label, sectionId: s.id })))
+export const ALL_PAGES = SECTIONS.flatMap(s => s.items.map(i => ({ ...i, section: s.label, sectionId: s.id })))
+
+// Route metadata for routes reached via in-page tabs rather than a top-level nav tile
+// (e.g. Recruiting's sub-views) — kept here so Header has one place to look, not two.
+const EXTRA_ROUTE_META = {
+  '/recruiting/jobs':         { title: 'Recruitment', section: 'Hiring', note: 'Role publishing and requisition management' },
+  '/recruiting/applications': { title: 'Recruitment', section: 'Hiring', note: 'Application inbox and candidate review' },
+  '/recruiting/board':        { title: 'Recruitment', section: 'Hiring', note: 'Pipeline movement across hiring stages' },
+  '/recruiting/settings':     { title: 'Recruitment', section: 'Hiring', note: 'Questions, stages, and recruiting defaults' },
+}
+
+// Single source of truth for page title / section / header subtitle.
+// Sidebar owns this because it already owns the nav data — Header just consumes it.
+export function getRouteMeta(pathname) {
+  const page = ALL_PAGES.find(p => p.to === pathname)
+  if (page) {
+    return { title: page.label, section: page.section, note: page.note || page.desc }
+  }
+  return EXTRA_ROUTE_META[pathname] || { title: 'Portal', section: 'Portal', note: 'Operational workspace' }
+}
 
 // ─── Icons ─────────────────────────────────────────────────────────────────
 const ICONS = {
@@ -145,18 +164,6 @@ function Ico({ name, size = 16 }) {
       {ICONS[name] || ICONS.doc}
     </svg>
   )
-}
-
-// Section accent colours — subtle, matches light/dark
-const SECTION_COLORS = {
-  home:     { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  business: { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  tasks:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  hr:       { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  hiring:   { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  shop:     { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  admin:    { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  account:  { bg: 'var(--accent-soft)', color: 'var(--accent)' },
 }
 
 // ─── CSS ───────────────────────────────────────────────────────────────────
@@ -680,7 +687,6 @@ export default function Sidebar() {
       return safeA - safeB
     })
   const activeSec = visibleSections.find(s => s.id === activeSection) || visibleSections[0]
-  const accentColor = SECTION_COLORS[activeSec?.id] || SECTION_COLORS.home
   const workspaceSectionNote = getWorkspaceSectionNote(workspace)
 
   // Group results by type
@@ -721,7 +727,6 @@ export default function Sidebar() {
         <div className="dh-dock-sep" />
 
         {visibleSections.map(sec => {
-          const col = SECTION_COLORS[sec.id] || SECTION_COLORS.home
           return (
             <div key={sec.id} className={`dh-dock-btn${activeSection === sec.id ? ' dh-active' : ''}`} onClick={() => togglePanel(sec.id)}>
               <Ico name={sec.icon} size={16} />
@@ -750,7 +755,7 @@ export default function Sidebar() {
       {/* Settings-style tile panel */}
       <div className={`dh-panel hide-mob${panelOpen ? ' dh-open' : ''}`}>
         <div className="dh-panel-head">
-          <div className="dh-panel-icon" style={{ background: accentColor.bg }}>
+          <div className="dh-panel-icon" style={{ background: 'var(--accent-soft)' }}>
             <Ico name={activeSec?.icon || 'grid'} size={17} />
           </div>
           <div style={{ minWidth: 0 }}>
@@ -772,10 +777,9 @@ export default function Sidebar() {
           <div className="dh-tile-grid">
             {activeSec?.items.filter(i => isAllowed(i.key)).map(item => {
               const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
-              const col = accentColor
               return (
                 <NavLink key={item.to} to={item.to} className={`dh-tile${isActive ? ' dh-tile-active' : ''}`}>
-                  <div className="dh-tile-icon" style={{ background: isActive ? col.bg : 'var(--bg2)' }}>
+                  <div className="dh-tile-icon" style={{ background: isActive ? 'var(--accent-soft)' : 'var(--bg2)' }}>
                     <Ico name={item.icon} size={16} />
                   </div>
                   <div className="dh-tile-name">{item.label}</div>
@@ -829,7 +833,7 @@ export default function Sidebar() {
                   const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to))
                   return (
                     <NavLink key={item.to} to={item.to} className={`dh-mobile-tile${isActive ? ' active' : ''}`}>
-                      <div className="dh-mobile-tile-icon" style={{ background: isActive ? accentColor.bg : 'var(--bg2)' }}>
+                      <div className="dh-mobile-tile-icon" style={{ background: isActive ? 'var(--accent-soft)' : 'var(--bg2)' }}>
                         <Ico name={item.icon} size={15} />
                       </div>
                       <div className="dh-mobile-tile-name">{item.label}</div>
