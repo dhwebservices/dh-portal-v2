@@ -4395,3 +4395,134 @@ textarea.inp { resize: vertical; line-height: 1.6; }
     min-width: 0;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   Shared UI component library (src/components/ui)
+   Reference implementation extracted from Dashboard.jsx.
+   Every rule here composes existing tokens — no new
+   one-off radii/shadows/colours.
+═══════════════════════════════════════════════════ */
+
+/* ── StatCard ── */
+.ui-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 18px 16px;
+  min-height: 164px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ui-stat-card:hover { border-color: var(--accent-border); }
+.ui-stat-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.ui-stat-card-icon {
+  width: 42px; height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.ui-stat-card-arrow { color: var(--faint); flex-shrink: 0; margin-top: 2px; }
+.ui-stat-card-mid { margin-bottom: 14px; }
+.ui-stat-card-hint {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--sub);
+  line-height: 1.5;
+}
+
+/* ── SectionPanel ── */
+.ui-section-panel {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.ui-section-panel-header {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── ListRow ── */
+.ui-list-row {
+  width: 100%;
+  text-align: left;
+  padding: 12px 18px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  font-family: inherit;
+}
+.ui-list-row:last-child { border-bottom: none; }
+.ui-list-row:hover { background: var(--bg2); }
+.ui-list-row-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.ui-list-row-meta { font-size: 12px; color: var(--sub); line-height: 1.5; }
+.ui-list-row-arrow { align-self: center; color: var(--faint); flex-shrink: 0; }
+
+/* ── SummaryStatCard ── */
+.ui-summary-card {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  display: grid;
+  gap: 6px;
+}
+.ui-summary-card-value { font-size: 28px; line-height: 1; font-weight: 650; color: var(--text); }
+.ui-summary-card-hint { font-size: 12px; color: var(--sub); line-height: 1.5; }
+.ui-summary-card-bar-track { width: 44px; height: 4px; border-radius: 999px; margin-top: 2px; }
+.ui-summary-card-bar-fill { width: 100%; height: 100%; border-radius: 999px; }
+
+/* ── EmptyState ── */
+.ui-empty-state {
+  padding: 32px 18px;
+  text-align: center;
+  color: var(--faint);
+}
+.ui-empty-state-icon { margin: 0 auto 10px; display: block; opacity: 0.6; }
+.ui-empty-state-title { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 4px; }
+.ui-empty-state-text { font-size: 13px; line-height: 1.6; }
+
+/* ── ActionTile ── */
+.ui-action-tile {
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  font-family: inherit;
+  transition: border-color 0.18s, background 0.18s;
+}
+.ui-action-tile:hover { border-color: var(--accent-border); background: var(--bg2); }
+.ui-action-tile-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+}
+.ui-action-tile-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ui-action-tile-hint { font-size: 11.5px; color: var(--sub); margin-top: 3px; line-height: 1.45; }
+.ui-action-tile-arrow { color: var(--faint); }

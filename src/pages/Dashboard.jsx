@@ -21,6 +21,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
 import { Modal } from '../components/Modal'
+import { StatCard, SectionPanel, ListRow, SummaryStatCard, EmptyState, ActionTile } from '../components/ui'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { createTrainingRecord } from '../utils/peopleOps'
 import { executeWorkflowRun, buildWorkflowPreviewRows, loadWorkflowAutomationData } from '../utils/workflowAutomation'
@@ -135,179 +136,11 @@ function getOutreachActionLabel(row) {
   return 'First outreach'
 }
 
-function StatCard({ icon: Icon, label, value, accent, link, loading, hint }) {
-  const nav = useNavigate()
-  return (
-    <div
-      onClick={() => link && nav(link)}
-      className="stat-card"
-      style={{ cursor: link ? 'pointer' : 'default', minHeight: 164, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px 18px 16px' }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={18} color={accent} />
-        </div>
-        {link ? <ArrowRight size={14} style={{ color: 'var(--faint)', flexShrink: 0, marginTop: 2 }} /> : null}
-      </div>
-      <div style={{ marginBottom: 14 }}>
-        <div className="stat-lbl" style={{ marginTop: 0, marginBottom: 8 }}>{label}</div>
-        {loading ? (
-          <div className="skeleton" style={{ height: 36, width: 72, borderRadius: 4 }} />
-        ) : (
-          <div className="stat-val">{value}</div>
-        )}
-      </div>
-      <div style={{ paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-        {hint ? <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div> : null}
-      </div>
-    </div>
-  )
-}
 
-function Panel({ title, actionLabel, onAction, children, tone }) {
-  return (
-    <div className="card" style={{ overflow: 'hidden', borderColor: tone || 'var(--border)', borderRadius: 18, background: 'color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%)' }}>
-      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>{title}</div>
-        {actionLabel ? (
-          <button className="btn btn-ghost btn-sm" onClick={onAction}>
-            {actionLabel} <ArrowRight size={12} />
-          </button>
-        ) : null}
-      </div>
-      {children}
-    </div>
-  )
-}
 
-function QueueRow({ title, meta, status, tone, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '12px 18px',
-        border: 'none',
-        borderBottom: '1px solid var(--border)',
-        background: 'transparent',
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 14,
-        cursor: onClick ? 'pointer' : 'default',
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{meta}</div>
-      </div>
-      {status ? <span className={`badge badge-${tone || 'grey'}`} style={{ alignSelf: 'center' }}>{status}</span> : null}
-    </button>
-  )
-}
 
-function EmptyState({ text }) {
-  return <div style={{ padding: '28px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{text}</div>
-}
 
-function ToolShortcutRow({ label, hint, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '12px 18px',
-        border: 'none',
-        borderBottom: '1px solid var(--border)',
-        background: 'transparent',
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 14,
-        cursor: 'pointer',
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
-      </div>
-      <ArrowRight size={13} style={{ alignSelf: 'center', color: 'var(--faint)' }} />
-    </button>
-  )
-}
 
-function LeadershipSummaryCard({ label, value, hint, tone = 'var(--accent)' }) {
-  return (
-    <div style={{ padding: '16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card)', display: 'grid', gap: 6 }}>
-      <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>{label}</div>
-      <div style={{ fontSize: 28, lineHeight: 1, fontWeight: 650, color: 'var(--text)' }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
-      <div style={{ width: 44, height: 4, borderRadius: 999, background: `${tone}22` }}>
-        <div style={{ width: '100%', height: '100%', borderRadius: 999, background: tone }} />
-      </div>
-    </div>
-  )
-}
-
-function QuickActionCard({ icon: Icon, label, hint, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="dashboard-quick-action"
-      style={{
-        textAlign: 'left',
-        padding: '12px 14px',
-        borderRadius: 14,
-        border: '1px solid var(--border)',
-        background: 'transparent',
-        display: 'grid',
-        gridTemplateColumns: '32px minmax(0, 1fr) auto',
-        gap: 10,
-        alignItems: 'center',
-      }}
-    >
-      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
-        <Icon size={15} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-        <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 3, lineHeight: 1.45 }}>{hint}</div>
-      </div>
-      <ArrowRight size={14} style={{ color: 'var(--faint)' }} />
-    </button>
-  )
-}
-
-function ToolCard({ icon: Icon, label, hint, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '14px 0',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        background: 'transparent',
-        display: 'grid',
-        gap: 10,
-      }}
-    >
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginLeft: 14 }}>
-        <Icon size={16} />
-      </div>
-      <div style={{ padding: '0 14px' }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.55 }}>{hint}</div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 14px' }}>
-        <span style={{ fontSize: 11.5, color: 'var(--faint)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          Open <ArrowRight size={12} />
-        </span>
-      </div>
-    </button>
-  )
-}
 
 function ActiveBanners() {
   const [banners, setBanners] = useState([])
@@ -1156,7 +989,7 @@ export default function Dashboard() {
     switch (key) {
       case 'today':
         return (
-          <Panel key={key} title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
+          <SectionPanel key={key} title="Today At A Glance" actionLabel="Open Schedule" onAction={() => navigate('/schedule')}>
             <div className="dashboard-fourup" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 0 }}>
               {[
                 { icon: CalendarDays, label: 'Shifts today', value: stats.todaysShifts, hint: `${stats.todayHours} total hours`, color: 'var(--blue)' },
@@ -1177,11 +1010,11 @@ export default function Dashboard() {
                 )
               })}
             </div>
-          </Panel>
+          </SectionPanel>
         )
       case 'followups':
         return (
-          <Panel
+          <SectionPanel
             key={key}
             title={isAdmin ? 'Assigned Outreach Queue' : 'My Assigned Leads'}
             actionLabel="Open Clients Contacted"
@@ -1189,7 +1022,7 @@ export default function Dashboard() {
           >
             {outreachFollowUps.length ? (
               outreachFollowUps.map((lead) => (
-                <QueueRow
+                <ListRow
                   key={lead.id}
                   title={lead.business_name || lead.contact_name || 'Untitled lead'}
                   meta={`${lead.contact_name || 'No contact'}${lead.follow_up_date ? ` · follow up ${formatDayLabel(lead.follow_up_date)}` : ''}${lead.assigned_to_name ? ` · ${lead.assigned_to_name}` : ''}${lead.email ? ` · ${lead.email}` : ''}`}
@@ -1199,11 +1032,11 @@ export default function Dashboard() {
                 />
               ))
             ) : <EmptyState text={isAdmin ? 'No assigned outreach follow-ups are due right now.' : 'No assigned leads need chasing right now.'} />}
-          </Panel>
+          </SectionPanel>
         )
       case 'manager_board':
         return isAdmin ? (
-          <Panel
+          <SectionPanel
             key={key}
             title="Manager Operations Board"
             actionLabel="Open Reports"
@@ -1212,7 +1045,7 @@ export default function Dashboard() {
           >
             {managerBoard.length ? (
               managerBoard.map((item) => (
-                <QueueRow
+                <ListRow
                   key={item.id}
                   title={item.title}
                   meta={item.meta}
@@ -1222,7 +1055,7 @@ export default function Dashboard() {
                 />
               ))
             ) : <EmptyState text="No urgent manager escalations are showing right now." />}
-          </Panel>
+          </SectionPanel>
         ) : null
       case 'insight':
         return (
@@ -1238,20 +1071,20 @@ export default function Dashboard() {
         )
       case 'priority':
         return (
-          <Panel key={key} title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
+          <SectionPanel key={key} title="Priority Queue" actionLabel={isAdmin ? 'Open Tasks' : 'Open My Tasks'} onAction={() => navigate(isAdmin ? '/tasks' : '/my-tasks')}>
             {priorityItems.length ? (
               priorityItems.map((item, index) => (
-                <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={index >= 0 ? () => navigate(item.route) : undefined} />
+                <ListRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={index >= 0 ? () => navigate(item.route) : undefined} />
               ))
             ) : <EmptyState text="Nothing urgent is stacked up right now." />}
-          </Panel>
+          </SectionPanel>
         )
       case 'notifications':
         return (
-          <Panel key={key} title="Unread Notifications" actionLabel="View Header Bell" onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <SectionPanel key={key} title="Unread Notifications" actionLabel="View Header Bell" onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             {notifications.length ? (
               notifications.map((notification) => (
-                <QueueRow
+                <ListRow
                   key={notification.id}
                   title={notification.title || 'Notification'}
                   meta={notification.message}
@@ -1261,31 +1094,31 @@ export default function Dashboard() {
                 />
               ))
             ) : <EmptyState text="No unread notifications at the moment." />}
-          </Panel>
+          </SectionPanel>
         )
       case 'schedule':
         return (
-          <Panel key={key} title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
+          <SectionPanel key={key} title="Today’s Team Schedule" actionLabel="Open Team View" onAction={() => navigate('/schedule')}>
             {todaySchedule.length ? (
               todaySchedule.map((shift) => (
-                <QueueRow key={`${shift.user_email}-${shift.start}`} title={shift.user_name} meta={`${shift.start} to ${shift.end}${shift.note ? ` · ${shift.note}` : ''}`} status={`${shift.hours}h`} tone="blue" onClick={() => navigate('/schedule')} />
+                <ListRow key={`${shift.user_email}-${shift.start}`} title={shift.user_name} meta={`${shift.start} to ${shift.end}${shift.note ? ` · ${shift.note}` : ''}`} status={`${shift.hours}h`} tone="blue" onClick={() => navigate('/schedule')} />
               ))
             ) : <EmptyState text="No submitted schedule hours were found for today." />}
-          </Panel>
+          </SectionPanel>
         )
       case 'appointments':
         return (
-          <Panel key={key} title="Upcoming Appointments" actionLabel="Open Calendar" onAction={() => navigate('/appointments')}>
+          <SectionPanel key={key} title="Upcoming Appointments" actionLabel="Open Calendar" onAction={() => navigate('/appointments')}>
             {upcomingAppointments.length ? (
               upcomingAppointments.map((appointment) => (
-                <QueueRow key={appointment.id} title={appointment.client_name || 'Booked call'} meta={`${formatDayLabel(appointment.date)} · ${appointment.start_time}${appointment.staff_name ? ` · ${appointment.staff_name}` : ''}`} status={appointment.status || 'scheduled'} tone="green" onClick={() => navigate('/appointments')} />
+                <ListRow key={appointment.id} title={appointment.client_name || 'Booked call'} meta={`${formatDayLabel(appointment.date)} · ${appointment.start_time}${appointment.staff_name ? ` · ${appointment.staff_name}` : ''}`} status={appointment.status || 'scheduled'} tone="green" onClick={() => navigate('/appointments')} />
               ))
             ) : <EmptyState text="No upcoming appointments in the next 7 days." />}
-          </Panel>
+          </SectionPanel>
         )
       case 'activity':
         return (
-          <Panel key={key} title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
+          <SectionPanel key={key} title="Recent Activity" actionLabel="Open Audit Log" onAction={() => navigate('/audit')}>
             {recentActivity.length ? (
               recentActivity.map((activity, index) => (
                 <div className="dashboard-activity-row" key={`${activity.created_at}-${index}`} style={{ padding: '12px 18px', borderBottom: index < recentActivity.length - 1 ? '1px solid var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -1300,7 +1133,7 @@ export default function Dashboard() {
                 </div>
               ))
             ) : <EmptyState text="No recent audit activity available." />}
-          </Panel>
+          </SectionPanel>
         )
       default:
         return null
@@ -1848,7 +1681,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display:'grid' }}>
             {priorityItems.length ? priorityItems.slice(0, 5).map((item) => (
-              <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
+              <ListRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
             )) : <EmptyState text={workspaceDashboardMeta.emptyActionText} />}
           </div>
         </div>
@@ -1856,31 +1689,31 @@ export default function Dashboard() {
 
       {(isManagerWorkspace || isDirectorWorkspace) ? (
         <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: dashboardDensity === 'compact' ? 14 : 18, marginBottom: dashboardDensity === 'compact' ? 18 : 24 }}>
-          <Panel title={leadershipQueueTitle} actionLabel={isManagerWorkspace ? 'Open department' : 'Open reports'} onAction={() => navigate(leadershipQueueAction)}>
+          <SectionPanel title={leadershipQueueTitle} actionLabel={isManagerWorkspace ? 'Open department' : 'Open reports'} onAction={() => navigate(leadershipQueueAction)}>
             <div style={{ padding: '16px 18px 0', fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>
               {leadershipQueueNote}
             </div>
             <div style={{ display: 'grid', marginTop: 10 }}>
               {managerBoard.length ? managerBoard.slice(0, 5).map((item) => (
-                <QueueRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
+                <ListRow key={item.id} title={item.title} meta={item.meta} status={item.status} tone={item.tone} onClick={() => navigate(item.route)} />
               )) : <EmptyState text={isManagerWorkspace ? 'No department escalations are stacked up right now.' : 'No leadership escalations are stacked up right now.'} />}
             </div>
-          </Panel>
+          </SectionPanel>
 
           <div style={{ display: 'grid', gap: 16 }}>
-            <Panel title={isManagerWorkspace ? 'Manager snapshot' : 'Executive snapshot'}>
+            <SectionPanel title={isManagerWorkspace ? 'Manager snapshot' : 'Executive snapshot'}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, padding: 16 }}>
                 {leadershipSummaryCards.map((item) => (
-                  <LeadershipSummaryCard key={item.label} label={item.label} value={item.value} hint={item.hint} tone={item.tone} />
+                  <SummaryStatCard key={item.label} label={item.label} value={item.value} hint={item.hint} tone={item.tone} />
                 ))}
               </div>
-            </Panel>
+            </SectionPanel>
 
-            <Panel title={isManagerWorkspace ? 'Leadership shortcuts' : 'Executive shortcuts'}>
+            <SectionPanel title={isManagerWorkspace ? 'Leadership shortcuts' : 'Executive shortcuts'}>
               {leadershipToolRows.map((item) => (
-                <ToolShortcutRow key={item.label} label={item.label} hint={item.hint} onClick={() => navigate(item.route)} />
+                <ListRow key={item.label} title={item.label} meta={item.hint} onClick={() => navigate(item.route)} />
               ))}
-            </Panel>
+            </SectionPanel>
           </div>
         </div>
       ) : null}
@@ -1913,7 +1746,7 @@ export default function Dashboard() {
               if (!item) return null
               const Icon = quickActionIcons[key] || ArrowRight
               return (
-                <QuickActionCard
+                <ActionTile
                   key={key}
                   icon={Icon}
                   label={item.label}

@@ -33,5 +33,26 @@ Status key: `TODO` not started · `TRACKED` identified, deliberately deferred ·
 
 ---
 
-## How this file is used
-Each phase appends findings under a dated heading. Items move from TODO → TRACKED (deliberately deferred with a reason) → DONE (fixed, verified with `npm run build`). Nothing gets marked DONE without a build check; nothing gets swept in bulk without either visual confirmation or a clearly isolated, low-risk fix.
+---
+
+## Phase 3 (Dashboard → reference implementation) — 2026-07-10
+
+### DONE
+- **Extracted `src/components/ui/` library** from Dashboard.jsx's locally-scoped presentational components: `StatCard`, `SectionPanel` (was `Panel`), `ListRow` (merged from `QueueRow` + `ToolShortcutRow`, which were near-duplicates), `SummaryStatCard` (was `LeadershipSummaryCard`), `EmptyState` (extended with icon/title/CTA support per the original brief, backward-compatible with existing `text`-only call sites), `ActionTile` (was `QuickActionCard`).
+- Every extracted component now composes CSS classes backed by the Phase 2 tokens (`--radius`, `--radius-lg`, `--shadow-sm/md`) instead of inline magic-number styles. New rules live in `global.css` under a dedicated `ui-*` namespace so they're clearly distinguished from page-specific CSS.
+- Removed `ToolCard` — defined in Dashboard.jsx but never actually rendered anywhere (confirmed via grep before deleting; not migrated since we don't know its intended use).
+- Dashboard.jsx rewired to import from `../components/ui` instead of defining these locally. Verified with `npm run build` — bundle size for the Dashboard chunk actually dropped slightly (65.10kB → 63.42kB gzipped) despite adding a shared library, because the duplicate `QueueRow`/`ToolShortcutRow` JSX collapsed into one component.
+
+### Migration status (honest numbers, not an estimate)
+- **1 of 54 pages** (`Dashboard.jsx`) is actually wired to the new `src/components/ui/` library so far. This phase built and proved the components; it did not yet roll them out.
+- **20 of 54 pages** reference the `.stat-card` CSS class or a stat-tile-shaped component — this is the migration surface for `StatCard`.
+- **8 of those 20** have their own independently-defined `StatCard`-named function (true duplicated code, not just shared CSS class reuse): `AdminSafeguards.jsx`, `KnowledgeBase.jsx`, `MyDepartment.jsx`, `MyTeam.jsx`, `Outreach.jsx`, `Support.jsx`, `WorkflowAutomation.jsx`, plus Dashboard (now migrated). These 7 are the highest-value remaining targets — each replacement deletes a full duplicate component.
+- **`ManagerBoard.jsx`** has its own `QueueRow`-equivalent row component — second target for `ListRow`.
+- Remaining ~46 pages not yet assessed against `SectionPanel`/`EmptyState`/`ActionTile` usage — that audit happens as Phase 4 reaches each page, not in bulk, per the same reasoning as the Phase 2 radius sweep (avoid guessing before reading the actual code).
+
+### Known limitation of this pass
+No live authenticated screenshot was taken to visually confirm the refactor — this sandbox has no Entra ID / Supabase credentials configured (no `.env`), so the app can't authenticate here. Correctness was verified via: clean `npm run build`, confirmed every CSS class referenced by the new components exists in `global.css`, and confirmed prop shapes match at every call site. A real visual check in your actual dev environment is still worth doing before this merges — flagging the gap rather than implying I saw it render.
+
+### TODO (next)
+- Migrate the 7 duplicate `StatCard` definitions + `ManagerBoard.jsx`'s row component to the shared library (Phase 4, highest-value first)
+- Then sweep remaining pages page-by-page per the original working process
