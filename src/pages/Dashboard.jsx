@@ -1720,14 +1720,14 @@ export default function Dashboard() {
 
       <div className="surface-card" style={{ overflow:'hidden', marginBottom: dashboardDensity === 'compact' ? 20 : 28 }}>
         <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 0 }}>
-          <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} accent="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
-          <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} accent="var(--blue)" loading={loading} hint="Unread internal notifications" />
-          <StatCard icon={Users} label="Active Clients" value={stats.clients} accent="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
-          <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} accent="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
-          <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} accent="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
-          <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} accent="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
-          <StatCard icon={BriefcaseBusiness} label="Onboarding" value={stats.pendingOnboarding} accent="var(--accent)" link="/hr/onboarding" loading={loading} hint="Submitted onboarding waiting review" />
-          <StatCard icon={Layers3} label="Leave Requests" value={stats.pendingLeave} accent="var(--amber)" link="/hr/leave" loading={loading} hint="Pending approvals in HR" />
+          <StatCard icon={CheckSquare} label="Pending Tasks" value={stats.tasks} tone="var(--amber)" link={isAdmin ? '/tasks' : '/my-tasks'} loading={loading} hint="Tasks still needing attention" />
+          <StatCard icon={Bell} label="Unread Alerts" value={stats.unreadNotifications} tone="var(--blue)" loading={loading} hint="Unread internal notifications" />
+          <StatCard icon={Users} label="Active Clients" value={stats.clients} tone="var(--green)" link="/clients" loading={loading} hint="Currently onboarded and live" />
+          <StatCard icon={PhoneCall} label="Total Outreach" value={stats.outreach} tone="var(--blue)" link="/outreach" loading={loading} hint="Lead volume across the outreach list" />
+          <StatCard icon={HeadphonesIcon} label="Open Tickets" value={stats.tickets} tone="var(--red)" link="/support" loading={loading} hint="Support items still unresolved" />
+          <StatCard icon={UserCheck} label="Active Now" value={stats.activeUsers} tone="var(--green)" link="/audit" loading={loading} hint="Staff seen in the last 5 minutes" />
+          <StatCard icon={BriefcaseBusiness} label="Onboarding" value={stats.pendingOnboarding} tone="var(--accent)" link="/hr/onboarding" loading={loading} hint="Submitted onboarding waiting review" />
+          <StatCard icon={Layers3} label="Leave Requests" value={stats.pendingLeave} tone="var(--amber)" link="/hr/leave" loading={loading} hint="Pending approvals in HR" />
         </div>
       </div>
 

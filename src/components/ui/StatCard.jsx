@@ -7,17 +7,17 @@ import { ArrowRight } from 'lucide-react'
  * top-row stats. Reuse this instead of building a page-local stat tile;
  * 8 pages had their own copy of this before the Phase 3 pass.
  */
-export default function StatCard({ icon: Icon, label, value, accent = 'var(--accent)', link, loading, hint }) {
+export default function StatCard({ icon: Icon, label, value, tone = 'var(--accent)', link, loading, hint, className }) {
   const nav = useNavigate()
   return (
     <div
       onClick={() => link && nav(link)}
-      className="ui-stat-card"
+      className={`ui-stat-card${className ? ` ${className}` : ''}`}
       style={{ cursor: link ? 'pointer' : 'default' }}
     >
       <div className="ui-stat-card-top">
-        <div className="ui-stat-card-icon" style={{ background: `${accent}18` }}>
-          <Icon size={18} color={accent} />
+        <div className="ui-stat-card-icon" style={{ background: `${tone}18` }}>
+          <Icon size={18} color={tone} />
         </div>
         {link ? <ArrowRight size={14} className="ui-stat-card-arrow" /> : null}
       </div>

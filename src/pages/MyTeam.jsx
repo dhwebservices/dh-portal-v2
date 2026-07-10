@@ -11,6 +11,7 @@ import { mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/compli
 import { createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 import { fetchAuditLogs } from '../utils/auditApi'
 import { fetchEmailLogs } from '../utils/emailLogs'
+import { StatCard } from '../components/ui'
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -28,19 +29,6 @@ function parseOutreachDepartment(raw = '') {
   } catch {
     return ''
   }
-}
-
-function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
-  return (
-    <div className="stat-card">
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${tone}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-        <Icon size={18} color={tone} />
-      </div>
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
-    </div>
-  )
 }
 
 function isDateInRange(today, startDate, endDate) {

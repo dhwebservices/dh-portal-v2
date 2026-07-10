@@ -56,3 +56,25 @@ No live authenticated screenshot was taken to visually confirm the refactor — 
 ### TODO (next)
 - Migrate the 7 duplicate `StatCard` definitions + `ManagerBoard.jsx`'s row component to the shared library (Phase 4, highest-value first)
 - Then sweep remaining pages page-by-page per the original working process
+
+---
+
+## Phase 4 (rollout, round 1) — 2026-07-10
+
+### DONE
+- **6 of 7 flagged duplicate `StatCard` functions migrated**: `KnowledgeBase.jsx`, `Support.jsx`, `WorkflowAutomation.jsx` (byte-identical to each other — true duplication), `AdminSafeguards.jsx`, `MyDepartment.jsx`, `MyTeam.jsx` (near-identical to each other). All now import `StatCard` from `../components/ui`.
+- **`Outreach.jsx` deliberately left alone** — its `StatCard` is a genuinely different "dot metric tile" style (colored dot indicator, no icon box), not a duplicate of the icon-based component. Forcing it to match would be a real visual change to that page, not a cleanup — flagged for a deliberate design decision later, not silently forced now.
+- **Renamed `StatCard`'s color prop from `accent` to `tone`** — 7 of 8 existing usages already used `tone`; Dashboard was the outlier (`accent`) and got updated to match the majority convention instead of the other way round.
+- **Added `className` passthrough to `StatCard`** after noticing `MyDepartment.jsx`'s cards relied on an extra `.department-stat-card` modifier (a `min-height: 176px` override) that would have silently disappeared when its local component was deleted. Applied `className="department-stat-card"` to all 10 of its call sites so nothing regresses.
+- **`ManagerBoard.jsx` fully migrated**: its `QueueRow` and `EmptyState` were byte-identical to Dashboard's pre-migration versions (same duplication, same file pattern). Its `Panel` was a superset of `SectionPanel` (added `subtitle` and a freeform `action` node, not just the `actionLabel`/`onAction` shorthand) — rather than leave a second competing Panel-like component in the codebase, extended `SectionPanel` itself to support both APIs and migrated ManagerBoard onto it.
+- Verified with `npm run build` after every step (two bugs caught and fixed before shipping — see below).
+
+### Bugs caught during this pass (not shipped)
+- A scripted import-insertion pass initially landed `import { StatCard } from '../components/ui'` **inside** a multi-line `import { ... } from '...'` block in 3 files (`KnowledgeBase`, `Support`, `WorkflowAutomation`), breaking the build immediately. Caught by `npm run build` failing with a parse error; fixed by moving the import to after the block's actual close.
+
+### Known gap, same as Phase 3
+- Still no live authenticated screenshot taken (no Entra ID / Supabase credentials in this sandbox). All verification here is build-clean + static prop/class matching. `MyDepartment`'s subtitle/action alignment on `SectionPanel` (`align-items: center`) is a minor, unverified visual nuance worth a look — the original ManagerBoard styling used `flex-start` for its taller subtitle+action header, and I kept the shared default rather than guess further without eyes on it.
+
+### Updated migration status
+- **7 of 54 pages** now on the shared `src/components/ui/` library (Dashboard + the 6 StatCard migrations), **8 of 54** counting ManagerBoard.
+- Remaining known target: none currently flagged with confirmed true duplication — next step is auditing the other ~46 pages page-by-page rather than guessing at further consolidation targets.

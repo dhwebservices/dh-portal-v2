@@ -3,6 +3,7 @@ import { AlertTriangle, CreditCard, RefreshCw, UserCog, Users } from 'lucide-rea
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { normalizeEmail } from '../utils/hrProfileSync'
+import { StatCard } from '../components/ui'
 
 const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
 const STAFF_REQUIRED_FIELDS = [
@@ -31,21 +32,6 @@ function daysSince(dateString) {
   if (!dateString) return null
   const ms = Date.now() - new Date(dateString).getTime()
   return Math.floor(ms / 86400000)
-}
-
-function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
-  return (
-    <div className="stat-card" style={{ minHeight: 146, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-      <div style={{ width: 42, height: 42, borderRadius: 12, background: `${tone}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={18} color={tone} />
-      </div>
-      <div>
-        <div className="stat-val">{value}</div>
-        <div className="stat-lbl">{label}</div>
-        {hint ? <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div> : null}
-      </div>
-    </div>
-  )
 }
 
 function SafeguardPanel({ title, subtitle, action, children }) {

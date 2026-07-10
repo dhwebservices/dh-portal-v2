@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock3, ShieldCheck, UserCheck, Users } from 'lucide-react'
 import { supabase } from '../utils/supabase'
+import { SectionPanel, ListRow, EmptyState } from '../components/ui'
 
 const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 
@@ -63,51 +64,6 @@ function ManagerStat({ icon: Icon, label, value, hint, accent }) {
       <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
     </div>
   )
-}
-
-function Panel({ title, subtitle, action, children }) {
-  return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>{title}</div>
-          {subtitle ? <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div> : null}
-        </div>
-        {action || null}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function QueueRow({ title, meta, status, tone, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '12px 18px',
-        border: 'none',
-        borderBottom: '1px solid var(--border)',
-        background: 'transparent',
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 14,
-        cursor: 'pointer',
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{meta}</div>
-      </div>
-      <span className={`badge badge-${tone || 'grey'}`} style={{ alignSelf: 'center' }}>{status}</span>
-    </button>
-  )
-}
-
-function EmptyState({ text }) {
-  return <div style={{ padding: '28px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{text}</div>
 }
 
 export default function ManagerBoard() {
@@ -253,10 +209,10 @@ export default function ManagerBoard() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(300px,0.9fr)', gap: 18 }}>
-            <Panel title="Action-needed queue" subtitle="The most urgent manager actions across outreach and HR.">
+            <SectionPanel title="Action-needed queue" subtitle="The most urgent manager actions across outreach and HR.">
               {state.actionQueue.length ? (
                 state.actionQueue.map((item) => (
-                  <QueueRow
+                  <ListRow
                     key={item.id}
                     title={item.title}
                     meta={item.meta}
@@ -266,9 +222,9 @@ export default function ManagerBoard() {
                   />
                 ))
               ) : <EmptyState text="No urgent manager actions are showing right now." />}
-            </Panel>
+            </SectionPanel>
 
-            <Panel title="Team outreach load" subtitle="Who currently owns the heaviest follow-up pressure.">
+            <SectionPanel title="Team outreach load" subtitle="Who currently owns the heaviest follow-up pressure.">
               {state.teamLoad.length ? (
                 <div style={{ display: 'grid', gap: 10, padding: 18 }}>
                   {state.teamLoad.map((row) => (
@@ -290,7 +246,7 @@ export default function ManagerBoard() {
                   ))}
                 </div>
               ) : <EmptyState text="No outreach ownership load is available yet." />}
-            </Panel>
+            </SectionPanel>
           </div>
         </div>
       )}

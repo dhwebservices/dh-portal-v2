@@ -4454,6 +4454,13 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+.ui-section-panel-subtitle {
+  font-size: 12.5px;
+  color: var(--sub);
+  margin-top: 5px;
+  line-height: 1.5;
 }
 
 /* ── ListRow ── */

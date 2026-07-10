@@ -14,6 +14,7 @@ import {
   WORKFLOW_RECIPIENT_OPTIONS,
   WORKFLOW_TRIGGER_OPTIONS,
 } from '../utils/workflowAutomation'
+import { StatCard } from '../components/ui'
 
 const EMPTY_FORM = {
   title: '',
@@ -27,21 +28,6 @@ const EMPTY_FORM = {
   cooldown_hours: 24,
   min_client_health: 'watch',
   active: true,
-}
-
-function StatCard({ icon: Icon, label, value, hint, tone }) {
-  return (
-    <div className="stat-card" style={{ minHeight: 118 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
-        <div className="stat-lbl">{label}</div>
-        <div style={{ width: 34, height: 34, borderRadius: 12, background: `${tone}22`, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={16} />
-        </div>
-      </div>
-      <div className="stat-val">{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 8, lineHeight: 1.5 }}>{hint}</div>
-    </div>
-  )
 }
 
 function formatRelative(dateString = '') {

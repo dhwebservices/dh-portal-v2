@@ -18,6 +18,7 @@ import {
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { enrichTask } from '../utils/taskMetadata'
+import { StatCard } from '../components/ui'
 import { buildComplianceSettingKey, mergeComplianceRecord, resolveRightToWorkRecord } from '../utils/complianceRecords'
 import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTrainingRecord } from '../utils/peopleOps'
 import { listJobPosts } from '../utils/recruiting'
@@ -115,19 +116,6 @@ async function notifyDepartmentRemoval({ staffRow, previousDepartment, sentBy })
     fromEmail: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
     forceImportant: true,
   }).catch(() => {})
-}
-
-function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
-  return (
-    <div className="stat-card department-stat-card">
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${tone}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-        <Icon size={18} color={tone} />
-      </div>
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-      <div className="department-stat-hint">{hint}</div>
-    </div>
-  )
 }
 
 function isDateInRange(today, startDate, endDate) {
@@ -785,16 +773,16 @@ export default function MyDepartment() {
       </div>
 
       <div className="department-stats-grid">
-        <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} />
-        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" />
-        <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--accent)" />
-        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" />
-        <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" />
-        <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" />
-        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--red)" />
-        <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" />
-        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" />
-        <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--blue)" />
+        <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} className="department-stat-card" />
+        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" className="department-stat-card" />
+        <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--accent)" className="department-stat-card" />
+        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--red)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" className="department-stat-card" />
+        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" className="department-stat-card" />
+        <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--blue)" className="department-stat-card" />
       </div>
 
       <div className="department-main-grid">
