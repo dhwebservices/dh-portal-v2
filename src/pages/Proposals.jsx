@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { saveProposal, updateProposal } from '../utils/proposals'
+import { createPaymentLink } from '../utils/stripe'
+import { sendPaymentEmail } from '../utils/email'
 
 const BUILDS = [
   { id:'starter',  name:'Starter',    price:449,  monthly:113,  features:['Up to 5 pages','Mobile responsive','Contact form','Basic SEO','1 revision round'] },
@@ -60,9 +63,96 @@ export default function Proposals() {
   const [selectedExtras, setExtras] = useState([])
   const [step, setStep]             = useState(0)
   const [downloading, setDownloading] = useState(false)
+  const [proposalId, setProposalId] = useState(null)
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState('')
+  const [proposalStatus, setProposalStatus] = useState('draft')
+  const [paymentAmount, setPaymentAmount] = useState(null)
+  const [paymentDescription, setPaymentDescription] = useState('')
+  const [requestingPayment, setRequestingPayment] = useState(false)
+  const [error, setError] = useState('')
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const toggleExtra = (id) => setExtras(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id])
+
+  useEffect(() => {
+    if (step === 4 && !proposalId && selectedBuild) {
+      saveProposalDraft()
+    }
+  }, [step])
+
+  async function saveProposalDraft() {
+    try {
+      const proposal = await saveProposal({
+        client_business: form.clientBusiness,
+        client_name: form.clientName,
+        client_email: form.clientEmail,
+        client_phone: form.clientPhone,
+        client_industry: form.clientIndustry,
+        timeline: form.timeline,
+        requirements: form.requirements,
+        prepared_by: form.preparedBy,
+        valid_until: form.validUntil || null,
+        selected_build: build ? { id: build.id, name: build.name, price: build.price, monthly: build.monthly, features: build.features } : null,
+        pay_monthly: payMonthly,
+        selected_hosting: hosting ? { id: hosting.id, name: hosting.name, price: hosting.price, features: hosting.features } : null,
+        selected_extras: extras.map(e => ({ id: e.id, name: e.name, price: e.price, group: e.group })),
+        build_price: buildPrice,
+        monthly_total: monthlyTotal,
+        one_off_total: oneOffTotal,
+        first_year_total: firstYearTotal,
+        status: 'draft',
+        created_by_email: user?.email,
+        created_by_name: user?.name,
+        assigned_to_email: user?.email,
+        assigned_to_name: user?.name,
+      })
+
+      setProposalId(proposal.id)
+      console.log('Proposal saved:', proposal.id)
+    } catch (err) {
+      console.error('Failed to save proposal:', err)
+    }
+  }
+
+  async function handleRequestPayment() {
+    setRequestingPayment(true)
+    setError('')
+
+    try {
+      const amount = paymentAmount || firstYearTotal
+      const description = paymentDescription || `${build?.name} Website Package - ${form.clientBusiness}`
+
+      const result = await createPaymentLink(
+        amount,
+        description,
+        form.clientEmail,
+        proposalId,
+        {
+          client_name: form.clientName,
+          package: build?.name,
+          prepared_by: user?.email,
+        }
+      )
+
+      await updateProposal(proposalId, {
+        stripe_payment_link_id: result.id,
+        stripe_payment_link_url: result.url,
+        payment_amount: amount,
+        status: 'payment_pending',
+        sent_at: new Date().toISOString(),
+      })
+
+      await sendPaymentEmail(form.clientEmail, form.clientName, result.url, amount, description)
+
+      setPaymentLinkUrl(result.url)
+      setProposalStatus('payment_pending')
+
+    } catch (err) {
+      setError(err.message || 'Failed to generate payment link')
+    } finally {
+      setRequestingPayment(false)
+    }
+  }
 
   const build = BUILDS.find(b => b.id === selectedBuild)
   const hosting = HOSTING.find(h => h.id === selectedHosting)
@@ -305,6 +395,82 @@ ${extras.length > 0 ? `<div class="section"><div class="section-title">Additiona
               ← Edit Proposal
             </button>
           </div>
+        </div>
+      )}
+
+      {step === 4 && proposalId && (
+        <div className="card card-pad" style={{ marginTop: 24, background: 'var(--accent-soft)' }}>
+          <h3 style={{ fontSize: 18, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            💳 Request Payment
+          </h3>
+
+          {error && (
+            <div style={{ padding: 12, background: 'var(--red-bg)', border: '1px solid var(--red)', borderRadius: 8, marginBottom: 16, fontSize: 14, color: 'var(--red)' }}>
+              {error}
+            </div>
+          )}
+
+          {!paymentLinkUrl ? (
+            <div>
+              <p style={{ fontSize: 14, color: 'var(--sub)', marginBottom: 16 }}>
+                Generate a secure Stripe payment link and email it to {form.clientName}.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label className="lbl">Payment Amount</label>
+                  <input
+                    className="inp"
+                    type="number"
+                    value={paymentAmount !== null ? paymentAmount : firstYearTotal}
+                    onChange={e => setPaymentAmount(Number(e.target.value))}
+                    placeholder={String(firstYearTotal)}
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>
+                    Default: £{firstYearTotal.toLocaleString()} (first year total)
+                  </div>
+                </div>
+
+                <div>
+                  <label className="lbl">Description</label>
+                  <input
+                    className="inp"
+                    value={paymentDescription}
+                    onChange={e => setPaymentDescription(e.target.value)}
+                    placeholder={`${build?.name} Website Package`}
+                  />
+                </div>
+              </div>
+
+              <button
+                className="btn btn-primary"
+                onClick={handleRequestPayment}
+                disabled={requestingPayment}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {requestingPayment ? 'Generating Payment Link...' : '⚡ Generate Payment Link & Send Email'}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: 16, background: 'var(--green-bg)', borderRadius: 8, border: '1px solid var(--green)', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', marginBottom: 8 }}>
+                  ✅ Payment link generated and sent to {form.clientEmail}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 8 }}>
+                  Link: <a href={paymentLinkUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{paymentLinkUrl}</a>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 13, color: 'var(--sub)' }}>
+                Status: <strong style={{ color: proposalStatus === 'paid' ? 'var(--green)' : 'var(--orange)' }}>
+                  {proposalStatus === 'draft' && 'Draft'}
+                  {proposalStatus === 'payment_pending' && 'Payment Pending ⏳'}
+                  {proposalStatus === 'paid' && 'Paid ✅'}
+                </strong>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
