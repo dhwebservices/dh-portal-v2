@@ -40,7 +40,10 @@ function resolveRequestOrigin(request) {
 function isAllowedOrigin(request, env) {
   const origin = resolveRequestOrigin(request)
   if (!origin) return false
-  return getAllowedOrigins(env).has(origin)
+  const allowedOrigins = getAllowedOrigins(env)
+  // Support wildcard
+  if (allowedOrigins.has('*')) return true
+  return allowedOrigins.has(origin)
 }
 
 function normalizeEmail(value = '') {
