@@ -142,7 +142,12 @@ export default function Proposals() {
         sent_at: new Date().toISOString(),
       })
 
-      await sendPaymentEmail(form.clientEmail, form.clientName, result.url, amount, description)
+      const emailResult = await sendPaymentEmail(form.clientEmail, form.clientName, result.url, amount, description)
+      console.log('Email send result:', emailResult)
+
+      if (!emailResult?.ok) {
+        console.warn('Email failed to send:', emailResult)
+      }
 
       setPaymentLinkUrl(result.url)
       setProposalStatus('payment_pending')
