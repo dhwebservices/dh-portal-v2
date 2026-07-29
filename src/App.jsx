@@ -573,6 +573,13 @@ function PortalUpdateWatcher() {
 
   if (!release) return null
 
+  // Auto-start update when release detected
+  useEffect(() => {
+    if (release && !updating && !promptOpen) {
+      setUpdating(true)
+    }
+  }, [release, updating, promptOpen])
+
   const startUpdate = () => {
     if (updating) return
     setPromptOpen(true)
@@ -585,19 +592,17 @@ function PortalUpdateWatcher() {
     setPromptOpen(false)
   }
 
+  // Show simple updating message instead of banner
+  if (updating) {
+    return (
+      <div style={{ position:'fixed', top:20, right:20, zIndex:60, padding:'12px 20px', background:'var(--accent)', color:'#fff', borderRadius:8, fontSize:14, fontWeight:600, boxShadow:'0 4px 12px rgba(0,0,0,0.15)' }}>
+        {updateError ? `Update failed: ${updateError}` : `Updating to v${release.version}...`}
+      </div>
+    )
+  }
+
   return (
     <>
-      <div className="portal-update-banner" role="status" aria-live="polite">
-        <div className="portal-update-banner__copy">
-          <span className="portal-update-banner__eyebrow">Update available</span>
-          <strong>Download the latest portal update</strong>
-          <span>Version {release.version} is ready and will keep showing until installed.</span>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={startUpdate} disabled={updating}>
-          {updating ? 'Updating...' : 'Download update'}
-        </button>
-      </div>
-
       {promptOpen ? (
         <div style={{ position:'fixed', inset:0, background:'rgba(6,12,24,0.18)', backdropFilter:'blur(8px)', zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
           <div className="card card-pad" style={{ maxWidth:520, width:'100%', border:'1px solid var(--accent-border)', boxShadow:'0 32px 90px rgba(22,34,61,0.14)' }}>
