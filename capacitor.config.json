@@ -2,10 +2,6 @@
   "appId": "uk.co.dhwebsiteservices.staff",
   "appName": "DH Staff Portal",
   "webDir": "dist",
-  "server": {
-    "url": "https://staff.dhwebsiteservices.co.uk",
-    "cleartext": true
-  },
   "plugins": {
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]

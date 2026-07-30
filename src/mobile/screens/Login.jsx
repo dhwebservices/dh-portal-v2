@@ -43,7 +43,7 @@ export default function MobileLogin() {
     try {
       await Haptics.impact({ style: ImpactStyle.Medium })
 
-      await instance.loginPopup({
+      await instance.loginRedirect({
         scopes: ['User.Read'],
       })
 
