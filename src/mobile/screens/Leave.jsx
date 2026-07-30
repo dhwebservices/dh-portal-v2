@@ -303,11 +303,6 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
     }
   }
 
-  const filteredRequests = requests.filter(r => {
-    if (filter === 'all') return true
-    return r.status === filter
-  })
-
   const stats = {
     total: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
