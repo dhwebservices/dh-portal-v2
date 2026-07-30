@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { MsalProvider, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
@@ -9,6 +10,8 @@ import Header from './components/Header'
 import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 import { logSecurityEvent } from './utils/audit'
+import MobileApp from './MobileApp'
+import MobileLogin from './mobile/screens/LoginProfessional'
 
 const PORTAL_BUILD_VERSION = typeof __PORTAL_BUILD_VERSION__ !== 'undefined' ? __PORTAL_BUILD_VERSION__ : 'dev'
 
@@ -740,6 +743,16 @@ function LandingResolver() {
 }
 
 function AuthenticatedApp() {
+  // Use native mobile app on mobile platforms
+  if (Capacitor.isNativePlatform()) {
+    return (
+      <AuthProvider>
+        <MobileApp />
+      </AuthProvider>
+    )
+  }
+
+  // Use web app on desktop
   return (
     <AuthProvider>
       <Suspense fallback={<RouteLoader />}>
@@ -763,12 +776,18 @@ export default function App() {
         <InitialLoader />
         <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
         <UnauthenticatedTemplate>
-          <Suspense fallback={<RouteLoader />}>
-            <Routes>
-              <Route path="/book/:slug" element={<PublicBookingPage />} />
-              <Route path="*" element={<LoginPage />} />
-            </Routes>
-          </Suspense>
+          {Capacitor.isNativePlatform() ? (
+            // Mobile: Beautiful native login screen
+            <MobileLogin />
+          ) : (
+            // Desktop: Web login page
+            <Suspense fallback={<RouteLoader />}>
+              <Routes>
+                <Route path="/book/:slug" element={<PublicBookingPage />} />
+                <Route path="*" element={<LoginPage />} />
+              </Routes>
+            </Suspense>
+          )}
         </UnauthenticatedTemplate>
       </BrowserRouter>
     </MsalProvider>

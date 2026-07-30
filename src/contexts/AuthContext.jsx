@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
 import { logSecurityEvent } from '../utils/audit'
+import { initPushNotifications } from '../utils/pushNotifications'
 import {
   applyPortalAppearance,
   buildPreferenceSettingKey,
@@ -456,6 +457,11 @@ export function AuthProvider({ children }) {
           setIsOnboarding(lifecycleSaysOnboarding)
         }
         setLoading(false)
+
+        // Initialize push notifications for mobile
+        initPushNotifications(normalizedEmail).catch(err => {
+          console.log('Push notifications not initialized:', err)
+        })
       })
       .catch(() => {
         clearTimeout(timeout)

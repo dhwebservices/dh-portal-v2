@@ -137,6 +137,8 @@ create table if not exists staff (
   email text unique,
   role text,
   commission_rate numeric default 10,
+  hourly_rate numeric default 0,
+  payment_type text default 'commission_only',
   status text default 'active',
   total_earned numeric default 0,
   pending_payout numeric default 0,
@@ -148,11 +150,77 @@ create table if not exists commissions (
   staff_name text,
   staff_email text,
   client text,
+  client_id uuid,
+  client_name text,
+  source_type text,
+  source_id text,
+  description text,
   sale_value numeric,
+  commission_rate numeric,
   commission_amount numeric,
   date date,
-  status text default 'pending',
+  status text default 'available',
+  requested_pay_date date,
+  requested_at timestamptz,
+  requested_by_email text,
+  payout_request_id uuid,
+  approved_by_email text,
+  approved_by_name text,
+  approved_at timestamptz,
+  rejected_by_email text,
+  rejected_by_name text,
+  rejected_at timestamptz,
+  rejection_reason text,
+  paid_by_email text,
+  paid_by_name text,
+  paid_at timestamptz,
+  statement_file_url text,
+  statement_file_path text,
+  metadata jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists commission_settings (
+  id uuid default gen_random_uuid() primary key,
+  staff_email text unique not null,
+  staff_name text,
+  commission_rate numeric not null default 10,
+  enabled boolean not null default true,
+  manager_email text,
+  manager_name text,
+  effective_from date default current_date,
+  notes text,
+  updated_by_email text,
+  updated_by_name text,
+  updated_at timestamptz default now(),
   created_at timestamptz default now()
+);
+
+create table if not exists commission_payout_requests (
+  id uuid default gen_random_uuid() primary key,
+  staff_email text not null,
+  staff_name text,
+  manager_email text,
+  manager_name text,
+  commission_ids jsonb not null default '[]',
+  requested_pay_date date,
+  requested_amount numeric default 0,
+  approved_amount numeric default 0,
+  status text default 'requested',
+  notes text,
+  manager_notes text,
+  requested_at timestamptz default now(),
+  decided_by_email text,
+  decided_by_name text,
+  decided_at timestamptz,
+  paid_by_email text,
+  paid_by_name text,
+  paid_at timestamptz,
+  statement_file_url text,
+  statement_file_path text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- Email templates
@@ -393,29 +461,6 @@ create table if not exists staff_meetings (
   updated_at timestamptz default now()
 );
 
--- Client payments
-create table if not exists client_payments (
-  id uuid default gen_random_uuid() primary key,
-  client_email text,
-  client_name text,
-  amount numeric,
-  payment_type text,
-  status text default 'pending',
-  gocardless_id text,
-  created_at timestamptz default now()
-);
-
--- GoCardless mandates
-create table if not exists gocardless_mandates (
-  id uuid default gen_random_uuid() primary key,
-  client_email text unique,
-  client_name text,
-  mandate_id text,
-  customer_id text,
-  status text default 'active',
-  created_at timestamptz default now()
-);
-
 -- ============================================================
 -- RLS Policies (enable row level security)
 -- ============================================================
@@ -430,6 +475,8 @@ alter table tasks                 enable row level security;
 alter table schedules             enable row level security;
 alter table staff                 enable row level security;
 alter table commissions           enable row level security;
+alter table commission_settings   enable row level security;
+alter table commission_payout_requests enable row level security;
 alter table email_templates       enable row level security;
 alter table banners               enable row level security;
 alter table maintenance_systems   enable row level security;
@@ -447,8 +494,6 @@ alter table client_activity       enable row level security;
 alter table deployment_updates    enable row level security;
 alter table notifications         enable row level security;
 alter table staff_meetings        enable row level security;
-alter table client_payments       enable row level security;
-alter table gocardless_mandates   enable row level security;
 
 -- Allow anon/authenticated full access via service key (portal uses anon key)
 -- These policies allow the anon key to read/write everything
@@ -464,6 +509,8 @@ create policy "allow_all" on tasks                  for all using (true) with ch
 create policy "allow_all" on schedules              for all using (true) with check (true);
 create policy "allow_all" on staff                  for all using (true) with check (true);
 create policy "allow_all" on commissions            for all using (true) with check (true);
+create policy "allow_all" on commission_settings    for all using (true) with check (true);
+create policy "allow_all" on commission_payout_requests for all using (true) with check (true);
 create policy "allow_all" on email_templates        for all using (true) with check (true);
 create policy "allow_all" on banners                for all using (true) with check (true);
 create policy "allow_all" on maintenance_systems    for all using (true) with check (true);
@@ -481,8 +528,6 @@ create policy "allow_all" on client_activity        for all using (true) with ch
 create policy "allow_all" on deployment_updates     for all using (true) with check (true);
 create policy "allow_all" on notifications          for all using (true) with check (true);
 create policy "allow_all" on staff_meetings         for all using (true) with check (true);
-create policy "allow_all" on client_payments        for all using (true) with check (true);
-create policy "allow_all" on gocardless_mandates    for all using (true) with check (true);
 
 -- ============================================================
 -- Storage bucket for HR documents
@@ -621,20 +666,78 @@ create table if not exists job_application_notes (
 alter table job_application_notes enable row level security;
 create policy "allow_all" on job_application_notes for all using (true) with check (true);
 
--- GoCardless webhook events (written by Cloudflare Worker)
-create table if not exists gc_events (
+-- Proposals (website packages)
+create table if not exists proposals (
   id uuid default gen_random_uuid() primary key,
-  type text,
-  payment_id text,
-  mandate_id text,
-  customer_id text,
-  subscription_id text,
-  billing_request_id text,
-  details jsonb default '{}',
+
+  -- Client details
+  client_business text not null,
+  client_name text not null,
+  client_email text not null,
+  client_phone text,
+  client_industry text,
+
+  -- Proposal details
+  timeline text,
+  requirements text,
+  prepared_by text,
+  valid_until date,
+
+  -- Package selection (stored as JSONB for flexibility)
+  selected_build jsonb,
+  pay_monthly boolean default false,
+  selected_hosting jsonb,
+  selected_extras jsonb default '[]',
+
+  -- Pricing
+  build_price numeric default 0,
+  monthly_total numeric default 0,
+  one_off_total numeric default 0,
+  first_year_total numeric default 0,
+
+  -- Status tracking
+  status text default 'draft',
+
+  -- Payment integration
+  stripe_payment_link_id text,
+  stripe_payment_link_url text,
+  stripe_payment_intent_id text,
+  payment_amount numeric,
+
+  -- Staff tracking
+  created_by_email text,
+  created_by_name text,
+  assigned_to_email text,
+  assigned_to_name text,
+
+  -- Timestamps
+  sent_at timestamptz,
+  paid_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table proposals enable row level security;
+create policy "allow_all" on proposals for all using (true) with check (true);
+
+-- Stripe webhook events
+create table if not exists stripe_events (
+  id uuid default gen_random_uuid() primary key,
+  event_id text unique not null,
+  event_type text not null,
+  payment_intent_id text,
+  payment_link_id text,
+  proposal_id uuid references proposals(id),
+  amount numeric,
+  currency text,
+  customer_email text,
+  status text,
+  raw_event jsonb,
+  processed boolean default false,
+  processed_at timestamptz,
   created_at timestamptz default now()
 );
-alter table gc_events enable row level security;
-create policy "allow_all" on gc_events for all using (true) with check (true);
+alter table stripe_events enable row level security;
+create policy "allow_all" on stripe_events for all using (true) with check (true);
 
 -- Website CMS content
 create table if not exists website_content (
@@ -649,3 +752,92 @@ create table if not exists website_content (
 );
 alter table website_content enable row level security;
 create policy "allow_all" on website_content for all using (true) with check (true);
+
+-- ============================================================
+-- Mobile App Features
+-- ============================================================
+
+-- Attendance tracking with GPS verification
+create table if not exists attendance (
+  id uuid default gen_random_uuid() primary key,
+  user_email text not null,
+  user_name text not null,
+  date date not null,
+  clock_in timestamptz not null,
+  clock_out timestamptz,
+  location_verified boolean default false,
+  office_location text,
+  gps_latitude numeric,
+  gps_longitude numeric,
+  gps_accuracy numeric,
+  notes text,
+  approved_by text,
+  approved_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table attendance enable row level security;
+create policy "allow_all" on attendance for all using (true) with check (true);
+create index idx_attendance_user_date on attendance(user_email, date);
+
+-- User devices for push notifications
+create table if not exists user_devices (
+  id uuid default gen_random_uuid() primary key,
+  user_email text not null,
+  device_type text not null check (device_type in ('ios', 'android')),
+  fcm_token text not null,
+  device_name text,
+  device_model text,
+  os_version text,
+  app_version text,
+  last_active timestamptz default now(),
+  created_at timestamptz default now(),
+  unique(user_email, fcm_token)
+);
+alter table user_devices enable row level security;
+create policy "allow_all" on user_devices for all using (true) with check (true);
+
+-- Push notification history
+create table if not exists push_notifications (
+  id uuid default gen_random_uuid() primary key,
+  user_email text not null,
+  notification_type text not null,
+  title text not null,
+  body text not null,
+  data jsonb,
+  sent_at timestamptz default now(),
+  delivered boolean default false,
+  clicked boolean default false,
+  fcm_message_id text
+);
+alter table push_notifications enable row level security;
+create policy "allow_all" on push_notifications for all using (true) with check (true);
+
+-- Work schedule (planned hours for next 4 weeks)
+create table if not exists work_schedule (
+  id uuid default gen_random_uuid() primary key,
+  user_email text not null,
+  user_name text,
+  date date not null,
+  hours numeric default 8,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_email, date)
+);
+alter table work_schedule enable row level security;
+create policy "allow_all" on work_schedule for all using (true) with check (true);
+
+-- User preferences (app settings)
+create table if not exists user_preferences (
+  id uuid default gen_random_uuid() primary key,
+  user_email text not null unique,
+  push_notifications boolean default true,
+  email_notifications boolean default true,
+  theme text default 'light' check (theme in ('light', 'dark', 'auto')),
+  biometric_auth boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table user_preferences enable row level security;
+create policy "allow_all" on user_preferences for all using (true) with check (true);

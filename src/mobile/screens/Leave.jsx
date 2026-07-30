@@ -1,0 +1,792 @@
+import { useState, useEffect } from 'react'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { supabase } from '../../utils/supabase'
+import { useAuth } from '../../contexts/AuthContext'
+import MobileCard from '../components/MobileCard'
+import Icon from '../components/Icon'
+import ErrorAlert from '../components/ErrorAlert'
+import SearchBar, { useSearch } from '../components/SearchBar'
+import { usePullToRefresh } from '../../hooks/usePullToRefresh'
+import PullToRefresh from '../components/PullToRefresh'
+import { SkeletonList } from '../components/SkeletonLoader'
+import { sendManagedNotification } from '../../utils/notificationPreferences'
+
+const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Compassionate', 'Unpaid', 'Other']
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
+
+export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [filter, setFilter] = useState('all') // all, pending, approved, rejected
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingRequest, setEditingRequest] = useState(null)
+  const [searchTerm, setSearchTerm, debouncedSearch] = useSearch()
+  const { scrollRef, isRefreshing, pullDistance, handlers } = usePullToRefresh(loadRequests)
+  const [form, setForm] = useState({
+    leave_type: 'Annual Leave',
+    start_date: '',
+    end_date: '',
+    reason: '',
+  })
+
+  useEffect(() => {
+    loadRequests()
+  }, [user?.email, isAdmin])
+
+  const loadRequests = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      let query = supabase
+        .from('leave_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      // If not admin, only show own requests
+      if (!isAdmin) {
+        query = query.eq('user_email', user.email)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      setRequests(data || [])
+    } catch (err) {
+      console.error('Failed to load leave requests:', err)
+      setError(err.message || 'Failed to load leave requests. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddPress = async () => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setEditingRequest(null)
+    setForm({
+      leave_type: 'Annual Leave',
+      start_date: '',
+      end_date: '',
+      reason: '',
+    })
+    setShowAddForm(true)
+  }
+
+  const handleEditPress = async (request) => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setEditingRequest(request)
+    setForm({
+      leave_type: request.leave_type,
+      start_date: request.start_date,
+      end_date: request.end_date,
+      reason: request.reason || '',
+    })
+    setShowAddForm(true)
+  }
+
+  const handleSubmit = async () => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+
+    if (!form.start_date || !form.end_date) {
+      alert('Please select start and end dates')
+      return
+    }
+
+    const start = new Date(form.start_date)
+    const end = new Date(form.end_date)
+    const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1)
+
+    try {
+      if (editingRequest) {
+        // Update existing request
+        const { error } = await supabase
+          .from('leave_requests')
+          .update({
+            leave_type: form.leave_type,
+            start_date: form.start_date,
+            end_date: form.end_date,
+            days,
+            reason: form.reason,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editingRequest.id)
+
+        if (error) throw error
+
+        await sendManagedNotification({
+          userEmail: editingRequest.user_email,
+          userName: editingRequest.user_name,
+          title: '📅 Leave request updated',
+          message: `${form.start_date} to ${form.end_date}`,
+          link: '/hr/leave',
+          type: 'info',
+          category: 'hr',
+          emailSubject: `Leave Request Updated - ${form.start_date} to ${form.end_date}`,
+          emailHtml: `<p>Your leave request has been updated.</p>`,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
+        }).catch(() => {})
+
+      } else {
+        // Create new request with optimistic UI
+        const optimisticRequest = {
+          id: 'temp-' + Date.now(),
+          leave_type: form.leave_type,
+          start_date: form.start_date,
+          end_date: form.end_date,
+          reason: form.reason,
+          user_email: user.email,
+          user_name: user.name,
+          days,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        }
+
+        // Add to UI immediately
+        setRequests([optimisticRequest, ...requests])
+        setShowAddForm(false)
+
+        try {
+          const { data, error } = await supabase
+            .from('leave_requests')
+            .insert([{
+              leave_type: form.leave_type,
+              start_date: form.start_date,
+              end_date: form.end_date,
+              reason: form.reason,
+              user_email: user.email,
+              user_name: user.name,
+              days,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            }])
+            .select()
+            .single()
+
+          if (error) throw error
+
+          // Replace optimistic with real
+          setRequests(reqs =>
+            reqs.map(r => r.id === optimisticRequest.id ? data : r)
+          )
+        } catch (error) {
+          // Rollback on error
+          setRequests(reqs =>
+            reqs.filter(r => r.id !== optimisticRequest.id)
+          )
+          throw error
+        }
+
+        // Notify managers
+        await sendManagedNotification({
+          userEmail: 'managers',
+          userName: 'Managers',
+          title: '📅 New leave request',
+          message: `${user.name} - ${form.start_date} to ${form.end_date}`,
+          link: '/hr/leave',
+          type: 'info',
+          category: 'hr',
+          emailSubject: `Leave Request - ${user.name}`,
+          emailHtml: `<p>${user.name} has submitted a leave request for ${form.start_date} to ${form.end_date}.</p>`,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
+        }).catch(() => {})
+      }
+
+      setShowAddForm(false)
+      setEditingRequest(null)
+      loadRequests()
+      await Haptics.impact({ style: ImpactStyle.Heavy })
+    } catch (error) {
+      console.error('Failed to save leave request:', error)
+      alert('Failed to save leave request. Please try again.')
+    }
+  }
+
+  const handleApprove = async (request) => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+
+    if (!confirm(`Approve leave for ${request.user_name}?`)) return
+
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({
+          status: 'approved',
+          approved_by: user.name,
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', request.id)
+
+      if (error) throw error
+
+      await sendManagedNotification({
+        userEmail: request.user_email,
+        userName: request.user_name,
+        title: '✅ Leave Approved',
+        message: `${request.start_date} to ${request.end_date} - Approved by ${user.name}`,
+        link: '/hr/leave',
+        type: 'success',
+        category: 'hr',
+        emailSubject: `Leave Approved - ${request.start_date} to ${request.end_date}`,
+        emailHtml: `<p>Your leave request has been approved by ${user.name}.</p>`,
+        sentBy: user?.name || user?.email,
+        portalUrl: PORTAL_URL,
+      }).catch(() => {})
+
+      loadRequests()
+      await Haptics.impact({ style: ImpactStyle.Heavy })
+    } catch (error) {
+      console.error('Failed to approve leave:', error)
+      alert('Failed to approve leave. Please try again.')
+    }
+  }
+
+  const handleReject = async (request) => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+
+    if (!confirm(`Reject leave for ${request.user_name}?`)) return
+
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({
+          status: 'rejected',
+          approved_by: user.name,
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', request.id)
+
+      if (error) throw error
+
+      await sendManagedNotification({
+        userEmail: request.user_email,
+        userName: request.user_name,
+        title: '❌ Leave Rejected',
+        message: `${request.start_date} to ${request.end_date} - Rejected by ${user.name}`,
+        link: '/hr/leave',
+        type: 'warning',
+        category: 'hr',
+        emailSubject: `Leave Rejected - ${request.start_date} to ${request.end_date}`,
+        emailHtml: `<p>Your leave request has been rejected by ${user.name}.</p>`,
+        sentBy: user?.name || user?.email,
+        portalUrl: PORTAL_URL,
+      }).catch(() => {})
+
+      loadRequests()
+      await Haptics.impact({ style: ImpactStyle.Heavy })
+    } catch (error) {
+      console.error('Failed to reject leave:', error)
+      alert('Failed to reject leave. Please try again.')
+    }
+  }
+
+  const handleDelete = async (request) => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+
+    if (!confirm('Delete this leave request?')) return
+
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .delete()
+        .eq('id', request.id)
+
+      if (error) throw error
+
+      loadRequests()
+      await Haptics.impact({ style: ImpactStyle.Heavy })
+    } catch (error) {
+      console.error('Failed to delete leave:', error)
+      alert('Failed to delete leave. Please try again.')
+    }
+  }
+
+  const filteredRequests = requests.filter(r => {
+    if (filter === 'all') return true
+    return r.status === filter
+  })
+
+  const stats = {
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    rejected: requests.filter(r => r.status === 'rejected').length,
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return '#34c759'
+      case 'rejected': return '#ff3b30'
+      case 'pending': return '#ff9500'
+      default: return '#86868b'
+    }
+  }
+
+  if (showAddForm) {
+    return (
+      <div className="mobile-screen">
+        <div className="mobile-screen-header">
+          <button className="mobile-back-btn" onClick={() => setShowAddForm(false)}>
+            <Icon name="chevronLeft" size={24} color="#0066cc" />
+          </button>
+          <h1>{editingRequest ? 'Edit Leave' : 'Request Leave'}</h1>
+          <div style={{ width: 60 }} />
+        </div>
+
+        <div style={{ padding: '20px' }}>
+          <div className="form-group">
+            <label className="form-label">Leave Type</label>
+            <select
+              className="form-input"
+              value={form.leave_type}
+              onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
+            >
+              {LEAVE_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Start Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">End Date</label>
+            <input
+              type="date"
+              className="form-input"
+              value={form.end_date}
+              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Reason (optional)</label>
+            <textarea
+              className="form-input"
+              rows={4}
+              value={form.reason}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              placeholder="e.g., Family holiday"
+            />
+          </div>
+
+          <button className="btn-primary" onClick={handleSubmit}>
+            {editingRequest ? 'Update Request' : 'Submit Request'}
+          </button>
+        </div>
+
+        <style>{`
+          .form-group {
+            margin-bottom: 20px;
+          }
+
+          .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+          }
+
+          .form-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          }
+
+          .form-input:focus {
+            outline: none;
+            border-color: #0066cc;
+          }
+
+          .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .btn-primary:active {
+            opacity: 0.8;
+          }
+        `}</style>
+      </div>
+    )
+  }
+
+  // Filter and search
+  const filteredRequests = requests.filter(r => {
+    const matchesFilter = filter === 'all' || r.status === filter
+    const matchesSearch = !debouncedSearch ||
+      r.user_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      r.leave_type?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      r.reason?.toLowerCase().includes(debouncedSearch.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
+
+  return (
+    <div className="mobile-screen" ref={scrollRef} {...handlers}>
+      <PullToRefresh isRefreshing={isRefreshing} pullDistance={pullDistance} />
+
+      <div className="mobile-screen-header">
+        <button className="mobile-back-btn" onClick={goBack}>
+          <Icon name="chevronLeft" size={24} color="#0066cc" />
+        </button>
+        <h1>Leave Requests</h1>
+        <div style={{ width: 60 }} />
+      </div>
+
+      <ErrorAlert error={error} onRetry={loadRequests} onDismiss={() => setError('')} />
+
+      {/* Search */}
+      <SearchBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by name, type, or reason..."
+      />
+
+      {/* Stats */}
+      <div style={{ padding: '20px', background: '#f5f5f7' }}>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-value">{stats.total}</div>
+            <div className="stat-label">Total</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#ff9500' }}>{stats.pending}</div>
+            <div className="stat-label">Pending</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#34c759' }}>{stats.approved}</div>
+            <div className="stat-label">Approved</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#ff3b30' }}>{stats.rejected}</div>
+            <div className="stat-label">Rejected</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Chips */}
+      <div style={{ padding: '0 20px 12px', background: '#f5f5f7' }}>
+        <div className="filter-chips">
+          {['all', 'pending', 'approved', 'rejected'].map(f => (
+            <button
+              key={f}
+              className={`filter-chip ${filter === f ? 'active' : ''}`}
+              onClick={async () => {
+                await Haptics.impact({ style: ImpactStyle.Light })
+                setFilter(f)
+              }}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Request List */}
+      <div style={{ padding: '20px', paddingBottom: '100px' }}>
+        {loading ? (
+          <SkeletonList count={5} lines={4} />
+        ) : filteredRequests.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <Icon name="calendar" size={48} color="#d2d2d7" />
+            <p style={{ marginTop: 16, fontSize: 15, color: '#86868b' }}>
+              No {filter !== 'all' ? filter : ''} leave requests
+            </p>
+          </div>
+        ) : (
+          <div className="request-list">
+            {filteredRequests.map(request => (
+              <MobileCard key={request.id} onPress={() => handleEditPress(request)}>
+                <div className="request-card">
+                  <div className="request-header">
+                    <div>
+                      <div className="request-type">{request.leave_type}</div>
+                      {isAdmin && (
+                        <div className="request-user">{request.user_name}</div>
+                      )}
+                    </div>
+                    <div
+                      className="status-badge"
+                      style={{ background: `${getStatusColor(request.status)}20`, color: getStatusColor(request.status) }}
+                    >
+                      {request.status}
+                    </div>
+                  </div>
+
+                  <div className="request-dates">
+                    <Icon name="calendar" size={16} color="#86868b" />
+                    <span>{request.start_date} to {request.end_date}</span>
+                    <span className="request-days">({request.days} {request.days === 1 ? 'day' : 'days'})</span>
+                  </div>
+
+                  {request.reason && (
+                    <div className="request-reason">{request.reason}</div>
+                  )}
+
+                  {request.status === 'pending' && isAdmin && (
+                    <div className="request-actions">
+                      <button
+                        className="action-btn approve"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleApprove(request)
+                        }}
+                      >
+                        <Icon name="check" size={18} color="#34c759" />
+                        Approve
+                      </button>
+                      <button
+                        className="action-btn reject"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleReject(request)
+                        }}
+                      >
+                        <Icon name="x" size={18} color="#ff3b30" />
+                        Reject
+                      </button>
+                    </div>
+                  )}
+
+                  {request.status === 'pending' && !isAdmin && request.user_email === user.email && (
+                    <div className="request-actions">
+                      <button
+                        className="action-btn delete"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(request)
+                        }}
+                      >
+                        <Icon name="trash" size={18} color="#ff3b30" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </MobileCard>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Floating Add Button */}
+      <button className="floating-add-btn" onClick={handleAddPress}>
+        <Icon name="plus" size={24} color="white" />
+      </button>
+
+      <style>{`
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+
+        .stat-card {
+          background: white;
+          padding: 16px 12px;
+          border-radius: 12px;
+          text-align: center;
+        }
+
+        .stat-value {
+          font-size: 24px;
+          font-weight: 700;
+          color: #1a1a1a;
+          margin-bottom: 4px;
+        }
+
+        .stat-label {
+          font-size: 12px;
+          color: #86868b;
+        }
+
+        .filter-chips {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-chip {
+          padding: 8px 16px;
+          background: white;
+          border: 1px solid #d2d2d7;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 500;
+          color: #1a1a1a;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+
+        .filter-chip.active {
+          background: #0066cc;
+          color: white;
+          border-color: #0066cc;
+        }
+
+        .request-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .request-card {
+          padding: 4px;
+        }
+
+        .request-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 12px;
+        }
+
+        .request-type {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a1a1a;
+          margin-bottom: 4px;
+        }
+
+        .request-user {
+          font-size: 13px;
+          color: #86868b;
+        }
+
+        .status-badge {
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: capitalize;
+        }
+
+        .request-dates {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          color: #6b6158;
+          margin-bottom: 8px;
+        }
+
+        .request-days {
+          color: #86868b;
+          margin-left: auto;
+        }
+
+        .request-reason {
+          font-size: 13px;
+          color: #86868b;
+          margin-bottom: 12px;
+          font-style: italic;
+        }
+
+        .request-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid #f5f5f7;
+        }
+
+        .action-btn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 16px;
+          border: 1px solid #d2d2d7;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          background: white;
+          cursor: pointer;
+        }
+
+        .action-btn.approve {
+          color: #34c759;
+          border-color: #34c759;
+        }
+
+        .action-btn.reject {
+          color: #ff3b30;
+          border-color: #ff3b30;
+        }
+
+        .action-btn.delete {
+          color: #ff3b30;
+          border-color: #ff3b30;
+        }
+
+        .action-btn:active {
+          opacity: 0.7;
+        }
+
+        .floating-add-btn {
+          position: fixed;
+          bottom: 80px;
+          right: 20px;
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: #0066cc;
+          border: none;
+          box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 100;
+        }
+
+        .floating-add-btn:active {
+          transform: scale(0.95);
+        }
+
+        .spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid #d2d2d7;
+          border-top-color: #0066cc;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin: 0 auto;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @supports (padding: max(0px)) {
+          .floating-add-btn {
+            bottom: max(80px, calc(80px + env(safe-area-inset-bottom)));
+          }
+        }
+      `}</style>
+    </div>
+  )
+}

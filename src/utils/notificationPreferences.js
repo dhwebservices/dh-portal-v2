@@ -174,14 +174,41 @@ export async function sendManagedNotification({
     }
   }
 
-  if (!portalSent && !emailSent && !smsSent) {
-    throw portalError || emailError || smsError || new Error('Notification delivery failed')
+  // Send push notification to mobile devices
+  let pushSent = false
+  let pushError = null
+  try {
+    const pushResponse = await fetch('/api/send-push-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userEmail: safeEmail,
+        title,
+        body: message,
+        data: {
+          type: category,
+          link,
+          notification_type: type,
+        },
+      }),
+    })
+    if (pushResponse.ok) {
+      pushSent = true
+    }
+  } catch (error) {
+    pushError = error
+    console.warn('Push notification failed:', error.message)
+  }
+
+  if (!portalSent && !emailSent && !smsSent && !pushSent) {
+    throw portalError || emailError || smsError || pushError || new Error('Notification delivery failed')
   }
 
   return {
     portalSent,
     emailSent,
     smsSent,
+    pushSent,
     delivery: delivery.delivery,
     portalError,
     emailError,

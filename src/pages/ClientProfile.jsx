@@ -8,6 +8,7 @@ import { setupMandate, getBillingRequest, getMandates, createPayment, createSubs
 import { sendEmail } from '../utils/email'
 import { logAction } from '../utils/audit'
 import { deleteClientAccountByEmail, logClientActivity, syncClientLinkedRecords, upsertClientAccount } from '../utils/clientAccounts'
+import { createCommissionForPaidSale, isCommissionPaidStatus } from '../utils/commissions'
 import {
   buildClientOnboardingKey,
   getOnboardingStatusLabel,
@@ -83,6 +84,8 @@ export default function ClientProfile() {
   const [linkGcForm, setLinkGcForm] = useState({ customer_id:'', mandate_id:'', status:'active' })
   const [gcError, setGcError]   = useState('')
   const [gcSuccess, setGcSuccess] = useState('')
+  const [staffProfiles, setStaffProfiles] = useState([])
+  const [commissionOwnerEmail, setCommissionOwnerEmail] = useState(user?.email || '')
 
   // Activity + docs
   const [activity, setActivity] = useState([])
@@ -146,14 +149,17 @@ export default function ClientProfile() {
       fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
     ]).then(async ([{ data: c }, { data: inv }]) => {
       if (!c) { navigate('/clients'); return }
-      const [{ data: gc }, { data: localPayments }] = await Promise.all([
+      const [{ data: gc }, { data: localPayments }, { data: staffRows }] = await Promise.all([
         supabase.from('gocardless_mandates').select('*').eq('client_email', c.email).maybeSingle(),
         supabase.from('client_payments').select('*').eq('client_email', c.email).order('created_at', { ascending:false }),
+        supabase.from('hr_profiles').select('user_email,full_name,role').not('user_email', 'is', null).order('full_name'),
       ])
       setClient(c)
       setForm({ ...c })
       setInvoices(Array.isArray(inv) ? inv : [])
       setGcStatus(gc)
+      setStaffProfiles(staffRows || [])
+      setCommissionOwnerEmail(c.salesperson_email || c.assigned_to_email || c.created_by_email || user?.email || '')
       setManualPayments((localPayments || []).filter(p => String(p.payment_type || '').startsWith('manual:')))
       setLoading(false)
       // Load activity by email
@@ -303,12 +309,26 @@ export default function ClientProfile() {
     setSaving(true); setGcError('')
     try {
       const result = await createPayment(gcStatus.mandate_id, Number(payForm.amount), payForm.description || 'DH Website Services')
-      await supabase.from('client_payments').insert([{
+      const { data: insertedPayments } = await supabase.from('client_payments').insert([{
         client_id: id, client_email: client.email, client_name: client.name,
         amount: payForm.amount, payment_type: 'one_off',
         status: result.payment?.status || 'pending', gocardless_id: result.payment?.id,
         created_at: new Date().toISOString(),
-      }])
+      }]).select()
+      const paymentRow = insertedPayments?.[0]
+      if (isCommissionPaidStatus(paymentRow?.status || result.payment?.status)) {
+        await createCommissionForPaidSale({
+          sourceType: 'client_payment',
+          sourceId: paymentRow?.id || result.payment?.id,
+          clientId: id,
+          clientName: client.name,
+          clientEmail: client.email,
+          saleAmount: payForm.amount,
+          description: payForm.description || 'One-off Direct Debit payment',
+          staffEmail: commissionOwnerEmail || user?.email,
+          user,
+        }).catch((error) => setGcError(`Payment saved but commission was not created: ${error.message}`))
+      }
       setGcSuccess(`Payment of £${payForm.amount} created — ${result.payment?.status}`)
       setPayModal(null); setPayForm({ amount:'', description:'', name:'', day_of_month:1 })
       const p = await getPayments(gcStatus.mandate_id)
@@ -351,6 +371,7 @@ export default function ClientProfile() {
     setSaving(true); setGcError('')
     try {
       const manualEntry = {
+        client_id: id,
         client_email: client.email,
         client_name: client.name,
         amount: Number(payForm.amount),
@@ -366,6 +387,19 @@ export default function ClientProfile() {
       if (error) throw error
       const created = data?.[0] || manualEntry
       setManualPayments(prev => [created, ...prev])
+      if (isCommissionPaidStatus(created.status)) {
+        await createCommissionForPaidSale({
+          sourceType: 'manual_payment',
+          sourceId: created.id,
+          clientId: id,
+          clientName: client.name,
+          clientEmail: client.email,
+          saleAmount: created.amount,
+          description: payForm.description || 'Manual payment',
+          staffEmail: commissionOwnerEmail || user?.email,
+          user,
+        }).catch((error) => setGcError(`Payment saved but commission was not created: ${error.message}`))
+      }
       setGcSuccess('Manual payment recorded')
       setPayModal(null)
       setPayForm({ amount:'', description:'', name:'', day_of_month:1, manual_type:'manual:custom', manual_status:'paid' })
@@ -481,6 +515,19 @@ export default function ClientProfile() {
       description: invoice?.invoice_number ? `Invoice #${invoice.invoice_number} was marked as paid.` : 'A payment was recorded on your account.',
       amount: Number(invoice?.amount || 0) || null,
     })
+    await createCommissionForPaidSale({
+      sourceType: 'client_invoice',
+      sourceId: invId,
+      clientId: id,
+      clientName: client.name,
+      clientEmail: client.email,
+      saleAmount: invoice?.amount,
+      description: invoice?.description || 'Paid invoice',
+      staffEmail: commissionOwnerEmail || user?.email,
+      user,
+    }).catch((error) => {
+      console.warn('Commission creation failed:', error)
+    })
     setInvoices(p => p.map(i => i.id === invId ? { ...i, status:'paid' } : i))
   }
 
@@ -539,6 +586,21 @@ export default function ClientProfile() {
         <div className="client-profile-hero-actions" style={{ display:'flex', gap:8, flexShrink:0 }}>
           {saved && <span style={{ fontSize:13, color:'var(--green)', alignSelf:'center' }}>✓ Saved</span>}
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save Changes'}</button>
+        </div>
+      </div>
+
+      <div className="card card-pad" style={{ marginBottom:18, display:'grid', gridTemplateColumns:'minmax(220px, 1fr) minmax(220px, 1fr)', gap:12, alignItems:'end' }}>
+        <div>
+          <div className="lbl" style={{ marginBottom:6 }}>Commission owner</div>
+          <select className="inp" value={commissionOwnerEmail || ''} onChange={(event) => setCommissionOwnerEmail(event.target.value)}>
+            <option value="">No commission owner</option>
+            {staffProfiles.map((member) => (
+              <option key={member.user_email} value={member.user_email}>{member.full_name || member.user_email}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+          Paid invoices and paid manual payments create commission for this staff member when their commission setting is enabled.
         </div>
       </div>
 
@@ -960,6 +1022,12 @@ export default function ClientProfile() {
             <div><label className="lbl">Assign To</label>
               <select className="inp" value={payForm.manual_type} onChange={e=>setPayForm(p=>({...p,manual_type:e.target.value}))}>
                 {MANUAL_PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </div>
+            <div><label className="lbl">Commission Owner</label>
+              <select className="inp" value={commissionOwnerEmail || ''} onChange={event => setCommissionOwnerEmail(event.target.value)}>
+                <option value="">No commission owner</option>
+                {staffProfiles.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name || member.user_email}</option>)}
               </select>
             </div>
             <div><label className="lbl">Description</label><input className="inp" value={payForm.description} onChange={e=>setPayForm(p=>({...p,description:e.target.value}))} placeholder="Bank transfer for Growth package"/></div>

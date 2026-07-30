@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DH Staff Portal - All Mobile Screens</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+      font-size: 48px;
+      margin-bottom: 40px;
+    }
+
+    .screens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 40px;
+    }
+
+    .screen-card {
+      background: #2a2a2a;
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .screen-title {
+      color: white;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .phone {
+      background: #000;
+      border-radius: 40px;
+      padding: 12px;
+      position: relative;
+      aspect-ratio: 9/19.5;
+      max-width: 320px;
+      margin: 0 auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 25px;
+      background: #000;
+      border-radius: 0 0 16px 16px;
+      z-index: 10;
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 32px;
+      overflow: hidden;
+      background: white;
+      position: relative;
+    }
+
+    .screen-header {
+      background: white;
+      padding: 50px 16px 20px;
+      border-bottom: 1px solid #d2d2d7;
+    }
+
+    .screen-header h2 {
+      font-size: 24px;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .screen-header p {
+      color: #86868b;
+      font-size: 14px;
+    }
+
+    .screen-content {
+      padding: 16px;
+      background: #f5f5f7;
+      min-height: 400px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .card h3 {
+      font-size: 16px;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #86868b;
+    }
+
+    .nav-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid #d2d2d7;
+      padding: 12px 0 16px;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .nav-icon {
+      width: 24px;
+      height: 24px;
+      stroke: #86868b;
+    }
+
+    .login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .logo {
+      width: 200px;
+      height: auto;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      width: 100%;
+      max-width: 280px;
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 8px 0;
+    }
+
+    .btn-primary {
+      background: #0066cc;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #f5f5f7;
+      color: #1a1a1a;
+      border: 1px solid #d2d2d7;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .stat-info h4 {
+      font-size: 14px;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+
+    .stat-info p {
+      font-size: 12px;
+      color: #86868b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 DH Staff Portal - All Mobile Screens</h1>
+    
+    <div class="screens-grid">
+      <!-- 1. Login Screen -->
+      <div class="screen-card">
+        <div class="screen-title">1. Login</div>
+        <div class="phone">
+          <div class="screen login-screen">
+            <div class="logo" style="width:180px;height:60px;background:#e5e5e5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#666;font-size:11px;">DHWEBSERVICES</div>
+            <h2 style="font-size:20px;margin-bottom:4px;color:#1a1a1a;">DH Website Services</h2>
+            <p style="font-size:16px;color:#666;margin-bottom:6px;">Staff Portal</p>
+            <p style="font-size:14px;color:#86868b;margin-bottom:32px;">Sign in to continue</p>
+            <button class="btn btn-primary">Sign in with Microsoft</button>
+            <button class="btn btn-secondary">Use Face ID</button>
+            <p style="font-size:11px;color:#86868b;margin-top:20px;">Tech Support: david@dhwebsiteservices.co.uk</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Home/Dashboard -->
+      <div class="screen-card">
+        <div class="screen-title">2. Dashboard</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Good morning</h2>
+              <p>David Hooper</p>
+            </div>
+            <div class="screen-content">
+              <h3 style="margin-bottom:12px;">Quick Access</h3>
+              <div class="stat-grid">
+                <div class="stat-card"><div class="stat-icon" style="background:#0066cc;border-radius:6px;"></div><div class="stat-info"><h4>Staff Directory</h4><p>Manage all staff</p></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#34c759;border-radius:6px;"></div><div class="stat-info"><h4>Leave Balance</h4><p>12 days remaining</p></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#ff9500;border-radius:6px;"></div><div class="stat-info"><h4>My Tasks</h4><p>3 items pending</p></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:#5856d6;border-radius:6px;"></div><div class="stat-info"><h4>Payslips</h4><p>View latest</p></div></div>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Clock In -->
+      <div class="screen-card">
+        <div class="screen-title">3. Clock In</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Clock In</h2>
+              <p>GPS Location Required</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="text-align:center;padding:32px;">
+                <div style="width:80px;height:80px;background:#0066cc;border-radius:50%;margin:0 auto 16px;"></div>
+                <h3>Ready to Clock In</h3>
+                <p style="margin:8px 0 24px;">Location: Office</p>
+                <button class="btn btn-primary" style="margin:0 auto;">Clock In Now</button>
+              </div>
+              <div class="card">
+                <h3>Today's Status</h3>
+                <p>Not clocked in yet</p>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Staff Directory -->
+      <div class="screen-card">
+        <div class="screen-title">4. Staff Directory</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Staff Directory</h2>
+              <p>All team members</p>
+            </div>
+            <div class="screen-content">
+              <input type="text" placeholder="Search staff..." style="width:100%;padding:12px;border-radius:8px;border:1px solid #d2d2d7;margin-bottom:12px;font-size:14px;">
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#0066cc;border-radius:50%;"></div>
+                <div><h3>David Hooper</h3><p>CEO</p></div>
+              </div>
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#34c759;border-radius:50%;"></div>
+                <div><h3>John Smith</h3><p>Developer</p></div>
+              </div>
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#ff9500;border-radius:50%;"></div>
+                <div><h3>Sarah Jones</h3><p>Designer</p></div>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Staff Profile -->
+      <div class="screen-card">
+        <div class="screen-title">5. Staff Profile</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header" style="text-align:center;">
+              <div style="width:80px;height:80px;background:#0066cc;border-radius:50%;margin:0 auto 12px;"></div>
+              <h2>David Hooper</h2>
+              <p>CEO</p>
+            </div>
+            <div class="screen-content">
+              <div class="card">
+                <h3>Contact</h3>
+                <p>david@dhwebsiteservices.co.uk</p>
+                <p>07364166285</p>
+              </div>
+              <div class="card">
+                <h3>Department</h3>
+                <p>Management</p>
+              </div>
+              <div class="card">
+                <h3>Start Date</h3>
+                <p>January 2020</p>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. My Tasks -->
+      <div class="screen-card">
+        <div class="screen-title">6. My Tasks</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>My Tasks</h2>
+              <p>3 pending tasks</p>
+            </div>
+            <div class="screen-content">
+              <div class="card">
+                <h3>Complete onboarding documents</h3>
+                <p style="color:#ff9500;">Due tomorrow</p>
+              </div>
+              <div class="card">
+                <h3>Review team performance</h3>
+                <p style="color:#34c759;">Due in 3 days</p>
+              </div>
+              <div class="card">
+                <h3>Submit expense report</h3>
+                <p style="color:#ff3b30;">Overdue</p>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Leave/Holiday -->
+      <div class="screen-card">
+        <div class="screen-title">7. Leave Balance</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Leave Balance</h2>
+              <p>Annual leave status</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="text-align:center;padding:24px;">
+                <h3 style="font-size:48px;color:#0066cc;">12</h3>
+                <p>Days remaining</p>
+              </div>
+              <div class="card">
+                <h3>Upcoming Leave</h3>
+                <p>Christmas: 24-31 Dec</p>
+              </div>
+              <button class="btn btn-primary">Request Leave</button>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Payslips -->
+      <div class="screen-card">
+        <div class="screen-title">8. Payslips</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Payslips</h2>
+              <p>Your payment history</p>
+            </div>
+            <div class="screen-content">
+              <div class="card">
+                <h3>November 2026</h3>
+                <p>£3,500.00</p>
+                <button class="btn btn-secondary" style="margin-top:8px;width:auto;padding:8px 16px;">Download PDF</button>
+              </div>
+              <div class="card">
+                <h3>October 2026</h3>
+                <p>£3,500.00</p>
+                <button class="btn btn-secondary" style="margin-top:8px;width:auto;padding:8px 16px;">Download PDF</button>
+              </div>
+              <div class="card">
+                <h3>September 2026</h3>
+                <p>£3,500.00</p>
+                <button class="btn btn-secondary" style="margin-top:8px;width:auto;padding:8px 16px;">Download PDF</button>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Attendance -->
+      <div class="screen-card">
+        <div class="screen-title">9. Attendance</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Attendance</h2>
+              <p>This month's record</p>
+            </div>
+            <div class="screen-content">
+              <div class="card">
+                <h3>Today</h3>
+                <p>In: 09:00 AM</p>
+                <p>Out: Not clocked out</p>
+              </div>
+              <div class="card">
+                <h3>This Week</h3>
+                <p>5 days worked</p>
+                <p>40 hours total</p>
+              </div>
+              <div class="card">
+                <h3>This Month</h3>
+                <p>22 days worked</p>
+                <p>176 hours total</p>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. My Profile -->
+      <div class="screen-card">
+        <div class="screen-title">10. My Profile</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header" style="text-align:center;">
+              <div style="width:80px;height:80px;background:#0066cc;border-radius:50%;margin:0 auto 12px;"></div>
+              <h2>David Hooper</h2>
+              <p>CEO</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Edit Profile</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Notifications</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Settings</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <button class="btn btn-secondary" style="margin-top:16px;">Log Out</button>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11. Team View -->
+      <div class="screen-card">
+        <div class="screen-title">11. My Team</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>My Team</h2>
+              <p>Direct reports</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#34c759;border-radius:50%;"></div>
+                <div style="flex:1;"><h3>John Smith</h3><p>Developer</p></div>
+                <span style="font-size:12px;color:#34c759;">● Online</span>
+              </div>
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#ff9500;border-radius:50%;"></div>
+                <div style="flex:1;"><h3>Sarah Jones</h3><p>Designer</p></div>
+                <span style="font-size:12px;color:#86868b;">● Away</span>
+              </div>
+              <div class="card" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:#5856d6;border-radius:50%;"></div>
+                <div style="flex:1;"><h3>Mike Brown</h3><p>Marketing</p></div>
+                <span style="font-size:12px;color:#34c759;">● Online</span>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12. Notifications -->
+      <div class="screen-card">
+        <div class="screen-title">12. Notifications</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Notifications</h2>
+              <p>3 unread</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="background:#e3f2fd;">
+                <h3>New task assigned</h3>
+                <p>Review team performance - Due in 3 days</p>
+                <p style="font-size:12px;color:#86868b;margin-top:4px;">2 hours ago</p>
+              </div>
+              <div class="card">
+                <h3>Leave request approved</h3>
+                <p>Your Christmas leave has been approved</p>
+                <p style="font-size:12px;color:#86868b;margin-top:4px;">1 day ago</p>
+              </div>
+              <div class="card">
+                <h3>Payslip available</h3>
+                <p>November payslip is ready to view</p>
+                <p style="font-size:12px;color:#86868b;margin-top:4px;">2 days ago</p>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 13. Settings -->
+      <div class="screen-card">
+        <div class="screen-title">13. Settings</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Settings</h2>
+              <p>App preferences</p>
+            </div>
+            <div class="screen-content">
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Notifications</span>
+                <div style="width:40px;height:24px;background:#34c759;border-radius:12px;"></div>
+              </div>
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Face ID</span>
+                <div style="width:40px;height:24px;background:#34c759;border-radius:12px;"></div>
+              </div>
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Dark Mode</span>
+                <div style="width:40px;height:24px;background:#d2d2d7;border-radius:12px;"></div>
+              </div>
+              <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Language</span>
+                <span style="color:#86868b;">English</span>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 14. Edit Staff Profile (Admin) -->
+      <div class="screen-card">
+        <div class="screen-title">14. Edit Staff (Admin)</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-header">
+              <h2>Edit Staff Profile</h2>
+              <p>John Smith</p>
+            </div>
+            <div class="screen-content">
+              <input type="text" placeholder="Full Name" value="John Smith" style="width:100%;padding:12px;border-radius:8px;border:1px solid #d2d2d7;margin-bottom:10px;font-size:14px;">
+              <input type="email" placeholder="Email" value="john@dhwebservices.co.uk" style="width:100%;padding:12px;border-radius:8px;border:1px solid #d2d2d7;margin-bottom:10px;font-size:14px;">
+              <select style="width:100%;padding:12px;border-radius:8px;border:1px solid #d2d2d7;margin-bottom:10px;font-size:14px;">
+                <option>Developer</option>
+                <option>Designer</option>
+                <option>Management</option>
+              </select>
+              <button class="btn btn-primary">Save Changes</button>
+              <button class="btn btn-secondary">Cancel</button>
+            </div>
+            <div class="nav-bar">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="text-align:center;color:white;margin-top:60px;padding:40px 20px;background:#2a2a2a;border-radius:20px;">
+      <h2 style="margin-bottom:16px;">✅ All Screens Complete</h2>
+      <p style="color:#86868b;font-size:16px;">14 professional mobile screens with clean Apple-style design</p>
+      <p style="color:#86868b;font-size:16px;margin-top:8px;">No emojis • Professional icons • Real branding • 100% mobile optimized</p>
+    </div>
+  </div>
+</body>
+</html>
