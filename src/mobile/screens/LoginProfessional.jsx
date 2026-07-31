@@ -75,6 +75,36 @@ export default function MobileLoginProfessional() {
     }
   }
 
+  const handleDevLogin = async () => {
+    await Haptics.impact({ style: ImpactStyle.Light })
+
+    // Create mock MSAL account for development
+    const mockAccount = {
+      homeAccountId: 'dev-user-123',
+      environment: 'login.windows.net',
+      tenantId: 'c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
+      username: 'david@dhwebsiteservices.co.uk',
+      localAccountId: 'dev-user-123',
+      name: 'David Hooper',
+      idTokenClaims: {
+        aud: '79722400-3699-4f12-a4a1-df71949b5805',
+        iss: 'https://login.microsoftonline.com/c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f/v2.0',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        name: 'David Hooper',
+        preferred_username: 'david@dhwebsiteservices.co.uk',
+        sub: 'dev-user-123',
+      }
+    }
+
+    // Store mock account
+    sessionStorage.setItem('msal.account.keys', JSON.stringify(['dev-user-123']))
+    sessionStorage.setItem(`msal.account.${mockAccount.homeAccountId}`, JSON.stringify(mockAccount))
+
+    // Reload to trigger auth state
+    window.location.reload()
+  }
+
   return (
     <div className="professional-login">
       <div className="professional-login-container">
@@ -140,6 +170,17 @@ export default function MobileLoginProfessional() {
               {error}
             </div>
           )}
+
+          {/* Development bypass */}
+          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid #d2d2d7' }}>
+            <button
+              className="professional-btn professional-btn-secondary"
+              onClick={handleDevLogin}
+              style={{ fontSize: '14px', opacity: 0.7 }}
+            >
+              🔧 Dev Login (Bypass Auth)
+            </button>
+          </div>
         </div>
 
         <div className="professional-login-footer">
