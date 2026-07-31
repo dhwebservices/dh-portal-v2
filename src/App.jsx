@@ -769,26 +769,54 @@ function AuthenticatedApp() {
   )
 }
 
+function DevModeAuthenticatedApp() {
+  // Inject dev mode MSAL account
+  useEffect(() => {
+    const mockAccount = {
+      homeAccountId: 'dev-user',
+      environment: 'login.microsoftonline.com',
+      tenantId: 'c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
+      username: localStorage.getItem('dev-user-email') || 'david@dhwebsiteservices.co.uk',
+      localAccountId: 'dev-user',
+      name: localStorage.getItem('dev-user-name') || 'David Hooper',
+    }
+
+    // Force MSAL to think we're authenticated
+    msal.setActiveAccount(mockAccount)
+  }, [])
+
+  return <AuthenticatedApp />
+}
+
 export default function App() {
+  const isDevMode = typeof window !== 'undefined' && localStorage.getItem('dev-mode') === 'true'
+
   return (
     <MsalProvider instance={msal}>
       <BrowserRouter>
         <InitialLoader />
-        <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
-        <UnauthenticatedTemplate>
-          {Capacitor.isNativePlatform() ? (
-            // Mobile: Beautiful native login screen
-            <MobileLogin />
-          ) : (
-            // Desktop: Web login page
-            <Suspense fallback={<RouteLoader />}>
-              <Routes>
-                <Route path="/book/:slug" element={<PublicBookingPage />} />
-                <Route path="*" element={<LoginPage />} />
-              </Routes>
-            </Suspense>
-          )}
-        </UnauthenticatedTemplate>
+        {isDevMode ? (
+          // Dev mode bypass - skip MSAL auth
+          <DevModeAuthenticatedApp />
+        ) : (
+          <>
+            <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>
+            <UnauthenticatedTemplate>
+              {Capacitor.isNativePlatform() ? (
+                // Mobile: Beautiful native login screen
+                <MobileLogin />
+              ) : (
+                // Desktop: Web login page
+                <Suspense fallback={<RouteLoader />}>
+                  <Routes>
+                    <Route path="/book/:slug" element={<PublicBookingPage />} />
+                    <Route path="*" element={<LoginPage />} />
+                  </Routes>
+                </Suspense>
+              )}
+            </UnauthenticatedTemplate>
+          </>
+        )}
       </BrowserRouter>
     </MsalProvider>
   )

@@ -76,33 +76,19 @@ export default function MobileLoginProfessional() {
   }
 
   const handleDevLogin = async () => {
-    await Haptics.impact({ style: ImpactStyle.Light })
+    try {
+      await Haptics.impact({ style: ImpactStyle.Light })
 
-    // Create mock MSAL account for development
-    const mockAccount = {
-      homeAccountId: 'dev-user-123',
-      environment: 'login.windows.net',
-      tenantId: 'c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
-      username: 'david@dhwebsiteservices.co.uk',
-      localAccountId: 'dev-user-123',
-      name: 'David Hooper',
-      idTokenClaims: {
-        aud: '79722400-3699-4f12-a4a1-df71949b5805',
-        iss: 'https://login.microsoftonline.com/c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f/v2.0',
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-        name: 'David Hooper',
-        preferred_username: 'david@dhwebsiteservices.co.uk',
-        sub: 'dev-user-123',
-      }
+      // Set dev mode flag
+      localStorage.setItem('dev-mode', 'true')
+      localStorage.setItem('dev-user-email', 'david@dhwebsiteservices.co.uk')
+      localStorage.setItem('dev-user-name', 'David Hooper')
+
+      alert('Dev mode enabled! Close and reopen the app to login.')
+    } catch (error) {
+      alert('Dev login error: ' + error.message)
+      console.error('Dev login failed:', error)
     }
-
-    // Store mock account
-    sessionStorage.setItem('msal.account.keys', JSON.stringify(['dev-user-123']))
-    sessionStorage.setItem(`msal.account.${mockAccount.homeAccountId}`, JSON.stringify(mockAccount))
-
-    // Reload to trigger auth state
-    window.location.reload()
   }
 
   return (

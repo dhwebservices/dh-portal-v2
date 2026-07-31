@@ -56,5 +56,19 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>DH Staff Portal needs access to your camera to update your profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DH Staff Portal needs access to your photo library to update your profile photo.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DH Staff Portal needs permission to save photos to your library.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>DH Staff Portal uses Face ID for quick and secure login to your account.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This allows us to provide you with personalized features and improve the app experience.</string>
 </dict>
 </plist>
