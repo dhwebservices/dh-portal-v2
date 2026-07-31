@@ -4,7 +4,7 @@ export const msalConfig = {
     authority: 'https://login.microsoftonline.com/c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
     redirectUri: typeof window !== 'undefined'
       ? (window.location.origin.includes('capacitor://') || window.location.origin.includes('ionic://'))
-        ? 'msauth.uk.co.dhwebsiteservices.staff://auth'
+        ? 'https://login.microsoftonline.com/common/oauth2/nativeclient'
         : window.location.origin
       : 'https://staff.dhwebsiteservices.co.uk',
   },
