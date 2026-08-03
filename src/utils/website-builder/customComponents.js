@@ -1,11 +1,9 @@
 /**
  * Custom GrapesJS Components
- * Defines custom components with responsive visibility traits
+ * Responsive visibility traits ready for future use
  */
 
-/**
- * Helper function to create responsive visibility traits
- */
+// Helper function for responsive visibility (not yet applied to components)
 function getResponsiveVisibilityTraits() {
   return [
     {
@@ -32,21 +30,17 @@ function getResponsiveVisibilityTraits() {
   ]
 }
 
-/**
- * Update element visibility classes based on traits
- */
+// Update element visibility classes (not yet used)
 function updateVisibilityClasses(component) {
   const attrs = component.getAttributes()
   const showDesktop = attrs['data-show-desktop'] !== 'false'
   const showTablet = attrs['data-show-tablet'] !== 'false'
   const showMobile = attrs['data-show-mobile'] !== 'false'
 
-  // Remove all visibility classes first
   component.removeClass('hide-on-desktop')
   component.removeClass('hide-on-tablet')
   component.removeClass('hide-on-mobile')
 
-  // Add hide classes as needed
   if (!showDesktop) component.addClass('hide-on-desktop')
   if (!showTablet) component.addClass('hide-on-tablet')
   if (!showMobile) component.addClass('hide-on-mobile')
@@ -90,16 +84,12 @@ export default function registerComponents(editor) {
             label: 'Center Content',
             name: 'data-center',
             changeProp: 1
-          },
-          ...getResponsiveVisibilityTraits()
+          }
         ]
       },
       init() {
         this.on('change:attributes:data-width', this.updateWidth)
         this.on('change:attributes:data-center', this.updateCenter)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateWidth() {
         const width = this.getAttributes()['data-width']
@@ -166,14 +156,10 @@ export default function registerComponents(editor) {
             ],
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-align', this.updateAlign)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateAlign() {
         const align = this.getAttributes()['data-align']
@@ -225,15 +211,11 @@ export default function registerComponents(editor) {
             ],
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-size', this.updateSize)
         this.on('change:attributes:data-align', this.updateAlign)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateSize() {
         const size = this.getAttributes()['data-size']
@@ -305,15 +287,11 @@ export default function registerComponents(editor) {
             max: 50,
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-fit', this.updateFit)
         this.on('change:attributes:data-radius', this.updateRadius)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateFit() {
         const fit = this.getAttributes()['data-fit']
@@ -373,8 +351,7 @@ export default function registerComponents(editor) {
             options: [
               { value: '_self', name: 'Same Window' },
               { value: '_blank', name: 'New Window' }
-            ,
-          ...getResponsiveVisibilityTraits()
+            ]
           },
           {
             type: 'select',
@@ -403,9 +380,6 @@ export default function registerComponents(editor) {
       init() {
         this.on('change:attributes:data-style', this.updateStyle)
         this.on('change:attributes:data-size', this.updateSize)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateStyle() {
         const style = this.getAttributes()['data-style']
@@ -473,8 +447,7 @@ export default function registerComponents(editor) {
             name: 'data-hover',
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
@@ -512,15 +485,11 @@ export default function registerComponents(editor) {
             max: 100,
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-columns', this.updateColumns)
         this.on('change:attributes:data-gap', this.updateGap)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateColumns() {
         const cols = this.getAttributes()['data-columns'] || 3
@@ -584,16 +553,12 @@ export default function registerComponents(editor) {
             ],
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-direction', this.updateDirection)
         this.on('change:attributes:data-justify', this.updateJustify)
         this.on('change:attributes:data-align', this.updateAlign)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateDirection() {
         const dir = this.getAttributes()['data-direction'] || 'row'
@@ -633,14 +598,10 @@ export default function registerComponents(editor) {
             max: 200,
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-height', this.updateHeight)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateHeight() {
         const height = this.getAttributes()['data-height'] || 40
@@ -677,14 +638,10 @@ export default function registerComponents(editor) {
             ],
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       },
       init() {
         this.on('change:attributes:data-style', this.updateStyle)
-        this.on('change:attributes:data-show-desktop', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-tablet', () => updateVisibilityClasses(this))
-        this.on('change:attributes:data-show-mobile', () => updateVisibilityClasses(this))
       },
       updateStyle() {
         const style = this.getAttributes()['data-style'] || 'solid'
@@ -722,8 +679,7 @@ export default function registerComponents(editor) {
             ],
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
@@ -787,8 +743,7 @@ export default function registerComponents(editor) {
             label: 'Muted',
             name: 'muted'
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
@@ -816,8 +771,7 @@ export default function registerComponents(editor) {
             name: 'content',
             changeProp: 1
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
@@ -874,8 +828,7 @@ export default function registerComponents(editor) {
             options: [
               { value: 'POST', name: 'POST' },
               { value: 'GET', name: 'GET' }
-            ,
-          ...getResponsiveVisibilityTraits()
+            ]
           }
         ]
       }
@@ -912,8 +865,7 @@ export default function registerComponents(editor) {
             min: 1,
             max: 20
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
@@ -975,8 +927,7 @@ export default function registerComponents(editor) {
             label: 'Name',
             name: 'name'
           }
-        ,
-          ...getResponsiveVisibilityTraits()
+        ]
       }
     }
   })
