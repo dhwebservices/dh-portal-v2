@@ -1,0 +1,485 @@
+/* Website Builder - Editor Styles */
+/* GrapesJS customization to match portal theme */
+
+.editor-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+}
+
+.editor-toolbar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  height: 56px;
+  z-index: 100;
+}
+
+.editor-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-toolbar-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.editor-divider {
+  height: 24px;
+  width: 1px;
+  background: var(--border);
+}
+
+.editor-page-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-page-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.editor-page-saved {
+  font-size: 11px;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.device-switcher {
+  display: flex;
+  gap: 2px;
+  background: var(--bg2);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.device-btn {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--sub);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.device-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.device-btn.active {
+  background: var(--bg);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.editor-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.editor-sidebar {
+  width: 280px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.editor-sidebar-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-sidebar-header {
+  padding: 12px 16px;
+  background: var(--bg2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sub);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.editor-sidebar-header:hover {
+  background: var(--bg);
+}
+
+.editor-sidebar-content {
+  padding: 12px;
+}
+
+.editor-canvas {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  background: var(--bg2);
+}
+
+.editor-properties {
+  width: 280px;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* GrapesJS Core Styling */
+.gjs-cv-canvas {
+  background: var(--bg2);
+  width: 100%;
+  height: 100%;
+}
+
+.gjs-frame {
+  border: none;
+  background: white;
+}
+
+.gjs-pn-panel {
+  background: transparent;
+}
+
+.gjs-pn-views-container {
+  background: var(--bg);
+}
+
+.gjs-pn-btn {
+  color: var(--text);
+  background: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.gjs-pn-btn:hover,
+.gjs-pn-btn.gjs-pn-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Block Manager */
+.gjs-block-category {
+  border-bottom: 1px solid var(--border);
+}
+
+.gjs-block-category .gjs-title {
+  background: var(--bg2);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+}
+
+.gjs-blocks-c {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+
+.gjs-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.gjs-block:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.gjs-block svg {
+  width: 24px;
+  height: 24px;
+  color: var(--sub);
+}
+
+.gjs-block:hover svg {
+  color: var(--accent);
+}
+
+.gjs-block-label {
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Layer Manager */
+.gjs-layer {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.gjs-layer:hover {
+  background: var(--bg2);
+}
+
+.gjs-layer.gjs-selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.gjs-layer-title {
+  color: inherit;
+  font-size: 13px;
+}
+
+.gjs-layer-eye {
+  color: var(--sub);
+}
+
+.gjs-layer-count {
+  background: var(--bg2);
+  color: var(--sub);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+/* Style Manager */
+.gjs-sm-sector {
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.gjs-sm-sector-title {
+  background: var(--bg2);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+}
+
+.gjs-sm-properties {
+  padding: 12px;
+}
+
+.gjs-sm-property {
+  margin-bottom: 12px;
+}
+
+.gjs-sm-label {
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.gjs-field {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.gjs-field:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  outline: none;
+}
+
+.gjs-field-color {
+  height: 32px;
+  cursor: pointer;
+}
+
+.gjs-field-select {
+  cursor: pointer;
+}
+
+.gjs-field-integer,
+.gjs-field-number {
+  text-align: right;
+}
+
+/* Trait Manager */
+.gjs-trt-trait {
+  margin-bottom: 12px;
+}
+
+.gjs-trt-trait__wrp-label {
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.gjs-trt-trait__wrp-input {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.gjs-trt-trait__wrp-input input,
+.gjs-trt-trait__wrp-input select,
+.gjs-trt-trait__wrp-input textarea {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  width: 100%;
+}
+
+.gjs-trt-trait__wrp-input input:focus,
+.gjs-trt-trait__wrp-input select:focus,
+.gjs-trt-trait__wrp-input textarea:focus {
+  outline: none;
+}
+
+/* Canvas Toolbar */
+.gjs-toolbar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gjs-toolbar-item {
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.gjs-toolbar-item:hover {
+  background: var(--bg2);
+  color: var(--accent);
+}
+
+/* Component highlighting */
+.gjs-selected {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: -2px;
+}
+
+.gjs-hovered {
+  outline: 1px dashed var(--accent) !important;
+  outline-offset: -1px;
+}
+
+/* Resizer */
+.gjs-resizer-h {
+  background: var(--accent);
+}
+
+.gjs-resizer-v {
+  background: var(--accent);
+}
+
+.gjs-resizer-c {
+  background: var(--accent);
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+/* Modal */
+.gjs-mdl-dialog {
+  background: var(--bg);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.gjs-mdl-title {
+  background: var(--bg2);
+  color: var(--text);
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.gjs-mdl-content {
+  padding: 20px;
+  color: var(--text);
+}
+
+.gjs-btn-prim {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.gjs-btn-prim:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Scrollbars */
+.gjs-blocks-c::-webkit-scrollbar,
+.editor-sidebar::-webkit-scrollbar,
+.editor-properties::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gjs-blocks-c::-webkit-scrollbar-track,
+.editor-sidebar::-webkit-scrollbar-track,
+.editor-properties::-webkit-scrollbar-track {
+  background: var(--bg2);
+}
+
+.gjs-blocks-c::-webkit-scrollbar-thumb,
+.editor-sidebar::-webkit-scrollbar-thumb,
+.editor-properties::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.gjs-blocks-c::-webkit-scrollbar-thumb:hover,
+.editor-sidebar::-webkit-scrollbar-thumb:hover,
+.editor-properties::-webkit-scrollbar-thumb:hover {
+  background: var(--sub);
+}

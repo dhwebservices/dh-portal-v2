@@ -3,12 +3,17 @@
  * Base configuration for the visual editor
  */
 
+import 'grapesjs-preset-webpage'
+import 'grapesjs-blocks-basic'
+import registerComponents from './customComponents'
+import registerBlocks from './customBlocks'
+
 const grapesjsConfig = {
   // Height of the editor
   height: '100%',
   width: 'auto',
 
-  // Storage Manager - DISABLED (we'll handle manually via Supabase)
+  // Storage Manager - DISABLED (we handle via Supabase)
   storageManager: false,
 
   // Asset Manager - DISABLED (we'll build custom)
@@ -24,115 +29,56 @@ const grapesjsConfig = {
     scripts: []
   },
 
-  // Panels configuration
-  panels: {
-    defaults: [
-      {
-        id: 'panel-devices',
-        el: '.panel__devices',
-        buttons: [
-          {
-            id: 'device-desktop',
-            label: '<i class="fa fa-desktop"></i>',
-            command: 'set-device-desktop',
-            active: true,
-            togglable: false
-          },
-          {
-            id: 'device-tablet',
-            label: '<i class="fa fa-tablet"></i>',
-            command: 'set-device-tablet',
-            togglable: false
-          },
-          {
-            id: 'device-mobile',
-            label: '<i class="fa fa-mobile"></i>',
-            command: 'set-device-mobile',
-            togglable: false
-          }
-        ]
-      },
-      {
-        id: 'panel-switcher',
-        el: '.panel__switcher',
-        buttons: [
-          {
-            id: 'show-layers',
-            active: true,
-            label: '<i class="fa fa-bars"></i>',
-            command: 'show-layers',
-            togglable: false
-          },
-          {
-            id: 'show-style',
-            active: true,
-            label: '<i class="fa fa-paint-brush"></i>',
-            command: 'show-styles',
-            togglable: false
-          },
-          {
-            id: 'show-traits',
-            active: true,
-            label: '<i class="fa fa-cog"></i>',
-            command: 'show-traits',
-            togglable: false
-          }
-        ]
-      }
-    ]
+  // Block Manager
+  blockManager: {
+    appendTo: '#blocks'
   },
 
   // Layer Manager
   layerManager: {
-    appendTo: '.layers-container'
-  },
-
-  // Block Manager
-  blockManager: {
-    appendTo: '.blocks-container',
-    blocks: []  // Will add custom blocks later
+    appendTo: '#layers'
   },
 
   // Style Manager
   styleManager: {
-    appendTo: '.styles-container',
+    appendTo: '#styles',
     sectors: [
       {
-        name: 'General',
+        name: 'Layout',
         open: false,
-        buildProps: ['float', 'display', 'position', 'top', 'right', 'left', 'bottom']
+        buildProps: ['display', 'position', 'top', 'right', 'left', 'bottom', 'flex-direction', 'justify-content', 'align-items']
       },
       {
         name: 'Dimension',
-        open: false,
+        open: true,
         buildProps: ['width', 'height', 'max-width', 'min-height', 'margin', 'padding']
       },
       {
         name: 'Typography',
         open: false,
-        buildProps: ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align', 'text-shadow']
+        buildProps: ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'color', 'line-height', 'text-align', 'text-decoration', 'text-transform']
       },
       {
         name: 'Decorations',
         open: false,
-        buildProps: ['border-radius', 'background-color', 'border', 'box-shadow', 'background']
+        buildProps: ['background-color', 'background', 'border-radius', 'border', 'box-shadow', 'opacity']
       },
       {
         name: 'Extra',
         open: false,
-        buildProps: ['transition', 'perspective', 'transform']
+        buildProps: ['transition', 'transform', 'cursor', 'overflow']
       }
     ]
   },
 
   // Trait Manager
   traitManager: {
-    appendTo: '.traits-container'
+    appendTo: '#traits'
   },
 
   // Selector Manager
   selectorManager: {
-    appendTo: '.styles-container'
+    appendTo: '#styles'
   },
 
   // Device Manager
@@ -164,15 +110,71 @@ const grapesjsConfig = {
   },
 
   // Enable/Disable features
-  noticeOnUnload: false,  // We'll handle unsaved changes ourselves
+  noticeOnUnload: false,
   showOffsets: true,
   showOffsetsSelected: true,
   clearOnRender: false,
   avoidInlineStyle: false,
 
-  // Plugins - Will add in future weeks
-  plugins: [],
-  pluginsOpts: {}
+  // Plugins
+  plugins: ['gjs-preset-webpage', 'gjs-blocks-basic'],
+  pluginsOpts: {
+    'gjs-preset-webpage': {
+      modalImportTitle: 'Import Template',
+      modalImportLabel: '<div style="margin-bottom: 10px; font-size: 13px;">Paste your HTML/CSS here</div>',
+      modalImportContent: function(editor) {
+        return editor.getHtml() + '<style>' + editor.getCss() + '</style>'
+      },
+      filestackOpts: null,
+      aviaryOpts: false,
+      blocksBasicOpts: { flexGrid: true },
+      customStyleManager: []
+    },
+    'gjs-blocks-basic': {}
+  },
+
+  // Canvas configuration
+  canvasCss: `
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+  `,
+
+  // On load callback
+  onLoad(editor) {
+    // Register custom components
+    registerComponents(editor)
+
+    // Register custom blocks
+    registerBlocks(editor)
+
+    // Add custom commands for panels
+    editor.Commands.add('show-layers', {
+      run(editor) {
+        const lm = editor.Panels.getPanel('views-container')
+        if (lm) lm.set('visible', true)
+      }
+    })
+
+    editor.Commands.add('show-styles', {
+      run(editor) {
+        const sm = editor.Panels.getPanel('views-container')
+        if (sm) sm.set('visible', true)
+      }
+    })
+
+    editor.Commands.add('show-traits', {
+      run(editor) {
+        const tm = editor.Panels.getPanel('views-container')
+        if (tm) tm.set('visible', true)
+      }
+    })
+  }
 }
 
 export default grapesjsConfig

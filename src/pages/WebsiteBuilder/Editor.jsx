@@ -6,6 +6,7 @@ import usePages from '../../hooks/website-builder/usePages'
 import useAutoSave from '../../hooks/website-builder/useAutoSave'
 import NewPageModal from '../../components/website-builder/NewPageModal'
 import 'grapesjs/dist/css/grapes.min.css'
+import '../../styles/website-builder/editor.css'
 
 export default function Editor() {
   const { pageId } = useParams()
@@ -204,9 +205,52 @@ export default function Editor() {
           </div>
         </div>
 
-        {/* Editor Container */}
-        <div className="editor-container">
-          <div id="gjs-editor" />
+        {/* Editor Main Area */}
+        <div className="editor-main">
+          {/* Left Sidebar - Blocks & Layers */}
+          <div className="editor-sidebar">
+            <div className="editor-sidebar-section">
+              <div className="editor-sidebar-header">
+                <span>Components</span>
+              </div>
+              <div className="editor-sidebar-content">
+                <div id="blocks"></div>
+              </div>
+            </div>
+            <div className="editor-sidebar-section" style={{ flex: 1, minHeight: 0 }}>
+              <div className="editor-sidebar-header">
+                <span>Layers</span>
+              </div>
+              <div className="editor-sidebar-content">
+                <div id="layers"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Center Canvas */}
+          <div className="editor-canvas">
+            <div id="gjs-editor"></div>
+          </div>
+
+          {/* Right Sidebar - Styles & Traits */}
+          <div className="editor-properties">
+            <div className="editor-sidebar-section">
+              <div className="editor-sidebar-header">
+                <span>Styles</span>
+              </div>
+              <div className="editor-sidebar-content">
+                <div id="styles"></div>
+              </div>
+            </div>
+            <div className="editor-sidebar-section">
+              <div className="editor-sidebar-header">
+                <span>Settings</span>
+              </div>
+              <div className="editor-sidebar-content">
+                <div id="traits"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -218,130 +262,6 @@ export default function Editor() {
         }}
         onSuccess={handleNewPageCreated}
       />
-
-      <style>{`
-        .editor-layout {
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: var(--bg2);
-        }
-
-        .editor-toolbar {
-          background: var(--bg);
-          border-bottom: 1px solid var(--border);
-          padding: 10px 20px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          flex-shrink: 0;
-          height: 56px;
-        }
-
-        .editor-toolbar-section {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .editor-toolbar-center {
-          flex: 1;
-          justify-content: center;
-        }
-
-        .editor-divider {
-          height: 24px;
-          width: 1px;
-          background: var(--border);
-        }
-
-        .editor-page-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .editor-page-title {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text);
-        }
-
-        .editor-page-saved {
-          font-size: 11px;
-          color: var(--green);
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .device-switcher {
-          display: flex;
-          gap: 2px;
-          background: var(--bg2);
-          padding: 4px;
-          border-radius: 8px;
-        }
-
-        .device-btn {
-          padding: 8px 12px;
-          border: none;
-          background: transparent;
-          color: var(--sub);
-          cursor: pointer;
-          border-radius: 6px;
-          transition: all 0.15s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .device-btn:hover {
-          background: var(--bg);
-          color: var(--text);
-        }
-
-        .device-btn.active {
-          background: var(--bg);
-          color: var(--accent);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .editor-container {
-          flex: 1;
-          position: relative;
-          overflow: hidden;
-        }
-
-        #gjs-editor {
-          height: 100%;
-        }
-
-        /* GrapesJS Customization */
-        .gjs-cv-canvas {
-          background: var(--bg2);
-        }
-
-        .gjs-frame {
-          border: 1px solid var(--border);
-        }
-
-        .gjs-pn-panel {
-          background: var(--bg);
-          border-color: var(--border);
-        }
-
-        .gjs-pn-btn {
-          color: var(--text);
-        }
-
-        .gjs-pn-btn:hover,
-        .gjs-pn-active {
-          background: var(--accent-soft);
-          color: var(--accent);
-        }
-      `}</style>
     </>
   )
 }
