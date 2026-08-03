@@ -793,6 +793,19 @@ function DevModeAuthenticatedApp() {
 export default function App() {
   const isDevMode = typeof window !== 'undefined' && localStorage.getItem('dev-mode') === 'true'
 
+  // Handle Microsoft auth redirects
+  useEffect(() => {
+    msal.handleRedirectPromise()
+      .then(response => {
+        if (response) {
+          console.log('Microsoft auth redirect processed successfully')
+        }
+      })
+      .catch(error => {
+        console.error('Microsoft auth redirect error:', error)
+      })
+  }, [])
+
   return (
     <MsalProvider instance={msal}>
       <BrowserRouter>
