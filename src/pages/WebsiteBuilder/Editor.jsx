@@ -165,28 +165,35 @@ export default function Editor() {
           </div>
 
           <div className="editor-toolbar-section editor-toolbar-center">
-            <div className="device-switcher">
-              <button
-                className={`device-btn ${device === 'desktop' ? 'active' : ''}`}
-                onClick={() => handleDeviceChange('desktop')}
-                title="Desktop"
-              >
-                <Monitor size={16} />
-              </button>
-              <button
-                className={`device-btn ${device === 'tablet' ? 'active' : ''}`}
-                onClick={() => handleDeviceChange('tablet')}
-                title="Tablet"
-              >
-                <Tablet size={16} />
-              </button>
-              <button
-                className={`device-btn ${device === 'mobile' ? 'active' : ''}`}
-                onClick={() => handleDeviceChange('mobile')}
-                title="Mobile"
-              >
-                <Smartphone size={16} />
-              </button>
+            <div className="device-switcher-wrapper">
+              <div className="device-label">
+                {device === 'desktop' && 'Desktop (≥992px)'}
+                {device === 'tablet' && 'Tablet (768-991px)'}
+                {device === 'mobile' && 'Mobile (<768px)'}
+              </div>
+              <div className="device-switcher">
+                <button
+                  className={`device-btn ${device === 'desktop' ? 'active' : ''}`}
+                  onClick={() => handleDeviceChange('desktop')}
+                  title="Desktop"
+                >
+                  <Monitor size={16} />
+                </button>
+                <button
+                  className={`device-btn ${device === 'tablet' ? 'active' : ''}`}
+                  onClick={() => handleDeviceChange('tablet')}
+                  title="Tablet"
+                >
+                  <Tablet size={16} />
+                </button>
+                <button
+                  className={`device-btn ${device === 'mobile' ? 'active' : ''}`}
+                  onClick={() => handleDeviceChange('mobile')}
+                  title="Mobile"
+                >
+                  <Smartphone size={16} />
+                </button>
+              </div>
             </div>
           </div>
 

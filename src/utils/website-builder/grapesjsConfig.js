@@ -39,19 +39,19 @@ const grapesjsConfig = {
     appendTo: '#layers'
   },
 
-  // Style Manager
+  // Style Manager with responsive support
   styleManager: {
     appendTo: '#styles',
     sectors: [
       {
         name: 'Layout',
         open: false,
-        buildProps: ['display', 'position', 'top', 'right', 'left', 'bottom', 'flex-direction', 'justify-content', 'align-items']
+        buildProps: ['display', 'position', 'top', 'right', 'left', 'bottom', 'flex-direction', 'justify-content', 'align-items', 'gap']
       },
       {
         name: 'Dimension',
         open: true,
-        buildProps: ['width', 'height', 'max-width', 'min-height', 'margin', 'padding']
+        buildProps: ['width', 'height', 'max-width', 'min-width', 'max-height', 'min-height', 'margin', 'padding']
       },
       {
         name: 'Typography',
@@ -61,12 +61,12 @@ const grapesjsConfig = {
       {
         name: 'Decorations',
         open: false,
-        buildProps: ['background-color', 'background', 'border-radius', 'border', 'box-shadow', 'opacity']
+        buildProps: ['background-color', 'background', 'background-image', 'background-size', 'background-position', 'border-radius', 'border', 'box-shadow', 'opacity']
       },
       {
         name: 'Extra',
         open: false,
-        buildProps: ['transition', 'transform', 'cursor', 'overflow']
+        buildProps: ['transition', 'transform', 'cursor', 'overflow', 'overflow-x', 'overflow-y', 'z-index']
       }
     ]
   },
@@ -81,25 +81,28 @@ const grapesjsConfig = {
     appendTo: '#styles'
   },
 
-  // Device Manager
+  // Device Manager with responsive breakpoints
   deviceManager: {
     devices: [
       {
         id: 'desktop',
         name: 'Desktop',
-        width: ''
+        width: '', // Default, no media query
+        priority: 1
       },
       {
         id: 'tablet',
         name: 'Tablet',
-        width: '768px',
-        widthMedia: '992px'
+        width: '768px', // Canvas preview width
+        widthMedia: '992px', // Max-width for media query
+        priority: 2
       },
       {
         id: 'mobile',
         name: 'Mobile',
-        width: '375px',
-        widthMedia: '768px'
+        width: '375px', // Canvas preview width
+        widthMedia: '768px', // Max-width for media query
+        priority: 3
       }
     ]
   },
@@ -133,7 +136,7 @@ const grapesjsConfig = {
     'gjs-blocks-basic': {}
   },
 
-  // Canvas configuration
+  // Canvas configuration with responsive utility classes
   canvasCss: `
     * {
       box-sizing: border-box;
@@ -142,6 +145,17 @@ const grapesjsConfig = {
       margin: 0;
       padding: 0;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Responsive visibility utilities */
+    @media (min-width: 992px) {
+      .hide-on-desktop { display: none !important; }
+    }
+    @media (min-width: 768px) and (max-width: 991px) {
+      .hide-on-tablet { display: none !important; }
+    }
+    @media (max-width: 767px) {
+      .hide-on-mobile { display: none !important; }
     }
   `,
 
@@ -172,6 +186,36 @@ const grapesjsConfig = {
       run(editor) {
         const tm = editor.Panels.getPanel('views-container')
         if (tm) tm.set('visible', true)
+      }
+    })
+
+    // Listen for device changes to update responsive indicator
+    editor.on('device:select', () => {
+      const device = editor.getDevice()
+      const event = new CustomEvent('grapesjs:device-change', {
+        detail: { device: device?.id || 'desktop' }
+      })
+      window.dispatchEvent(event)
+    })
+
+    // Add command to toggle element visibility for current device
+    editor.Commands.add('toggle-device-visibility', {
+      run(editor, sender, options = {}) {
+        const selected = editor.getSelected()
+        if (!selected) return
+
+        const device = options.device || editor.getDevice()?.id || 'desktop'
+        const currentClasses = selected.getClasses()
+        const hideClass = `hide-on-${device}`
+
+        if (currentClasses.includes(hideClass)) {
+          selected.removeClass(hideClass)
+        } else {
+          selected.addClass(hideClass)
+        }
+
+        // Trigger re-render
+        selected.trigger('change:classes')
       }
     })
   }
