@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save, Eye, Clock, Check, Upload, Smartphone, Tablet, Monitor, Layers, Settings } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Clock, Check, Upload, Smartphone, Tablet, Monitor, Layers, Settings, Image as ImageIcon } from 'lucide-react'
 import useEditor from '../../hooks/website-builder/useEditor'
 import usePages from '../../hooks/website-builder/usePages'
 import useAutoSave from '../../hooks/website-builder/useAutoSave'
 import NewPageModal from '../../components/website-builder/NewPageModal'
+import AssetManager from '../../components/website-builder/AssetManager'
 import 'grapesjs/dist/css/grapes.min.css'
 import '../../styles/website-builder/editor.css'
 
@@ -16,6 +17,7 @@ export default function Editor() {
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
   const [showNewModal, setShowNewModal] = useState(false)
+  const [showAssetManager, setShowAssetManager] = useState(false)
   const [device, setDevice] = useState('desktop')
   const editorInitializedRef = useRef(false)
 
@@ -217,6 +219,29 @@ export default function Editor() {
                 <div id="blocks"></div>
               </div>
             </div>
+            <div className="editor-sidebar-section">
+              <div className="editor-sidebar-header">
+                <span>Assets</span>
+                <button
+                  className="btn btn-xs btn-ghost"
+                  onClick={() => setShowAssetManager(true)}
+                  style={{ padding: '4px 8px' }}
+                >
+                  <ImageIcon size={12} />
+                  Manage
+                </button>
+              </div>
+              <div className="editor-sidebar-content">
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setShowAssetManager(true)}
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  <Upload size={14} />
+                  Upload Assets
+                </button>
+              </div>
+            </div>
             <div className="editor-sidebar-section" style={{ flex: 1, minHeight: 0 }}>
               <div className="editor-sidebar-header">
                 <span>Layers</span>
@@ -261,6 +286,12 @@ export default function Editor() {
           navigate('/website-builder')
         }}
         onSuccess={handleNewPageCreated}
+      />
+
+      <AssetManager
+        isOpen={showAssetManager}
+        onClose={() => setShowAssetManager(false)}
+        selectionMode={false}
       />
     </>
   )
