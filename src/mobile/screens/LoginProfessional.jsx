@@ -79,12 +79,15 @@ export default function MobileLoginProfessional() {
     try {
       await Haptics.impact({ style: ImpactStyle.Light })
 
-      // Set dev mode flag
-      localStorage.setItem('dev-mode', 'true')
-      localStorage.setItem('dev-user-email', 'david@dhwebsiteservices.co.uk')
-      localStorage.setItem('dev-user-name', 'David Hooper')
-
-      alert('Dev mode enabled! Close and reopen the app to login.')
+      // SECURITY: Only allow dev mode in development builds
+      if (import.meta.env.DEV) {
+        localStorage.setItem('dev-mode', 'true')
+        localStorage.setItem('dev-user-email', 'david@dhwebsiteservices.co.uk')
+        localStorage.setItem('dev-user-name', 'David Hooper')
+        alert('Dev mode enabled! Close and reopen the app to login.')
+      } else {
+        alert('Dev mode is not available in production builds.')
+      }
     } catch (error) {
       alert('Dev login error: ' + error.message)
       console.error('Dev login failed:', error)

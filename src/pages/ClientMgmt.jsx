@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
@@ -921,7 +922,10 @@ export default function ClientMgmt() {
             <div style={{ background:'#f8f6f1', border:'1px solid #e7e1d8', borderRadius:18, padding:22, minHeight:420, maxHeight:680, overflowY:'auto' }}>
               {contractPreview ? (
                 <div style={{ maxWidth:760, margin:'0 auto', background:'#fff', border:'1px solid #e7e1d8', borderRadius:18, padding:'28px 30px', boxShadow:'0 18px 48px rgba(15, 23, 42, 0.08)' }}>
-                  <div style={{ fontFamily:'Georgia, Times New Roman, serif', fontSize:15, lineHeight:1.8, color:'#111' }} dangerouslySetInnerHTML={{ __html: contractPreview }} />
+                  <div style={{ fontFamily:'Georgia, Times New Roman, serif', fontSize:15, lineHeight:1.8, color:'#111' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(contractPreview, {
+                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                    ALLOWED_ATTR: ['style', 'class']
+                  }) }} />
                 </div>
               ) : (
                 <div style={{ fontSize:13, color:'var(--sub)' }}>Choose an active template to preview the contract.</div>

@@ -2,6 +2,20 @@ import { useState, useCallback } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import imageCompression from 'browser-image-compression'
+import DOMPurify from 'dompurify'
+
+// SECURITY: Whitelist of allowed file extensions
+const ALLOWED_EXTENSIONS = {
+  image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'],
+  video: ['mp4', 'webm', 'mov'],
+  document: ['pdf']
+}
+
+const ALL_ALLOWED_EXTENSIONS = [
+  ...ALLOWED_EXTENSIONS.image,
+  ...ALLOWED_EXTENSIONS.video,
+  ...ALLOWED_EXTENSIONS.document
+]
 
 /**
  * Hook for managing website assets (images, videos, files)
@@ -22,25 +36,46 @@ export default function useAssets() {
 
       const { folder = '', optimize = true } = options
 
-      // Validate file
+      // SECURITY: Validate file exists
       if (!file) throw new Error('No file provided')
 
-      const maxSize = file.type.startsWith('image/') ? 10 * 1024 * 1024 : 100 * 1024 * 1024
+      // SECURITY: Extract and validate file extension
+      const fileExt = file.name.split('.').pop().toLowerCase()
+      if (!ALL_ALLOWED_EXTENSIONS.includes(fileExt)) {
+        throw new Error(`File type not allowed. Allowed: ${ALL_ALLOWED_EXTENSIONS.join(', ')}`)
+      }
+
+      // SECURITY: Determine file type from whitelisted extension (not MIME type)
+      let fileType = 'other'
+      if (ALLOWED_EXTENSIONS.image.includes(fileExt)) fileType = 'image'
+      else if (ALLOWED_EXTENSIONS.video.includes(fileExt)) fileType = 'video'
+      else if (ALLOWED_EXTENSIONS.document.includes(fileExt)) fileType = 'document'
+
+      // SECURITY: Validate file size based on type
+      const maxSize = fileType === 'image' ? 10 * 1024 * 1024 : 100 * 1024 * 1024
       if (file.size > maxSize) {
         throw new Error(`File too large. Max size: ${maxSize / 1024 / 1024}MB`)
       }
 
-      // Determine file type
-      let fileType = 'other'
-      if (file.type.startsWith('image/')) fileType = 'image'
-      else if (file.type.startsWith('video/')) fileType = 'video'
-      else if (file.type === 'application/pdf') fileType = 'document'
-
       let processedFile = file
       let originalSize = file.size
 
-      // Optimize images
-      if (fileType === 'image' && optimize && !file.type.includes('svg')) {
+      // SECURITY: Sanitize SVG files to prevent XSS
+      if (fileExt === 'svg') {
+        try {
+          const svgText = await file.text()
+          const sanitizedSvg = DOMPurify.sanitize(svgText, {
+            USE_PROFILES: { svg: true, svgFilters: true },
+            ALLOWED_TAGS: ['svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'g', 'defs', 'linearGradient', 'radialGradient', 'stop', 'clipPath', 'mask'],
+            ALLOWED_ATTR: ['d', 'cx', 'cy', 'r', 'x', 'y', 'width', 'height', 'fill', 'stroke', 'stroke-width', 'transform', 'viewBox', 'xmlns', 'points', 'x1', 'x2', 'y1', 'y2', 'offset', 'stop-color', 'stop-opacity', 'id', 'class']
+          })
+          processedFile = new File([sanitizedSvg], file.name, { type: 'image/svg+xml' })
+        } catch (err) {
+          throw new Error('SVG file is invalid or contains malicious content')
+        }
+      }
+      // Optimize non-SVG images
+      else if (fileType === 'image' && optimize) {
         try {
           processedFile = await imageCompression(file, {
             maxSizeMB: 2,
@@ -53,10 +88,9 @@ export default function useAssets() {
         }
       }
 
-      // Generate unique filename
+      // Generate unique filename with validated extension
       const timestamp = Date.now()
       const randomStr = Math.random().toString(36).substring(2, 8)
-      const fileExt = file.name.split('.').pop()
       const baseName = file.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-')
       const filename = `${baseName}-${timestamp}-${randomStr}.${fileExt}`
       const storagePath = folder ? `${folder}/${filename}` : filename

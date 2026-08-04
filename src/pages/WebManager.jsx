@@ -140,9 +140,7 @@ function ClientProfile({ client, onBack }) {
     supabase.from('gocardless_mandates').select('*').eq('client_email', client.email).maybeSingle().then(({ data }) => setGcStatus(data))
   }, [client.email])
 
-  const WM_SB_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
-  const WM_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-  const wmHeaders = { 'apikey': WM_SB_KEY, 'Authorization': 'Bearer ' + WM_SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+  // SECURITY: Use centralized Supabase client (supabase) instead of hardcoded URL/keys
 
   const createInvoice = async () => {
     if (!invForm.description?.trim() || !invForm.amount) { alert('Description and amount are required'); return }

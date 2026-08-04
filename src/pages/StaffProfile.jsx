@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useMsal } from '@azure/msal-react'
@@ -4782,7 +4783,10 @@ export default function StaffProfile() {
                     </div>
                     <div style={{ padding:'18px 20px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
                       <div style={{ fontSize:12.5, color:'var(--sub)', marginBottom:10 }}>Live merged contract body</div>
-                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedContractPreview }} />
+                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderedContractPreview, {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                        ALLOWED_ATTR: ['style', 'class']
+                      }) }} />
                     </div>
                   </>
                 ) : (
@@ -4933,7 +4937,10 @@ export default function StaffProfile() {
                 {renderedSignDocumentPreview ? (
                   <div style={{ padding:'18px 20px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:12 }}>
                     <div style={{ fontSize:12.5, color:'var(--sub)', marginBottom:10 }}>Live merged document body</div>
-                    <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedSignDocumentPreview }} />
+                    <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderedSignDocumentPreview, {
+                      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                      ALLOWED_ATTR: ['style', 'class']
+                    }) }} />
                   </div>
                 ) : (
                   <div style={{ fontSize:13, color:'var(--sub)' }}>Paste the HTML body above to preview the document staff will sign.</div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { mergeHrProfileWithOnboarding, pickBestProfileRow, syncOnboardingSubmissionToHrProfile } from '../utils/hrProfileSync'
@@ -1100,7 +1101,10 @@ export default function MyProfile() {
                       <span className={`badge badge-${statusTone}`}>{statusLabel}</span>
                     </div>
                     <div style={{ padding:'18px 20px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
-                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                      <div style={{ color:'var(--text)', lineHeight:1.8, fontSize:14 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderedHtml, {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                        ALLOWED_ATTR: ['style', 'class']
+                      }) }} />
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12 }}>
                       <div style={{ padding:'14px 16px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>

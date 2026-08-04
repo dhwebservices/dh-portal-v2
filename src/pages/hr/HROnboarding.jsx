@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import DOMPurify from 'dompurify'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -2079,7 +2080,10 @@ export default function HROnboarding() {
                       {contractStatusLabel ? <span className={`badge badge-${contractStatusLabel[1]}`}>{contractStatusLabel[0]}</span> : null}
                     </div>
                     <div className="staff-onboarding-contract-preview">
-                      <div dangerouslySetInnerHTML={{ __html: renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}) }} />
+                      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}), {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                        ALLOWED_ATTR: ['style', 'class']
+                      }) }} />
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                       {staffContract.template_reference_file_path || staffContract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={openContractReferenceFile}>Open attached template file</button> : null}
@@ -2299,7 +2303,10 @@ export default function HROnboarding() {
                 <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{starterPreview.subject}</div>
               </div>
               <div style={{ border:'1px solid var(--border)', borderRadius:18, padding:'20px 22px', background:'#fff' }}>
-                <div dangerouslySetInnerHTML={{ __html: starterPreview.html }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(starterPreview.html, {
+                  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
+                  ALLOWED_ATTR: ['style', 'class']
+                }) }} />
               </div>
               <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:'14px 16px', background:'var(--bg2)' }}>
                 <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Plain text fallback</div>
