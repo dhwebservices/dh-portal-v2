@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Globe, Edit, Eye, FileText, Layout, Sparkles, Search, Filter } from 'lucide-react'
+import { Plus, Globe, Edit, Eye, FileText, Layout, Sparkles, Search, Filter } from '../../utils/lucide'
 import { SectionPanel, EmptyState } from '../../components/ui'
 import { supabase } from '../../utils/supabase'
 import NewPageModal from '../../components/website-builder/NewPageModal'
