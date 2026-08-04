@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save, Eye, Clock, Check, Upload, Smartphone, Tablet, Monitor, Layers, Settings, Image as ImageIcon, Globe, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Clock, Check, Upload, Smartphone, Tablet, Monitor, Layers, Settings, Image as ImageIcon, Globe, ExternalLink } from '../../utils/lucide'
 import useEditor from '../../hooks/website-builder/useEditor'
 import usePages from '../../hooks/website-builder/usePages'
 import useAutoSave from '../../hooks/website-builder/useAutoSave'
