@@ -101,17 +101,22 @@ const ShopCustomers = lazyRetry(() => import('./pages/shop/ShopCustomers'), 'sho
 
 const msal = new PublicClientApplication(msalConfig)
 
-// CRITICAL: Handle Microsoft auth redirect BEFORE React renders
-// Must be synchronous at module load time, not in useEffect
-msal.handleRedirectPromise()
-  .then((response) => {
+// CRITICAL: Initialize MSAL and handle redirects BEFORE React renders
+// This must happen at module load time to catch auth redirects on mobile
+;(async () => {
+  try {
+    // Initialize MSAL first (required before any other API calls)
+    await msal.initialize()
+
+    // Handle redirect from Microsoft auth
+    const response = await msal.handleRedirectPromise()
     if (response) {
       console.log('[MSAL] Redirect processed:', response.account?.username)
     }
-  })
-  .catch((error) => {
-    console.error('[MSAL] Redirect error:', error)
-  })
+  } catch (error) {
+    console.error('[MSAL] Initialization or redirect error:', error)
+  }
+})()
 
 function RouteLoader() {
   return (
