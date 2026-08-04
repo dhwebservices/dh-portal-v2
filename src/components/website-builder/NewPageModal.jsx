@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, FileText, Sparkles } from 'lucide-react'
+import { X, FileText, Sparkles } from '../../utils/lucide'
 import { Modal } from '../Modal'
 import usePages from '../../hooks/website-builder/usePages'
 

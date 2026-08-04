@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, Search, FolderOpen, Image as ImageIcon, Video, FileText, Trash2, X, Check } from 'lucide-react'
+import { Upload, Search, FolderOpen, Image as ImageIcon, Video, FileText, Trash2, X, Check } from '../../utils/lucide'
 import useAssets from '../../hooks/website-builder/useAssets'
 import { Modal } from '../Modal'
 
