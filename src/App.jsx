@@ -101,6 +101,18 @@ const ShopCustomers = lazyRetry(() => import('./pages/shop/ShopCustomers'), 'sho
 
 const msal = new PublicClientApplication(msalConfig)
 
+// CRITICAL: Handle Microsoft auth redirect BEFORE React renders
+// Must be synchronous at module load time, not in useEffect
+msal.handleRedirectPromise()
+  .then((response) => {
+    if (response) {
+      console.log('[MSAL] Redirect processed:', response.account?.username)
+    }
+  })
+  .catch((error) => {
+    console.error('[MSAL] Redirect error:', error)
+  })
+
 function RouteLoader() {
   return (
     <div className="spin-wrap" style={{ minHeight: '40vh' }}>
@@ -792,19 +804,6 @@ function DevModeAuthenticatedApp() {
 
 export default function App() {
   const isDevMode = typeof window !== 'undefined' && localStorage.getItem('dev-mode') === 'true'
-
-  // Handle Microsoft auth redirects
-  useEffect(() => {
-    msal.handleRedirectPromise()
-      .then(response => {
-        if (response) {
-          console.log('Microsoft auth redirect processed successfully')
-        }
-      })
-      .catch(error => {
-        console.error('Microsoft auth redirect error:', error)
-      })
-  }, [])
 
   return (
     <MsalProvider instance={msal}>
