@@ -1,4 +1,0 @@
-# Cloudflare Pages SPA routing - exclude assets
-/assets/*  200
-/api/*     200
-/*         /index.html  200
