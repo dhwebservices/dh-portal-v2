@@ -25,7 +25,7 @@ const SECTIONS = [
       { to: '/clients',     icon: 'people', label: 'Onboarded Clients', desc: 'Client list',        key: 'clients'     , note: 'Client relationships, records, and account health' },
       { to: '/client-pipeline', icon: 'chart', label: 'Client Pipeline', desc: 'Lifecycle & risk stages', key: 'clients' },
       { to: '/client-mgmt', icon: 'globe',  label: 'Client Portal',     desc: 'Portal management',  key: 'clientmgmt'  , note: 'Client portal, contracts, invoices, and support' },
-      { to: '/web-manager', icon: 'globe',  label: 'Web Manager',       desc: 'Websites & public site', key: 'website_editor' },
+      { to: '/website-builder', icon: 'globe',  label: 'Website Builder',  desc: 'Create client websites', key: 'website_editor' },
       { to: '/pdf-workspace', icon: 'doc',  label: 'PDF Workspace',     desc: 'Internal PDF tools', key: 'pdf_workspace' , note: 'Personal PDFs, shared libraries, and internal document workflows' },
       { to: '/support',     icon: 'chat',   label: 'Support',           desc: 'Tickets & issues',   key: 'support'     , note: 'Support queue and client issue handling' },
       { to: '/knowledge-base', icon: 'doc', label: 'Knowledge Base',    desc: 'Help articles & playbooks', key: 'support' },
