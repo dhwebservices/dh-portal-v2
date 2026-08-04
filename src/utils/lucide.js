@@ -21,6 +21,7 @@ export { default as CreditCard } from 'lucide-react/dist/esm/icons/credit-card.j
 export { default as Download } from 'lucide-react/dist/esm/icons/download.js'
 export { default as Edit } from 'lucide-react/dist/esm/icons/pencil.js'
 export { default as Edit2 } from 'lucide-react/dist/esm/icons/pencil.js'
+export { default as ExternalLink } from 'lucide-react/dist/esm/icons/external-link.js'
 export { default as Eye } from 'lucide-react/dist/esm/icons/eye.js'
 export { default as FileText } from 'lucide-react/dist/esm/icons/file-text.js'
 export { default as Filter } from 'lucide-react/dist/esm/icons/filter.js'
