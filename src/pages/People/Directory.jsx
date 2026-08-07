@@ -31,22 +31,45 @@ export default function PeopleDirectory() {
     try {
       setLoading(true)
 
-      // Query real staff data from hr_profiles and user_permissions
-      const [profilesRes, permissionsRes] = await Promise.all([
+      // Query REAL staff data from multiple tables
+      const [profilesRes, permissionsRes, lifecycleSettingsRes, onboardingRes] = await Promise.all([
         supabase.from('hr_profiles').select('*'),
-        supabase.from('user_permissions').select('*')
+        supabase.from('user_permissions').select('*'),
+        supabase.from('portal_settings').select('key,value').like('key', 'staff_lifecycle:%'),
+        supabase.from('onboarding_submissions').select('user_email,status')
       ])
 
       if (profilesRes.error) throw profilesRes.error
       if (permissionsRes.error) throw permissionsRes.error
 
-      // Merge profiles with permissions
+      // Parse lifecycle settings
+      const lifecycleMap = {}
+      if (lifecycleSettingsRes.data) {
+        lifecycleSettingsRes.data.forEach(setting => {
+          const email = setting.key.replace('staff_lifecycle:', '')
+          lifecycleMap[email.toLowerCase()] = setting.value?.state || null
+        })
+      }
+
+      // Parse onboarding status
+      const onboardingMap = {}
+      if (onboardingRes.data) {
+        onboardingRes.data.forEach(sub => {
+          onboardingMap[sub.user_email.toLowerCase()] = sub.status
+        })
+      }
+
+      // Merge profiles with all data
       const merged = (profilesRes.data || []).map(profile => {
-        const perms = permissionsRes.data?.find(p => p.user_email === profile.user_email)
+        const email = profile.user_email.toLowerCase()
+        const perms = permissionsRes.data?.find(p => p.user_email.toLowerCase() === email)
+        const lifecycleState = lifecycleMap[email]
+        const onboardingStatus = onboardingMap[email]
+
         return {
           ...profile,
           role: perms?.role || 'Staff',
-          status: determineStatus(profile),
+          status: determineStatus(lifecycleState, onboardingStatus, profile),
           department: profile.department || 'Unassigned'
         }
       })
@@ -66,17 +89,29 @@ export default function PeopleDirectory() {
     }
   }
 
-  function determineStatus(profile) {
-    // Check if onboarding
+  function determineStatus(lifecycleState, onboardingStatus, profile) {
+    // Check lifecycle state first (most authoritative)
+    if (lifecycleState === 'terminated' || lifecycleState === 'resigned' || lifecycleState === 'dismissed') {
+      return 'terminated'
+    }
+
+    if (lifecycleState === 'on_leave' || lifecycleState === 'sabbatical') {
+      return 'leave'
+    }
+
+    // Check if in onboarding flow
+    if (onboardingStatus && onboardingStatus !== 'completed') {
+      return 'onboarding'
+    }
+
+    // Check if start date is in future
     const startDate = profile.start_date ? new Date(profile.start_date) : null
     const today = new Date()
-
     if (startDate && startDate > today) {
       return 'onboarding'
     }
 
-    // Check if on leave (this would need leave_requests table check in real app)
-    // For now, use active as default
+    // Default to active
     return 'active'
   }
 
@@ -133,10 +168,11 @@ export default function PeopleDirectory() {
     <div className="ds-content">
       {/* Page Header */}
       <div className="ds-page-header">
-        <h1>People</h1>
-        <div className="flex gap-sm">
-          <Button variant="secondary">Import</Button>
-          <Button variant="primary">+ Add Person</Button>
+        <div>
+          <h1>People</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            Auto-synced from Microsoft Entra · {staff.length} {staff.length === 1 ? 'person' : 'people'}
+          </p>
         </div>
       </div>
 
@@ -254,11 +290,12 @@ export default function PeopleDirectory() {
         <table className="ds-table">
           <TableHeader>
             <TableRow>
-              <TableHead style={{ width: '35%' }}>Person</TableHead>
-              <TableHead style={{ width: '20%' }}>Role</TableHead>
-              <TableHead style={{ width: '20%' }}>Department</TableHead>
-              <TableHead style={{ width: '15%' }}>Status</TableHead>
-              <TableHead style={{ width: '10%' }}>Start Date</TableHead>
+              <TableHead style={{ width: '30%' }}>Person</TableHead>
+              <TableHead style={{ width: '18%' }}>Role</TableHead>
+              <TableHead style={{ width: '18%' }}>Department</TableHead>
+              <TableHead style={{ width: '14%' }}>Status</TableHead>
+              <TableHead style={{ width: '12%' }}>Start Date</TableHead>
+              <TableHead style={{ width: '8%' }}></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -333,11 +370,13 @@ export default function PeopleDirectory() {
                         person.status === 'active' ? 'active' :
                         person.status === 'onboarding' ? 'info' :
                         person.status === 'leave' ? 'warning' :
+                        person.status === 'terminated' ? 'error' :
                         'info'
                       }>
                         {person.status === 'active' ? 'Active' :
                          person.status === 'onboarding' ? 'Onboarding' :
                          person.status === 'leave' ? 'On Leave' :
+                         person.status === 'terminated' ? 'Terminated' :
                          'Active'}
                       </StatusBadge>
                     </TableCell>
@@ -345,6 +384,37 @@ export default function PeopleDirectory() {
                       <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                         {formatDate(person.start_date)}
                       </span>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Impersonate ${person.full_name || person.user_email}?`)) {
+                            // Impersonation logic - would be implemented
+                            alert('Impersonation feature: Log in as this user (admin only)')
+                          }
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          color: 'var(--color-primary)',
+                          background: 'transparent',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--color-bg-hover)'
+                          e.currentTarget.style.borderColor = 'var(--color-primary)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.borderColor = 'var(--color-border)'
+                        }}
+                      >
+                        Impersonate
+                      </button>
                     </TableCell>
                   </TableRow>
                 )

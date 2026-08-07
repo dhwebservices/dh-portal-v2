@@ -131,23 +131,78 @@ function RouteLoader() {
 function MaintenanceLock() {
   const { maintenance } = useAuth()
   return (
-    <div className="fade-in" style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', background:'var(--bg2)' }}>
-      <div className="card card-pad" style={{ maxWidth:640, width:'100%', textAlign:'center', border:'2px solid var(--amber)' }}>
-        <div style={{ fontSize:44, marginBottom:12 }}>🛠</div>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:30, fontWeight:400, color:'var(--text)', marginBottom:10 }}>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      background: 'var(--color-bg-base)'
+    }}>
+      <div style={{
+        maxWidth: '480px',
+        width: '100%',
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--border-radius-lg)',
+        padding: 'var(--space-3xl)',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          background: '#FEF3C7',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto var(--space-lg)',
+          fontSize: '32px'
+        }}>
+          🛠️
+        </div>
+        <h1 style={{
+          fontSize: 'var(--font-size-h1)',
+          fontWeight: 'var(--font-weight-semibold)',
+          color: 'var(--color-text-primary)',
+          marginBottom: 'var(--space-md)'
+        }}>
           Portal Under Maintenance
-        </div>
-        <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:14 }}>
-          {maintenance?.message || 'The staff portal is currently undergoing maintenance. Please come back later.'}
-        </div>
-        {maintenance?.eta ? (
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:999, background:'var(--amber-bg)', color:'var(--amber)', fontSize:12, fontWeight:600, marginBottom:14 }}>
-            Expected back: {maintenance.eta}
+        </h1>
+        <p style={{
+          fontSize: 'var(--font-size-body)',
+          color: 'var(--color-text-secondary)',
+          lineHeight: 'var(--line-height-relaxed)',
+          marginBottom: 'var(--space-lg)'
+        }}>
+          {maintenance?.message || 'The staff portal is currently undergoing maintenance. Please check back soon.'}
+        </p>
+        {maintenance?.eta && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            borderRadius: 'var(--border-radius-md)',
+            background: '#FEF3C7',
+            border: '1px solid #F59E0B',
+            color: '#92400E',
+            fontSize: '13px',
+            fontWeight: 500,
+            marginBottom: 'var(--space-lg)'
+          }}>
+            <span>Expected return: {maintenance.eta}</span>
           </div>
-        ) : null}
-        <div style={{ fontSize:12, color:'var(--faint)' }}>
-          Admin users can still access the portal during maintenance.
-        </div>
+        )}
+        <p style={{
+          fontSize: 'var(--font-size-small)',
+          color: 'var(--color-text-secondary)',
+          marginTop: 'var(--space-lg)',
+          paddingTop: 'var(--space-lg)',
+          borderTop: '1px solid var(--color-border)'
+        }}>
+          Admins can still access the portal during maintenance
+        </p>
       </div>
     </div>
   )
