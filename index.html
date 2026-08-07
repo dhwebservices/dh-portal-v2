@@ -13,6 +13,29 @@
       html { background: #ffffff; }
       [data-theme="dark"] { background: #000000; }
     </style>
+    <script>
+      // Stale-deploy recovery: if the main module fails to load (old cached
+      // HTML pointing at deleted chunks), force one revalidated reload.
+      window.addEventListener('error', function (e) {
+        var t = e.target
+        if (t && t.tagName === 'SCRIPT' && t.src && t.src.indexOf('/assets/') !== -1) {
+          try {
+            if (!sessionStorage.getItem('portal-boot-retry')) {
+              sessionStorage.setItem('portal-boot-retry', '1')
+              location.reload()
+              return
+            }
+          } catch (err) {}
+        }
+      }, true)
+      window.addEventListener('load', function () {
+        try {
+          if (document.getElementById('root') && document.getElementById('root').childNodes.length > 0) {
+            sessionStorage.removeItem('portal-boot-retry')
+          }
+        } catch (err) {}
+      })
+    </script>
   </head>
   <body>
     <div id="root"></div>
