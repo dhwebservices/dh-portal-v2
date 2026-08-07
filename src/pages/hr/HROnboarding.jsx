@@ -1672,7 +1672,7 @@ export default function HROnboarding() {
         <div className="card card-pad" style={{ marginBottom:24 }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
             <div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:8 }}>
                 New starter
               </div>
               <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>Create portal onboarding and preview the welcome email</div>
@@ -1681,7 +1681,7 @@ export default function HROnboarding() {
               </div>
             </div>
             <div style={{ padding:'10px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', minWidth:220 }}>
-              <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Technical contact</div>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:6 }}>Technical contact</div>
               <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>
                 David Hooper<br />
                 <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a><br />
@@ -1789,7 +1789,7 @@ export default function HROnboarding() {
 
       {isReviewer && submissions.length > 0 && (
         <div className="card" style={{ overflow:'hidden', marginBottom:24 }}>
-          <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)' }}>
+          <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', fontSize:13, fontWeight:600, color:'var(--sub)' }}>
             Submissions ({submissions.length})
           </div>
           {adminMessage && (
@@ -2198,7 +2198,7 @@ export default function HROnboarding() {
           <div className="hr-onboarding-review-shell" onClick={e=>e.stopPropagation()}>
             <div className="hr-onboarding-review-head">
               <div>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Staff Onboarding Review</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:6 }}>Staff Onboarding Review</div>
                 <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{viewSub.full_name||viewSub.user_name}</div>
                 <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>
                   {viewSub.user_email} · {viewSub.status || 'submitted'}
@@ -2216,7 +2216,7 @@ export default function HROnboarding() {
                     <div className="hr-onboarding-review-grid">
                       {section.fields.map(([label, value]) => (
                         <div key={`${section.title}-${label}`} className="hr-onboarding-review-card">
-                          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{label}</div>
+                          <div style={{ fontSize:12, color:'var(--faint)', marginBottom:5 }}>{label}</div>
                           <div style={{ fontSize:14, fontWeight:500, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
                             {formatReviewValue(value)}
                           </div>
@@ -2298,18 +2298,18 @@ export default function HROnboarding() {
               <button className="modal-close" onClick={() => setStarterPreview(null)}>×</button>
             </div>
             <div className="modal-body" style={{ display:'grid', gap:16 }}>
-              <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:'14px 16px', background:'var(--bg2)' }}>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Email subject</div>
+              <div style={{ border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:8 }}>Email subject</div>
                 <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{starterPreview.subject}</div>
               </div>
-              <div style={{ border:'1px solid var(--border)', borderRadius:18, padding:'20px 22px', background:'#fff' }}>
+              <div style={{ border:'1px solid var(--border)', borderRadius:8, padding:'20px 22px', background:'var(--card)' }}>
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(starterPreview.html, {
                   ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
                   ALLOWED_ATTR: ['style', 'class']
                 }) }} />
               </div>
-              <div style={{ border:'1px solid var(--border)', borderRadius:14, padding:'14px 16px', background:'var(--bg2)' }}>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>Plain text fallback</div>
+              <div style={{ border:'1px solid var(--border)', borderRadius:8, padding:'14px 16px', background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:8 }}>Plain text fallback</div>
                 <pre style={{ margin:0, whiteSpace:'pre-wrap', fontFamily:'var(--font-mono)', fontSize:12, color:'var(--sub)' }}>{starterPreview.text}</pre>
               </div>
             </div>
