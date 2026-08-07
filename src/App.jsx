@@ -6,7 +6,6 @@ import { Capacitor } from '@capacitor/core'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import TopBar from './components/TopBar'
-import WorkspaceNav from './components/WorkspaceNav'
 import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 import { logSecurityEvent } from './utils/audit'
@@ -733,7 +732,6 @@ function PortalLayout() {
   return (
     <div className="app-layout" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <TopBar />
-      <WorkspaceNav />
       <PortalUpdateWatcher />
       <main style={{ flex: 1, padding: 'var(--space-lg)', background: 'var(--color-bg-base)' }}>
           <Suspense fallback={<RouteLoader />}>

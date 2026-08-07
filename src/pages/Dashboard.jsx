@@ -227,7 +227,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ background: '#FFFFFF', minHeight: 'calc(100vh - 105px)', margin: 'calc(var(--space-lg) * -1)', padding: '32px 40px' }}>
+    <div style={{ background: '#FFFFFF', minHeight: 'calc(100vh - 56px)', margin: 'calc(var(--space-lg) * -1)', padding: '32px 40px' }}>
       {/* Greeting */}
       <div style={{ marginBottom: '32px' }}>
         <div style={{ fontSize: '15px', fontWeight: 400, color: '#334155', marginBottom: '6px' }}>
