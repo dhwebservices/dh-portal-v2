@@ -11,40 +11,40 @@
   --font-size-base: 14px;
   --line-height-base: 1.5;
   /* Surfaces */
-  --bg:       #FAFBFE;
-  --bg2:      #F4F7FC;
-  --bg3:      #EEF2F8;
+  --bg:       #F8FAFC;
+  --bg2:      #F1F5F9;
+  --bg3:      #E2E8F0;
   --card:     #FFFFFF;
 
   /* Borders */
-  --border:   #E6EBF3;
-  --border2:  #D5DDEA;
+  --border:   #E2E8F0;
+  --border2:  #CBD5E1;
 
   /* Text */
-  --text:     #202430;
-  --sub:      #6B7285;
-  --faint:    #9AA3B5;
+  --text:     #0F172A;
+  --sub:      #64748B;
+  --faint:    #94A3B8;
 
   /* Accent */
-  --accent:        #4B70E2;
-  --accent-hover:  #4165D5;
-  --accent-soft:   rgba(75,112,226,0.10);
-  --accent-border: rgba(75,112,226,0.22);
-  --accent-rgb:    75, 112, 226;
+  --accent:        #2563EB;
+  --accent-hover:  #1D4ED8;
+  --accent-soft:   rgba(37,99,235,0.10);
+  --accent-border: rgba(37,99,235,0.22);
+  --accent-rgb:    37, 99, 235;
   --accent-contrast:#FFFFFF;
-  --page-tint:     rgba(75,112,226,0.035);
-  --page-tint-strong: rgba(75,112,226,0.08);
-  --panel-tint:    rgba(75,112,226,0.04);
+  --page-tint:     transparent;
+  --page-tint-strong: rgba(37,99,235,0.06);
+  --panel-tint:    transparent;
 
   /* Status */
-  --green:     #3EAE74;
-  --green-bg:  rgba(29,131,72,0.08);
-  --red:       #D66B62;
-  --red-bg:    rgba(192,57,43,0.08);
-  --amber:     #D39A38;
-  --amber-bg:  rgba(183,119,13,0.08);
-  --blue:      #4B70E2;
-  --blue-bg:   rgba(75,112,226,0.08);
+  --green:     #16A34A;
+  --green-bg:  rgba(22,163,74,0.10);
+  --red:       #DC2626;
+  --red-bg:    rgba(220,38,38,0.08);
+  --amber:     #B45309;
+  --amber-bg:  rgba(180,83,9,0.10);
+  --blue:      #2563EB;
+  --blue-bg:   rgba(37,99,235,0.08);
 
   /* Typography */
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -54,14 +54,14 @@
   /* Layout */
   --sw: 72px;
   --sidebar-panel-w: 284px;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-lg: 20px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
 
   /* Elevation — 3 tiers, replaces per-page shadow recipes */
-  --shadow-sm: 0 10px 24px rgba(25, 40, 72, 0.035);
-  --shadow-md: 0 10px 30px rgba(25, 40, 72, 0.045);
-  --shadow-lg: 0 18px 42px rgba(25, 40, 72, 0.08);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 [data-theme="dark"] {
@@ -152,8 +152,8 @@ body {
   gap: 14px;
   padding: 32px 28px;
   border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, white 8%), color-mix(in srgb, var(--bg2) 82%, white 18%));
+  border: 1px solid var(--border);
+  background: var(--card);
   box-shadow: 0 28px 60px rgba(17, 24, 39, 0.14);
 }
 .portal-loader__mark-wrap {
@@ -163,7 +163,7 @@ body {
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--card) 84%, white 16%);
-  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent-border) 22%);
+  border: 1px solid var(--border);
   animation: portalLoaderRise 0.62s cubic-bezier(0.16,1,0.3,1) both;
 }
 .portal-loader__mark {
@@ -1048,12 +1048,9 @@ button { cursor: pointer; font-family: inherit; }
   padding: 28px 30px;
   margin-bottom: 20px;
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
-  box-shadow: var(--shadow-lg);
-  background:
-    radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.12), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(var(--accent-rgb), 0.06), transparent 26%),
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  background: var(--card);
 }
 .staff-profile-hero-main {
   display: grid;
@@ -1069,20 +1066,19 @@ button { cursor: pointer; font-family: inherit; }
   min-width: 0;
 }
 .staff-profile-avatar {
-  width: 76px;
-  height: 76px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 56%, white 44%));
-  border: 1px solid var(--accent-border);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
   font-family: var(--font-display);
-  color: var(--accent);
+  color: #FFFFFF;
   flex-shrink: 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
 }
 .staff-profile-hero-copy {
   min-width: 0;
@@ -1094,22 +1090,19 @@ button { cursor: pointer; font-family: inherit; }
 }
 .staff-profile-hero-highlight-card {
   padding: 14px 15px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(10px);
-  display: grid;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+    display: grid;
   gap: 5px;
 }
 .staff-profile-hero-highlight-card-wide {
   grid-column: 1 / -1;
 }
 .staff-profile-hero-highlight-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--faint);
 }
 .staff-profile-hero-highlight-value {
@@ -1124,11 +1117,9 @@ button { cursor: pointer; font-family: inherit; }
   line-height: 1.5;
 }
 .staff-profile-kicker {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: color-mix(in srgb, var(--faint) 72%, var(--accent) 28%);
   margin-bottom: 10px;
 }
@@ -1164,9 +1155,9 @@ button { cursor: pointer; font-family: inherit; }
   display: grid;
   gap: 12px;
   padding: 18px;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
-  background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(248,250,255,0.96));
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
 }
 .staff-profile-action-head {
@@ -1189,7 +1180,7 @@ button { cursor: pointer; font-family: inherit; }
   gap: 16px;
   padding: 14px 16px;
   background: var(--card);
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid var(--border);
 }
 .staff-profile-summary-grid {
@@ -1201,16 +1192,14 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-summary-card {
   padding: 16px 18px;
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, white 6%), color-mix(in srgb, var(--card) 88%, var(--page-tint) 12%));
+  border: 1px solid var(--border);
+  background: var(--card);
   box-shadow: var(--shadow-sm);
 }
 .staff-profile-summary-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--faint);
   margin-bottom: 8px;
 }
@@ -1229,9 +1218,9 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-tab-shell {
   padding: 16px 18px 14px;
   margin-bottom: 18px;
-  border-radius: 18px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%);
+  background: var(--card);
 }
 .staff-profile-tab-caption {
   max-width: 420px;
@@ -1254,9 +1243,9 @@ button { cursor: pointer; font-family: inherit; }
   position: sticky;
   top: 96px;
   padding: 16px;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 95%, white 5%), color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%));
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
   box-shadow: 0 18px 42px rgba(32, 52, 96, 0.06);
 }
 .staff-profile-nav-head {
@@ -1266,16 +1255,14 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-nav-current {
   margin-top: 14px;
   padding: 13px 14px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-border) 28%);
+  border-radius: 10px;
+  border: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent-soft) 72%, white 28%);
 }
 .staff-profile-nav-current-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: color-mix(in srgb, var(--faint) 58%, var(--accent) 42%);
 }
 .staff-profile-nav-current-title {
@@ -1301,7 +1288,7 @@ button { cursor: pointer; font-family: inherit; }
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--card) 92%, var(--bg2) 8%);
   color: var(--text);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 12px 14px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -1357,9 +1344,9 @@ button { cursor: pointer; font-family: inherit; }
   gap: 16px;
   padding: 18px 20px;
   margin-bottom: 16px;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--accent-border) 24%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%));
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
 }
 .staff-profile-content-title {
   margin-top: 5px;
@@ -1381,8 +1368,8 @@ button { cursor: pointer; font-family: inherit; }
   justify-content: flex-end;
 }
 .staff-profile-overview-card {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 85%, var(--accent-soft) 15%), color-mix(in srgb, var(--card) 92%, white 8%)) !important;
-  border: 1px solid color-mix(in srgb, var(--border) 68%, var(--accent-border) 32%) !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
 }
 .staff-profile-overview-signal-grid {
   display: grid;
@@ -1393,15 +1380,13 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-overview-signal-card {
   padding: 13px 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.68);
+  border-radius: 8px;
+  background: var(--card);
 }
 .staff-profile-overview-signal-label {
   font-size: 11px;
   color: var(--faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 4px;
+    margin-bottom: 4px;
 }
 .staff-profile-overview-signal-value {
   font-size: 20px;
@@ -1423,11 +1408,11 @@ button { cursor: pointer; font-family: inherit; }
 .staff-profile-overview-pane {
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.68);
+  border-radius: 8px;
+  background: var(--card);
 }
 .staff-profile-admin-shell {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%));
+  background: var(--card);
 }
 .staff-profile-jump-grid {
   display: grid;
@@ -1470,7 +1455,7 @@ button { cursor: pointer; font-family: inherit; }
 .t-main { color: var(--text) !important; font-weight: 500; }
 
 /* ── Badges ── */
-.badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-family: var(--font-mono); font-size: 10px; font-weight: 500; white-space: nowrap; letter-spacing: 0.02em; }
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-family: var(--font-body); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .badge-green { background: var(--green-bg);  color: var(--green); }
 .badge-red   { background: var(--red-bg);    color: var(--red);   }
 .badge-amber { background: var(--amber-bg);  color: var(--amber); }
@@ -1512,7 +1497,7 @@ button { cursor: pointer; font-family: inherit; }
 .inp::placeholder { color: var(--faint); }
 select.inp { cursor: pointer; }
 textarea.inp { resize: vertical; line-height: 1.6; }
-.lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 6px; font-weight: 500; }
+.lbl { font-family: var(--font-body); font-size: 13px; color: var(--sub); display: block; margin-bottom: 6px; font-weight: 500; }
 
 /* ── Modal ── */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; animation: fadeIn 0.2s ease; }
@@ -1530,9 +1515,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   z-index: 1100;
   padding: 0;
   background: rgba(248, 250, 255, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  overflow: hidden;
+    -webkit-  overflow: hidden;
 }
 
 .hr-onboarding-review-shell {
@@ -2575,7 +2558,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .overview-hero-presence {
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--page-tint) 12%), var(--card));
+  background: var(--card);
   border-radius: 18px;
   padding: 14px;
   display: grid;
@@ -2611,7 +2594,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .surface-card {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
@@ -2739,7 +2722,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .notification-row-unread {
   border-color: var(--accent-border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--accent-soft) 12%), color-mix(in srgb, var(--card) 95%, var(--page-tint) 5%));
+  background: var(--card);
 }
 
 .insight-grid {
@@ -2791,7 +2774,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   width: min(340px, calc(100vw - 24px));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--card) 90%, var(--page-tint) 10%), var(--card));
-  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--accent-border) 22%);
+  border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
   backdrop-filter: blur(18px);
@@ -4441,7 +4424,7 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 /* ── SectionPanel ── */
 .ui-section-panel {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card));
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
