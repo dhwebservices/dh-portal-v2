@@ -15,12 +15,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   const firstName = user?.name?.split(' ')[0] || 'there'
-  const dateStr = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 
   useEffect(() => {
     loadDashboardData()
@@ -65,161 +59,187 @@ export default function Dashboard() {
 
   return (
     <div className="ds-content">
-      {/* Simple greeting - RotaCloud style */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontSize: '13px', color: '#737373', marginBottom: '4px' }}>
-          {dateStr}
-        </div>
-        <h1 style={{
-          fontSize: '36px',
-          fontWeight: 600,
-          color: '#171717',
-          marginBottom: '8px',
-          lineHeight: 1.2
-        }}>
-          Hi, {firstName.toLowerCase()}
-        </h1>
-        <p style={{ fontSize: '15px', color: '#737373' }}>
-          Welcome to your Dashboard!
-        </p>
-      </div>
-
-      {/* Quick stats - RotaCloud clean cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px',
-        marginBottom: '32px'
-      }}>
-        <div onClick={() => navigate('/my-tasks')} style={{
-          padding: '24px',
-          background: 'white',
-          border: '1px solid #E5E5E5',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          transition: 'border-color 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E5E5'}
-        >
-          <div style={{ fontSize: '13px', color: '#737373', marginBottom: '8px' }}>
-            Tasks
-          </div>
-          <div style={{ fontSize: '42px', fontWeight: 600, color: '#171717', lineHeight: 1 }}>
-            {stats.tasks}
-          </div>
-          <div style={{ fontSize: '12px', color: '#A3A3A3', marginTop: '4px' }}>
-            open
-          </div>
+      <div style={{ maxWidth: '1200px' }}>
+        {/* Greeting - exactly like RotaCloud */}
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 600, color: '#171717', marginBottom: '8px' }}>
+            Hi, <span style={{ color: '#0066CC' }}>{firstName.toLowerCase()}</span>
+          </h1>
+          <p style={{ fontSize: '16px', color: '#525252', fontWeight: 400 }}>
+            Welcome to your new Dashboard!
+          </p>
         </div>
 
-        <div onClick={() => navigate('/clients')} style={{
-          padding: '24px',
-          background: 'white',
-          border: '1px solid #E5E5E5',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          transition: 'border-color 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E5E5'}
-        >
-          <div style={{ fontSize: '13px', color: '#737373', marginBottom: '8px' }}>
-            Clients
-          </div>
-          <div style={{ fontSize: '42px', fontWeight: 600, color: '#171717', lineHeight: 1 }}>
-            {stats.clients}
-          </div>
-          <div style={{ fontSize: '12px', color: '#A3A3A3', marginTop: '4px' }}>
-            active
-          </div>
-        </div>
-
-        <div onClick={() => navigate('/support')} style={{
-          padding: '24px',
-          background: 'white',
-          border: '1px solid #E5E5E5',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          transition: 'border-color 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E5E5'}
-        >
-          <div style={{ fontSize: '13px', color: '#737373', marginBottom: '8px' }}>
-            Support
-          </div>
-          <div style={{ fontSize: '42px', fontWeight: 600, color: '#171717', lineHeight: 1 }}>
-            {stats.tickets}
-          </div>
-          <div style={{ fontSize: '12px', color: '#A3A3A3', marginTop: '4px' }}>
-            open tickets
-          </div>
-        </div>
-
-        <div onClick={() => navigate('/notifications')} style={{
-          padding: '24px',
-          background: 'white',
-          border: '1px solid #E5E5E5',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          transition: 'border-color 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E5E5'}
-        >
-          <div style={{ fontSize: '13px', color: '#737373', marginBottom: '8px' }}>
-            Notifications
-          </div>
-          <div style={{ fontSize: '42px', fontWeight: 600, color: '#171717', lineHeight: 1 }}>
-            {stats.notifications}
-          </div>
-          <div style={{ fontSize: '12px', color: '#A3A3A3', marginTop: '4px' }}>
-            unread
-          </div>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#171717', marginBottom: '16px' }}>
-          Quick actions
-        </h2>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          {[
-            { label: 'View Tasks', path: '/my-tasks' },
-            { label: 'View Clients', path: '/clients' },
-            { label: 'Support Tickets', path: '/support' },
-            { label: 'My Schedule', path: '/schedule' },
-            { label: 'Send Email', path: '/send-email' },
-            { label: 'People Directory', path: '/people' }
-          ].map((action) => (
-            <button
-              key={action.path}
-              onClick={() => navigate(action.path)}
-              style={{
-                padding: '10px 18px',
+        {/* Stats sections - RotaCloud style */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          {/* Tasks Section */}
+          <div style={{
+            background: '#F9FAFB',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            padding: '24px'
+          }}>
+            <div style={{ 
+              fontSize: '16px', 
+              fontWeight: 600, 
+              color: '#171717',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>→</span> Tasks
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+              <div 
+                onClick={() => navigate('/my-tasks')}
+                style={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '6px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+              >
+                <div style={{ fontSize: '48px', fontWeight: 700, color: '#171717', lineHeight: 1, marginBottom: '8px' }}>
+                  {stats.tasks}
+                </div>
+                <div style={{ fontSize: '13px', color: '#737373' }}>
+                  Open
+                </div>
+              </div>
+              <div style={{
                 background: 'white',
-                border: '1px solid #E5E5E5',
+                border: '1px solid #E5E7EB',
                 borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#171717',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#0066CC'
-                e.currentTarget.style.color = '#0066CC'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#E5E5E5'
-                e.currentTarget.style.color = '#171717'
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
+                padding: '20px'
+              }}>
+                <div style={{ fontSize: '48px', fontWeight: 700, color: '#171717', lineHeight: 1, marginBottom: '8px' }}>
+                  0
+                </div>
+                <div style={{ fontSize: '13px', color: '#737373' }}>
+                  Overdue
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Clients Section */}
+          <div style={{
+            background: '#F9FAFB',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            padding: '24px'
+          }}>
+            <div style={{ 
+              fontSize: '16px', 
+              fontWeight: 600, 
+              color: '#171717',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>→</span> Clients
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+              <div
+                onClick={() => navigate('/clients')}
+                style={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '6px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+              >
+                <div style={{ fontSize: '48px', fontWeight: 700, color: '#171717', lineHeight: 1, marginBottom: '8px' }}>
+                  {stats.clients}
+                </div>
+                <div style={{ fontSize: '13px', color: '#737373' }}>
+                  Active
+                </div>
+              </div>
+              <div
+                onClick={() => navigate('/support')}
+                style={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '6px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066CC'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+              >
+                <div style={{ fontSize: '48px', fontWeight: 700, color: '#171717', lineHeight: 1, marginBottom: '8px' }}>
+                  {stats.tickets}
+                </div>
+                <div style={{ fontSize: '13px', color: '#737373' }}>
+                  Support tickets
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick links section */}
+        <div style={{
+          background: '#F9FAFB',
+          border: '1px solid #E5E7EB',
+          borderRadius: '8px',
+          padding: '24px'
+        }}>
+          <div style={{ 
+            fontSize: '16px', 
+            fontWeight: 600, 
+            color: '#171717',
+            marginBottom: '16px'
+          }}>
+            Quick actions
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            {[
+              { label: 'View all tasks', path: '/my-tasks' },
+              { label: 'View all clients', path: '/clients' },
+              { label: 'View support tickets', path: '/support' },
+              { label: 'People directory', path: '/people' }
+            ].map(action => (
+              <button
+                key={action.path}
+                onClick={() => navigate(action.path)}
+                style={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '6px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: '#171717',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#0066CC'
+                  e.currentTarget.style.background = '#F0F9FF'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB'
+                  e.currentTarget.style.background = 'white'
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

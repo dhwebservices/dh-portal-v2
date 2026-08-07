@@ -732,8 +732,6 @@ function PortalUpdateWatcher() {
 function PortalLayout() {
   return (
     <div className="app-layout" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <DesktopCursor />
-      <AmbientBackground />
       <TopBar />
       <WorkspaceNav />
       <PortalUpdateWatcher />
