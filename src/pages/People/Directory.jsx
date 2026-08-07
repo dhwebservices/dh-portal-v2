@@ -197,25 +197,33 @@ export default function PeopleDirectory() {
         background: 'var(--color-bg-surface)',
         border: '1px solid var(--color-border)',
         borderRadius: 'var(--border-radius-lg)',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
       }}>
         {/* Table Controls */}
         <div style={{
-          padding: 'var(--space-md)',
+          padding: '16px 20px',
           borderBottom: '1px solid var(--color-border)',
           display: 'flex',
           gap: '12px',
-          alignItems: 'center'
+          alignItems: 'center',
+          background: '#FAFAFA'
         }}>
           <FormInput
-            placeholder="Search staff..."
+            placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, maxWidth: '320px' }}
+            style={{
+              flex: 1,
+              maxWidth: '400px',
+              fontSize: '14px',
+              height: '36px'
+            }}
           />
           <FormSelect
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
+            style={{ minWidth: '160px', height: '36px' }}
           >
             <option value="all">All Departments</option>
             {departments.map(dept => (
@@ -225,24 +233,32 @@ export default function PeopleDirectory() {
           <FormSelect
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
+            style={{ minWidth: '140px', height: '36px' }}
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="onboarding">Onboarding</option>
             <option value="leave">On Leave</option>
           </FormSelect>
+          <div style={{
+            fontSize: '13px',
+            color: 'var(--color-text-secondary)',
+            marginLeft: 'auto',
+            whiteSpace: 'nowrap'
+          }}>
+            {filteredStaff.length} {filteredStaff.length === 1 ? 'person' : 'people'}
+          </div>
         </div>
 
         {/* Table */}
         <table className="ds-table">
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Start Date</TableHead>
+              <TableHead style={{ width: '35%' }}>Person</TableHead>
+              <TableHead style={{ width: '20%' }}>Role</TableHead>
+              <TableHead style={{ width: '20%' }}>Department</TableHead>
+              <TableHead style={{ width: '15%' }}>Status</TableHead>
+              <TableHead style={{ width: '10%' }}>Start Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -253,33 +269,86 @@ export default function PeopleDirectory() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredStaff.map(person => (
-                <TableRow
-                  key={person.user_email}
-                  onClick={() => handleRowClick(person)}
-                >
-                  <TableCell>
-                    <strong>{person.full_name || person.user_email}</strong>
-                  </TableCell>
-                  <TableCell>{person.role}</TableCell>
-                  <TableCell>{person.department}</TableCell>
-                  <TableCell>{person.user_email}</TableCell>
-                  <TableCell>
-                    <StatusBadge variant={
-                      person.status === 'active' ? 'active' :
-                      person.status === 'onboarding' ? 'info' :
-                      person.status === 'leave' ? 'warning' :
-                      'info'
-                    }>
-                      {person.status === 'active' ? 'Active' :
-                       person.status === 'onboarding' ? 'Onboarding' :
-                       person.status === 'leave' ? 'On Leave' :
-                       'Active'}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell>{formatDate(person.start_date)}</TableCell>
-                </TableRow>
-              ))
+              filteredStaff.map(person => {
+                const initials = person.full_name
+                  ? person.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                  : person.user_email[0].toUpperCase()
+
+                return (
+                  <TableRow
+                    key={person.user_email}
+                    onClick={() => handleRowClick(person)}
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <TableCell>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          flexShrink: 0
+                        }}>
+                          {initials}
+                        </div>
+                        <div>
+                          <div style={{
+                            fontWeight: 500,
+                            fontSize: '14px',
+                            color: 'var(--color-text-primary)',
+                            marginBottom: '2px'
+                          }}>
+                            {person.full_name || 'No Name'}
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'var(--color-text-secondary)'
+                          }}>
+                            {person.user_email}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
+                        {person.role}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                        {person.department}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge variant={
+                        person.status === 'active' ? 'active' :
+                        person.status === 'onboarding' ? 'info' :
+                        person.status === 'leave' ? 'warning' :
+                        'info'
+                      }>
+                        {person.status === 'active' ? 'Active' :
+                         person.status === 'onboarding' ? 'Onboarding' :
+                         person.status === 'leave' ? 'On Leave' :
+                         'Active'}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                        {formatDate(person.start_date)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </table>

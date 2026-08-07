@@ -1,47 +1,49 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
-import { Modal } from '../components/Modal'
-import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
+import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
+import {
+  Button,
+  Toggle,
+  FormField,
+  FormLabel,
+  FormInput,
+  FormSelect,
+  FormHint,
+  Alert
+} from '../components/ds'
 
 const STATUS_OPTS = [
-  { value:'operational', label:'Operational', color:'var(--green)' },
-  { value:'degraded',    label:'Degraded',    color:'var(--amber)' },
-  { value:'outage',      label:'Outage',      color:'var(--red)'   },
-  { value:'maintenance', label:'Maintenance', color:'var(--blue)'  },
+  { value: 'operational', label: 'Operational', color: '#10B981' },
+  { value: 'degraded', label: 'Degraded', color: '#F59E0B' },
+  { value: 'outage', label: 'Outage', color: '#EF4444' },
+  { value: 'maintenance', label: 'Maintenance', color: '#0066CC' },
 ]
 
 const PRESET_SYSTEMS = [
-  { name:'Staff Portal',        url:'https://staff.dhwebsiteservices.co.uk' },
-  { name:'Client Portal',       url:'https://app.dhwebsiteservices.co.uk'   },
-  { name:'Public Website',      url:'https://dhwebsiteservices.co.uk'       },
-  { name:'Email (Microsoft 365)', url:''                                    },
-  { name:'GoCardless Payments', url:'https://gocardless.com'                },
-  { name:'Supabase Database',   url:'https://supabase.com'                  },
-  { name:'Cloudflare CDN',      url:'https://cloudflare.com'                },
-  { name:'Microsoft 365',       url:'https://portal.office.com'             },
-  { name:'GitHub',              url:'https://github.com/dhwebservices'      },
+  { name: 'Staff Portal', url: 'https://staff.dhwebsiteservices.co.uk' },
+  { name: 'Client Portal', url: 'https://app.dhwebsiteservices.co.uk' },
+  { name: 'Public Website', url: 'https://dhwebsiteservices.co.uk' },
+  { name: 'Email (Microsoft 365)', url: '' },
+  { name: 'Supabase Database', url: 'https://supabase.com' },
+  { name: 'Cloudflare CDN', url: 'https://cloudflare.com' },
+  { name: 'Microsoft 365', url: 'https://portal.office.com' },
+  { name: 'GitHub', url: 'https://github.com/dhwebservices' },
 ]
-
-const EMPTY = { name:'', status:'operational', note:'', url:'' }
 
 export default function Maintenance() {
   const { user } = useAuth()
   const [systems, setSystems] = useState([])
-  const [portalMaintenance, setPortalMaintenance] = useState({ enabled:false, message:'', eta:'' })
-  const [savedPortalMaintenance, setSavedPortalMaintenance] = useState({ enabled:false, message:'', eta:'' })
+  const [portalMaintenance, setPortalMaintenance] = useState({ enabled: false, message: '', eta: '' })
+  const [savedPortalMaintenance, setSavedPortalMaintenance] = useState({ enabled: false, message: '', eta: '' })
   const [loading, setLoading] = useState(true)
-  const [modal, setModal]     = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm]       = useState(EMPTY)
-  const [saving, setSaving]   = useState(false)
   const [portalSaving, setPortalSaving] = useState(false)
   const [portalSaved, setPortalSaved] = useState('')
   const [portalError, setPortalError] = useState('')
-  const sf = (k,v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => { load() }, [])
+
   const load = async () => {
     setLoading(true)
     const [{ data }, { data: maintenanceSetting }] = await Promise.all([
@@ -60,20 +62,14 @@ export default function Maintenance() {
     setLoading(false)
   }
 
-  const openAdd     = () => { setEditing(null); setForm(EMPTY); setModal(true) }
-  const openEdit    = s => { setEditing(s); setForm({ ...s }); setModal(true) }
-  const close       = () => { setModal(false); setEditing(null) }
-  const save = async () => {
-    setSaving(true)
-    if (editing) await supabase.from('maintenance_systems').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id)
-    else await supabase.from('maintenance_systems').insert([{ ...form, updated_at: new Date().toISOString() }])
-    setSaving(false); close(); load()
-  }
-  const del = async (id, name) => { if (!confirm('Remove '+name+'?')) return; await supabase.from('maintenance_systems').delete().eq('id', id); load() }
-
   const addPreset = async (preset) => {
     if (systems.find(s => s.name === preset.name)) return
-    await supabase.from('maintenance_systems').insert([{ name: preset.name, url: preset.url, status:'operational', updated_at: new Date().toISOString() }])
+    await supabase.from('maintenance_systems').insert([{
+      name: preset.name,
+      url: preset.url,
+      status: 'operational',
+      updated_at: new Date().toISOString()
+    }])
     load()
   }
 
@@ -81,12 +77,13 @@ export default function Maintenance() {
     setPortalSaving(true)
     setPortalError('')
     const shouldNotifyStaff = !savedPortalMaintenance.enabled && portalMaintenance.enabled
+
     const { error: settingsError } = await supabase
       .from('portal_settings')
       .upsert({
         key: 'portal_maintenance',
         value: { value: portalMaintenance },
-      }, { onConflict:'key' })
+      }, { onConflict: 'key' })
 
     if (settingsError) {
       setPortalSaving(false)
@@ -97,7 +94,6 @@ export default function Maintenance() {
     if (shouldNotifyStaff) {
       try {
         const recipients = await loadActivePortalStaffAudience()
-
         const subject = 'DH Staff Portal Under Maintenance'
         const message = `
           <p>Hi {{name}},</p>
@@ -109,14 +105,14 @@ export default function Maintenance() {
         await sendPacedEmailBroadcast(
           recipients,
           (recipient) => sendEmail('send_email', {
-              to: recipient.email,
-              to_name: recipient.name,
-              subject,
-              html: message.replace('{{name}}', recipient.name || 'there'),
-              sent_by: user?.name || 'System',
-              from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
-              log_outreach: false,
-            })
+            to: recipient.email,
+            to_name: recipient.name,
+            subject,
+            html: message.replace('{{name}}', recipient.name || 'there'),
+            sent_by: user?.name || 'System',
+            from_email: 'DH Website Services <noreply@dhwebsiteservices.co.uk>',
+            log_outreach: false,
+          })
         )
       } catch (err) {
         console.error('Maintenance notification send failed:', err)
@@ -129,126 +125,288 @@ export default function Maintenance() {
     setPortalSaving(false)
   }
 
-  const statusColor = Object.fromEntries(STATUS_OPTS.map(s => [s.value, s.color]))
   const overall = systems.length === 0 ? 'operational' : systems.every(s => s.status === 'operational') ? 'operational' : systems.some(s => s.status === 'outage') ? 'outage' : 'degraded'
-  const overallColor = { operational:'var(--green)', degraded:'var(--amber)', outage:'var(--red)', maintenance:'var(--blue)' }[overall] || 'var(--green)'
+  const overallColor = { operational: '#10B981', degraded: '#F59E0B', outage: '#EF4444', maintenance: '#0066CC' }[overall] || '#10B981'
+
+  if (loading) {
+    return (
+      <div className="ds-content">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          Loading...
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Maintenance</h1><p className="page-sub">System status board</p></div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add System</button>
-      </div>
-
-      {/* Overall status banner */}
-      <div style={{ padding:'16px 20px', borderRadius:10, background:'var(--card)', border:`2px solid ${overallColor}`, marginBottom:24, display:'flex', alignItems:'center', gap:12 }}>
-        <div style={{ width:14, height:14, borderRadius:'50%', background:overallColor, flexShrink:0, boxShadow:`0 0 8px ${overallColor}` }}/>
+    <div className="ds-content">
+      {/* Page Header */}
+      <div className="ds-page-header">
         <div>
-          <div style={{ fontWeight:600, fontSize:15 }}>All Systems <span style={{ color:overallColor, textTransform:'capitalize' }}>{overall === 'operational' ? 'Operational' : overall}</span></div>
-          <div style={{ fontSize:12, color:'var(--faint)', marginTop:1 }}>{systems.length} systems monitored · Last updated {new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}</div>
+          <h1>Maintenance</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+            Control portal access and system status
+          </p>
         </div>
       </div>
 
-      <div className="card card-pad" style={{ marginBottom:20, maxWidth:720 }}>
-        <div className="lbl" style={{ marginBottom:12 }}>Portal Maintenance Lock</div>
-        <div style={{ display:'grid', gap:14 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid var(--border)' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>Enable maintenance mode</div>
-              <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>Blocks staff access after login, while admins can still enter the portal.</div>
-            </div>
-            <button onClick={() => setPortalMaintenance((current) => ({ ...current, enabled: !current.enabled }))} style={{ width:40, height:22, borderRadius:11, background: portalMaintenance.enabled ? 'var(--amber)' : 'var(--border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
-              <div style={{ position:'absolute', top:2, left: portalMaintenance.enabled ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
-            </button>
+      {/* Portal Maintenance Lock */}
+      <div style={{
+        background: portalMaintenance.enabled ? '#FEF3C7' : 'var(--color-bg-surface)',
+        border: `2px solid ${portalMaintenance.enabled ? '#F59E0B' : 'var(--color-border)'}`,
+        borderRadius: 'var(--border-radius-lg)',
+        padding: 'var(--space-xl)',
+        marginBottom: 'var(--space-xl)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 'var(--space-lg)',
+          marginBottom: 'var(--space-lg)'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: 'var(--border-radius-md)',
+            background: portalMaintenance.enabled ? '#F59E0B' : '#E5E5E5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontSize: '24px'
+          }}>
+            {portalMaintenance.enabled ? '🔒' : '🔓'}
           </div>
-          <div>
-            <label className="lbl">Staff message</label>
-            <textarea className="inp" rows={3} value={portalMaintenance.message} onChange={(e) => setPortalMaintenance((current) => ({ ...current, message: e.target.value }))} style={{ resize:'vertical' }} placeholder="The portal is currently undergoing maintenance. Please come back later." />
+          <div style={{ flex: 1 }}>
+            <h2 style={{
+              fontSize: 'var(--font-size-h2)',
+              fontWeight: 'var(--font-weight-semibold)',
+              marginBottom: '4px'
+            }}>
+              Portal Maintenance Lock
+            </h2>
+            <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+              {portalMaintenance.enabled
+                ? 'Maintenance mode is active. Staff are blocked from accessing the portal.'
+                : 'Portal is accessible. All staff can log in normally.'}
+            </p>
           </div>
-          <div>
-            <label className="lbl">Expected return time</label>
-            <input className="inp" value={portalMaintenance.eta} onChange={(e) => setPortalMaintenance((current) => ({ ...current, eta: e.target.value }))} placeholder="e.g. Today at 18:30 or 2 Apr 2026, 09:00" />
+          <Toggle
+            enabled={portalMaintenance.enabled}
+            onChange={(enabled) => setPortalMaintenance({ ...portalMaintenance, enabled })}
+          />
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gap: 'var(--space-md)',
+          marginBottom: 'var(--space-lg)'
+        }}>
+          <FormField>
+            <FormLabel>Message for staff</FormLabel>
+            <textarea
+              value={portalMaintenance.message}
+              onChange={(e) => setPortalMaintenance({ ...portalMaintenance, message: e.target.value })}
+              placeholder="The portal is undergoing scheduled maintenance and will return shortly."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: '14px',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--border-radius-md)',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+            <FormHint>This message will be shown to staff when they try to log in</FormHint>
+          </FormField>
+
+          <FormField>
+            <FormLabel>Expected return time</FormLabel>
+            <FormInput
+              value={portalMaintenance.eta}
+              onChange={(e) => setPortalMaintenance({ ...portalMaintenance, eta: e.target.value })}
+              placeholder="e.g. Today at 18:30 or 7 Aug 2026, 09:00"
+            />
+            <FormHint>Optional - let staff know when they can log back in</FormHint>
+          </FormField>
+        </div>
+
+        {portalMaintenance.enabled && (
+          <Alert variant="warning" style={{ marginBottom: 'var(--space-md)' }}>
+            <strong>All staff except admins are blocked.</strong><br />
+            Enabling maintenance mode will immediately prevent staff from accessing the portal. Admins can still log in.
+          </Alert>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            onClick={savePortalMaintenance}
+            disabled={portalSaving}
+          >
+            {portalSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+          {portalSaved === 'saved' && (
+            <span style={{ fontSize: '14px', color: '#10B981', fontWeight: 500 }}>
+              ✓ Saved successfully
+            </span>
+          )}
+          {portalError && (
+            <span style={{ fontSize: '14px', color: '#EF4444' }}>
+              {portalError}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Overall Status */}
+      <div style={{
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--border-radius-lg)',
+        padding: 'var(--space-lg)',
+        marginBottom: 'var(--space-xl)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--space-md)'
+      }}>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          background: overallColor,
+          flexShrink: 0,
+          boxShadow: `0 0 8px ${overallColor}`
+        }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '16px', fontWeight: 600 }}>
+            All Systems <span style={{ color: overallColor, textTransform: 'capitalize' }}>
+              {overall === 'operational' ? 'Operational' : overall}
+            </span>
           </div>
-          <div style={{ padding:'12px 14px', background: portalMaintenance.enabled ? 'var(--amber-bg)' : 'var(--bg2)', border:`1px solid ${portalMaintenance.enabled ? 'var(--amber)' : 'var(--border)'}`, borderRadius:8, fontSize:13, color: portalMaintenance.enabled ? 'var(--amber)' : 'var(--sub)' }}>
-            {portalMaintenance.enabled
-              ? 'Maintenance mode is live for staff once you save these settings.'
-              : 'Maintenance mode is currently off.'}
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-            <button className="btn btn-primary" onClick={savePortalMaintenance} disabled={portalSaving}>{portalSaving ? 'Saving...' : 'Save Portal Maintenance'}</button>
-            {portalSaved === 'saved' ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
-            {portalError ? <span style={{ fontSize:13, color:'var(--red)' }}>{portalError}</span> : null}
-            <span style={{ fontSize:12, color:'var(--faint)' }}>Staff will be blocked. Admins will still be allowed in.</span>
+          <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+            {systems.length} systems monitored · Last updated {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
 
-      {/* Preset systems quick-add */}
+      {/* Quick Add Presets */}
       {systems.length < PRESET_SYSTEMS.length && (
-        <div className="card card-pad" style={{ marginBottom:20 }}>
-          <div className="lbl" style={{ marginBottom:10 }}>Quick Add Preset Systems</div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+        <div style={{
+          background: 'var(--color-bg-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--border-radius-lg)',
+          padding: 'var(--space-lg)',
+          marginBottom: 'var(--space-xl)'
+        }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: 600,
+            marginBottom: 'var(--space-md)',
+            color: 'var(--color-text-secondary)'
+          }}>
+            Quick Add Systems
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
             {PRESET_SYSTEMS.filter(p => !systems.find(s => s.name === p.name)).map(p => (
-              <button key={p.name} onClick={() => addPreset(p)} className="btn btn-outline btn-sm">+ {p.name}</button>
+              <Button
+                key={p.name}
+                variant="secondary"
+                onClick={() => addPreset(p)}
+              >
+                + {p.name}
+              </Button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="card" style={{ overflow:'hidden' }}>
-        {loading ? <div className="spin-wrap"><div className="spin"/></div> : systems.length === 0 ? (
-          <div className="empty"><p>No systems added yet.<br/>Use quick-add above to add preset systems.</p></div>
+      {/* Systems Table */}
+      <div style={{
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--border-radius-lg)',
+        overflow: 'hidden'
+      }}>
+        {systems.length === 0 ? (
+          <div style={{
+            padding: 'var(--space-3xl)',
+            textAlign: 'center',
+            color: 'var(--color-text-secondary)'
+          }}>
+            <p style={{ fontSize: '14px' }}>No systems added yet.</p>
+            <p style={{ fontSize: '13px', marginTop: '8px' }}>Use the quick-add buttons above to get started.</p>
+          </div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>System</th><th>Status</th><th>Note</th><th>Updated</th><th></th></tr></thead>
+          <table className="ds-table">
+            <thead style={{ background: '#FAFAFA' }}>
+              <tr>
+                <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  System
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Status
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Note
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Updated
+                </th>
+              </tr>
+            </thead>
             <tbody>
-              {systems.map(s => (
-                <tr key={s.id}>
-                  <td>
-                    <div style={{ fontWeight:500, color:'var(--text)' }}>{s.name}</div>
-                    {s.url && <a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize:10, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{s.url}</a>}
-                  </td>
-                  <td>
-                    <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color: statusColor[s.status] || 'var(--sub)' }}>
-                      <span style={{ width:8, height:8, borderRadius:'50%', background: statusColor[s.status] || 'var(--sub)', flexShrink:0 }}/>
-                      {STATUS_OPTS.find(o => o.value === s.status)?.label || s.status}
-                    </span>
-                  </td>
-                  <td style={{ maxWidth:250, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:13 }}>{s.note || '—'}</td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{s.updated_at ? new Date(s.updated_at).toLocaleDateString('en-GB') : '—'}</td>
-                  <td>
-                    <div style={{ display:'flex', gap:4 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(s)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => del(s.id, s.name)}>Del</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {systems.map(s => {
+                const statusOpt = STATUS_OPTS.find(o => o.value === s.status)
+                return (
+                  <tr key={s.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ fontWeight: 500, fontSize: '14px', marginBottom: '2px' }}>{s.name}</div>
+                      {s.url && (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}
+                        >
+                          {s.url}
+                        </a>
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        color: statusOpt?.color
+                      }}>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: statusOpt?.color,
+                          flexShrink: 0
+                        }} />
+                        {statusOpt?.label || s.status}
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px 20px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+                      {s.note || '—'}
+                    </td>
+                    <td style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                      {s.updated_at ? new Date(s.updated_at).toLocaleDateString('en-GB') : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
       </div>
-
-      {modal && (
-        <Modal title={editing ? `Edit — ${editing.name}` : 'Add System'} onClose={close}
-          footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label className="lbl">System Name</label><input className="inp" value={form.name} onChange={e => sf('name', e.target.value)} placeholder="e.g. Client Portal"/></div>
-            <div><label className="lbl">URL (optional)</label><input className="inp" value={form.url} onChange={e => sf('url', e.target.value)} placeholder="https://"/></div>
-            <div>
-              <label className="lbl" style={{ marginBottom:8 }}>Status</label>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                {STATUS_OPTS.map(opt => (
-                  <button key={opt.value} onClick={() => sf('status', opt.value)} style={{ padding:'10px 14px', borderRadius:7, border:`2px solid ${form.status === opt.value ? opt.color : 'var(--border)'}`, background: form.status === opt.value ? opt.color+'18' : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontSize:13, fontWeight:500, color: form.status === opt.value ? opt.color : 'var(--sub)' }}>
-                    <span style={{ width:8, height:8, borderRadius:'50%', background:opt.color, flexShrink:0 }}/>{opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div><label className="lbl">Note (shown to staff)</label><input className="inp" value={form.note} onChange={e => sf('note', e.target.value)} placeholder="e.g. Scheduled maintenance until 14:00"/></div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
