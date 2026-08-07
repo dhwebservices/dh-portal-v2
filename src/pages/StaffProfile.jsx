@@ -2845,58 +2845,41 @@ export default function StaffProfile() {
   return (
     <div className="fade-in">
       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
-        <button onClick={() => navigate('/my-staff')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'7px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13 }}>
-          ← My Staff
+        <button onClick={() => navigate('/people')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'7px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13 }}>
+          ← People
         </button>
       </div>
 
-      <div className="staff-profile-hero">
-        <div className="staff-profile-hero-main">
-          <div className="staff-profile-hero-identity">
+      <div className="card" style={{ padding:'24px 28px', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:20, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:18, minWidth:0 }}>
             <div className="staff-profile-avatar">
               {getInitials(displayName)}
             </div>
-            <div className="staff-profile-hero-copy">
-              <div className="staff-profile-kicker">Staff 360</div>
-              <h1 className="staff-profile-name">{displayName}</h1>
-              <div className="staff-profile-subline">
+            <div style={{ minWidth:0 }}>
+              <h1 style={{ fontSize:28, fontWeight:700, color:'var(--text)', margin:0, lineHeight:1.2 }}>{displayName}</h1>
+              <div style={{ fontSize:14, color:'var(--sub)', marginTop:4 }}>
                 {roleSummary.length ? roleSummary.join(' · ') : 'Employee profile'}
               </div>
-              <div className="staff-profile-meta-row">
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:10 }}>
                 <span className={`badge badge-${lifecycle.tone}`}>{lifecycle.label}</span>
-                {onboarding ? <span className="badge badge-amber">Onboarding</span> : <span className="badge badge-green">Active</span>}
+                {onboarding ? <span className="badge badge-amber">Onboarding</span> : null}
                 {bookable ? <span className="badge badge-blue">Bookable</span> : null}
                 {portalAccessLocked ? <span className="badge badge-red">Suspended</span> : null}
                 <span className="badge badge-grey">{email}</span>
               </div>
             </div>
           </div>
-          <div className="staff-profile-hero-highlight-grid">
-            {heroSignals.slice(0, 3).map((item) => (
-              <div key={item.label} className="staff-profile-hero-highlight-card">
-                <div className="staff-profile-hero-highlight-label">{item.label}</div>
-                <div className="staff-profile-hero-highlight-value">{item.value}</div>
-                <div className="staff-profile-hero-highlight-hint">{item.hint}</div>
-              </div>
-            ))}
-            <div className="staff-profile-hero-highlight-card staff-profile-hero-highlight-card-wide">
-              <div className="staff-profile-hero-highlight-label">Assigned workspace</div>
-              <div className="staff-profile-hero-highlight-value">{primaryWorkspace ? getWorkspaceLabel(primaryWorkspace) : 'Auto workspace'}</div>
-              <div className="staff-profile-hero-highlight-hint">
-                {primaryWorkspace ? 'This controls where they land after onboarding is complete.' : 'No manual workspace assigned. The portal will infer it from role and permissions.'}
-              </div>
-            </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            {saved ? <span style={{ fontSize:13, color:'var(--green)', fontWeight:600 }}>✓ Saved</span> : null}
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button>
           </div>
         </div>
-        <div className="staff-profile-actions">
-          <div className="staff-profile-action-panel">
-            <div className="staff-profile-action-head">
-              <div>
-                <div className="staff-profile-kicker">Quick controls</div>
-                <div className="staff-profile-action-title">Access and availability</div>
-              </div>
-              {saved ? <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span> : null}
-            </div>
+      </div>
+
+      <div className="card" style={{ padding:'20px 24px', marginBottom:16 }}>
+        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:14 }}>Access &amp; availability</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:12 }}>
             <div className="staff-profile-toggle-card">
               <div>
                 <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{onboarding ? 'Onboarding mode' : 'Employment active'}</div>
@@ -2972,55 +2955,30 @@ export default function StaffProfile() {
                 Force re-login
               </button>
             </div>
-            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save staff profile'}</button>
-          </div>
         </div>
       </div>
 
-      <div className="staff-profile-summary-grid">
-        {heroSignals.map((item) => (
-          <div key={item.label} className="staff-profile-summary-card">
-            <div className="staff-profile-summary-label">{item.label}</div>
-            <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
-              <div className="staff-profile-summary-value">{item.value}</div>
-              <span className={`badge badge-${item.tone}`}>{item.label === 'Reporting' ? 'manager' : item.tone}</span>
-            </div>
-            <div className="staff-profile-summary-hint">{item.hint}</div>
-          </div>
+      <div style={{ display:'flex', gap:2, borderBottom:'1px solid var(--border)', marginBottom:20, overflowX:'auto' }}>
+        {staffProfileTabs.map(([k, l]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            style={{
+              padding:'10px 14px', fontSize:14, fontWeight:600, whiteSpace:'nowrap',
+              background:'none', border:'none', cursor:'pointer', marginBottom:-1,
+              borderBottom: tab === k ? '2px solid var(--accent)' : '2px solid transparent',
+              color: tab === k ? 'var(--accent)' : 'var(--sub)',
+            }}
+          >
+            {l}
+          </button>
         ))}
       </div>
 
-      <div className="staff-profile-workspace">
-        <aside className="staff-profile-nav">
-          <div className="staff-profile-nav-head">
-            <div className="staff-profile-kicker">Workspace</div>
-            <div className="staff-profile-action-title">Profile areas</div>
-            <div className="staff-profile-tab-caption">Switch between employee details, lifecycle controls, contracts, notifications, and portal access.</div>
-          </div>
-          <div className="staff-profile-nav-current">
-            <div className="staff-profile-nav-current-label">Current section</div>
-            <div className="staff-profile-nav-current-title">{activeTabLabel}</div>
-            <div className="staff-profile-nav-current-copy">{activeTabDescription}</div>
-          </div>
-          <div className="staff-profile-nav-list">
-            {staffProfileTabs.map(([k, l], index) => (
-              <button
-                key={k}
-                onClick={() => setTab(k)}
-                className={`staff-profile-nav-btn${tab === k ? ' on' : ''}`}
-              >
-                <span className="staff-profile-nav-index">{String(index + 1).padStart(2, '0')}</span>
-                <span className="staff-profile-nav-label">{l}</span>
-                <span className="staff-profile-nav-copy">{staffProfileTabDescriptions[k]}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-
+      <div>
         <div style={{ width:'100%' }} className="staff-profile-content">
         <div className="staff-profile-content-head">
           <div>
-            <div className="staff-profile-kicker">Profile workspace</div>
             <div className="staff-profile-content-title">{activeTabLabel}</div>
             <div className="staff-profile-content-copy">{activeTabDescription}</div>
           </div>
