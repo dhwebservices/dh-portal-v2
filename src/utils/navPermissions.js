@@ -43,7 +43,7 @@ export const NAV_TABS = [
   {
     id: 'websites',
     label: 'Websites',
-    path: '/website-builder',
+    path: '/clients',
     keys: [
       'clients', 'clientmgmt', 'competitor', 'domains', 'website_editor',
       'shop_orders_view', 'shop_orders_edit', 'shop_products_view',
