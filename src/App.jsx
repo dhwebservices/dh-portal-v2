@@ -7,6 +7,8 @@ import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import TopBar from './components/TopBar'
+import WorkspaceNav from './components/WorkspaceNav'
 import InitialLoader from './components/InitialLoader'
 import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 import { logSecurityEvent } from './utils/audit'
@@ -676,14 +678,13 @@ function PortalUpdateWatcher() {
 
 function PortalLayout() {
   return (
-    <div className="app-layout">
+    <div className="app-layout" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <DesktopCursor />
-      <Sidebar />
-      <div className="main-area">
-        <AmbientBackground />
-        <Header />
-        <PortalUpdateWatcher />
-        <main className="main-content">
+      <AmbientBackground />
+      <TopBar />
+      <WorkspaceNav />
+      <PortalUpdateWatcher />
+      <main style={{ flex: 1, padding: 'var(--space-lg)', background: 'var(--color-bg-base)' }}>
           <Suspense fallback={<RouteLoader />}>
             <Routes>
               <Route path="/dashboard"       element={<PermissionGate permKey="dashboard"><Dashboard /></PermissionGate>} />
@@ -751,7 +752,6 @@ function PortalLayout() {
             </Routes>
           </Suspense>
         </main>
-      </div>
     </div>
   )
 }
