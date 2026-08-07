@@ -461,29 +461,6 @@ function DesktopCursor() {
   )
 }
 
-function AmbientBackground() {
-  return (
-    <div className="portal-ambient" aria-hidden="true">
-      <div className="portal-ambient-grid" />
-      <div className="portal-ambient-trails">
-        <span className="portal-ambient-trail trail-1" />
-        <span className="portal-ambient-trail trail-2" />
-        <span className="portal-ambient-trail trail-3" />
-        <span className="portal-ambient-trail trail-4" />
-        <span className="portal-ambient-trail trail-5" />
-        <span className="portal-ambient-trail trail-6" />
-        <span className="portal-ambient-trail trail-7" />
-        <span className="portal-ambient-trail trail-8" />
-      </div>
-      <div className="portal-ambient-orb-field">
-        <div className="portal-ambient-orb portal-ambient-orb-a" />
-        <div className="portal-ambient-orb portal-ambient-orb-b" />
-        <div className="portal-ambient-orb portal-ambient-orb-c" />
-      </div>
-    </div>
-  )
-}
-
 function PortalUpdateWatcher() {
   const { user } = useAuth()
   const [release, setRelease] = useState(null)
