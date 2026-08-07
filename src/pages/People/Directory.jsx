@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   Button,
   Table,
@@ -16,6 +17,8 @@ import {
 
 export default function PeopleDirectory() {
   const navigate = useNavigate()
+  const { isDirector, isDepartmentManager, startPreviewAs } = useAuth()
+  const canImpersonate = isDirector || isDepartmentManager
   const [loading, setLoading] = useState(true)
   const [staff, setStaff] = useState([])
   const [search, setSearch] = useState('')
@@ -142,7 +145,20 @@ export default function PeopleDirectory() {
   const departments = [...new Set(staff.map(s => s.department))].sort()
 
   function handleRowClick(person) {
-    navigate(`/staff-profile/${person.user_email}`)
+    navigate(`/staff-profile/${encodeURIComponent(person.user_email)}`)
+  }
+
+  async function impersonate(person) {
+    if (!confirm(`Log in as ${person.full_name || person.user_email}? You will see the portal exactly as they do.`)) return
+    try {
+      await startPreviewAs({
+        email: person.user_email?.toLowerCase(),
+        name: person.full_name || person.user_email,
+      })
+      navigate('/dashboard')
+    } catch (error) {
+      alert(error?.message || 'Could not start impersonation.')
+    }
   }
 
   function formatDate(dateString) {
@@ -386,13 +402,9 @@ export default function PeopleDirectory() {
                       </span>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
+                      {canImpersonate && (
                       <button
-                        onClick={() => {
-                          if (confirm(`Impersonate ${person.full_name || person.user_email}?`)) {
-                            // Impersonation logic - would be implemented
-                            alert('Impersonation feature: Log in as this user (admin only)')
-                          }
-                        }}
+                        onClick={() => impersonate(person)}
                         style={{
                           padding: '6px 12px',
                           fontSize: '12px',
@@ -415,6 +427,7 @@ export default function PeopleDirectory() {
                       >
                         Impersonate
                       </button>
+                      )}
                     </TableCell>
                   </TableRow>
                 )

@@ -187,7 +187,7 @@ export default function Dashboard() {
       ] = await Promise.all([
         supabase.from('tasks').select('id', { count: 'exact', head: true }).ilike('assigned_to_email', user.email).neq('status', 'done'),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).ilike('assigned_to_email', user.email),
-        supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('recipient_email', user.email).eq('read', false),
+        supabase.from('notifications').select('id', { count: 'exact', head: true }).ilike('user_email', user.email).eq('read', false),
         supabase.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open'),

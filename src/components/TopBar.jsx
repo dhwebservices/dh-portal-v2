@@ -14,7 +14,7 @@ const TABS = [
 ]
 
 export default function TopBar() {
-  const { user, logout } = useAuth()
+  const { user, realUser, logout, isPreviewing, previewTarget, stopPreviewAs } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -26,7 +26,7 @@ export default function TopBar() {
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('recipient_email', user.email)
+      .ilike('user_email', user.email)
       .eq('read', false)
       .then(({ count }) => setUnread(count || 0))
   }, [user?.email, location.pathname])
@@ -114,6 +114,37 @@ export default function TopBar() {
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Impersonation banner */}
+        {isPreviewing && previewTarget && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '6px 6px 6px 12px',
+            borderRadius: '18px',
+            background: '#B45309',
+            whiteSpace: 'nowrap',
+          }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+              Viewing as {previewTarget.name || previewTarget.email}
+            </span>
+            <button
+              onClick={() => { stopPreviewAs(); navigate('/people') }}
+              style={{
+                border: 'none',
+                background: '#FFFFFF',
+                color: '#B45309',
+                borderRadius: '12px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Exit
+            </button>
+          </div>
+        )}
         {/* Notifications */}
         <button
           onClick={() => navigate('/notifications')}

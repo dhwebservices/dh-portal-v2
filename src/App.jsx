@@ -762,7 +762,7 @@ function PortalLayout() {
               <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
               <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
               <Route path="/people"          element={<PermissionGate permKey="staff"><PeopleDirectory /></PermissionGate>} />
-              <Route path="/staff-profile/:email" element={<PermissionGate permKey="staff"><PeopleStaffProfile /></PermissionGate>} />
+              <Route path="/staff-profile/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
               <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
               <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
               <Route path="/sms-centre"      element={<PermissionGate permKey="sms_manager"><SmsCentre /></PermissionGate>} />
