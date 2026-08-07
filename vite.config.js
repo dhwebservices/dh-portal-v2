@@ -65,6 +65,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // v2 path busts browser caches poisoned by the old SPA fallback,
+        // which served index.html as cacheable content for missing /assets/ URLs
+        entryFileNames: 'assets/v2/[name]-[hash].js',
+        chunkFileNames: 'assets/v2/[name]-[hash].js',
+        assetFileNames: 'assets/v2/[name]-[hash][extname]',
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           if (id.includes('recharts')) return 'charts'
