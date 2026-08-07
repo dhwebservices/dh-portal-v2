@@ -193,7 +193,7 @@ export default function Dashboard() {
         supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open'),
         supabase.from('support_tickets').select('id', { count: 'exact', head: true }),
         supabase.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('outreach_leads').select('id', { count: 'exact', head: true }),
+        supabase.from('outreach').select('id', { count: 'exact', head: true }),
         supabase.from('hr_profiles').select('user_email', { count: 'exact', head: true }),
         supabase.from('appointments').select('id', { count: 'exact', head: true }).gte('start_time', todayStart.toISOString()).lte('start_time', todayEnd.toISOString()),
       ])

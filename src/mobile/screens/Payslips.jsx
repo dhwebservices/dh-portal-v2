@@ -22,7 +22,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
         .from('payslips')
         .select('*')
         .eq('user_email', user.email)
-        .order('period_end_date', { ascending: false })
+        .order('uploaded_at', { ascending: false })
 
       if (error) throw error
 

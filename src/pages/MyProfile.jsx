@@ -111,7 +111,7 @@ export default function MyProfile() {
       supabase.from('hr_profiles').select('*').ilike('user_email', normalizedEmail),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', normalizedEmail).maybeSingle(),
       supabase.from('staff_documents').select('*').ilike('staff_email', normalizedEmail).order('created_at', { ascending:false }),
-      supabase.from('payslips').select('*').ilike('user_email', normalizedEmail).order('created_at', { ascending:false }),
+      supabase.from('payslips').select('*').ilike('user_email', normalizedEmail).order('uploaded_at', { ascending:false }),
       supabase.from('portal_settings').select('key,value').like('key', 'staff_sign_document:%'),
     ]).then(([{ data: profileRows, error: profileError }, { data: onboarding }, { data: d }, { data: ps }, { data: signDocumentRows }]) => {
       if (profileError) {
