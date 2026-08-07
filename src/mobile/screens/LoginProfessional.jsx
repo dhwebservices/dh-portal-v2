@@ -4,6 +4,9 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { Capacitor } from '@capacitor/core'
 import { isBiometricAvailable, biometricLogin } from '../../utils/biometricAuth'
+import { loginWithMicrosoftMobile, exchangeCodeForTokens } from '../../utils/mobileAuth'
+import { saveNativeSession } from '../../utils/nativeSession'
+import { loginRequest } from '../../authConfig'
 import DHLogo from '../components/DHLogo'
 
 export default function MobileLoginProfessional() {
@@ -44,14 +47,26 @@ export default function MobileLoginProfessional() {
     try {
       await Haptics.impact({ style: ImpactStyle.Medium })
 
-      // Use redirect instead of popup for mobile
-      await instance.loginRedirect({
-        scopes: ['User.Read'],
-      })
-
+      if (Capacitor.isNativePlatform()) {
+        // Native: run the OAuth code+PKCE flow in the system browser (Entra
+        // blocks/degrades embedded WebView redirects), then exchange the
+        // code directly against Entra's token endpoint ourselves - MSAL's
+        // own acquireTokenByCode doesn't correctly carry a custom-scheme
+        // redirect_uri + PKCE verifier through (see mobileAuth.js).
+        const { code, codeVerifier, redirectUri } = await loginWithMicrosoftMobile(loginRequest.scopes)
+        const tokenResponse = await exchangeCodeForTokens({
+          code,
+          codeVerifier,
+          redirectUri,
+          scopes: loginRequest.scopes,
+        })
+        saveNativeSession(tokenResponse)
+      } else {
+        await instance.loginRedirect({ scopes: loginRequest.scopes })
+      }
     } catch (error) {
       console.error('Login failed:', error)
-      setError('Login failed. Please try again.')
+      setError(error?.message || 'Login failed. Please try again.')
       await Haptics.impact({ style: ImpactStyle.Heavy })
     } finally {
       setLoading(false)

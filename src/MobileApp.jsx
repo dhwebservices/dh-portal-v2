@@ -24,6 +24,7 @@ import MobileStaffProfile from './mobile/screens/StaffProfile'
 import MobileEditStaffProfile from './mobile/screens/EditStaffProfile'
 import MobileOutreach from './mobile/screens/Outreach'
 import MobileTimesheet from './mobile/screens/Timesheet'
+import MobileRota from './mobile/screens/Rota'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -133,6 +134,8 @@ export default function MobileApp() {
         return <MobileOutreach {...screenProps} />
       case 'timesheet':
         return <MobileTimesheet {...screenProps} />
+      case 'rota':
+        return <MobileRota {...screenProps} />
       default:
         return <MobileHome {...screenProps} />
     }

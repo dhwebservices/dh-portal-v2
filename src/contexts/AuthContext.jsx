@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useMsal } from '@azure/msal-react'
+import { Capacitor } from '@capacitor/core'
 import { supabase } from '../utils/supabase'
+import { getNativeSession, clearNativeSession, NATIVE_SESSION_EVENT } from '../utils/nativeSession'
 import { logSecurityEvent } from '../utils/audit'
 import { initPushNotifications } from '../utils/pushNotifications'
 import {
@@ -233,7 +235,23 @@ async function loadPortalIdentity(email = '', fallbackName = '') {
 
 export function AuthProvider({ children }) {
   const { accounts, instance } = useMsal()
-  const account = accounts[0]
+  const [nativeSession, setNativeSession] = useState(() =>
+    Capacitor.isNativePlatform() ? getNativeSession() : null
+  )
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined
+    const onChange = () => setNativeSession(getNativeSession())
+    window.addEventListener(NATIVE_SESSION_EVENT, onChange)
+    return () => window.removeEventListener(NATIVE_SESSION_EVENT, onChange)
+  }, [])
+
+  // Native builds authenticate via the system-browser PKCE flow in
+  // mobileAuth.js, not MSAL's redirect/popup clients, so accounts[0] is
+  // never populated there - nativeSession carries identity instead.
+  const account = Capacitor.isNativePlatform()
+    ? (nativeSession ? { username: nativeSession.username, name: nativeSession.name } : null)
+    : accounts[0]
   const normalizedEmail = account?.username?.toLowerCase?.() || null
   const [perms, setPerms]           = useState(null)
   const [isAdmin, setIsAdmin]       = useState(false)
@@ -627,10 +645,23 @@ export function AuthProvider({ children }) {
         revoked_at: accountSecurity.session_revoked_at || '',
       },
     }).catch(() => {})
-    instance.logoutRedirect({ account }).catch(() => {
+    if (Capacitor.isNativePlatform()) {
+      clearNativeSession()
       logoutRedirectingRef.current = false
-    })
+    } else {
+      instance.logoutRedirect({ account }).catch(() => {
+        logoutRedirectingRef.current = false
+      })
+    }
   }, [account, accountSecurity, instance, normalizedEmail, sessionStartedAt])
+
+  const logout = () => {
+    if (Capacitor.isNativePlatform()) {
+      clearNativeSession()
+      return Promise.resolve()
+    }
+    return instance.logoutRedirect({ account })
+  }
 
   const realUser = account ? {
     email:    normalizedEmail,
@@ -872,6 +903,7 @@ export function AuthProvider({ children }) {
       previewTarget: previewState?.user || null,
       startPreviewAs,
       stopPreviewAs,
+      logout,
       loading,
     }}>
       {children}

@@ -11,6 +11,7 @@ import { getLifecycleLabel, TERMINATED_STATES } from './utils/staffLifecycle'
 import { logSecurityEvent } from './utils/audit'
 import MobileApp from './MobileApp'
 import MobileLogin from './mobile/screens/LoginProfessional'
+import { getNativeSession, NATIVE_SESSION_EVENT } from './utils/nativeSession'
 
 const PORTAL_BUILD_VERSION = typeof __PORTAL_BUILD_VERSION__ !== 'undefined' ? __PORTAL_BUILD_VERSION__ : 'dev'
 
@@ -839,6 +840,21 @@ function DevModeAuthenticatedApp() {
 
 export default function App() {
   const isDevMode = typeof window !== 'undefined' && localStorage.getItem('dev-mode') === 'true'
+  // Native login (system browser + PKCE, see mobileAuth.js) never populates
+  // MSAL's own account cache, so AuthenticatedTemplate/UnauthenticatedTemplate
+  // (which key off useMsal()'s accounts array) can never see a native user as
+  // logged in. Gate natively here the same way DevModeAuthenticatedApp does,
+  // bypassing the MSAL templates entirely once a native session exists.
+  const [hasNativeSession, setHasNativeSession] = useState(
+    Capacitor.isNativePlatform() ? !!getNativeSession() : false
+  )
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined
+    const onChange = () => setHasNativeSession(!!getNativeSession())
+    window.addEventListener(NATIVE_SESSION_EVENT, onChange)
+    return () => window.removeEventListener(NATIVE_SESSION_EVENT, onChange)
+  }, [])
 
   return (
     <MsalProvider instance={msal}>
@@ -847,6 +863,8 @@ export default function App() {
         {isDevMode ? (
           // Dev mode bypass - skip MSAL auth
           <DevModeAuthenticatedApp />
+        ) : Capacitor.isNativePlatform() && hasNativeSession ? (
+          <AuthenticatedApp />
         ) : (
           <>
             <AuthenticatedTemplate><AuthenticatedApp /></AuthenticatedTemplate>

@@ -83,6 +83,16 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
       <div className="professional-section">
         <h2 className="professional-section-title">Quick Access</h2>
         <div className="professional-stats-grid">
+          <MobileCard small onPress={() => navigate('rota')}>
+            <div className="professional-stat">
+              <Icon name="calendar" size={24} color="#0066cc" />
+              <div>
+                <h4>Rota</h4>
+                <p>{isAdmin ? 'My shifts & team rota' : 'My upcoming shifts'}</p>
+              </div>
+            </div>
+          </MobileCard>
+
           {isAdmin && (
             <MobileCard small onPress={() => navigate('staff-directory')}>
               <div className="professional-stat">
