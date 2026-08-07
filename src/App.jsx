@@ -52,6 +52,8 @@ const MyProfile = lazyRetry(() => import('./pages/MyProfile'), 'my-profile')
 const ClientProfile = lazyRetry(() => import('./pages/ClientProfile'), 'client-profile')
 const MyStaff = lazyRetry(() => import('./pages/MyStaff'), 'my-staff')
 const StaffProfile = lazyRetry(() => import('./pages/StaffProfile'), 'staff-profile')
+const PeopleDirectory = lazyRetry(() => import('./pages/People/Directory'), 'people-directory')
+const PeopleStaffProfile = lazyRetry(() => import('./pages/People/StaffProfile'), 'people-staff-profile')
 const Search = lazyRetry(() => import('./pages/Search'), 'search')
 const MyDepartment = lazyRetry(() => import('./pages/MyDepartment'), 'my-department')
 const MyTeam = lazyRetry(() => import('./pages/MyTeam'), 'my-team')
@@ -709,6 +711,8 @@ function PortalLayout() {
               <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
               <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
               <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
+              <Route path="/people"          element={<PermissionGate permKey="staff"><PeopleDirectory /></PermissionGate>} />
+              <Route path="/staff-profile/:email" element={<PermissionGate permKey="staff"><PeopleStaffProfile /></PermissionGate>} />
               <Route path="/proposals"       element={<PermissionGate permKey="proposals"><Proposals /></PermissionGate>} />
               <Route path="/send-email"      element={<PermissionGate permKey="sendemail"><SendEmail /></PermissionGate>} />
               <Route path="/sms-centre"      element={<PermissionGate permKey="sms_manager"><SmsCentre /></PermissionGate>} />
