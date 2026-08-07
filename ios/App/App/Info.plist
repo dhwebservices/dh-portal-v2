@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>DH Staff Portal</string>
+	<string>DH Staff Portal</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,10 +20,33 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>msauth.uk.co.dhwebsiteservices.staff</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>DH Staff Portal needs access to your camera to update your profile photo.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>DH Staff Portal uses Face ID for quick and secure login to your account.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DH Staff Portal needs permission to save photos to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DH Staff Portal needs access to your photo library to update your profile photo.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This allows us to provide you with personalized features and improve the app experience.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -34,41 +57,18 @@
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>msauth.uk.co.dhwebsiteservices.staff</string>
-			</array>
-		</dict>
-	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>DH Staff Portal needs access to your camera to update your profile photo.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>DH Staff Portal needs access to your photo library to update your profile photo.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>DH Staff Portal needs permission to save photos to your library.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>DH Staff Portal uses Face ID for quick and secure login to your account.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This allows us to provide you with personalized features and improve the app experience.</string>
 </dict>
 </plist>

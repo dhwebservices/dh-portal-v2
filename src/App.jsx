@@ -5,8 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Capacitor } from '@capacitor/core'
 import { msalConfig } from './authConfig'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import Sidebar from './components/Sidebar'
-import Header from './components/Header'
 import TopBar from './components/TopBar'
 import WorkspaceNav from './components/WorkspaceNav'
 import InitialLoader from './components/InitialLoader'

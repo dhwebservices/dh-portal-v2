@@ -1,12 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const WORKSPACES = [
-  { id: 'people', label: 'People', path: '/staff' },
-  { id: 'recruiting', label: 'Recruiting', path: '/recruiting-board' },
+  { id: 'people', label: 'People', path: '/people' },
+  { id: 'recruiting', label: 'Recruiting', path: '/recruiting' },
   { id: 'websites', label: 'Websites', path: '/website-builder' },
   { id: 'support', label: 'Support', path: '/support' },
   { id: 'reports', label: 'Reports', path: '/reports' },
-  { id: 'finance', label: 'Finance', path: '/web-manager' }, // Placeholder
+  { id: 'admin', label: 'Admin', path: '/settings' },
 ]
 
 export default function WorkspaceNav() {

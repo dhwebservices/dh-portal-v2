@@ -465,3 +465,108 @@ small,
 .hidden {
   display: none !important;
 }
+
+/* ============================================================================
+   RESPONSIVE - Mobile & Tablet
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  /* TopBar - Stack on mobile */
+  .ds-topbar {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .ds-topbar input[type="text"] {
+    width: 100% !important;
+  }
+
+  /* WorkspaceNav - Horizontal scroll on mobile */
+  .ds-workspace-nav {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .ds-workspace-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  .ds-workspace-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Content - Reduce padding on mobile */
+  .ds-content {
+    padding: var(--space-md);
+  }
+
+  /* Page Header - Stack on mobile */
+  .ds-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md);
+  }
+
+  .ds-page-header h1 {
+    font-size: var(--font-size-h2);
+  }
+
+  /* Tables - Horizontal scroll on mobile */
+  .ds-table-container,
+  div:has(> .ds-table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ds-table {
+    min-width: 600px;
+  }
+
+  /* Forms - Full width on mobile */
+  .ds-form-field {
+    width: 100%;
+  }
+
+  /* Buttons - Full width on mobile */
+  .flex.gap-sm {
+    flex-direction: column;
+  }
+
+  .flex.gap-sm > button {
+    width: 100%;
+  }
+
+  /* Staff Profile - Stack sidebar on mobile */
+  div[style*="grid-template-columns: 280px 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Even smaller screens */
+  :root {
+    --font-size-h1: 24px;
+    --font-size-h2: 18px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+  }
+
+  .ds-topbar {
+    padding: var(--space-sm);
+  }
+
+  .ds-workspace-nav {
+    padding: 0 var(--space-sm);
+  }
+
+  .ds-content {
+    padding: var(--space-sm);
+  }
+}
