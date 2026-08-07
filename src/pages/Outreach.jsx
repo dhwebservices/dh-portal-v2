@@ -1168,7 +1168,7 @@ export default function Outreach() {
     <div className="fade-in">
       <div className="page-hd">
         <div>
-          <h1 className="page-title">Clients Contacted</h1>
+          <h1 className="page-title">Outreach</h1>
           <p className="page-sub">Outreach queue, recent contact history, and follow-up actions in one place.</p>
         </div>
         {tab === 'contacts' && <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>}

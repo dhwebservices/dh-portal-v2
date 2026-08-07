@@ -2615,10 +2615,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .section-kicker {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--faint);
 }
 
@@ -2643,9 +2642,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .metric-tile {
-  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--bg2) 78%, white 22%));
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 18px 16px 16px;
   min-height: 128px;
 }
@@ -2670,10 +2669,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 }
 
 .metric-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--faint);
   margin-bottom: 6px;
 }
@@ -2692,8 +2690,8 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .soft-list-row {
   padding: 16px 18px;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--bg2) 72%, white 28%));
+  border-radius: 8px;
+  background: var(--card);
 }
 
 .toolbar-row {
@@ -2715,9 +2713,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  border-radius: 18px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--bg2) 68%, white 32%));
+  background: var(--card);
 }
 
 .notification-row-unread {
@@ -2738,9 +2736,9 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 
 .insight-pill {
   padding: 13px 14px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--bg2) 74%, white 26%));
+  background: var(--card);
 }
 
 .desk-table-shell {
