@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BriefcaseBusiness, CircleCheck, Clock3, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import SubNav from '../components/SubNav'
 import { buildRequisitionPatch, deleteJobPost, getRequisitionStatusTone, listJobPosts, saveJobPost } from '../utils/recruiting'
 
 export default function RecruitingJobs() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isDirector } = useAuth()
+  const { user, isDirector, can } = useAuth()
   const [jobs, setJobs] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -108,6 +109,13 @@ export default function RecruitingJobs() {
               )
             })}
           </div>
+
+          <SubNav items={[
+            { label: 'Jobs', active: true, onClick: () => {} },
+            can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
+            can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
+            can('recruiting_settings') && { label: 'Settings', onClick: () => navigate('/recruiting/settings') },
+          ]} />
 
           <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap' }}>
             {['all', 'pending_approval', 'draft', 'published', 'archived'].map((item) => (

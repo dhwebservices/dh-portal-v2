@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import SubNav from '../components/SubNav'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
 import { buildRecruitingBoard } from '../utils/recruitingPipeline'
 import { listApplications } from '../utils/recruiting'
 
 export default function RecruitingBoard() {
   const navigate = useNavigate()
+  const { can } = useAuth()
   const [columns, setColumns] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -25,6 +28,13 @@ export default function RecruitingBoard() {
           <p className="page-sub">Pipeline view across every stage from new applicant to hire.</p>
         </div>
       </div>
+
+      <SubNav items={[
+        can('recruiting_jobs') && { label: 'Jobs', onClick: () => navigate('/recruiting') },
+        can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
+        { label: 'Board', active: true, onClick: () => {} },
+        can('recruiting_settings') && { label: 'Settings', onClick: () => navigate('/recruiting/settings') },
+      ]} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(220px, 1fr))', gap: 14, alignItems: 'start', overflowX: 'auto', paddingBottom: 8 }}>
         {columns.map((column) => (

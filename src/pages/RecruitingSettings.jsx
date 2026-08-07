@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import SubNav from '../components/SubNav'
 import { getRecruitingSetting, upsertRecruitingSetting } from '../utils/recruiting'
 
 export default function RecruitingSettings() {
+  const navigate = useNavigate()
+  const { can } = useAuth()
   const [settings, setSettings] = useState({ acknowledgement: '', defaultQuestions: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -34,6 +39,13 @@ export default function RecruitingSettings() {
           <p className="page-sub">Keep the default commission acknowledgement and reusable question copy in one place.</p>
         </div>
       </div>
+
+      <SubNav items={[
+        can('recruiting_jobs') && { label: 'Jobs', onClick: () => navigate('/recruiting') },
+        can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
+        can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
+        { label: 'Settings', active: true, onClick: () => {} },
+      ]} />
 
       <div className="card card-pad" style={{ display: 'grid', gap: 16, maxWidth: 860 }}>
         <div>

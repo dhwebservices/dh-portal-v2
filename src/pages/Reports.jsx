@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, CalendarRange, CheckSquare, Clock3, Download, HeadphonesIcon, ShieldCheck, UserCheck, Users } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { logAction } from '../utils/audit'
 import { fetchAuditLogs } from '../utils/auditApi'
+import SubNav from '../components/SubNav'
 
 const ACTION_COLORS = {
   outreach_added: 'var(--accent)',
@@ -197,7 +199,8 @@ function EmptyState({ text }) {
 }
 
 export default function Reports() {
-  const { user } = useAuth()
+  const { user, can } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('overview')
   const [period, setPeriod] = useState('30')
   const [loading, setLoading] = useState(true)
@@ -587,6 +590,13 @@ export default function Reports() {
           <p className="page-sub">Live operations, people activity, and audit visibility in one place.</p>
         </div>
       </div>
+
+      {can('manager_board') && (
+        <SubNav items={[
+          { label: 'Reports', active: true, onClick: () => {} },
+          { label: 'Manager Board', onClick: () => navigate('/manager-board') },
+        ]} />
+      )}
 
       <div className="tabs">
         {[

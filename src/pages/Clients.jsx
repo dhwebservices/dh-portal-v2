@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { Button, StatusBadge, FormInput, FormSelect, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ds'
+import SubNav from '../components/SubNav'
 
 export default function Clients() {
   const navigate = useNavigate()
+  const { can } = useAuth()
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -65,6 +68,18 @@ export default function Clients() {
           + Add Client
         </Button>
       </div>
+
+      {/* Sub Navigation */}
+      <SubNav items={[
+        { label: 'Clients', active: true, onClick: () => {} },
+        can('clientmgmt') && { label: 'Client Portal', onClick: () => navigate('/client-mgmt') },
+        can('competitor') && { label: 'Competitor Lookup', onClick: () => navigate('/competitor') },
+        can('domains') && { label: 'Domain Checker', onClick: () => navigate('/domains') },
+        can('website_editor') && { label: 'Web Manager', onClick: () => navigate('/web-manager') },
+        can('shop_orders_view') && { label: 'Shop Orders', onClick: () => navigate('/shop/orders') },
+        can('shop_products_view') && { label: 'Shop Products', onClick: () => navigate('/shop/products') },
+        can('shop_customers_view') && { label: 'Shop Customers', onClick: () => navigate('/shop/customers') },
+      ]} />
 
       {/* Table with Filters */}
       <div style={{

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Button, StatusBadge, FormSelect } from '../components/ds'
+import SubNav from '../components/SubNav'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 
 export default function MyTasks() {
-  const { user } = useAuth()
+  const { user, can } = useAuth()
+  const navigate = useNavigate()
+  const canManageTasks = can('tasks')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -79,6 +83,15 @@ export default function MyTasks() {
           </p>
         </div>
       </div>
+
+      {/* Sub Navigation */}
+      <SubNav items={[
+        { label: 'My Tasks', active: true, onClick: () => {} },
+        canManageTasks && { label: 'Manage Tasks', onClick: () => navigate('/tasks') },
+        can('schedule') && { label: 'Schedule', onClick: () => navigate('/schedule') },
+        can('hr_leave') && { label: 'My Leave', onClick: () => navigate('/hr/leave') },
+        can('hr_payslips') && { label: 'My Payslips', onClick: () => navigate('/hr/payslips') },
+      ]} />
 
       {/* Filter */}
       <div style={{

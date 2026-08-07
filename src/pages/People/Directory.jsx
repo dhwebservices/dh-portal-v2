@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import SubNav from '../../components/SubNav'
 import {
   Button,
   Table,
@@ -17,7 +18,7 @@ import {
 
 export default function PeopleDirectory() {
   const navigate = useNavigate()
-  const { isDirector, isDepartmentManager, startPreviewAs } = useAuth()
+  const { isDirector, isDepartmentManager, startPreviewAs, can } = useAuth()
   const canImpersonate = isDirector || isDepartmentManager
   const [loading, setLoading] = useState(true)
   const [staff, setStaff] = useState([])
@@ -193,67 +194,24 @@ export default function PeopleDirectory() {
       </div>
 
       {/* Sub Navigation */}
-      <div style={{
-        marginBottom: 'var(--space-lg)',
-        display: 'flex',
-        gap: 'var(--space-lg)',
-        borderBottom: '1px solid var(--color-border)'
-      }}>
-        <div style={{
-          padding: 'var(--space-sm) 0',
-          fontSize: 'var(--font-size-body)',
-          color: filterStatus === 'all' || filterStatus === 'active' || filterStatus === 'leave' || filterStatus === 'terminated' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-          borderBottom: filterStatus === 'all' || filterStatus === 'active' || filterStatus === 'leave' || filterStatus === 'terminated' ? '2px solid var(--color-text-primary)' : '2px solid transparent',
-          marginBottom: '-1px',
-          cursor: 'pointer'
-        }}
-        onClick={() => setFilterStatus('all')}
-        >
-          Directory
-        </div>
-        <div style={{
-          padding: 'var(--space-sm) 0',
-          fontSize: 'var(--font-size-body)',
-          color: filterStatus === 'onboarding' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-          borderBottom: filterStatus === 'onboarding' ? '2px solid var(--color-text-primary)' : '2px solid transparent',
-          marginBottom: '-1px',
-          cursor: 'pointer'
-        }}
-        onClick={() => setFilterStatus('onboarding')}
-        >
-          Onboarding
-        </div>
-        <div style={{
-          padding: 'var(--space-sm) 0',
-          fontSize: 'var(--font-size-body)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer'
-        }}
-        onClick={() => navigate('/hr/leave')}
-        >
-          Leave
-        </div>
-        <div style={{
-          padding: 'var(--space-sm) 0',
-          fontSize: 'var(--font-size-body)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer'
-        }}
-        onClick={() => navigate('/hr/documents')}
-        >
-          Documents
-        </div>
-        <div style={{
-          padding: 'var(--space-sm) 0',
-          fontSize: 'var(--font-size-body)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer'
-        }}
-        onClick={() => navigate('/org-chart')}
-        >
-          Org Chart
-        </div>
-      </div>
+      <SubNav items={[
+        {
+          label: 'Directory',
+          active: filterStatus !== 'onboarding',
+          onClick: () => setFilterStatus('all'),
+        },
+        {
+          label: 'Onboarding',
+          active: filterStatus === 'onboarding',
+          onClick: () => setFilterStatus('onboarding'),
+        },
+        can('hr_leave') && { label: 'Leave', onClick: () => navigate('/hr/leave') },
+        can('hr_timesheet') && { label: 'Timesheets', onClick: () => navigate('/hr/timesheets') },
+        can('hr_documents') && { label: 'Documents', onClick: () => navigate('/hr/documents') },
+        can('contract_queue') && { label: 'Contract Queue', onClick: () => navigate('/contract-queue') },
+        can('contract_templates') && { label: 'Contract Templates', onClick: () => navigate('/contract-templates') },
+        can('org_chart') && { label: 'Org Chart', onClick: () => navigate('/org-chart') },
+      ]} />
 
       {/* Table with Filters */}
       <div style={{

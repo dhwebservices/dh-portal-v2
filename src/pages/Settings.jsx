@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
 import { logAction } from '../utils/audit'
 import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
+import SubNav from '../components/SubNav'
 
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
 export default function Settings() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, can } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab]     = useState('general')
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
@@ -224,6 +227,17 @@ export default function Settings() {
   return (
     <div className="fade-in">
       <div className="page-hd"><div><h1 className="page-title">Settings</h1></div></div>
+
+      <SubNav items={[
+        { label: 'Portal Settings', active: true, onClick: () => {} },
+        can('departments') && { label: 'Departments', onClick: () => navigate('/departments') },
+        can('service_admin') && { label: 'Service Admin', onClick: () => navigate('/service-admin') },
+        can('safeguards') && { label: 'Admin Safeguards', onClick: () => navigate('/admin-safeguards') },
+        can('mailinglist') && { label: 'Mailing List', onClick: () => navigate('/mailing-list') },
+        can('banners') && { label: 'Banners', onClick: () => navigate('/banners') },
+        can('emailtemplates') && { label: 'Email Templates', onClick: () => navigate('/email-templates') },
+        can('maintenance') && { label: 'Maintenance', onClick: () => navigate('/maintenance') },
+      ]} />
 
       <div className="tabs">
         {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['danger','Danger Zone']].map(([k,l]) => (
