@@ -202,19 +202,24 @@ export default function PeopleDirectory() {
         <div style={{
           padding: 'var(--space-sm) 0',
           fontSize: 'var(--font-size-body)',
-          color: 'var(--color-text-primary)',
-          borderBottom: '2px solid var(--color-text-primary)',
-          marginBottom: '-1px'
-        }}>
+          color: filterStatus === 'all' || filterStatus === 'active' || filterStatus === 'leave' || filterStatus === 'terminated' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          borderBottom: filterStatus === 'all' || filterStatus === 'active' || filterStatus === 'leave' || filterStatus === 'terminated' ? '2px solid var(--color-text-primary)' : '2px solid transparent',
+          marginBottom: '-1px',
+          cursor: 'pointer'
+        }}
+        onClick={() => setFilterStatus('all')}
+        >
           Directory
         </div>
         <div style={{
           padding: 'var(--space-sm) 0',
           fontSize: 'var(--font-size-body)',
-          color: 'var(--color-text-secondary)',
+          color: filterStatus === 'onboarding' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          borderBottom: filterStatus === 'onboarding' ? '2px solid var(--color-text-primary)' : '2px solid transparent',
+          marginBottom: '-1px',
           cursor: 'pointer'
         }}
-        onClick={() => navigate('/people/onboarding')}
+        onClick={() => setFilterStatus('onboarding')}
         >
           Onboarding
         </div>
@@ -223,7 +228,9 @@ export default function PeopleDirectory() {
           fontSize: 'var(--font-size-body)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer'
-        }}>
+        }}
+        onClick={() => navigate('/hr/leave')}
+        >
           Leave
         </div>
         <div style={{
@@ -231,7 +238,9 @@ export default function PeopleDirectory() {
           fontSize: 'var(--font-size-body)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer'
-        }}>
+        }}
+        onClick={() => navigate('/hr/documents')}
+        >
           Documents
         </div>
         <div style={{
@@ -239,8 +248,10 @@ export default function PeopleDirectory() {
           fontSize: 'var(--font-size-body)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer'
-        }}>
-          Settings
+        }}
+        onClick={() => navigate('/org-chart')}
+        >
+          Org Chart
         </div>
       </div>
 
