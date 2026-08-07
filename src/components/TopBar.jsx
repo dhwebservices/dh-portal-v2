@@ -1,25 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../utils/supabase'
-
-const TABS = [
-  { id: 'dashboard', label: 'Dashboard', path: '/dashboard' },
-  { id: 'people', label: 'People', path: '/people' },
-  { id: 'recruiting', label: 'Recruiting', path: '/recruiting' },
-  { id: 'websites', label: 'Websites', path: '/website-builder' },
-  { id: 'support', label: 'Support', path: '/support' },
-  { id: 'reports', label: 'Reports', path: '/reports' },
-  { id: 'admin', label: 'Admin', path: '/settings' },
-]
+import { visibleNavTabs } from '../utils/navPermissions'
 
 export default function TopBar() {
-  const { user, realUser, logout, isPreviewing, previewTarget, stopPreviewAs } = useAuth()
+  const { user, realUser, logout, isPreviewing, previewTarget, stopPreviewAs, can } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [unread, setUnread] = useState(0)
   const menuRef = useRef(null)
+
+  const TABS = useMemo(() => visibleNavTabs(can), [can])
 
   useEffect(() => {
     if (!user?.email) return
