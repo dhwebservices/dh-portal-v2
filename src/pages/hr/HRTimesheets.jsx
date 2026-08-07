@@ -67,7 +67,7 @@ export default function HRTimesheets() {
         }
         <div style={{ textAlign:'right' }}>
           <div style={{ fontSize:22, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--accent)' }}>{totalHours.toFixed(1)}h</div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em' }}>This month</div>
+          <div style={{ fontSize:12, color:'var(--faint)' }}>This month</div>
         </div>
       </div>
 

@@ -296,8 +296,8 @@ export default function Schedule() {
           {/* Admin: set schedule on behalf of staff */}
           {isAdmin && (
             <div style={{ marginBottom:16, padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
-              <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
-                📋 Set schedule on behalf of staff member
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--sub)', marginBottom:10 }}>
+                Set schedule on behalf of staff member
               </div>
               <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
                 <div style={{ flex:1, minWidth:200 }}>
@@ -454,7 +454,7 @@ export default function Schedule() {
         </>
       )}
 
-      {/* ── TEAM VIEW TAB ── */}
+      {/* ── TEAM VIEW TAB (rota grid) ── */}
       {tab === 'team' && (
         <div>
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
@@ -462,70 +462,102 @@ export default function Schedule() {
               {allSchedules.length === 0 ? (
                 <div className="card"><div className="empty"><p>No schedules submitted for this week</p></div></div>
               ) : (
-                <div style={{ overflowX:'auto' }}>
-                  <table className="tbl" style={{ minWidth:700 }}>
-                    <thead>
-                      <tr>
-                        <th style={{ minWidth:160 }}>Staff</th>
-                        {DAYS.map(d => <th key={d} style={{ minWidth:90 }}>{d.slice(0,3)}</th>)}
-                        <th>Total</th>
-                        <th>Status</th>
-                        {isAdmin && <th></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allSchedules.map(s => {
-                        const hrs = Object.values(s.week_data||{}).reduce((sum,d) => sum + dayHours(d), 0)
-                        return (
-                          <tr key={s.id}>
-                            <td className="t-main">
-                              <div style={{ fontWeight:500 }}>{s.user_name?.split('(')[0].trim()}</div>
-                              {s.manager_edited && (
-                                <div style={{ fontSize:10, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
-                                  edited by {s.manager_name?.split(' ')[0]}
-                                </div>
-                              )}
-                            </td>
-                            {DAYS.map(day => {
-                              const d = (s.week_data||{})[day] || {}
-                              const hasShift = d.start && d.end
-                              return (
-                                <td key={day} style={{ fontFamily:'var(--font-mono)', fontSize:11, verticalAlign:'middle' }}>
-                                  {hasShift ? (
-                                    <div>
-                                      <div style={{ color:'var(--text)', fontWeight:500 }}>{d.start}</div>
-                                      <div style={{ color:'var(--faint)' }}>{d.end}</div>
-                                    </div>
-                                  ) : (
-                                    <span style={{ color:'var(--border)', fontSize:13 }}>—</span>
-                                  )}
-                                </td>
-                              )
-                            })}
-                            <td style={{ fontFamily:'var(--font-mono)', fontSize:12, fontWeight:600, color:hrs>0?'var(--accent)':'var(--faint)' }}>
-                              {hrs.toFixed(1)}h
-                            </td>
-                            <td>
-                              <span className={'badge badge-'+(s.submitted?'green':'amber')}>
-                                {s.submitted ? 'Submitted' : 'Draft'}
-                              </span>
-                            </td>
-                            {isAdmin && (
-                              <td>
-                                <button className="btn btn-ghost btn-sm" onClick={() => {
-                                  setOnBehalfOf({ email: s.user_email, name: s.user_name })
-                                  switchTab('mine')
-                                }}>
-                                  Edit
-                                </button>
+                <>
+                  <div className="metric-grid" style={{ marginBottom: 16 }}>
+                    <div className="metric-tile">
+                      <div className="metric-label">Staff scheduled</div>
+                      <div className="metric-value">{allSchedules.length}</div>
+                    </div>
+                    <div className="metric-tile">
+                      <div className="metric-label">Team hours</div>
+                      <div className="metric-value">
+                        {allSchedules.reduce((sum, s) => sum + Object.values(s.week_data || {}).reduce((a, d) => a + dayHours(d), 0), 0).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="metric-tile">
+                      <div className="metric-label">Submitted</div>
+                      <div className="metric-value">{allSchedules.filter(s => s.submitted).length}</div>
+                    </div>
+                    <div className="metric-tile">
+                      <div className="metric-label">Draft</div>
+                      <div className="metric-value">{allSchedules.filter(s => !s.submitted).length}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Staff</th>
+                          {DAYS.map((d, i) => (
+                            <th key={d} style={{ textAlign: 'left', padding: '10px 10px', minWidth: 118, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>
+                              {d.slice(0, 3)} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>{new Date(shiftWeek(weekStart, i) + 'T12:00:00').getDate()}</span>
+                            </th>
+                          ))}
+                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Total</th>
+                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Status</th>
+                          {isAdmin && <th style={{ padding: '10px 14px' }}></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allSchedules.map((s) => {
+                          const hrs = Object.values(s.week_data || {}).reduce((sum, d) => sum + dayHours(d), 0)
+                          return (
+                            <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.user_name?.split('(')[0].trim()}</div>
+                                {s.manager_edited && (
+                                  <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>
+                                    edited by {s.manager_name?.split(' ')[0]}
+                                  </div>
+                                )}
                               </td>
-                            )}
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              {DAYS.map((day) => {
+                                const d = (s.week_data || {})[day] || {}
+                                const hasShift = d.start && d.end
+                                return (
+                                  <td key={day} style={{ padding: '8px', verticalAlign: 'top' }}>
+                                    {hasShift ? (
+                                      <div style={{
+                                        background: 'var(--accent-soft)',
+                                        border: '1px solid var(--accent-border)',
+                                        borderRadius: 6,
+                                        padding: '6px 8px',
+                                      }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>{d.start} – {d.end}</div>
+                                        {d.note && <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{d.note}</div>}
+                                      </div>
+                                    ) : (
+                                      <div style={{ textAlign: 'center', color: 'var(--faint)', fontSize: 13 }}>–</div>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                              <td style={{ padding: '12px 14px', verticalAlign: 'top', fontSize: 13, fontWeight: 600, color: hrs > 0 ? 'var(--accent)' : 'var(--faint)' }}>
+                                {hrs.toFixed(1)}h
+                              </td>
+                              <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
+                                <span className={'badge badge-' + (s.submitted ? 'green' : 'amber')}>
+                                  {s.submitted ? 'Submitted' : 'Draft'}
+                                </span>
+                              </td>
+                              {isAdmin && (
+                                <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
+                                  <button className="btn btn-ghost btn-sm" onClick={() => {
+                                    setOnBehalfOf({ email: s.user_email, name: s.user_name })
+                                    switchTab('mine')
+                                  }}>
+                                    Edit
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </>
           )}
