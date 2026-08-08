@@ -35,14 +35,14 @@ export function saveNativeSession(tokenResponse) {
     expiresAt: Date.now() + (tokenResponse.expires_in || 3600) * 1000,
     savedAt: Date.now(),
   }
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
   window.dispatchEvent(new Event(NATIVE_SESSION_EVENT))
   return session
 }
 
 export function getNativeSession() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     return JSON.parse(raw)
   } catch (_) {
@@ -51,6 +51,6 @@ export function getNativeSession() {
 }
 
 export function clearNativeSession() {
-  sessionStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(STORAGE_KEY)
   window.dispatchEvent(new Event(NATIVE_SESSION_EVENT))
 }

@@ -176,7 +176,7 @@ export default function MobileLoginProfessional() {
           )}
 
           {/* Development bypass */}
-          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid #d2d2d7' }}>
+          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--mobile-border)' }}>
             <button
               className="professional-btn professional-btn-secondary"
               onClick={handleDevLogin}
@@ -190,7 +190,7 @@ export default function MobileLoginProfessional() {
         <div className="professional-login-footer">
           <div>Secure staff access</div>
           <div style={{ marginTop: '8px', fontSize: '12px' }}>DH Website Services (David Hooper Home Limited)</div>
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #d2d2d7', fontSize: '12px', lineHeight: '1.6' }}>
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--mobile-border)', fontSize: '12px', lineHeight: '1.6' }}>
             <strong>Tech Support:</strong><br/>
             david@dhwebsiteservices.co.uk<br/>
             07364166285 or 02920024218 (opt 5)
@@ -201,7 +201,7 @@ export default function MobileLoginProfessional() {
       <style>{`
         .professional-login {
           min-height: 100vh;
-          background: #ffffff;
+          background: var(--mobile-card);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -222,7 +222,7 @@ export default function MobileLoginProfessional() {
         .professional-login-title {
           font-size: 22px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           text-align: center;
           margin-bottom: 4px;
           letter-spacing: -0.3px;
@@ -238,7 +238,7 @@ export default function MobileLoginProfessional() {
 
         .professional-login-subtitle-2 {
           font-size: 15px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           text-align: center;
           margin-bottom: 40px;
         }
@@ -284,9 +284,9 @@ export default function MobileLoginProfessional() {
         }
 
         .professional-btn-secondary {
-          background: #f5f5f7;
-          color: #1a1a1a;
-          border: 1px solid #d2d2d7;
+          background: var(--mobile-bg);
+          color: var(--mobile-text);
+          border: 1px solid var(--mobile-border);
         }
 
         .professional-btn-secondary:hover:not(:disabled) {
@@ -316,7 +316,7 @@ export default function MobileLoginProfessional() {
           align-items: center;
           text-align: center;
           margin: 20px 0;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           font-size: 14px;
         }
 
@@ -324,7 +324,7 @@ export default function MobileLoginProfessional() {
         .professional-divider::after {
           content: '';
           flex: 1;
-          border-bottom: 1px solid #d2d2d7;
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .professional-divider span {
@@ -345,7 +345,7 @@ export default function MobileLoginProfessional() {
         .professional-login-footer {
           text-align: center;
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         /* Safe area support */

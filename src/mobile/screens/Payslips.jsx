@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { Browser } from '@capacitor/browser'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
+import { SkeletonList } from '../components/SkeletonLoader'
 
 export default function MobilePayslips({ goBack, user, navigate }) {
   const [payslips, setPayslips] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedPayslip, setSelectedPayslip] = useState(null)
-  const [ytdTotals, setYtdTotals] = useState({ gross: 0, tax: 0, ni: 0, net: 0 })
+  const [ytdGross, setYtdGross] = useState(0)
 
   useEffect(() => {
     loadPayslips()
@@ -17,8 +19,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
   const loadPayslips = async () => {
     setLoading(true)
     try {
-      // Fetch payslips from payslips table
-      const { data, error} = await supabase
+      const { data, error } = await supabase
         .from('payslips')
         .select('*')
         .eq('user_email', user.email)
@@ -37,19 +38,10 @@ export default function MobilePayslips({ goBack, user, navigate }) {
 
   const calculateYTD = (data) => {
     const currentYear = new Date().getFullYear()
-    const thisYearPayslips = data.filter(p => {
-      const year = new Date(p.period_end_date).getFullYear()
-      return year === currentYear
-    })
-
-    const totals = thisYearPayslips.reduce((acc, p) => ({
-      gross: acc.gross + (p.gross_pay || 0),
-      tax: acc.tax + (p.tax || 0),
-      ni: acc.ni + (p.ni || 0),
-      net: acc.net + (p.net_pay || 0),
-    }), { gross: 0, tax: 0, ni: 0, net: 0 })
-
-    setYtdTotals(totals)
+    const total = data
+      .filter(p => p.gross_pay != null && new Date(p.uploaded_at).getFullYear() === currentYear)
+      .reduce((sum, p) => sum + Number(p.gross_pay || 0), 0)
+    setYtdGross(total)
   }
 
   const formatCurrency = (amount) => {
@@ -59,30 +51,28 @@ export default function MobilePayslips({ goBack, user, navigate }) {
     }).format(amount || 0)
   }
 
-  const formatPeriod = (startDate, endDate) => {
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const monthYear = end.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-    return monthYear
-  }
-
   const handlePayslipTap = async (payslip) => {
     await Haptics.impact({ style: ImpactStyle.Medium })
     setSelectedPayslip(payslip)
+
+    if (!payslip.viewed) {
+      await supabase
+        .from('payslips')
+        .update({ viewed: true, first_viewed_at: new Date().toISOString() })
+        .eq('id', payslip.id)
+      setPayslips(prev => prev.map(p => p.id === payslip.id ? { ...p, viewed: true } : p))
+    }
   }
 
-  const handleDownloadPDF = async (payslip) => {
+  const handleOpenFile = async (payslip) => {
     await Haptics.impact({ style: ImpactStyle.Medium })
-
-    if (payslip.xero_payslip_id) {
-      const pdfUrl = `/api/xero/payslip/${payslip.xero_payslip_id}/pdf`
-      window.open(pdfUrl, '_blank')
-    } else {
-      alert('PDF not available for this payslip')
+    if (payslip.file_url) {
+      await Browser.open({ url: payslip.file_url })
     }
   }
 
   if (selectedPayslip) {
+    const p = selectedPayslip
     return (
       <div className="mobile-screen">
         <div className="mobile-screen-header">
@@ -97,50 +87,37 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           <MobileCard>
             <div style={{ padding: '8px' }}>
               <div className="payslip-header">
-                <h2>{formatPeriod(selectedPayslip.period_start_date, selectedPayslip.period_end_date)}</h2>
-                <p>{selectedPayslip.employee_name}</p>
+                <h2>{p.period || '—'}</h2>
+                <p>{p.user_name}</p>
               </div>
 
-              <div className="payslip-section">
-                <div className="section-title">Earnings</div>
-                <div className="payslip-row">
-                  <span>Gross Pay</span>
-                  <span className="amount">{formatCurrency(selectedPayslip.gross_pay)}</span>
-                </div>
-                {selectedPayslip.hours_worked && (
-                  <div className="payslip-row sub">
+              {p.source === 'hours' ? (
+                <div className="payslip-section">
+                  <div className="section-title">Calculated From Hours</div>
+                  <div className="payslip-row">
                     <span>Hours Worked</span>
-                    <span>{selectedPayslip.hours_worked}h</span>
+                    <span className="amount">{Number(p.hours_worked || 0).toFixed(2)}h</span>
                   </div>
-                )}
-              </div>
-
-              <div className="payslip-section">
-                <div className="section-title">Deductions</div>
-                <div className="payslip-row">
-                  <span>Tax (PAYE)</span>
-                  <span className="amount negative">-{formatCurrency(selectedPayslip.tax)}</span>
+                  <div className="payslip-row">
+                    <span>Hourly Rate</span>
+                    <span className="amount">{formatCurrency(p.hourly_rate)}</span>
+                  </div>
+                  <div className="payslip-row total">
+                    <span>Gross Pay</span>
+                    <span className="amount">{formatCurrency(p.gross_pay)}</span>
+                  </div>
                 </div>
-                <div className="payslip-row">
-                  <span>National Insurance</span>
-                  <span className="amount negative">-{formatCurrency(selectedPayslip.ni)}</span>
+              ) : (
+                <div className="payslip-section">
+                  <div className="section-title">Uploaded Document</div>
+                  <p className="file-note">Your payslip has been uploaded as a document by HR.</p>
                 </div>
-              </div>
+              )}
 
-              <div className="payslip-section">
-                <div className="payslip-row total">
-                  <span>Net Pay</span>
-                  <span className="amount">{formatCurrency(selectedPayslip.net_pay)}</span>
-                </div>
-              </div>
-
-              {selectedPayslip.xero_payslip_id && (
-                <button
-                  className="download-button"
-                  onClick={() => handleDownloadPDF(selectedPayslip)}
-                >
+              {p.file_url && (
+                <button className="download-button" onClick={() => handleOpenFile(p)}>
                   <Icon name="download" size={18} color="white" />
-                  Download PDF
+                  {p.source === 'file' ? 'View Payslip' : 'View Document'}
                 </button>
               )}
             </div>
@@ -151,19 +128,19 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           .payslip-header {
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 2px solid #f5f5f7;
+            border-bottom: 2px solid var(--mobile-border);
           }
 
           .payslip-header h2 {
             font-size: 20px;
             font-weight: 700;
-            color: #1a1a1a;
+            color: var(--mobile-text);
             margin: 0 0 4px 0;
           }
 
           .payslip-header p {
             font-size: 14px;
-            color: #86868b;
+            color: var(--mobile-text-secondary);
             margin: 0;
           }
 
@@ -174,10 +151,16 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           .section-title {
             font-size: 13px;
             font-weight: 600;
-            color: #86868b;
+            color: var(--mobile-text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 12px;
+          }
+
+          .file-note {
+            font-size: 14px;
+            color: var(--mobile-text-secondary);
+            margin: 0;
           }
 
           .payslip-row {
@@ -185,18 +168,12 @@ export default function MobilePayslips({ goBack, user, navigate }) {
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #f5f5f7;
-          }
-
-          .payslip-row.sub {
-            padding-left: 16px;
-            font-size: 13px;
-            color: #86868b;
+            border-bottom: 1px solid var(--mobile-border);
           }
 
           .payslip-row.total {
             border-bottom: none;
-            border-top: 2px solid #1a1a1a;
+            border-top: 2px solid var(--mobile-text);
             padding-top: 16px;
             margin-top: 8px;
             font-size: 18px;
@@ -206,10 +183,6 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           .amount {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
-          }
-
-          .amount.negative {
-            color: #ff3b30;
           }
 
           .download-button {
@@ -247,43 +220,23 @@ export default function MobilePayslips({ goBack, user, navigate }) {
         <div style={{ width: 60 }} />
       </div>
 
-      {/* YTD Summary */}
-      <div style={{ padding: '20px', background: '#f5f5f7' }}>
+      <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>
         <MobileCard>
           <div style={{ padding: '8px' }}>
             <div className="ytd-header">Year to Date ({new Date().getFullYear()})</div>
-            <div className="ytd-grid">
-              <div className="ytd-item">
-                <div className="ytd-label">Gross</div>
-                <div className="ytd-value">{formatCurrency(ytdTotals.gross)}</div>
-              </div>
-              <div className="ytd-item">
-                <div className="ytd-label">Tax</div>
-                <div className="ytd-value negative">{formatCurrency(ytdTotals.tax)}</div>
-              </div>
-              <div className="ytd-item">
-                <div className="ytd-label">NI</div>
-                <div className="ytd-value negative">{formatCurrency(ytdTotals.ni)}</div>
-              </div>
-              <div className="ytd-item">
-                <div className="ytd-label">Net</div>
-                <div className="ytd-value primary">{formatCurrency(ytdTotals.net)}</div>
-              </div>
-            </div>
+            <div className="ytd-value primary">{formatCurrency(ytdGross)}</div>
+            <div className="ytd-sub">Gross pay from calculated payslips</div>
           </div>
         </MobileCard>
       </div>
 
-      {/* Payslips List */}
       <div style={{ padding: '20px', paddingBottom: '100px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div className="spinner" />
-          </div>
+          <SkeletonList count={4} lines={2} />
         ) : payslips.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <Icon name="file" size={48} color="#d2d2d7" />
-            <p style={{ marginTop: 16, fontSize: 15, color: '#86868b' }}>
+            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               No payslips available
             </p>
           </div>
@@ -296,11 +249,12 @@ export default function MobilePayslips({ goBack, user, navigate }) {
                     <Icon name="file" size={24} color="#0066cc" />
                   </div>
                   <div className="payslip-info">
-                    <div className="payslip-period">
-                      {formatPeriod(payslip.period_start_date, payslip.period_end_date)}
+                    <div className="payslip-period">{payslip.period || '—'}</div>
+                    <div className="payslip-amount">
+                      {payslip.gross_pay != null ? formatCurrency(payslip.gross_pay) : 'View document'}
                     </div>
-                    <div className="payslip-amount">{formatCurrency(payslip.net_pay)}</div>
                   </div>
+                  {!payslip.viewed && <div className="unread-dot" />}
                   <Icon name="chevronRight" size={20} color="#86868b" />
                 </div>
               </MobileCard>
@@ -313,42 +267,27 @@ export default function MobilePayslips({ goBack, user, navigate }) {
         .ytd-header {
           font-size: 14px;
           font-weight: 600;
-          color: #86868b;
-          margin-bottom: 16px;
+          color: var(--mobile-text-secondary);
+          margin-bottom: 8px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
 
-        .ytd-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
-        }
-
-        .ytd-item {
-          text-align: center;
-        }
-
-        .ytd-label {
-          font-size: 12px;
-          color: #86868b;
-          margin-bottom: 6px;
-        }
-
         .ytd-value {
-          font-size: 18px;
+          font-size: 28px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           font-variant-numeric: tabular-nums;
-        }
-
-        .ytd-value.negative {
-          color: #ff3b30;
         }
 
         .ytd-value.primary {
           color: #0066cc;
-          font-size: 20px;
+        }
+
+        .ytd-sub {
+          font-size: 12px;
+          color: var(--mobile-text-secondary);
+          margin-top: 4px;
         }
 
         .payslips-list {
@@ -382,27 +321,21 @@ export default function MobilePayslips({ goBack, user, navigate }) {
         .payslip-period {
           font-size: 15px;
           font-weight: 600;
-          color: #1a1a1a;
-          margin-bottom: 2px;
+          color: var(--mobile-text);
         }
 
         .payslip-amount {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
+          margin-top: 2px;
         }
 
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid #d2d2d7;
-          border-top-color: #0066cc;
+        .unread-dot {
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+          background: #ff3b30;
+          flex-shrink: 0;
         }
       `}</style>
     </div>

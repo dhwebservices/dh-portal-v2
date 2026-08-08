@@ -1,31 +1,49 @@
 import { Capacitor } from '@capacitor/core'
+import { BiometricAuth, BiometryType } from '@aparajita/capacitor-biometric-auth'
 
-// Simplified biometric auth for web - mobile features disabled for now
+function biometryTypeName(type) {
+  switch (type) {
+    case BiometryType.faceId: return 'faceId'
+    case BiometryType.touchId: return 'touchId'
+    case BiometryType.fingerprintAuthentication: return 'fingerprint'
+    case BiometryType.faceAuthentication: return 'face'
+    case BiometryType.irisAuthentication: return 'iris'
+    default: return null
+  }
+}
+
 export async function isBiometricAvailable() {
-  // For web, biometrics not available
-  return { available: false, reason: 'Biometric auth only available in native mobile app' }
+  if (!Capacitor.isNativePlatform()) {
+    return { available: false, reason: 'Biometric auth only available in native mobile app' }
+  }
+
+  try {
+    const result = await BiometricAuth.checkBiometry()
+    return {
+      available: result.isAvailable,
+      biometryType: biometryTypeName(result.biometryType),
+      reason: result.reason || null,
+    }
+  } catch (error) {
+    return { available: false, reason: error.message }
+  }
 }
 
 export async function authenticateWithBiometric(reason = 'Please authenticate to continue') {
-  throw new Error('Biometric authentication only available in native mobile app')
-}
+  if (!Capacitor.isNativePlatform()) {
+    throw new Error('Biometric authentication only available in native mobile app')
+  }
 
-export async function saveCredentials(username, password) {
-  return { success: false, reason: 'Web platform' }
-}
+  await BiometricAuth.authenticate({
+    reason,
+    cancelTitle: 'Cancel',
+    allowDeviceCredential: true,
+    iosFallbackTitle: 'Enter Passcode',
+  })
 
-export async function getCredentials() {
-  return null
-}
-
-export async function deleteCredentials() {
-  return { success: false }
+  return { success: true }
 }
 
 export async function biometricLogin() {
-  throw new Error('Biometric login only available in native mobile app')
-}
-
-export async function enableBiometricLogin(username, password) {
-  throw new Error('Biometric authentication not available on this device')
+  return authenticateWithBiometric('Sign in to DH Staff Portal')
 }

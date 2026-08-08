@@ -35,7 +35,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
           align-items: center;
           gap: 8px;
           padding: 10px 14px;
-          background: #f5f5f7;
+          background: var(--mobile-bg);
           border: 2px solid transparent;
           border-radius: 10px;
           margin: 0 20px 16px;
@@ -43,7 +43,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
         }
 
         .search-bar.focused {
-          background: white;
+          background: var(--mobile-card);
           border-color: #0066cc;
           box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
         }
@@ -53,13 +53,13 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
           border: none;
           background: none;
           font-size: 16px;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           outline: none;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         .search-input::placeholder {
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         .search-input::-webkit-search-cancel-button {

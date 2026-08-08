@@ -107,7 +107,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
       </div>
 
       {/* Period Selector */}
-      <div style={{ padding: '16px 20px', background: '#f5f5f7', borderBottom: '1px solid #e0e0e0' }}>
+      <div style={{ padding: '16px 20px', background: 'var(--mobile-bg)', borderBottom: '1px solid var(--mobile-border)' }}>
         <div className="period-chips">
           {['week', 'month', 'all'].map(p => (
             <button
@@ -125,7 +125,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
       </div>
 
       {/* Stats Cards */}
-      <div style={{ padding: '20px', background: '#f5f5f7' }}>
+      <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>
         <div className="stats-grid">
           <MobileCard small>
             <div className="stat-card">
@@ -168,7 +168,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         ) : records.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <Icon name="clock" size={48} color="#d2d2d7" />
-            <p style={{ marginTop: 16, fontSize: 15, color: '#86868b' }}>
+            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               No attendance records
             </p>
           </div>
@@ -200,10 +200,10 @@ export default function MobileAttendance({ goBack, user, navigate }) {
                     </div>
                   </div>
 
-                  {record.location_name && (
+                  {record.office_location && (
                     <div className="record-location">
                       <Icon name="mapPin" size={14} color="#86868b" />
-                      <span>{record.location_name}</span>
+                      <span>{record.office_location}</span>
                     </div>
                   )}
                 </div>
@@ -222,12 +222,12 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         .period-chip {
           flex: 1;
           padding: 8px 12px;
-          background: white;
-          border: 1px solid #d2d2d7;
+          background: var(--mobile-card);
+          border: 1px solid var(--mobile-border);
           border-radius: 8px;
           font-size: 13px;
           font-weight: 500;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           cursor: pointer;
         }
 
@@ -253,13 +253,13 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         .stat-value {
           font-size: 18px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin-bottom: 2px;
         }
 
         .stat-label {
           font-size: 11px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         .records-list {
@@ -282,7 +282,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         .record-date {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
         }
 
         .record-duration {
@@ -299,14 +299,14 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         }
 
         .time-block {
-          background: #f5f5f7;
+          background: var(--mobile-bg);
           padding: 12px;
           border-radius: 8px;
         }
 
         .time-label {
           font-size: 11px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin-bottom: 6px;
           text-transform: uppercase;
           font-weight: 600;
@@ -316,7 +316,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         .time-value {
           font-size: 15px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           display: flex;
           align-items: center;
           gap: 6px;
@@ -327,15 +327,15 @@ export default function MobileAttendance({ goBack, user, navigate }) {
           align-items: center;
           gap: 6px;
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           padding-top: 8px;
-          border-top: 1px solid #f5f5f7;
+          border-top: 1px solid var(--mobile-border);
         }
 
         .spinner {
           width: 32px;
           height: 32px;
-          border: 3px solid #d2d2d7;
+          border: 3px solid var(--mobile-border);
           border-top-color: #0066cc;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

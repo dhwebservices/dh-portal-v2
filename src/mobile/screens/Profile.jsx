@@ -157,7 +157,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #86868b;
+            color: var(--mobile-text-secondary);
             margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -167,7 +167,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
             width: 100%;
             padding: 12px;
             font-size: 16px;
-            border: 1px solid #d2d2d7;
+            border: 1px solid var(--mobile-border);
             border-radius: 8px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           }
@@ -340,7 +340,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
         .profile-section-header h3 {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0;
         }
 
@@ -363,13 +363,13 @@ export default function MobileProfile({ goBack, user, navigate }) {
         .section-title {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 16px 0;
         }
 
         .profile-field {
           padding: 12px 0;
-          border-bottom: 1px solid #f5f5f7;
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .profile-field:last-child {
@@ -379,7 +379,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
         .field-label {
           font-size: 12px;
           font-weight: 600;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.5px;
           margin-bottom: 6px;
@@ -387,7 +387,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
 
         .field-value {
           font-size: 15px;
-          color: #1a1a1a;
+          color: var(--mobile-text);
         }
 
         .action-button {
@@ -396,8 +396,8 @@ export default function MobileProfile({ goBack, user, navigate }) {
           justify-content: center;
           gap: 12px;
           padding: 14px;
-          background: white;
-          border: 1px solid #d2d2d7;
+          background: var(--mobile-card);
+          border: 1px solid var(--mobile-border);
           border-radius: 8px;
           font-size: 16px;
           font-weight: 600;
@@ -417,7 +417,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
         .spinner {
           width: 32px;
           height: 32px;
-          border: 3px solid #d2d2d7;
+          border: 3px solid var(--mobile-border);
           border-top-color: #0066cc;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

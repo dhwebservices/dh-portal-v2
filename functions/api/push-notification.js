@@ -1,4 +1,27 @@
-// Cloudflare Pages Function for sending push notifications via Firebase Cloud Messaging (FCM)
+// Cloudflare Pages Function for sending push notifications directly via
+// Apple Push Notification service (APNs).
+//
+// This app has no Firebase iOS SDK integration (@capacitor/push-notifications
+// registers directly with APNs on iOS and returns the raw APNs device token),
+// so routing through Firebase Cloud Messaging was never going to work - and
+// in fact the previous implementation called Google's Legacy FCM HTTP API
+// (fcm.googleapis.com/fcm/send), which Google shut down in June 2024 and
+// now returns 404 for every request. Every push notification this app has
+// ever attempted to send has silently failed. Going straight to APNs is
+// both simpler and the correct approach for an iOS-only app with no
+// Firebase SDK wired up.
+//
+// Required Cloudflare Pages environment variables:
+//   APNS_KEY_ID        - Key ID of the APNs Auth Key (.p8) from Apple Developer
+//   APNS_TEAM_ID        - Apple Developer Team ID
+//   APNS_AUTH_KEY       - Full contents of the .p8 file (PEM, including
+//                          "-----BEGIN PRIVATE KEY-----" / "-----END..." lines)
+//   APNS_BUNDLE_ID      - App bundle ID, e.g. uk.co.dhwebsiteservices.staff
+//   APNS_ENVIRONMENT    - "sandbox" (Xcode debug builds) or "production"
+//                          (TestFlight / App Store builds). Defaults to
+//                          "sandbox" - MUST be switched to "production"
+//                          before/at App Store release, otherwise pushes to
+//                          production-signed builds will fail.
 
 export async function onRequest(context) {
   const { request, env } = context
@@ -22,10 +45,10 @@ export async function onRequest(context) {
 
   try {
     const payload = await request.json()
-    const { type, manager_email, staff_email, staff_name, leave_type, start_date, end_date, days, reason, leave_request_id, decided_by } = payload
+    const { type, manager_email, staff_email, staff_name, leave_type, start_date, end_date, days, reason, leave_request_id, decided_by, decline_reason } = payload
 
-    // Get recipient email based on notification type
-    const recipientEmail = type === 'leave_request' ? manager_email : staff_email
+    const managerRoutedTypes = ['leave_request', 'onboarding_submitted']
+    const recipientEmail = managerRoutedTypes.includes(type) ? (manager_email || staff_email) : staff_email
 
     if (!recipientEmail) {
       return new Response(
@@ -34,18 +57,16 @@ export async function onRequest(context) {
       )
     }
 
-    // Get FCM token(s) for user
     const tokens = await getUserDeviceTokens(recipientEmail, env)
 
     if (tokens.length === 0) {
-      console.log(`No FCM tokens found for ${recipientEmail}`)
+      console.log(`No device tokens found for ${recipientEmail}`)
       return new Response(
         JSON.stringify({ message: 'No devices registered', sent: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Build notification payload based on type
     let notificationData
 
     if (type === 'leave_request') {
@@ -93,28 +114,65 @@ export async function onRequest(context) {
           click_action: `https://staff.dhwebsiteservices.co.uk/my-profile`
         }
       }
+    } else if (type === 'onboarding_submitted') {
+      notificationData = {
+        title: '📋 Onboarding Submitted',
+        body: `${staff_name} has submitted their onboarding for review`,
+        data: {
+          type: 'onboarding_submitted',
+          staff_email,
+          staff_name,
+          click_action: `https://staff.dhwebsiteservices.co.uk/hr/onboarding`
+        }
+      }
+    } else if (type === 'onboarding_approved') {
+      notificationData = {
+        title: '✅ Onboarding Approved',
+        body: `Your onboarding has been approved${decided_by ? ` by ${decided_by}` : ''}. Welcome aboard!`,
+        data: {
+          type: 'onboarding_approved',
+          decided_by: decided_by || '',
+          click_action: `https://staff.dhwebsiteservices.co.uk/my-profile`
+        }
+      }
+    } else if (type === 'onboarding_rejected') {
+      notificationData = {
+        title: '❌ Onboarding Declined',
+        body: decline_reason ? `Declined: ${decline_reason}` : 'Your onboarding submission was declined. Please review and resubmit.',
+        data: {
+          type: 'onboarding_rejected',
+          decided_by: decided_by || '',
+          decline_reason: decline_reason || '',
+          click_action: `https://staff.dhwebsiteservices.co.uk/onboarding`
+        }
+      }
     } else {
-      return new Response(
-        JSON.stringify({ error: 'Invalid notification type' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      // Generic fallback for notification types not modelled above, so this
+      // endpoint stays usable without needing a hardcoded branch per type.
+      notificationData = {
+        title: payload.title || 'DH Staff Portal',
+        body: payload.body || payload.message || '',
+        data: { type: type || 'general', click_action: payload.click_action || 'https://staff.dhwebsiteservices.co.uk' },
+      }
     }
 
-    // Send to all user devices
     const results = await Promise.all(
-      tokens.map(token => sendFCMNotification(token, notificationData, env))
+      tokens.map(token => sendApnsNotification(token, notificationData, env))
     )
 
     const successCount = results.filter(r => r.success).length
+    if (successCount === 0 && results.length > 0) {
+      console.error('All APNs sends failed:', results)
+    }
 
-    // Log notification to database
     await logNotification(recipientEmail, notificationData, successCount > 0, env)
 
     return new Response(
       JSON.stringify({
         message: 'Notification sent',
         sent: successCount,
-        total: tokens.length
+        total: tokens.length,
+        errors: results.filter(r => !r.success).map(r => r.error),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -132,7 +190,7 @@ async function getUserDeviceTokens(userEmail, env) {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env
 
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/user_devices?user_email=eq.${encodeURIComponent(userEmail)}&select=fcm_token`,
+    `${SUPABASE_URL}/rest/v1/user_devices?user_email=eq.${encodeURIComponent(userEmail)}&device_type=eq.ios&select=fcm_token`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_ROLE_KEY,
@@ -146,51 +204,113 @@ async function getUserDeviceTokens(userEmail, env) {
   }
 
   const devices = await response.json()
-  return devices.map(d => d.fcm_token)
+  return devices.map(d => d.fcm_token).filter(Boolean)
 }
 
-async function sendFCMNotification(fcmToken, notificationData, env) {
-  const { FCM_SERVER_KEY } = env
+// --- APNs (Apple Push Notification service) via HTTP/2 + JWT (ES256) ---
 
-  if (!FCM_SERVER_KEY) {
-    console.error('FCM_SERVER_KEY not configured')
-    return { success: false, error: 'FCM not configured' }
+let cachedApnsJwt = null
+let cachedApnsJwtIssuedAt = 0
+
+async function getApnsJwt(env) {
+  const { APNS_KEY_ID, APNS_TEAM_ID, APNS_AUTH_KEY } = env
+  if (!APNS_KEY_ID || !APNS_TEAM_ID || !APNS_AUTH_KEY) {
+    throw new Error('APNs credentials not configured (APNS_KEY_ID / APNS_TEAM_ID / APNS_AUTH_KEY)')
   }
 
-  const fcmPayload = {
-    to: fcmToken,
-    notification: {
-      title: notificationData.title,
-      body: notificationData.body,
-      sound: 'default',
-      badge: '1',
-      click_action: notificationData.data.click_action
-    },
-    data: notificationData.data,
-    priority: 'high'
+  const now = Math.floor(Date.now() / 1000)
+  // APNs tokens are valid up to 1 hour; reuse within 50 minutes to avoid
+  // re-signing on every request.
+  if (cachedApnsJwt && now - cachedApnsJwtIssuedAt < 50 * 60) {
+    return cachedApnsJwt
+  }
+
+  const header = { alg: 'ES256', kid: APNS_KEY_ID }
+  const claims = { iss: APNS_TEAM_ID, iat: now }
+
+  const encoder = new TextEncoder()
+  const base64url = (bytes) =>
+    btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const base64urlFromString = (str) => base64url(encoder.encode(str))
+
+  const unsigned = `${base64urlFromString(JSON.stringify(header))}.${base64urlFromString(JSON.stringify(claims))}`
+
+  const privateKey = await importApnsPrivateKey(APNS_AUTH_KEY)
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    privateKey,
+    encoder.encode(unsigned)
+  )
+
+  const jwt = `${unsigned}.${base64url(new Uint8Array(signature))}`
+  cachedApnsJwt = jwt
+  cachedApnsJwtIssuedAt = now
+  return jwt
+}
+
+async function importApnsPrivateKey(pem) {
+  const pemBody = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s+/g, '')
+
+  const binary = atob(pemBody)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+
+  return crypto.subtle.importKey(
+    'pkcs8',
+    bytes.buffer,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  )
+}
+
+async function sendApnsNotification(deviceToken, notificationData, env) {
+  const { APNS_BUNDLE_ID, APNS_ENVIRONMENT } = env
+
+  if (!APNS_BUNDLE_ID) {
+    return { success: false, error: 'APNS_BUNDLE_ID not configured' }
   }
 
   try {
-    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `key=${FCM_SERVER_KEY}`,
-        'Content-Type': 'application/json',
+    const jwt = await getApnsJwt(env)
+    const host = APNS_ENVIRONMENT === 'production'
+      ? 'https://api.push.apple.com'
+      : 'https://api.sandbox.push.apple.com'
+
+    const body = {
+      aps: {
+        alert: {
+          title: notificationData.title,
+          body: notificationData.body,
+        },
+        sound: 'default',
+        badge: 1,
       },
-      body: JSON.stringify(fcmPayload)
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || result.failure === 1) {
-      console.error('FCM send failed:', result)
-      return { success: false, error: result.results?.[0]?.error || 'FCM error' }
+      ...notificationData.data,
     }
 
-    return { success: true, messageId: result.results?.[0]?.message_id }
+    const response = await fetch(`${host}/3/device/${deviceToken}`, {
+      method: 'POST',
+      headers: {
+        'authorization': `bearer ${jwt}`,
+        'apns-topic': APNS_BUNDLE_ID,
+        'apns-push-type': 'alert',
+        'apns-priority': '10',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
 
+    if (response.status === 200) {
+      return { success: true }
+    }
+
+    const errorBody = await response.json().catch(() => ({}))
+    return { success: false, error: errorBody.reason || `APNs ${response.status}` }
   } catch (error) {
-    console.error('FCM request failed:', error)
     return { success: false, error: error.message }
   }
 }

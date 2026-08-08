@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import Icon from './Icon'
 
 export default class MobileErrorBoundary extends Component {
   constructor(props) {
@@ -12,9 +13,6 @@ export default class MobileErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Mobile App Error:', error, errorInfo)
-
-    // TODO: Send to crash reporting service (Firebase Crashlytics)
-    // logErrorToService(error, errorInfo)
   }
 
   render() {
@@ -27,18 +25,17 @@ export default class MobileErrorBoundary extends Component {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '32px',
-          background: '#f5f5f5',
+          background: 'var(--mobile-bg)',
           textAlign: 'center'
         }}>
-          <div style={{
-            fontSize: '64px',
-            marginBottom: '24px'
-          }}>⚠️</div>
+          <div style={{ marginBottom: '24px' }}>
+            <Icon name="alertTriangle" size={48} color="#ff9500" />
+          </div>
 
           <h1 style={{
             fontSize: '24px',
             fontWeight: '700',
-            color: '#1a1a1a',
+            color: 'var(--mobile-text)',
             marginBottom: '12px'
           }}>
             Something went wrong
@@ -46,7 +43,7 @@ export default class MobileErrorBoundary extends Component {
 
           <p style={{
             fontSize: '16px',
-            color: '#666',
+            color: 'var(--mobile-text-secondary)',
             marginBottom: '32px',
             lineHeight: '1.5'
           }}>
@@ -58,13 +55,13 @@ export default class MobileErrorBoundary extends Component {
             <pre style={{
               fontSize: '12px',
               padding: '16px',
-              background: '#fff',
-              border: '1px solid #ddd',
+              background: 'var(--mobile-card)',
+              border: '1px solid var(--mobile-border)',
               borderRadius: '8px',
               overflow: 'auto',
               maxWidth: '100%',
               textAlign: 'left',
-              color: '#c53030'
+              color: '#ff3b30'
             }}>
               {this.state.error.toString()}
             </pre>

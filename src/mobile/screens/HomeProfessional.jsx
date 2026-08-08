@@ -105,6 +105,30 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
             </MobileCard>
           )}
 
+          {isAdmin && (
+            <MobileCard small onPress={() => navigate('onboarding-review')}>
+              <div className="professional-stat">
+                <Icon name="checkCircle" size={24} color="#34c759" />
+                <div>
+                  <h4>Onboarding</h4>
+                  <p>Review submissions</p>
+                </div>
+              </div>
+            </MobileCard>
+          )}
+
+          {isAdmin && (
+            <MobileCard small onPress={() => navigate('generate-payslip')}>
+              <div className="professional-stat">
+                <Icon name="dollar" size={24} color="#5856d6" />
+                <div>
+                  <h4>Generate Payslip</h4>
+                  <p>Pay staff for a period</p>
+                </div>
+              </div>
+            </MobileCard>
+          )}
+
           <MobileCard small onPress={() => navigate('leave')}>
             <div className="professional-stat">
               <Icon name="calendar" size={24} color="#34c759" />
@@ -159,31 +183,31 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
 
       <style>{`
         .professional-home {
-          background: #f5f5f7;
+          background: var(--mobile-bg);
           min-height: 100vh;
           padding-bottom: 100px;
         }
 
         .professional-home-header {
-          background: white;
+          background: var(--mobile-card);
           padding: 60px 20px 24px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          border-bottom: 1px solid #d2d2d7;
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .professional-home-greeting h1 {
           font-size: 28px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 4px 0;
           letter-spacing: -0.5px;
         }
 
         .professional-home-greeting p {
           font-size: 16px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin: 0;
         }
 
@@ -206,7 +230,7 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
         .professional-section-title {
           font-size: 20px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 16px 0;
           letter-spacing: -0.3px;
         }
@@ -235,13 +259,13 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
         .professional-clock-info h3 {
           font-size: 17px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 4px 0;
         }
 
         .professional-clock-info p {
           font-size: 14px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin: 0;
         }
 
@@ -265,13 +289,13 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
         .professional-stat h4 {
           font-size: 15px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 4px 0;
         }
 
         .professional-stat p {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin: 0;
         }
 

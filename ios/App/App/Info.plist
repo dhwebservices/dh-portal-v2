@@ -34,19 +34,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>DH Staff Portal needs access to your camera to update your profile photo.</string>
+	<string>DH Staff Portal needs access to your camera to take photos of documents, such as right-to-work evidence.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>DH Staff Portal uses Face ID for quick and secure login to your account.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>DH Staff Portal needs permission to save photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>DH Staff Portal needs access to your photo library to update your profile photo.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This allows us to provide you with personalized features and improve the app experience.</string>
+	<string>DH Staff Portal needs access to your photo library to upload documents, such as right-to-work evidence or payslip files.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

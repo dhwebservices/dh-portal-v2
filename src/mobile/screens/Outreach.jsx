@@ -429,21 +429,21 @@ export default function MobileOutreach({ navigate }) {
       {/* Stats */}
       <div className="professional-section" style={{ paddingTop: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          <div style={{ background: '#f5f5f7', padding: 16, borderRadius: 12 }}>
+          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#0066cc' }}>{contacts.length}</div>
-            <div style={{ fontSize: 13, color: '#86868b', marginTop: 4 }}>Total Leads</div>
+            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Total Leads</div>
           </div>
-          <div style={{ background: '#f5f5f7', padding: 16, borderRadius: 12 }}>
+          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#34c759' }}>{contacts.filter(c => c.status === 'interested').length}</div>
-            <div style={{ fontSize: 13, color: '#86868b', marginTop: 4 }}>Hot Leads</div>
+            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Hot Leads</div>
           </div>
-          <div style={{ background: '#f5f5f7', padding: 16, borderRadius: 12 }}>
+          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#ff9500' }}>{contacts.filter(c => c.status === 'follow_up').length}</div>
-            <div style={{ fontSize: 13, color: '#86868b', marginTop: 4 }}>Follow-ups</div>
+            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Follow-ups</div>
           </div>
-          <div style={{ background: '#f5f5f7', padding: 16, borderRadius: 12 }}>
+          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: '#5856d6' }}>{contacts.filter(c => c.status === 'converted').length}</div>
-            <div style={{ fontSize: 13, color: '#86868b', marginTop: 4 }}>Converted</div>
+            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Converted</div>
           </div>
         </div>
       </div>
@@ -459,7 +459,7 @@ export default function MobileOutreach({ navigate }) {
             width: '100%',
             padding: '12px 16px',
             borderRadius: 10,
-            border: '1px solid #d2d2d7',
+            border: '1px solid var(--mobile-border)',
             fontSize: 15,
             marginBottom: 12,
           }}
@@ -480,8 +480,8 @@ export default function MobileOutreach({ navigate }) {
                 padding: '8px 16px',
                 borderRadius: 20,
                 border: 'none',
-                background: filter === value ? '#0066cc' : '#f5f5f7',
-                color: filter === value ? 'white' : '#1a1a1a',
+                background: filter === value ? '#0066cc' : 'var(--mobile-bg)',
+                color: filter === value ? 'white' : 'var(--mobile-text)',
                 fontSize: 14,
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
@@ -496,9 +496,9 @@ export default function MobileOutreach({ navigate }) {
       {/* Contact List */}
       <div className="professional-section">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#86868b' }}>Loading...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--mobile-text-secondary)' }}>Loading...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#86868b' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--mobile-text-secondary)' }}>
             {search ? 'No contacts found' : 'No contacts yet. Add your first contact!'}
           </div>
         ) : (
@@ -506,10 +506,10 @@ export default function MobileOutreach({ navigate }) {
             <MobileCard key={contact.id} onPress={() => setShowDetail(contact)} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--mobile-text)', marginBottom: 4 }}>
                     {contact.business_name}
                   </h3>
-                  <p style={{ fontSize: 14, color: '#86868b' }}>
+                  <p style={{ fontSize: 14, color: 'var(--mobile-text-secondary)' }}>
                     {contact.contact_name || 'No contact name'}
                   </p>
                 </div>
@@ -528,13 +528,13 @@ export default function MobileOutreach({ navigate }) {
               </div>
 
               {contact.email && (
-                <div style={{ fontSize: 13, color: '#86868b', marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginBottom: 4 }}>
                   <Icon name="user" size={14} /> {contact.email}
                 </div>
               )}
 
               {contact.phone && (
-                <div style={{ fontSize: 13, color: '#86868b', marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginBottom: 8 }}>
                   <Icon name="user" size={14} /> {contact.phone}
                 </div>
               )}
@@ -581,7 +581,7 @@ export default function MobileOutreach({ navigate }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'white',
+          background: 'var(--mobile-card)',
           zIndex: 1000,
           overflowY: 'auto',
           paddingBottom: 100,
@@ -600,7 +600,7 @@ export default function MobileOutreach({ navigate }) {
 
           <div className="professional-section">
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Business Name *
               </label>
               <input
@@ -612,14 +612,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Contact Name
               </label>
               <input
@@ -631,14 +631,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Email
               </label>
               <input
@@ -650,14 +650,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Phone
               </label>
               <input
@@ -669,14 +669,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Website
               </label>
               <input
@@ -688,14 +688,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Status
               </label>
               <select
@@ -705,9 +705,9 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
-                  background: 'white',
+                  background: 'var(--mobile-card)',
                 }}
               >
                 {STATUSES.map(s => (
@@ -717,7 +717,7 @@ export default function MobileOutreach({ navigate }) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Outcome
               </label>
               <select
@@ -727,9 +727,9 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
-                  background: 'white',
+                  background: 'var(--mobile-card)',
                 }}
               >
                 {CALL_OUTCOMES.map(([value, label]) => (
@@ -739,7 +739,7 @@ export default function MobileOutreach({ navigate }) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Follow-up Date
               </label>
               <input
@@ -750,14 +750,14 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                 }}
               />
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#1a1a1a' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
                 Notes
               </label>
               <textarea
@@ -769,7 +769,7 @@ export default function MobileOutreach({ navigate }) {
                   width: '100%',
                   padding: 12,
                   borderRadius: 10,
-                  border: '1px solid #d2d2d7',
+                  border: '1px solid var(--mobile-border)',
                   fontSize: 15,
                   fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                   resize: 'vertical',
@@ -800,9 +800,9 @@ export default function MobileOutreach({ navigate }) {
                 width: '100%',
                 padding: 16,
                 borderRadius: 12,
-                border: '1px solid #d2d2d7',
-                background: 'white',
-                color: '#1a1a1a',
+                border: '1px solid var(--mobile-border)',
+                background: 'var(--mobile-card)',
+                color: 'var(--mobile-text)',
                 fontSize: 16,
                 fontWeight: 600,
               }}
@@ -821,7 +821,7 @@ export default function MobileOutreach({ navigate }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'white',
+          background: 'var(--mobile-card)',
           zIndex: 1000,
           overflowY: 'auto',
           paddingBottom: 100,
@@ -898,7 +898,7 @@ export default function MobileOutreach({ navigate }) {
               <div style={{ marginTop: 20, marginBottom: 20 }}>
                 <strong style={{ display: 'block', marginBottom: 8 }}>Notes:</strong>
                 <div style={{
-                  background: '#f5f5f7',
+                  background: 'var(--mobile-bg)',
                   padding: 12,
                   borderRadius: 10,
                   fontSize: 14,
@@ -971,11 +971,11 @@ export default function MobileOutreach({ navigate }) {
                     style={{
                       padding: 10,
                       borderRadius: 10,
-                      border: '1px solid #d2d2d7',
-                      background: 'white',
+                      border: '1px solid var(--mobile-border)',
+                      background: 'var(--mobile-card)',
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#1a1a1a',
+                      color: 'var(--mobile-text)',
                     }}
                   >
                     {labelize(status)}
@@ -998,11 +998,11 @@ export default function MobileOutreach({ navigate }) {
                     style={{
                       padding: 10,
                       borderRadius: 10,
-                      border: '1px solid #d2d2d7',
-                      background: 'white',
+                      border: '1px solid var(--mobile-border)',
+                      background: 'var(--mobile-card)',
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#1a1a1a',
+                      color: 'var(--mobile-text)',
                     }}
                   >
                     {label}
@@ -1036,7 +1036,7 @@ export default function MobileOutreach({ navigate }) {
                 padding: 16,
                 borderRadius: 12,
                 border: '1px solid #ff3b30',
-                background: 'white',
+                background: 'var(--mobile-card)',
                 color: '#ff3b30',
                 fontSize: 16,
                 fontWeight: 600,
@@ -1050,28 +1050,28 @@ export default function MobileOutreach({ navigate }) {
 
       <style>{`
         .professional-screen {
-          background: #f5f5f7;
+          background: var(--mobile-bg);
           min-height: 100vh;
           padding-bottom: 100px;
         }
 
         .professional-screen-header {
-          background: white;
+          background: var(--mobile-card);
           padding: 60px 20px 24px;
-          border-bottom: 1px solid #d2d2d7;
+          border-bottom: 1px solid var(--mobile-border);
           margin-bottom: 20px;
         }
 
         .professional-screen-header h1 {
           font-size: 28px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 4px 0;
         }
 
         .professional-screen-header p {
           font-size: 16px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin: 0;
         }
 

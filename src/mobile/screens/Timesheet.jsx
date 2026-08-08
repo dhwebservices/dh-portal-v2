@@ -220,7 +220,7 @@ export default function MobileTimesheet({ goBack, user }) {
             display: block;
             font-size: 14px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--mobile-text);
             margin-bottom: 8px;
           }
 
@@ -228,7 +228,7 @@ export default function MobileTimesheet({ goBack, user }) {
             width: 100%;
             padding: 12px;
             font-size: 16px;
-            border: 1px solid #d2d2d7;
+            border: 1px solid var(--mobile-border);
             border-radius: 8px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           }
@@ -240,11 +240,11 @@ export default function MobileTimesheet({ goBack, user }) {
 
           .date-display {
             padding: 12px;
-            background: #f5f5f7;
+            background: var(--mobile-bg);
             border-radius: 8px;
             font-size: 16px;
             font-weight: 500;
-            color: #1a1a1a;
+            color: var(--mobile-text);
           }
 
           .btn-primary {
@@ -267,7 +267,7 @@ export default function MobileTimesheet({ goBack, user }) {
           .btn-delete {
             width: 100%;
             padding: 14px;
-            background: white;
+            background: var(--mobile-card);
             color: #ff3b30;
             border: 1px solid #ff3b30;
             border-radius: 8px;
@@ -391,8 +391,8 @@ export default function MobileTimesheet({ goBack, user }) {
           align-items: center;
           justify-content: space-between;
           padding: 16px 20px;
-          background: white;
-          border-bottom: 1px solid #f5f5f7;
+          background: var(--mobile-card);
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .week-nav-btn {
@@ -414,7 +414,7 @@ export default function MobileTimesheet({ goBack, user }) {
         .week-label {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
         }
 
         .total-hours {
@@ -426,7 +426,7 @@ export default function MobileTimesheet({ goBack, user }) {
 
         .total-hours-label {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin-bottom: 4px;
         }
 
@@ -456,7 +456,7 @@ export default function MobileTimesheet({ goBack, user }) {
         .calendar-day-name {
           font-size: 15px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
         }
 
         .calendar-day-name.today {
@@ -471,7 +471,7 @@ export default function MobileTimesheet({ goBack, user }) {
 
         .calendar-day-notes {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           font-style: italic;
         }
 

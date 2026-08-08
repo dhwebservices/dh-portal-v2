@@ -3,9 +3,16 @@ import { Haptics, NotificationType } from '@capacitor/haptics'
 import MobileButton from '../components/MobileButton'
 import MobileCard from '../components/MobileCard'
 import { supabase } from '../../utils/supabase'
+import { useAuth } from '../../contexts/AuthContext'
+import { sendManagedNotification } from '../../utils/notificationPreferences'
+
+const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 
 export default function MobileEditStaffProfile({ goBack, navigate, staffEmail }) {
+  const { user } = useAuth()
   const [profile, setProfile] = useState({})
+  const [onboardingMode, setOnboardingMode] = useState(false)
+  const [initialOnboardingMode, setInitialOnboardingMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [departments, setDepartments] = useState([])
@@ -19,14 +26,15 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
 
   const loadProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('hr_profiles')
-        .select('*')
-        .eq('user_email', staffEmail)
-        .single()
+      const [{ data, error }, { data: permRow }] = await Promise.all([
+        supabase.from('hr_profiles').select('*').eq('user_email', staffEmail).single(),
+        supabase.from('user_permissions').select('onboarding').ilike('user_email', staffEmail).maybeSingle(),
+      ])
 
       if (error) throw error
       setProfile(data || {})
+      setOnboardingMode(!!permRow?.onboarding)
+      setInitialOnboardingMode(!!permRow?.onboarding)
     } catch (error) {
       console.error('Failed to load profile:', error)
     } finally {
@@ -64,13 +72,35 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
     setSaving(true)
 
     try {
-      // Update HR profile
+      // Update HR profile - explicit whitelist, not a spread of the whole
+      // form state: this form also collects payment_type/hourly_rate/
+      // commission_rate for the separate `staff` table below, and those
+      // aren't real columns on hr_profiles, so spreading the raw object in
+      // would make PostgREST reject the whole upsert with an unknown-column
+      // error the moment a user touched the Payment Settings section.
+      const hrProfilePayload = {
+        id: profile.id,
+        user_email: profile.user_email,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        personal_email: profile.personal_email,
+        address: profile.address,
+        department: profile.department,
+        role: profile.role,
+        contract_type: profile.contract_type,
+        start_date: profile.start_date,
+        manager_email: profile.manager_email,
+        manager_name: profile.manager_name,
+        bank_name: profile.bank_name,
+        account_name: profile.account_name,
+        sort_code: profile.sort_code,
+        account_number: profile.account_number,
+        updated_at: new Date().toISOString(),
+      }
+
       const { error: hrError } = await supabase
         .from('hr_profiles')
-        .upsert({
-          ...profile,
-          updated_at: new Date().toISOString(),
-        })
+        .upsert(hrProfilePayload)
 
       if (hrError) throw hrError
 
@@ -89,6 +119,34 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
         })
 
       if (staffError) throw staffError
+
+      // Onboarding mode toggle
+      const { error: permError } = await supabase
+        .from('user_permissions')
+        .upsert({
+          user_email: staffEmail.toLowerCase().trim(),
+          onboarding: onboardingMode,
+          updated_by: user?.email || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_email' })
+
+      if (permError) throw permError
+
+      if (onboardingMode && !initialOnboardingMode) {
+        await sendManagedNotification({
+          userEmail: staffEmail,
+          userName: profile.full_name || staffEmail,
+          title: '👋 Complete your onboarding',
+          message: 'Your onboarding has been started. Please complete your details, right-to-work document, and contract in the app.',
+          link: '/onboarding',
+          type: 'info',
+          category: 'hr',
+          emailSubject: 'Please complete your onboarding — DH Website Services',
+          emailHtml: `<p>Hi ${(profile.full_name || staffEmail).split(' ')[0]},</p><p>Your onboarding has been started. Please open the app and complete your details, right-to-work document, and contract.</p>`,
+          sentBy: user?.name || user?.email,
+          portalUrl: PORTAL_URL,
+        }).catch(() => {})
+      }
 
       await Haptics.notification({ type: NotificationType.Success })
       goBack()
@@ -235,6 +293,32 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
               </option>
             ))}
           </select>
+        </MobileCard>
+
+        {/* Onboarding */}
+        <MobileCard>
+          <h3 className="mobile-form-section">Onboarding</h3>
+          <div className="onboarding-row">
+            <div>
+              <div className="onboarding-label">Onboarding Mode</div>
+              <div className="onboarding-desc">
+                {onboardingMode
+                  ? 'This staff member will see the onboarding form when they open the app.'
+                  : 'Turn on to have this staff member complete onboarding in the app.'}
+              </div>
+            </div>
+            <button
+              className={`onboarding-toggle ${onboardingMode ? 'active' : ''}`}
+              onClick={() => setOnboardingMode(!onboardingMode)}
+            >
+              <div className="onboarding-toggle-slider" />
+            </button>
+          </div>
+          {profile.contract_url && (
+            <a className="contract-link" href={profile.contract_url} target="_blank" rel="noreferrer">
+              📄 View issued contract
+            </a>
+          )}
         </MobileCard>
 
         {/* Payment Settings */}
@@ -413,6 +497,65 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
         .mobile-textarea {
           resize: vertical;
           padding-top: 12px;
+        }
+
+        .onboarding-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .onboarding-label {
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--mobile-text);
+        }
+
+        .onboarding-desc {
+          font-size: 13px;
+          color: var(--mobile-text-secondary);
+          margin-top: 4px;
+        }
+
+        .onboarding-toggle {
+          width: 51px;
+          height: 31px;
+          border-radius: 31px;
+          background: var(--mobile-border);
+          border: none;
+          cursor: pointer;
+          position: relative;
+          flex-shrink: 0;
+          transition: background 0.2s;
+        }
+
+        .onboarding-toggle.active {
+          background: #34c759;
+        }
+
+        .onboarding-toggle-slider {
+          width: 27px;
+          height: 27px;
+          border-radius: 50%;
+          background: white;
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          transition: left 0.2s;
+        }
+
+        .onboarding-toggle.active .onboarding-toggle-slider {
+          left: 22px;
+        }
+
+        .contract-link {
+          display: inline-block;
+          margin-top: 16px;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--mobile-accent);
+          text-decoration: none;
         }
 
         .mobile-loading {

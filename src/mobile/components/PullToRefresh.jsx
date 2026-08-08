@@ -61,7 +61,7 @@ export default function PullToRefresh({ isRefreshing, pullDistance }) {
         .spinner {
           width: 24px;
           height: 24px;
-          border: 3px solid #d2d2d7;
+          border: 3px solid var(--mobile-border);
           border-top-color: #0066cc;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

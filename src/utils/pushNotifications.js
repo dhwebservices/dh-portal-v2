@@ -108,21 +108,53 @@ async function getDeviceInfo() {
   }
 }
 
+const NOTIFICATION_TYPE_TO_SCREEN = {
+  leave_request: 'leave',
+  leave_approved: 'leave',
+  leave_rejected: 'leave',
+  onboarding_submitted: 'onboarding-review',
+  onboarding_approved: 'home',
+  onboarding_rejected: 'home',
+}
+
+const PENDING_NAV_KEY = 'dh-pending-push-nav'
+
 function handleNotificationTap(notification) {
   const data = notification.notification.data
 
-  if (!data || !data.click_action) {
-    return
-  }
+  if (!data) return
 
   // Mark notification as clicked in database
   if (data.leave_request_id) {
     markNotificationClicked(data.leave_request_id, data.type)
   }
 
-  // Navigate to the appropriate page
-  // This will be handled by the router in App.jsx
-  window.location.href = data.click_action
+  // The app runs from bundled local assets (no Capacitor "server" config),
+  // so setting window.location.href to a live https:// URL would navigate
+  // the native WebView away from the app entirely and load the public
+  // website instead of routing within MobileApp's own screen state. Queue
+  // the target screen instead - MobileApp picks this up on launch/resume
+  // and calls its own navigate().
+  const screen = NOTIFICATION_TYPE_TO_SCREEN[data.type]
+  if (screen) {
+    try {
+      localStorage.setItem(PENDING_NAV_KEY, JSON.stringify({ screen, at: Date.now() }))
+    } catch (_) {}
+  }
+}
+
+export function consumePendingPushNavigation() {
+  try {
+    const raw = localStorage.getItem(PENDING_NAV_KEY)
+    if (!raw) return null
+    localStorage.removeItem(PENDING_NAV_KEY)
+    const parsed = JSON.parse(raw)
+    // Ignore stale entries (e.g. app relaunched days later for unrelated reasons)
+    if (Date.now() - parsed.at > 24 * 60 * 60 * 1000) return null
+    return parsed.screen
+  } catch (_) {
+    return null
+  }
 }
 
 async function markNotificationClicked(leaveRequestId, notificationType) {
@@ -168,7 +200,7 @@ export async function getUserDevices(userEmail) {
     .from('user_devices')
     .select('*')
     .eq('user_email', userEmail)
-    .order('last_active', { ascending: false })
+    .order('last_active_at', { ascending: false })
 
   if (error) {
     console.error('Failed to fetch user devices:', error)

@@ -3,12 +3,12 @@ import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase'
 
 // Office locations (add more as needed)
-const OFFICE_LOCATIONS = [
+export const OFFICE_LOCATIONS = [
   {
     name: 'DH Website Services Office',
-    latitude: 51.5074, // Example: London coordinates
-    longitude: -0.1278,
-    radius: 100, // meters
+    latitude: 51.609215, // 36b Coedpenmaen Road, Pontypridd, CF37 4LP (OS Code-Point postcode centroid)
+    longitude: -3.330585,
+    radius: 200, // meters - allows for GPS drift + postcode-centroid approximation
   },
   // Add more office locations here
 ]

@@ -22,8 +22,15 @@ function getWeekStart(d = new Date()) {
   const dt = new Date(d)
   const day = dt.getDay()
   const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
-  dt.setDate(diff); dt.setHours(0,0,0,0)
-  return dt.toISOString().split('T')[0]
+  dt.setDate(diff)
+  // Format from local date parts, not toISOString() - that converts to UTC
+  // first, which rolls the date back by one whenever the local timezone is
+  // ahead of UTC (e.g. British Summer Time), silently shifting every
+  // computed Monday to the preceding Sunday.
+  const year = dt.getFullYear()
+  const month = String(dt.getMonth() + 1).padStart(2, '0')
+  const day2 = String(dt.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day2}`
 }
 
 function dayHours(d) {

@@ -1,86 +1,19 @@
-import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
-import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
-export default function MobileSettings({ goBack, user, navigate }) {
+export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference }) {
   const { logout } = useAuth()
-  const [preferences, setPreferences] = useState({
-    pushNotifications: true,
-    emailNotifications: true,
-    theme: 'light',
-    biometricAuth: false,
-  })
-  const [loading, setLoading] = useState(true)
+  const loading = prefsLoading
 
-  useEffect(() => {
-    loadPreferences()
-  }, [user?.email])
-
-  const loadPreferences = async () => {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_email', user.email)
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-
-      if (data) {
-        setPreferences({
-          pushNotifications: data.push_notifications !== false,
-          emailNotifications: data.email_notifications !== false,
-          theme: data.theme || 'light',
-          biometricAuth: data.biometric_auth || false,
-        })
-      }
-    } catch (error) {
-      console.error('Failed to load preferences:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const savePreference = async (key, value) => {
+  const handleToggle = async (key) => {
     await Haptics.impact({ style: ImpactStyle.Light })
-
-    try {
-      const fieldMap = {
-        pushNotifications: 'push_notifications',
-        emailNotifications: 'email_notifications',
-        theme: 'theme',
-        biometricAuth: 'biometric_auth',
-      }
-
-      const dbField = fieldMap[key]
-
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_email: user.email,
-          [dbField]: value,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_email'
-        })
-
-      if (error) throw error
-
-      setPreferences({ ...preferences, [key]: value })
-    } catch (error) {
-      console.error('Failed to save preference:', error)
-    }
-  }
-
-  const handleToggle = (key) => {
     savePreference(key, !preferences[key])
   }
 
-  const handleThemeChange = (theme) => {
+  const handleThemeChange = async (theme) => {
+    await Haptics.impact({ style: ImpactStyle.Light })
     savePreference('theme', theme)
   }
 
@@ -279,7 +212,7 @@ export default function MobileSettings({ goBack, user, navigate }) {
         .section-title {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin: 0 0 16px 0;
         }
 
@@ -288,7 +221,7 @@ export default function MobileSettings({ goBack, user, navigate }) {
           justify-content: space-between;
           align-items: center;
           padding: 12px 0;
-          border-bottom: 1px solid #f5f5f7;
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .setting-row:last-child {
@@ -305,20 +238,20 @@ export default function MobileSettings({ goBack, user, navigate }) {
         .setting-label {
           font-size: 15px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin-bottom: 2px;
         }
 
         .setting-description {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         .toggle-button {
           width: 51px;
           height: 31px;
           border-radius: 31px;
-          background: #d2d2d7;
+          background: var(--mobile-border);
           border: none;
           cursor: pointer;
           position: relative;
@@ -333,7 +266,7 @@ export default function MobileSettings({ goBack, user, navigate }) {
           width: 27px;
           height: 27px;
           border-radius: 50%;
-          background: white;
+          background: var(--mobile-card);
           position: absolute;
           top: 2px;
           left: 2px;
@@ -358,12 +291,12 @@ export default function MobileSettings({ goBack, user, navigate }) {
           justify-content: center;
           gap: 6px;
           padding: 12px;
-          background: #f5f5f7;
+          background: var(--mobile-bg);
           border: 2px solid transparent;
           border-radius: 8px;
           font-size: 12px;
           font-weight: 600;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           cursor: pointer;
         }
 
@@ -378,7 +311,7 @@ export default function MobileSettings({ goBack, user, navigate }) {
           justify-content: space-between;
           align-items: center;
           padding: 12px 0;
-          border-bottom: 1px solid #f5f5f7;
+          border-bottom: 1px solid var(--mobile-border);
         }
 
         .info-row:last-child {
@@ -387,19 +320,19 @@ export default function MobileSettings({ goBack, user, navigate }) {
 
         .info-label {
           font-size: 15px;
-          color: #1a1a1a;
+          color: var(--mobile-text);
         }
 
         .info-value {
           font-size: 15px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           text-align: right;
         }
 
         .logout-button {
           width: 100%;
           padding: 14px;
-          background: white;
+          background: var(--mobile-card);
           border: 1px solid #ff3b30;
           border-radius: 8px;
           font-size: 16px;
@@ -420,7 +353,7 @@ export default function MobileSettings({ goBack, user, navigate }) {
         .spinner {
           width: 32px;
           height: 32px;
-          border: 3px solid #d2d2d7;
+          border: 3px solid var(--mobile-border);
           border-top-color: #0066cc;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

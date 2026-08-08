@@ -11,7 +11,7 @@ export function SkeletonCard({ lines = 3 }) {
       <style>{`
         .skeleton-card {
           padding: 16px;
-          background: white;
+          background: var(--mobile-card);
           border-radius: 8px;
           margin: 0 20px 12px;
         }

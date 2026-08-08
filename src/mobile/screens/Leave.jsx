@@ -22,17 +22,29 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingRequest, setEditingRequest] = useState(null)
   const [searchTerm, setSearchTerm, debouncedSearch] = useSearch()
-  const { scrollRef, isRefreshing, pullDistance, handlers } = usePullToRefresh(loadRequests)
+  const [staffList, setStaffList] = useState([])
   const [form, setForm] = useState({
     leave_type: 'Annual Leave',
     start_date: '',
     end_date: '',
     reason: '',
+    for_user_email: user.email,
+    for_user_name: user.name,
   })
 
-  useEffect(() => {
-    loadRequests()
-  }, [user?.email, isAdmin])
+  const loadStaffList = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('hr_profiles')
+        .select('user_email, full_name')
+        .order('full_name')
+
+      if (error) throw error
+      setStaffList(data || [])
+    } catch (err) {
+      console.error('Failed to load staff list:', err)
+    }
+  }
 
   const loadRequests = async () => {
     setLoading(true)
@@ -59,6 +71,13 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
     }
   }
 
+  const { scrollRef, isRefreshing, pullDistance, handlers } = usePullToRefresh(loadRequests)
+
+  useEffect(() => {
+    loadRequests()
+    if (isAdmin) loadStaffList()
+  }, [user?.email, isAdmin])
+
   const handleAddPress = async () => {
     await Haptics.impact({ style: ImpactStyle.Medium })
     setEditingRequest(null)
@@ -67,6 +86,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       start_date: '',
       end_date: '',
       reason: '',
+      for_user_email: user.email,
+      for_user_name: user.name,
     })
     setShowAddForm(true)
   }
@@ -79,6 +100,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       start_date: request.start_date,
       end_date: request.end_date,
       reason: request.reason || '',
+      for_user_email: request.user_email,
+      for_user_name: request.user_name,
     })
     setShowAddForm(true)
   }
@@ -106,6 +129,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
             end_date: form.end_date,
             days,
             reason: form.reason,
+            ...(isAdmin ? { user_email: form.for_user_email, user_name: form.for_user_name } : {}),
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingRequest.id)
@@ -113,8 +137,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         if (error) throw error
 
         await sendManagedNotification({
-          userEmail: editingRequest.user_email,
-          userName: editingRequest.user_name,
+          userEmail: form.for_user_email,
+          userName: form.for_user_name,
           title: '📅 Leave request updated',
           message: `${form.start_date} to ${form.end_date}`,
           link: '/hr/leave',
@@ -128,14 +152,16 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
       } else {
         // Create new request with optimistic UI
+        const requestForEmail = isAdmin ? form.for_user_email : user.email
+        const requestForName = isAdmin ? form.for_user_name : user.name
         const optimisticRequest = {
           id: 'temp-' + Date.now(),
           leave_type: form.leave_type,
           start_date: form.start_date,
           end_date: form.end_date,
           reason: form.reason,
-          user_email: user.email,
-          user_name: user.name,
+          user_email: requestForEmail,
+          user_name: requestForName,
           days,
           status: 'pending',
           created_at: new Date().toISOString(),
@@ -153,8 +179,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
               start_date: form.start_date,
               end_date: form.end_date,
               reason: form.reason,
-              user_email: user.email,
-              user_name: user.name,
+              user_email: requestForEmail,
+              user_name: requestForName,
               days,
               status: 'pending',
               created_at: new Date().toISOString(),
@@ -181,12 +207,12 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
           userEmail: 'managers',
           userName: 'Managers',
           title: '📅 New leave request',
-          message: `${user.name} - ${form.start_date} to ${form.end_date}`,
+          message: `${requestForName} - ${form.start_date} to ${form.end_date}`,
           link: '/hr/leave',
           type: 'info',
           category: 'hr',
           emailSubject: `Leave Request - ${user.name}`,
-          emailHtml: `<p>${user.name} has submitted a leave request for ${form.start_date} to ${form.end_date}.</p>`,
+          emailHtml: `<p>${requestForName} has submitted a leave request for ${form.start_date} to ${form.end_date}.</p>`,
           sentBy: user?.name || user?.email,
           portalUrl: PORTAL_URL,
         }).catch(() => {})
@@ -331,6 +357,29 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         </div>
 
         <div style={{ padding: '20px' }}>
+          {isAdmin && (
+            <div className="form-group">
+              <label className="form-label">For</label>
+              <select
+                className="form-input"
+                value={form.for_user_email}
+                onChange={(e) => {
+                  const person = staffList.find(s => s.user_email === e.target.value)
+                  setForm({
+                    ...form,
+                    for_user_email: e.target.value,
+                    for_user_name: person?.full_name || e.target.value,
+                  })
+                }}
+              >
+                <option value={user.email}>{user.name} (me)</option>
+                {staffList.filter(s => s.user_email !== user.email).map(s => (
+                  <option key={s.user_email} value={s.user_email}>{s.full_name || s.user_email}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Leave Type</label>
             <select
@@ -389,7 +438,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
             display: block;
             font-size: 14px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--mobile-text);
             margin-bottom: 8px;
           }
 
@@ -397,7 +446,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
             width: 100%;
             padding: 12px;
             font-size: 16px;
-            border: 1px solid #d2d2d7;
+            border: 1px solid var(--mobile-border);
             border-radius: 8px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           }
@@ -459,7 +508,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       />
 
       {/* Stats */}
-      <div style={{ padding: '20px', background: '#f5f5f7' }}>
+      <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-value">{stats.total}</div>
@@ -481,7 +530,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       </div>
 
       {/* Filter Chips */}
-      <div style={{ padding: '0 20px 12px', background: '#f5f5f7' }}>
+      <div style={{ padding: '0 20px 12px', background: 'var(--mobile-bg)' }}>
         <div className="filter-chips">
           {['all', 'pending', 'approved', 'rejected'].map(f => (
             <button
@@ -505,7 +554,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         ) : filteredRequests.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <Icon name="calendar" size={48} color="#d2d2d7" />
-            <p style={{ marginTop: 16, fontSize: 15, color: '#86868b' }}>
+            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               No {filter !== 'all' ? filter : ''} leave requests
             </p>
           </div>
@@ -598,7 +647,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         }
 
         .stat-card {
-          background: white;
+          background: var(--mobile-card);
           padding: 16px 12px;
           border-radius: 12px;
           text-align: center;
@@ -607,13 +656,13 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .stat-value {
           font-size: 24px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin-bottom: 4px;
         }
 
         .stat-label {
           font-size: 12px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         .filter-chips {
@@ -625,12 +674,12 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
         .filter-chip {
           padding: 8px 16px;
-          background: white;
-          border: 1px solid #d2d2d7;
+          background: var(--mobile-card);
+          border: 1px solid var(--mobile-border);
           border-radius: 20px;
           font-size: 14px;
           font-weight: 500;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           white-space: nowrap;
           cursor: pointer;
         }
@@ -661,13 +710,13 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .request-type {
           font-size: 16px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: var(--mobile-text);
           margin-bottom: 4px;
         }
 
         .request-user {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
         }
 
         .status-badge {
@@ -688,13 +737,13 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         }
 
         .request-days {
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin-left: auto;
         }
 
         .request-reason {
           font-size: 13px;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           margin-bottom: 12px;
           font-style: italic;
         }
@@ -704,7 +753,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
           gap: 8px;
           margin-top: 12px;
           padding-top: 12px;
-          border-top: 1px solid #f5f5f7;
+          border-top: 1px solid var(--mobile-border);
         }
 
         .action-btn {
@@ -714,11 +763,11 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
           justify-content: center;
           gap: 6px;
           padding: 10px 16px;
-          border: 1px solid #d2d2d7;
+          border: 1px solid var(--mobile-border);
           border-radius: 8px;
           font-size: 14px;
           font-weight: 600;
-          background: white;
+          background: var(--mobile-card);
           cursor: pointer;
         }
 
@@ -765,7 +814,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .spinner {
           width: 32px;
           height: 32px;
-          border: 3px solid #d2d2d7;
+          border: 3px solid var(--mobile-border);
           border-top-color: #0066cc;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

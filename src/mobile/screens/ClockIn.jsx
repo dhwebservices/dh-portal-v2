@@ -4,7 +4,7 @@ import { Geolocation } from '@capacitor/geolocation'
 import MobileButton from '../components/MobileButton'
 import MobileCard from '../components/MobileCard'
 import Icon from '../components/Icon'
-import { clockIn, clockOut, getTodayAttendance, verifyLocationNearOffice } from '../../utils/gpsClockIn'
+import { clockIn, clockOut, getTodayAttendance, verifyLocationNearOffice, OFFICE_LOCATIONS } from '../../utils/gpsClockIn'
 
 export default function MobileClockIn({ goBack, user }) {
   const [attendance, setAttendance] = useState(null)
@@ -220,7 +220,7 @@ export default function MobileClockIn({ goBack, user }) {
                     {locationStatus.nearestOffice}
                   </p>
                   <p className="mobile-location-help">
-                    Please be within 100m of an office to clock in
+                    Please be within {OFFICE_LOCATIONS[0].radius}m of an office to clock in
                   </p>
                 </div>
               </>

@@ -6,9 +6,15 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { App as CapacitorApp } from '@capacitor/app'
 import { useAuth } from './contexts/AuthContext'
 import { initCrashReporter } from './utils/crashReporter'
-import { initPushNotifications } from './utils/pushNotifications'
+import { initPushNotifications, consumePendingPushNavigation } from './utils/pushNotifications'
 import ErrorBoundary from './components/ErrorBoundary'
-import { useTheme } from './hooks/useTheme'
+import { useUserPreferences } from './hooks/useUserPreferences'
+import { isBiometricAvailable, authenticateWithBiometric } from './utils/biometricAuth'
+import { supabase } from './utils/supabase'
+import MobileOnboarding from './mobile/screens/Onboarding'
+import MobileOnboardingReview from './mobile/screens/OnboardingReview'
+import MobileGeneratePayslip from './mobile/screens/GeneratePayslip'
+import MobileAddStaff from './mobile/screens/AddStaff'
 
 // Mobile-native screens
 import MobileHome from './mobile/screens/HomeProfessional'
@@ -22,6 +28,7 @@ import MobileSettings from './mobile/screens/Settings'
 import MobileStaffDirectory from './mobile/screens/StaffDirectory'
 import MobileStaffProfile from './mobile/screens/StaffProfile'
 import MobileEditStaffProfile from './mobile/screens/EditStaffProfile'
+import MobileEditPermissions from './mobile/screens/EditPermissions'
 import MobileOutreach from './mobile/screens/Outreach'
 import MobileTimesheet from './mobile/screens/Timesheet'
 import MobileRota from './mobile/screens/Rota'
@@ -32,7 +39,109 @@ export default function MobileApp() {
   const [currentScreen, setCurrentScreen] = useState('home')
   const [screenHistory, setScreenHistory] = useState(['home'])
   const [screenParams, setScreenParams] = useState({})
-  const { activeTheme } = useTheme(user?.email)
+  const { preferences, loading: prefsLoading, savePreference } = useUserPreferences(user?.email)
+  const [systemTheme, setSystemTheme] = useState('light')
+  const [locked, setLocked] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [lockError, setLockError] = useState('')
+  const [onboardingActive, setOnboardingActive] = useState(false)
+  const [onboardingChecked, setOnboardingChecked] = useState(false)
+
+  useEffect(() => {
+    if (!user?.email) {
+      if (!loading) setOnboardingChecked(true)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('user_permissions')
+      .select('onboarding')
+      .ilike('user_email', user.email)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        setOnboardingActive(!!data?.onboarding)
+        setOnboardingChecked(true)
+      })
+      .catch(() => { if (!cancelled) setOnboardingChecked(true) })
+    return () => { cancelled = true }
+  }, [user?.email])
+
+  const activeTheme = preferences.theme === 'auto' ? systemTheme : preferences.theme
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e) => setSystemTheme(e.matches ? 'dark' : 'light')
+    setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
+    if (activeTheme === 'dark') {
+      document.body.classList.add('dark-theme')
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.body.classList.remove('dark-theme')
+      document.documentElement.setAttribute('data-theme', 'light')
+    }
+  }, [activeTheme])
+
+  // App-lock: if the user has enabled Biometric Authentication in Settings,
+  // require Face ID / Touch ID before showing any authenticated content -
+  // both on cold launch and whenever the app returns from the background.
+  useEffect(() => {
+    if (prefsLoading || !Capacitor.isNativePlatform()) return
+    setLocked(preferences.biometricAuth === true)
+  }, [prefsLoading, preferences.biometricAuth])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined
+    // Use 'resume' (real backgrounding), not 'appStateChange' (isActive) -
+    // the latter also fires when the Face ID system prompt itself briefly
+    // covers the app, which would re-trigger the lock and loop forever.
+    const listener = CapacitorApp.addListener('resume', () => {
+      if (preferences.biometricAuth) {
+        setLocked(true)
+      }
+    })
+    return () => { listener.remove() }
+  }, [preferences.biometricAuth])
+
+  const unlock = async () => {
+    setUnlocking(true)
+    setLockError('')
+    try {
+      const availability = await isBiometricAvailable()
+      if (!availability.available) {
+        // Device has no biometrics enrolled - don't hold the user hostage
+        setLocked(false)
+        return
+      }
+      await authenticateWithBiometric('Unlock DH Staff Portal')
+      setLocked(false)
+    } catch (error) {
+      setLockError(error.message || 'Authentication failed')
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  useEffect(() => {
+    if (locked) unlock()
+  }, [locked])
+
+  // Pick up a screen queued by a tapped push notification (see
+  // pushNotifications.js - the WebView has no live server URL to route to,
+  // so the tap handler stores an intent here instead of navigating away).
+  useEffect(() => {
+    if (loading || locked || !onboardingChecked || onboardingActive) return
+    const targetScreen = consumePendingPushNavigation()
+    if (targetScreen) {
+      setCurrentScreen(targetScreen)
+      setScreenHistory(['home', targetScreen])
+    }
+  }, [loading, locked, onboardingChecked, onboardingActive])
 
   useEffect(() => {
     configureNativeApp()
@@ -123,13 +232,28 @@ export default function MobileApp() {
       case 'notifications':
         return <MobileNotifications {...screenProps} />
       case 'settings':
-        return <MobileSettings {...screenProps} />
+        return (
+          <MobileSettings
+            {...screenProps}
+            preferences={preferences}
+            prefsLoading={prefsLoading}
+            savePreference={savePreference}
+          />
+        )
       case 'staff-directory':
         return <MobileStaffDirectory {...screenProps} />
       case 'staff-profile':
         return <MobileStaffProfile {...screenProps} />
       case 'edit-staff':
         return <MobileEditStaffProfile {...screenProps} />
+      case 'edit-permissions':
+        return <MobileEditPermissions {...screenProps} />
+      case 'onboarding-review':
+        return <MobileOnboardingReview {...screenProps} />
+      case 'generate-payslip':
+        return <MobileGeneratePayslip {...screenProps} />
+      case 'add-staff':
+        return <MobileAddStaff {...screenProps} />
       case 'outreach':
         return <MobileOutreach {...screenProps} />
       case 'timesheet':
@@ -141,11 +265,94 @@ export default function MobileApp() {
     }
   }
 
-  if (loading) {
+  if (loading || !onboardingChecked) {
     return (
       <div className="mobile-loading">
         <div className="mobile-spinner" />
         <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (onboardingActive) {
+    return (
+      <ErrorBoundary>
+        <MobileOnboarding user={user} />
+      </ErrorBoundary>
+    )
+  }
+
+  if (locked) {
+    return (
+      <div className={`mobile-app ${activeTheme}`}>
+        <div className="lock-screen">
+          <div className="lock-icon">
+            <Icon name="lock" size={40} color="#b8960c" />
+          </div>
+          <h2>DH Staff Portal Locked</h2>
+          <p>{lockError || 'Authenticate to continue'}</p>
+          <button className="unlock-btn" onClick={unlock} disabled={unlocking}>
+            {unlocking ? 'Authenticating...' : 'Unlock'}
+          </button>
+        </div>
+
+        <style>{`
+          .lock-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 24px;
+            text-align: center;
+            background: var(--mobile-bg);
+            color: var(--mobile-text);
+          }
+
+          .lock-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--mobile-card);
+            border: 1px solid var(--mobile-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+          }
+
+          .lock-screen h2 {
+            font-size: 19px;
+            font-weight: 700;
+            margin: 0;
+          }
+
+          .lock-screen p {
+            font-size: 14px;
+            color: var(--mobile-text-secondary);
+            margin: 0 0 12px 0;
+          }
+
+          .unlock-btn {
+            padding: 12px 28px;
+            border-radius: 8px;
+            border: none;
+            background: var(--mobile-accent);
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .unlock-btn:disabled {
+            opacity: 0.6;
+          }
+
+          .unlock-btn:active {
+            opacity: 0.8;
+          }
+        `}</style>
       </div>
     )
   }
@@ -195,6 +402,7 @@ export default function MobileApp() {
       <style>{`
         .mobile-app {
           width: 100vw;
+          max-width: 100vw;
           height: 100vh;
           display: flex;
           flex-direction: column;
@@ -223,7 +431,10 @@ export default function MobileApp() {
 
         .mobile-screen {
           flex: 1;
+          width: 100%;
+          max-width: 100vw;
           overflow-y: auto;
+          overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
           padding-bottom: 20px;
         }
@@ -282,6 +493,7 @@ export default function MobileApp() {
         .mobile-screen {
           -webkit-overflow-scrolling: touch;
           overscroll-behavior-y: contain;
+          overscroll-behavior-x: none;
         }
       `}</style>
       </div>

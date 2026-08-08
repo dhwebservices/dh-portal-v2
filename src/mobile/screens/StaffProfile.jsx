@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { Browser } from '@capacitor/browser'
 import MobileCard from '../components/MobileCard'
 import MobileButton from '../components/MobileButton'
 import { supabase } from '../../utils/supabase'
@@ -391,7 +392,7 @@ function DocumentsTab({ profile, navigate }) {
           <MobileButton
             variant="secondary"
             fullWidth
-            onPress={() => window.open(profile.contract_url, '_blank')}
+            onPress={() => Browser.open({ url: profile.contract_url })}
           >
             📄 View Contract
           </MobileButton>
