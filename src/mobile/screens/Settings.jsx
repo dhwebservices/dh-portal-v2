@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { useAuth } from '../../contexts/AuthContext'
-import { getUserDevices, removeDevice } from '../../utils/pushNotifications'
+import { getUserDevices, removeDevice, initPushNotifications } from '../../utils/pushNotifications'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
@@ -10,6 +10,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
   const loading = prefsLoading
   const [devices, setDevices] = useState([])
   const [devicesLoading, setDevicesLoading] = useState(true)
+  const [checkingPush, setCheckingPush] = useState(false)
 
   useEffect(() => {
     loadDevices()
@@ -22,6 +23,35 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
       setDevices(data || [])
     } finally {
       setDevicesLoading(false)
+    }
+  }
+
+  const handleCheckPushStatus = async () => {
+    setCheckingPush(true)
+    await Haptics.impact({ style: ImpactStyle.Light })
+    try {
+      const timeout = new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), 12000))
+      const result = await Promise.race([initPushNotifications(user.email), timeout])
+
+      if (result.timedOut) {
+        alert('Timed out after 12s.\n\nPushNotifications.register() never fired a registration or registrationError event at all - this points to something blocking the native APNs handshake itself (network/firewall, or a plugin-level issue), not a permission or code problem.')
+        return
+      }
+
+      const lines = [
+        `Supported: ${result.supported}`,
+        `Permitted: ${result.permitted ?? 'n/a'}`,
+        `Registered: ${result.registered ?? 'n/a'}`,
+      ]
+      if (result.error) {
+        lines.push(`Error: ${typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}`)
+      }
+      alert(lines.join('\n'))
+      loadDevices()
+    } catch (error) {
+      alert(`Push check threw: ${error.message || error}`)
+    } finally {
+      setCheckingPush(false)
     }
   }
 
@@ -222,6 +252,10 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
               ))
             )}
+
+            <button className="check-push-btn" onClick={handleCheckPushStatus} disabled={checkingPush}>
+              {checkingPush ? 'Checking...' : 'Check Push Notification Status'}
+            </button>
           </div>
         </MobileCard>
 
@@ -438,6 +472,23 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
           border: none;
           padding: 6px;
           cursor: pointer;
+        }
+
+        .check-push-btn {
+          width: 100%;
+          margin-top: 12px;
+          padding: 12px;
+          background: var(--mobile-bg);
+          border: 1px solid var(--mobile-border);
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #0066cc;
+          cursor: pointer;
+        }
+
+        .check-push-btn:disabled {
+          opacity: 0.6;
         }
 
         .logout-button {
