@@ -90,25 +90,6 @@ export default function MobileLoginProfessional() {
     }
   }
 
-  const handleDevLogin = async () => {
-    try {
-      await Haptics.impact({ style: ImpactStyle.Light })
-
-      // SECURITY: Only allow dev mode in development builds
-      if (import.meta.env.DEV) {
-        localStorage.setItem('dev-mode', 'true')
-        localStorage.setItem('dev-user-email', 'david@dhwebsiteservices.co.uk')
-        localStorage.setItem('dev-user-name', 'David Hooper')
-        alert('Dev mode enabled! Close and reopen the app to login.')
-      } else {
-        alert('Dev mode is not available in production builds.')
-      }
-    } catch (error) {
-      alert('Dev login error: ' + error.message)
-      console.error('Dev login failed:', error)
-    }
-  }
-
   return (
     <div className="professional-login">
       <div className="professional-login-container">
@@ -174,17 +155,6 @@ export default function MobileLoginProfessional() {
               {error}
             </div>
           )}
-
-          {/* Development bypass */}
-          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--mobile-border)' }}>
-            <button
-              className="professional-btn professional-btn-secondary"
-              onClick={handleDevLogin}
-              style={{ fontSize: '14px', opacity: 0.7 }}
-            >
-              🔧 Dev Login (Bypass Auth)
-            </button>
-          </div>
         </div>
 
         <div className="professional-login-footer">

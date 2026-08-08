@@ -37,6 +37,8 @@
 	<string>DH Staff Portal needs access to your camera to take photos of documents, such as right-to-work evidence.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>DH Staff Portal uses Face ID for quick and secure login to your account.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DH Staff Portal needs your location to verify clock-in/out locations and ensure accurate attendance tracking.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

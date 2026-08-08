@@ -819,32 +819,12 @@ function AuthenticatedApp() {
   )
 }
 
-function DevModeAuthenticatedApp() {
-  // Inject dev mode MSAL account
-  useEffect(() => {
-    const mockAccount = {
-      homeAccountId: 'dev-user',
-      environment: 'login.microsoftonline.com',
-      tenantId: 'c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f',
-      username: localStorage.getItem('dev-user-email') || 'david@dhwebsiteservices.co.uk',
-      localAccountId: 'dev-user',
-      name: localStorage.getItem('dev-user-name') || 'David Hooper',
-    }
-
-    // Force MSAL to think we're authenticated
-    msal.setActiveAccount(mockAccount)
-  }, [])
-
-  return <AuthenticatedApp />
-}
-
 export default function App() {
-  const isDevMode = typeof window !== 'undefined' && localStorage.getItem('dev-mode') === 'true'
   // Native login (system browser + PKCE, see mobileAuth.js) never populates
   // MSAL's own account cache, so AuthenticatedTemplate/UnauthenticatedTemplate
   // (which key off useMsal()'s accounts array) can never see a native user as
-  // logged in. Gate natively here the same way DevModeAuthenticatedApp does,
-  // bypassing the MSAL templates entirely once a native session exists.
+  // logged in. Gate natively here, bypassing the MSAL templates entirely once
+  // a native session exists.
   const [hasNativeSession, setHasNativeSession] = useState(
     Capacitor.isNativePlatform() ? !!getNativeSession() : false
   )
@@ -860,10 +840,7 @@ export default function App() {
     <MsalProvider instance={msal}>
       <BrowserRouter>
         <InitialLoader />
-        {isDevMode ? (
-          // Dev mode bypass - skip MSAL auth
-          <DevModeAuthenticatedApp />
-        ) : Capacitor.isNativePlatform() && hasNativeSession ? (
+        {Capacitor.isNativePlatform() && hasNativeSession ? (
           <AuthenticatedApp />
         ) : (
           <>

@@ -27,10 +27,10 @@ only way in, consistent with this being a closed, employee-only tool.
 
 ## Demo account for review
 
-[Fill in before submitting: a real Entra ID test account the reviewer can
-sign in with, e.g. a dedicated "app-review@dhwebsiteservices.co.uk" account
-with a temporary password, since App Review needs to actually log in to
-test the app. Do not use a personal or production admin account for this.]
+Entra ID account: app-review@dhwebsiteservices.co.uk
+Password: 9k4Q*B5w_3rN+jswU1 (permanent — forced first-sign-in password
+change already completed 2026-08-08). Already set in App Store Connect's
+App Review Information sign-in fields.
 
 ---
 
