@@ -79,3 +79,20 @@ export const ROLE_DEFAULTS = {
 export function countEnabledPermissions(perms = {}) {
   return ALL_PAGES.filter((page) => perms?.[page.key]).length
 }
+
+// Base access granted to a new starter the moment onboarding begins - not
+// when it's approved. They need at least this to use the portal/app at all
+// while completing their onboarding form. Matches HROnboarding.jsx exactly.
+export const STARTER_PERMISSION_DEFAULTS = {
+  dashboard: true,
+  notifications: true,
+  my_profile: true,
+  search: true,
+  my_team: true,
+  mytasks: true,
+  schedule: true,
+  hr_leave: true,
+  hr_payslips: true,
+  hr_policies: true,
+  hr_onboarding: true,
+}

@@ -1,11 +1,43 @@
+import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { useAuth } from '../../contexts/AuthContext'
+import { getUserDevices, removeDevice } from '../../utils/pushNotifications'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
 export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference }) {
   const { logout } = useAuth()
   const loading = prefsLoading
+  const [devices, setDevices] = useState([])
+  const [devicesLoading, setDevicesLoading] = useState(true)
+
+  useEffect(() => {
+    loadDevices()
+  }, [user?.email])
+
+  const loadDevices = async () => {
+    setDevicesLoading(true)
+    try {
+      const data = await getUserDevices(user.email)
+      setDevices(data || [])
+    } finally {
+      setDevicesLoading(false)
+    }
+  }
+
+  const handleRemoveDevice = async (device) => {
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    if (!confirm(`Remove "${device.device_name || device.device_model || 'this device'}"? It will stop receiving push notifications.`)) return
+
+    try {
+      await removeDevice(device.id)
+      setDevices(prev => prev.filter(d => d.id !== device.id))
+      await Haptics.impact({ style: ImpactStyle.Heavy })
+    } catch (error) {
+      console.error('Failed to remove device:', error)
+      alert('Failed to remove device. Please try again.')
+    }
+  }
 
   const handleToggle = async (key) => {
     await Haptics.impact({ style: ImpactStyle.Light })
@@ -159,6 +191,37 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 <div className="toggle-slider" />
               </button>
             </div>
+          </div>
+        </MobileCard>
+
+        {/* My Devices */}
+        <MobileCard style={{ marginTop: '16px' }}>
+          <div style={{ padding: '8px' }}>
+            <h3 className="section-title">My Devices</h3>
+            <p className="section-description">Devices registered to receive push notifications for your account.</p>
+
+            {devicesLoading ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div className="spinner" />
+              </div>
+            ) : devices.length === 0 ? (
+              <p className="devices-empty">No devices registered</p>
+            ) : (
+              devices.map(device => (
+                <div className="device-row" key={device.id}>
+                  <Icon name="smartphone" size={20} color="#0066cc" />
+                  <div className="device-info">
+                    <div className="device-name">{device.device_name || device.device_model || 'Unknown device'}</div>
+                    <div className="device-meta">
+                      {device.device_type === 'ios' ? 'iOS' : device.device_type} · {device.os_version || 'Unknown version'}
+                    </div>
+                  </div>
+                  <button className="device-remove" onClick={() => handleRemoveDevice(device)}>
+                    <Icon name="trash" size={18} color="#ff3b30" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </MobileCard>
 
@@ -327,6 +390,54 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
           font-size: 15px;
           color: var(--mobile-text-secondary);
           text-align: right;
+        }
+
+        .section-description {
+          font-size: 13px;
+          color: var(--mobile-text-secondary);
+          margin: -8px 0 12px 0;
+        }
+
+        .devices-empty {
+          text-align: center;
+          font-size: 14px;
+          color: var(--mobile-text-secondary);
+          padding: 12px 0;
+        }
+
+        .device-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--mobile-border);
+        }
+
+        .device-row:last-child {
+          border-bottom: none;
+        }
+
+        .device-info {
+          flex: 1;
+        }
+
+        .device-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--mobile-text);
+        }
+
+        .device-meta {
+          font-size: 12px;
+          color: var(--mobile-text-secondary);
+          margin-top: 2px;
+        }
+
+        .device-remove {
+          background: none;
+          border: none;
+          padding: 6px;
+          cursor: pointer;
         }
 
         .logout-button {

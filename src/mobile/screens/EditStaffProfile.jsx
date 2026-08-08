@@ -5,6 +5,7 @@ import MobileCard from '../components/MobileCard'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
+import { STARTER_PERMISSION_DEFAULTS } from '../../utils/permissionCatalog'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 
@@ -120,15 +121,24 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
 
       if (staffError) throw staffError
 
-      // Onboarding mode toggle
+      // Onboarding mode toggle. When onboarding is newly switched on, also
+      // grant the same base starter permissions web grants at creation time
+      // (STARTER_PERMISSION_DEFAULTS) - without this, once their submission
+      // is approved and the onboarding gate lifts, they'd be left with zero
+      // permissions and see a completely empty app.
+      const permPayload = {
+        user_email: staffEmail.toLowerCase().trim(),
+        onboarding: onboardingMode,
+        updated_by: user?.email || null,
+        updated_at: new Date().toISOString(),
+      }
+      if (onboardingMode && !initialOnboardingMode) {
+        permPayload.permissions = { ...STARTER_PERMISSION_DEFAULTS }
+      }
+
       const { error: permError } = await supabase
         .from('user_permissions')
-        .upsert({
-          user_email: staffEmail.toLowerCase().trim(),
-          onboarding: onboardingMode,
-          updated_by: user?.email || null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_email' })
+        .upsert(permPayload, { onConflict: 'user_email' })
 
       if (permError) throw permError
 

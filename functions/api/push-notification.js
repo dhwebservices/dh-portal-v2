@@ -48,19 +48,35 @@ export async function onRequest(context) {
     const { type, manager_email, staff_email, staff_name, leave_type, start_date, end_date, days, reason, leave_request_id, decided_by, decline_reason } = payload
 
     const managerRoutedTypes = ['leave_request', 'onboarding_submitted']
-    const recipientEmail = managerRoutedTypes.includes(type) ? (manager_email || staff_email) : staff_email
+    let recipientEmails = []
 
-    if (!recipientEmail) {
+    if (managerRoutedTypes.includes(type)) {
+      // Most staff don't have a manager_email set on their HR profile, and
+      // approving leave/onboarding in this app is gated on admin status,
+      // not a formal manager hierarchy - so when there's no specific
+      // manager, notify every admin instead of silently notifying nobody
+      // (or, as it was before this fix, silently falling back to the
+      // submitter's own email).
+      recipientEmails = manager_email ? [manager_email] : await getAdminEmails(env)
+    } else if (staff_email) {
+      recipientEmails = [staff_email]
+    }
+
+    if (recipientEmails.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Recipient email required' }),
+        JSON.stringify({ error: 'No recipient could be determined' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const tokens = await getUserDeviceTokens(recipientEmail, env)
+    const tokensPerRecipient = await Promise.all(
+      recipientEmails.map(email => getUserDeviceTokens(email, env))
+    )
+    const tokens = [...new Set(tokensPerRecipient.flat())]
+    const recipientEmail = recipientEmails[0]
 
     if (tokens.length === 0) {
-      console.log(`No device tokens found for ${recipientEmail}`)
+      console.log(`No device tokens found for ${recipientEmails.join(', ')}`)
       return new Response(
         JSON.stringify({ message: 'No devices registered', sent: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -184,6 +200,25 @@ export async function onRequest(context) {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
+}
+
+async function getAdminEmails(env) {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/user_permissions?select=user_email&permissions->>admin=eq.true`,
+    {
+      headers: {
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      }
+    }
+  )
+
+  if (!response.ok) return []
+
+  const rows = await response.json()
+  return rows.map(r => r.user_email).filter(Boolean)
 }
 
 async function getUserDeviceTokens(userEmail, env) {

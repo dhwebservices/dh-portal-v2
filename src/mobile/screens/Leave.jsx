@@ -11,6 +11,13 @@ import PullToRefresh from '../components/PullToRefresh'
 import { SkeletonList } from '../components/SkeletonLoader'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 
+// Shares the same `hr_leave` table as the web HR Leave page (src/pages/hr/
+// HRLeave.jsx) - this used to be a separate `leave_requests` table that only
+// the mobile app wrote to, so a leave request submitted on one platform was
+// invisible on the other, and the "new request" admin notification could
+// never fire for anything submitted via web. Keep the field names and
+// on_behalf_of semantics identical to HRLeave.jsx so both surfaces stay in
+// sync.
 const LEAVE_TYPES = ['Annual Leave', 'Sick Leave', 'Compassionate', 'Unpaid', 'Other']
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 
@@ -28,8 +35,9 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
     start_date: '',
     end_date: '',
     reason: '',
-    for_user_email: user.email,
-    for_user_name: user.name,
+    notes: '',
+    on_behalf_of_email: '',
+    on_behalf_of_name: '',
   })
 
   const loadStaffList = async () => {
@@ -51,13 +59,13 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
     setError('')
     try {
       let query = supabase
-        .from('leave_requests')
+        .from('hr_leave')
         .select('*')
         .order('created_at', { ascending: false })
 
       // If not admin, only show own requests
       if (!isAdmin) {
-        query = query.eq('user_email', user.email)
+        query = query.ilike('user_email', user.email)
       }
 
       const { data, error } = await query
@@ -86,13 +94,15 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       start_date: '',
       end_date: '',
       reason: '',
-      for_user_email: user.email,
-      for_user_name: user.name,
+      notes: '',
+      on_behalf_of_email: '',
+      on_behalf_of_name: '',
     })
     setShowAddForm(true)
   }
 
   const handleEditPress = async (request) => {
+    if (!isAdmin) return
     await Haptics.impact({ style: ImpactStyle.Medium })
     setEditingRequest(request)
     setForm({
@@ -100,8 +110,9 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
       start_date: request.start_date,
       end_date: request.end_date,
       reason: request.reason || '',
-      for_user_email: request.user_email,
-      for_user_name: request.user_name,
+      notes: request.notes || '',
+      on_behalf_of_email: '',
+      on_behalf_of_name: '',
     })
     setShowAddForm(true)
   }
@@ -120,40 +131,28 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
     try {
       if (editingRequest) {
-        // Update existing request
         const { error } = await supabase
-          .from('leave_requests')
+          .from('hr_leave')
           .update({
             leave_type: form.leave_type,
             start_date: form.start_date,
             end_date: form.end_date,
             days,
             reason: form.reason,
-            ...(isAdmin ? { user_email: form.for_user_email, user_name: form.for_user_name } : {}),
+            notes: form.notes,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingRequest.id)
 
         if (error) throw error
 
-        await sendManagedNotification({
-          userEmail: form.for_user_email,
-          userName: form.for_user_name,
-          title: '📅 Leave request updated',
-          message: `${form.start_date} to ${form.end_date}`,
-          link: '/hr/leave',
-          type: 'info',
-          category: 'hr',
-          emailSubject: `Leave Request Updated - ${form.start_date} to ${form.end_date}`,
-          emailHtml: `<p>Your leave request has been updated.</p>`,
-          sentBy: user?.name || user?.email,
-          portalUrl: PORTAL_URL,
-        }).catch(() => {})
-
       } else {
-        // Create new request with optimistic UI
-        const requestForEmail = isAdmin ? form.for_user_email : user.email
-        const requestForName = isAdmin ? form.for_user_name : user.name
+        // Admin booking leave on behalf of someone else is auto-approved
+        // (the booking action itself is the approval) - matches HRLeave.jsx
+        const requestForEmail = (isAdmin && form.on_behalf_of_email) || user.email
+        const requestForName = (isAdmin && form.on_behalf_of_name) || user.name
+        const status = isAdmin && form.on_behalf_of_email ? 'approved' : 'pending'
+
         const optimisticRequest = {
           id: 'temp-' + Date.now(),
           leave_type: form.leave_type,
@@ -163,17 +162,17 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
           user_email: requestForEmail,
           user_name: requestForName,
           days,
-          status: 'pending',
+          status,
+          approved_by: status === 'approved' ? user.name : null,
           created_at: new Date().toISOString(),
         }
 
-        // Add to UI immediately
         setRequests([optimisticRequest, ...requests])
         setShowAddForm(false)
 
         try {
           const { data, error } = await supabase
-            .from('leave_requests')
+            .from('hr_leave')
             .insert([{
               leave_type: form.leave_type,
               start_date: form.start_date,
@@ -182,7 +181,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
               user_email: requestForEmail,
               user_name: requestForName,
               days,
-              status: 'pending',
+              status,
+              approved_by: status === 'approved' ? user.name : null,
               created_at: new Date().toISOString(),
             }])
             .select()
@@ -190,32 +190,18 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
           if (error) throw error
 
-          // Replace optimistic with real
           setRequests(reqs =>
             reqs.map(r => r.id === optimisticRequest.id ? data : r)
           )
         } catch (error) {
-          // Rollback on error
           setRequests(reqs =>
             reqs.filter(r => r.id !== optimisticRequest.id)
           )
           throw error
         }
-
-        // Notify managers
-        await sendManagedNotification({
-          userEmail: 'managers',
-          userName: 'Managers',
-          title: '📅 New leave request',
-          message: `${requestForName} - ${form.start_date} to ${form.end_date}`,
-          link: '/hr/leave',
-          type: 'info',
-          category: 'hr',
-          emailSubject: `Leave Request - ${user.name}`,
-          emailHtml: `<p>${requestForName} has submitted a leave request for ${form.start_date} to ${form.end_date}.</p>`,
-          sentBy: user?.name || user?.email,
-          portalUrl: PORTAL_URL,
-        }).catch(() => {})
+        // Admins/managers with a pending request awaiting review are
+        // notified server-side (DB trigger on hr_leave), so both web and
+        // mobile submissions reach them the same way - no client call here.
       }
 
       setShowAddForm(false)
@@ -235,7 +221,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
     try {
       const { error } = await supabase
-        .from('leave_requests')
+        .from('hr_leave')
         .update({
           status: 'approved',
           approved_by: user.name,
@@ -245,20 +231,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .eq('id', request.id)
 
       if (error) throw error
-
-      await sendManagedNotification({
-        userEmail: request.user_email,
-        userName: request.user_name,
-        title: '✅ Leave Approved',
-        message: `${request.start_date} to ${request.end_date} - Approved by ${user.name}`,
-        link: '/hr/leave',
-        type: 'success',
-        category: 'hr',
-        emailSubject: `Leave Approved - ${request.start_date} to ${request.end_date}`,
-        emailHtml: `<p>Your leave request has been approved by ${user.name}.</p>`,
-        sentBy: user?.name || user?.email,
-        portalUrl: PORTAL_URL,
-      }).catch(() => {})
+      // Staff member is notified server-side via the hr_leave decision trigger.
 
       loadRequests()
       await Haptics.impact({ style: ImpactStyle.Heavy })
@@ -275,7 +248,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
     try {
       const { error } = await supabase
-        .from('leave_requests')
+        .from('hr_leave')
         .update({
           status: 'rejected',
           approved_by: user.name,
@@ -285,20 +258,6 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .eq('id', request.id)
 
       if (error) throw error
-
-      await sendManagedNotification({
-        userEmail: request.user_email,
-        userName: request.user_name,
-        title: '❌ Leave Rejected',
-        message: `${request.start_date} to ${request.end_date} - Rejected by ${user.name}`,
-        link: '/hr/leave',
-        type: 'warning',
-        category: 'hr',
-        emailSubject: `Leave Rejected - ${request.start_date} to ${request.end_date}`,
-        emailHtml: `<p>Your leave request has been rejected by ${user.name}.</p>`,
-        sentBy: user?.name || user?.email,
-        portalUrl: PORTAL_URL,
-      }).catch(() => {})
 
       loadRequests()
       await Haptics.impact({ style: ImpactStyle.Heavy })
@@ -311,15 +270,32 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
   const handleDelete = async (request) => {
     await Haptics.impact({ style: ImpactStyle.Medium })
 
-    if (!confirm('Delete this leave request?')) return
+    if (!confirm('Delete this leave request? An email will be sent to notify them.')) return
 
     try {
       const { error } = await supabase
-        .from('leave_requests')
+        .from('hr_leave')
         .delete()
         .eq('id', request.id)
 
       if (error) throw error
+
+      // No DB trigger fires on delete (nothing to compare status against),
+      // so this one stays a direct client-side notification - matches
+      // HRLeave.jsx's deleteLeave().
+      await sendManagedNotification({
+        userEmail: request.user_email,
+        userName: request.user_name,
+        title: '🗑 Leave request deleted',
+        message: `${request.start_date} to ${request.end_date} deleted by ${user.name}`,
+        link: '/hr/leave',
+        type: 'warning',
+        category: 'hr',
+        emailSubject: `Leave Request Deleted - ${request.start_date} to ${request.end_date}`,
+        emailHtml: `<p>Your leave request has been deleted by ${user.name}.</p>`,
+        sentBy: user?.name || user?.email,
+        portalUrl: PORTAL_URL,
+      }).catch(() => {})
 
       loadRequests()
       await Haptics.impact({ style: ImpactStyle.Heavy })
@@ -357,22 +333,28 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         </div>
 
         <div style={{ padding: '20px' }}>
-          {isAdmin && (
+          {!editingRequest && isAdmin && (
+            <div className="admin-hint">
+              As an admin you can book leave on behalf of a staff member.
+            </div>
+          )}
+
+          {!editingRequest && isAdmin && (
             <div className="form-group">
-              <label className="form-label">For</label>
+              <label className="form-label">On behalf of (leave blank for yourself)</label>
               <select
                 className="form-input"
-                value={form.for_user_email}
+                value={form.on_behalf_of_email}
                 onChange={(e) => {
                   const person = staffList.find(s => s.user_email === e.target.value)
                   setForm({
                     ...form,
-                    for_user_email: e.target.value,
-                    for_user_name: person?.full_name || e.target.value,
+                    on_behalf_of_email: e.target.value,
+                    on_behalf_of_name: person?.full_name || '',
                   })
                 }}
               >
-                <option value={user.email}>{user.name} (me)</option>
+                <option value="">Myself ({user.name})</option>
                 {staffList.filter(s => s.user_email !== user.email).map(s => (
                   <option key={s.user_email} value={s.user_email}>{s.full_name || s.user_email}</option>
                 ))}
@@ -424,12 +406,34 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
             />
           </div>
 
+          {editingRequest && isAdmin && (
+            <div className="form-group">
+              <label className="form-label">Manager Notes (internal, not shown to staff)</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+          )}
+
           <button className="btn-primary" onClick={handleSubmit}>
             {editingRequest ? 'Update Request' : 'Submit Request'}
           </button>
         </div>
 
         <style>{`
+          .admin-hint {
+            padding: 12px 14px;
+            background: rgba(0,102,204,0.1);
+            border: 1px solid #0066cc;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #0066cc;
+            margin-bottom: 16px;
+          }
+
           .form-group {
             margin-bottom: 20px;
           }
@@ -448,6 +452,8 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
             font-size: 16px;
             border: 1px solid var(--mobile-border);
             border-radius: 8px;
+            background: var(--mobile-bg);
+            color: var(--mobile-text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           }
 
@@ -561,7 +567,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         ) : (
           <div className="request-list">
             {filteredRequests.map(request => (
-              <MobileCard key={request.id} onPress={() => handleEditPress(request)}>
+              <MobileCard key={request.id} onPress={() => isAdmin && handleEditPress(request)}>
                 <div className="request-card">
                   <div className="request-header">
                     <div>
@@ -588,33 +594,38 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
                     <div className="request-reason">{request.reason}</div>
                   )}
 
-                  {request.status === 'pending' && isAdmin && (
-                    <div className="request-actions">
-                      <button
-                        className="action-btn approve"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleApprove(request)
-                        }}
-                      >
-                        <Icon name="check" size={18} color="#34c759" />
-                        Approve
-                      </button>
-                      <button
-                        className="action-btn reject"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleReject(request)
-                        }}
-                      >
-                        <Icon name="x" size={18} color="#ff3b30" />
-                        Reject
-                      </button>
+                  {request.approved_by && (
+                    <div className="request-decided-by">
+                      {request.status === 'approved' ? 'Approved' : 'Rejected'} by {request.approved_by}
                     </div>
                   )}
 
-                  {request.status === 'pending' && !isAdmin && request.user_email === user.email && (
+                  {isAdmin && (
                     <div className="request-actions">
+                      {request.status === 'pending' && (
+                        <>
+                          <button
+                            className="action-btn approve"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleApprove(request)
+                            }}
+                          >
+                            <Icon name="check" size={18} color="#34c759" />
+                            Approve
+                          </button>
+                          <button
+                            className="action-btn reject"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReject(request)
+                            }}
+                          >
+                            <Icon name="x" size={18} color="#ff3b30" />
+                            Reject
+                          </button>
+                        </>
+                      )}
                       <button
                         className="action-btn delete"
                         onClick={(e) => {
@@ -732,7 +743,7 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
           align-items: center;
           gap: 8px;
           font-size: 14px;
-          color: #6b6158;
+          color: var(--mobile-text-secondary);
           margin-bottom: 8px;
         }
 
@@ -744,8 +755,14 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
         .request-reason {
           font-size: 13px;
           color: var(--mobile-text-secondary);
-          margin-bottom: 12px;
+          margin-bottom: 8px;
           font-style: italic;
+        }
+
+        .request-decided-by {
+          font-size: 12px;
+          color: var(--mobile-text-secondary);
+          margin-bottom: 8px;
         }
 
         .request-actions {
@@ -809,20 +826,6 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
         .floating-add-btn:active {
           transform: scale(0.95);
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
         }
 
         @supports (padding: max(0px)) {

@@ -23,33 +23,39 @@ export async function initPushNotifications(userEmail) {
       return { supported: true, permitted: false }
     }
 
-    // Register with FCM
-    await PushNotifications.register()
+    // Attach listeners BEFORE calling register() - the native side can fire
+    // the 'registration' event as soon as it has a token, and if register()
+    // resolves/fires before these listeners are attached, the event (and
+    // with it, the only chance to ever save this device's token) is lost.
+    // This was the actual reason no device had ever completed registration.
+    const registrationDone = new Promise((resolve) => {
+      PushNotifications.addListener('registration', async (token) => {
+        console.log('Push registration success, token:', token.value)
+        await registerDeviceToken(userEmail, token.value)
+        resolve({ success: true })
+      })
 
-    // Listen for registration success
-    await PushNotifications.addListener('registration', async (token) => {
-      console.log('Push registration success, token:', token.value)
-      await registerDeviceToken(userEmail, token.value)
+      PushNotifications.addListener('registrationError', (error) => {
+        console.error('Push registration error:', error)
+        resolve({ success: false, error })
+      })
     })
 
-    // Listen for registration errors
-    await PushNotifications.addListener('registrationError', (error) => {
-      console.error('Push registration error:', error)
-    })
-
-    // Listen for push notifications received
     await PushNotifications.addListener('pushNotificationReceived', (notification) => {
       console.log('Push notification received:', notification)
       // Notification shown automatically by OS
     })
 
-    // Listen for notification tapped
     await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
       console.log('Push notification tapped:', notification)
       handleNotificationTap(notification)
     })
 
-    return { supported: true, permitted: true, registered: true }
+    await PushNotifications.register()
+
+    const result = await registrationDone
+
+    return { supported: true, permitted: true, registered: result.success, error: result.error }
 
   } catch (error) {
     console.error('Push notification init error:', error)

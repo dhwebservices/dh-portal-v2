@@ -8,6 +8,7 @@ import { supabase } from '../../utils/supabase'
 
 export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, staffEmail }) {
   const [profile, setProfile] = useState(null)
+  const [payment, setPayment] = useState(null)
   const [onboarding, setOnboarding] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
@@ -18,14 +19,18 @@ export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, st
 
   const loadProfile = async () => {
     try {
-      const [{ data, error }, { data: permRow }] = await Promise.all([
+      const [{ data, error }, { data: permRow }, { data: staffRow }] = await Promise.all([
         supabase.from('hr_profiles').select('*').eq('user_email', staffEmail).single(),
         supabase.from('user_permissions').select('onboarding').ilike('user_email', staffEmail).maybeSingle(),
+        isAdmin
+          ? supabase.from('staff').select('hourly_rate, payment_type, commission_rate').eq('email', staffEmail).maybeSingle()
+          : Promise.resolve({ data: null }),
       ])
 
       if (error) throw error
       setProfile(data)
       setOnboarding(!!permRow?.onboarding)
+      setPayment(staffRow)
     } catch (error) {
       console.error('Failed to load profile:', error)
     } finally {
@@ -115,7 +120,7 @@ export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, st
           <PersonalTab profile={profile} />
         )}
         {activeTab === 'employment' && (
-          <EmploymentTab profile={profile} onboarding={onboarding} isAdmin={isAdmin} navigate={navigate} staffEmail={staffEmail} />
+          <EmploymentTab profile={profile} payment={payment} onboarding={onboarding} isAdmin={isAdmin} navigate={navigate} staffEmail={staffEmail} />
         )}
         {activeTab === 'documents' && (
           <DocumentsTab profile={profile} isAdmin={isAdmin} staffEmail={staffEmail} adminUser={user} onUpdated={loadProfile} />
@@ -357,7 +362,13 @@ function PersonalTab({ profile }) {
   )
 }
 
-function EmploymentTab({ profile, onboarding, isAdmin, navigate, staffEmail }) {
+function EmploymentTab({ profile, payment, onboarding, isAdmin, navigate, staffEmail }) {
+  const paymentTypeLabel = {
+    commission_only: 'Commission Only',
+    hourly: 'Hourly Pay',
+    both: 'Hourly + Commission',
+  }
+
   return (
     <>
       <MobileCard>
@@ -381,6 +392,33 @@ function EmploymentTab({ profile, onboarding, isAdmin, navigate, staffEmail }) {
           </span>
         </div>
       </MobileCard>
+
+      {isAdmin && payment && (
+        <MobileCard style={{ marginTop: 16 }}>
+          <h3 className="mobile-section-title">Payment Details</h3>
+          <div className="mobile-info-row">
+            <span className="mobile-info-label">Payment Type</span>
+            <span className="mobile-info-value">{paymentTypeLabel[payment.payment_type] || '—'}</span>
+          </div>
+          {(payment.payment_type === 'hourly' || payment.payment_type === 'both') && (
+            <div className="mobile-info-row">
+              <span className="mobile-info-label">Hourly Rate</span>
+              <span className="mobile-info-value">
+                {payment.hourly_rate ? `£${Number(payment.hourly_rate).toFixed(2)}` : '—'}
+              </span>
+            </div>
+          )}
+          <div className="mobile-info-row">
+            <span className="mobile-info-label">Commission Rate</span>
+            <span className="mobile-info-value">
+              {payment.commission_rate != null ? `${payment.commission_rate}%` : '—'}
+            </span>
+          </div>
+          <p className="onboarding-hint">
+            To change payment details, edit this staff member's profile.
+          </p>
+        </MobileCard>
+      )}
 
       {isAdmin && (
         <MobileCard style={{ marginTop: 16 }}>
