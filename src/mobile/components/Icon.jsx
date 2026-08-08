@@ -67,6 +67,13 @@ export default function Icon({ name, size = 24, color = 'currentColor', strokeWi
         <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
       </>
     ),
+    pound: (
+      <>
+        <path d="M7 21h11" />
+        <path d="M6 12h7" />
+        <path d="M9 21v-13a3 3 0 016-1" />
+      </>
+    ),
     barChart: (
       <>
         <line x1="12" y1="20" x2="12" y2="10" />

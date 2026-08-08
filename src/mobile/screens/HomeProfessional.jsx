@@ -120,7 +120,7 @@ export default function MobileHomeProfessional({ navigate, user, isAdmin }) {
           {isAdmin && (
             <MobileCard small onPress={() => navigate('generate-payslip')}>
               <div className="professional-stat">
-                <Icon name="dollar" size={24} color="#5856d6" />
+                <Icon name="pound" size={24} color="#5856d6" />
                 <div>
                   <h4>Generate Payslip</h4>
                   <p>Pay staff for a period</p>

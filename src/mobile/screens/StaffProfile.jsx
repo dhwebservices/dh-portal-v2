@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
 import { Browser } from '@capacitor/browser'
 import MobileCard from '../components/MobileCard'
 import MobileButton from '../components/MobileButton'
+import Icon from '../components/Icon'
 import { supabase } from '../../utils/supabase'
 
-export default function MobileStaffProfile({ goBack, navigate, user, staffEmail }) {
+export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, staffEmail }) {
   const [profile, setProfile] = useState(null)
+  const [onboarding, setOnboarding] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
 
@@ -16,14 +18,14 @@ export default function MobileStaffProfile({ goBack, navigate, user, staffEmail 
 
   const loadProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('hr_profiles')
-        .select('*')
-        .eq('user_email', staffEmail)
-        .single()
+      const [{ data, error }, { data: permRow }] = await Promise.all([
+        supabase.from('hr_profiles').select('*').eq('user_email', staffEmail).single(),
+        supabase.from('user_permissions').select('onboarding').ilike('user_email', staffEmail).maybeSingle(),
+      ])
 
       if (error) throw error
       setProfile(data)
+      setOnboarding(!!permRow?.onboarding)
     } catch (error) {
       console.error('Failed to load profile:', error)
     } finally {
@@ -113,10 +115,10 @@ export default function MobileStaffProfile({ goBack, navigate, user, staffEmail 
           <PersonalTab profile={profile} />
         )}
         {activeTab === 'employment' && (
-          <EmploymentTab profile={profile} />
+          <EmploymentTab profile={profile} onboarding={onboarding} isAdmin={isAdmin} navigate={navigate} staffEmail={staffEmail} />
         )}
         {activeTab === 'documents' && (
-          <DocumentsTab profile={profile} navigate={navigate} />
+          <DocumentsTab profile={profile} isAdmin={isAdmin} staffEmail={staffEmail} adminUser={user} onUpdated={loadProfile} />
         )}
         {activeTab === 'permissions' && (
           <PermissionsTab profile={profile} navigate={navigate} />
@@ -355,7 +357,7 @@ function PersonalTab({ profile }) {
   )
 }
 
-function EmploymentTab({ profile }) {
+function EmploymentTab({ profile, onboarding, isAdmin, navigate, staffEmail }) {
   return (
     <>
       <MobileCard>
@@ -379,29 +381,155 @@ function EmploymentTab({ profile }) {
           </span>
         </div>
       </MobileCard>
+
+      {isAdmin && (
+        <MobileCard style={{ marginTop: 16 }}>
+          <h3 className="mobile-section-title">Onboarding</h3>
+          <div className="mobile-info-row">
+            <span className="mobile-info-label">Status</span>
+            <span
+              className="onboarding-status-badge"
+              style={{
+                background: onboarding ? 'rgba(255,149,0,0.15)' : 'rgba(52,199,89,0.15)',
+                color: onboarding ? '#ff9500' : '#34c759',
+              }}
+            >
+              {onboarding ? 'Onboarding in progress' : 'Not in onboarding'}
+            </span>
+          </div>
+          <p className="onboarding-hint">
+            {onboarding
+              ? 'This staff member currently only sees the onboarding form when they open the app.'
+              : 'Turn on onboarding mode to have this staff member complete their details, right-to-work document, and contract sign-off in the app.'}
+          </p>
+          <MobileButton
+            variant="secondary"
+            fullWidth
+            onPress={() => navigate('edit-staff', { staffEmail })}
+          >
+            {onboarding ? 'Manage Onboarding' : 'Start Onboarding'}
+          </MobileButton>
+        </MobileCard>
+      )}
+
+      <style>{`
+        .onboarding-status-badge {
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .onboarding-hint {
+          font-size: 13px;
+          color: var(--mobile-text-secondary);
+          margin: 12px 0 16px 0;
+          line-height: 1.5;
+        }
+      `}</style>
     </>
   )
 }
 
-function DocumentsTab({ profile, navigate }) {
+function DocumentsTab({ profile, isAdmin, staffEmail, adminUser, onUpdated }) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+    try {
+      const path = `contracts/${staffEmail.toLowerCase()}/${Date.now()}-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('hr-documents').upload(path, file)
+      if (uploadError) throw uploadError
+
+      const { data: publicData } = supabase.storage.from('hr-documents').getPublicUrl(path)
+
+      const { error: updateError } = await supabase
+        .from('hr_profiles')
+        .update({
+          contract_url: publicData.publicUrl,
+          contract_path: path,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_email', staffEmail)
+
+      if (updateError) throw updateError
+
+      await Haptics.notification({ type: NotificationType.Success })
+      onUpdated?.()
+    } catch (err) {
+      console.error('Failed to upload contract:', err)
+      setError(err.message || 'Failed to upload contract. Please try again.')
+      await Haptics.notification({ type: NotificationType.Error })
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <>
       <MobileCard>
-        <h3 className="mobile-section-title">Documents</h3>
+        <h3 className="mobile-section-title">Contract</h3>
+        {error && <div className="documents-error">{error}</div>}
+
         {profile.contract_url ? (
           <MobileButton
             variant="secondary"
             fullWidth
+            icon={<Icon name="file" size={18} color="#0066cc" />}
             onPress={() => Browser.open({ url: profile.contract_url })}
           >
-            📄 View Contract
+            View Contract
           </MobileButton>
         ) : (
-          <p style={{ textAlign: 'center', color: 'var(--mobile-text-secondary)' }}>
-            No contract uploaded
-          </p>
+          <p className="documents-empty">No contract uploaded</p>
+        )}
+
+        {isAdmin && (
+          <label className="contract-upload">
+            <input type="file" accept="application/pdf,image/*" onChange={handleFileChange} hidden disabled={uploading} />
+            <Icon name="download" size={18} color="#0066cc" />
+            <span>{uploading ? 'Uploading...' : profile.contract_url ? 'Replace Contract' : 'Issue Contract'}</span>
+          </label>
         )}
       </MobileCard>
+
+      <style>{`
+        .documents-empty {
+          text-align: center;
+          color: var(--mobile-text-secondary);
+          margin: 8px 0 16px 0;
+        }
+
+        .documents-error {
+          margin-bottom: 12px;
+          padding: 10px 14px;
+          background: rgba(255,59,48,0.1);
+          border: 1px solid #ff3b30;
+          border-radius: 8px;
+          color: #ff3b30;
+          font-size: 13px;
+        }
+
+        .contract-upload {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 12px;
+          padding: 14px;
+          border: 1px dashed var(--mobile-border);
+          border-radius: 10px;
+          font-size: 15px;
+          font-weight: 600;
+          color: #0066cc;
+          cursor: pointer;
+        }
+      `}</style>
     </>
   )
 }
