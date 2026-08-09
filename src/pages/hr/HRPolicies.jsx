@@ -17,8 +17,9 @@ export default function HRPolicies() {
   const [form, setForm]           = useState({ title:'', description:'' })
   const fileRef = useRef()
 
-  const fileTypeLabel = (name = '') => {
-    const ext = name.split('.').pop()?.toUpperCase()
+  const fileTypeLabel = (name) => {
+    // Guard against null (not just undefined) - a default param won't catch it.
+    const ext = String(name || '').split('.').pop()?.toUpperCase()
     return ext ? `${ext} File` : 'Policy File'
   }
 

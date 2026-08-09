@@ -18,8 +18,10 @@ export default function HRPayslips() {
   const [staffFilter, setStaffFilter] = useState('all')
   const fileRef = useRef()
 
-  const fileTypeLabel = (name = '') => {
-    const ext = name.split('.').pop()?.toUpperCase()
+  const fileTypeLabel = (name) => {
+    // Guard against null (not just undefined) - a payslip row with neither
+    // file_path nor file_url passes null here, and a default param won't catch it.
+    const ext = String(name || '').split('.').pop()?.toUpperCase()
     return ext ? `${ext} File` : 'Payslip'
   }
 

@@ -132,20 +132,17 @@ export default function PageManager() {
         ) : filteredPages.length === 0 ? (
           pages.length === 0 ? (
             <EmptyState
-              icon={<Globe size={48} />}
+              icon={Globe}
               title="No pages yet"
-              description="Get started by creating your first page with the visual editor"
-              action={{
-                label: 'Create Your First Page',
-                icon: <Plus size={16} />,
-                onClick: handleNewPage
-              }}
+              text="Get started by creating your first page with the visual editor"
+              actionLabel="Create Your First Page"
+              onAction={handleNewPage}
             />
           ) : (
             <EmptyState
-              icon={<Search size={48} />}
+              icon={Search}
               title="No pages found"
-              description={`No pages match your ${filter !== 'all' ? 'filter and ' : ''}search`}
+              text={`No pages match your ${filter !== 'all' ? 'filter and ' : ''}search`}
             />
           )
         ) : (
