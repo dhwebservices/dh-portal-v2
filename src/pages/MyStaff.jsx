@@ -28,7 +28,7 @@ function formatPresenceLabel(value) {
   return `Seen ${diffMins} mins ago`
 }
 
-// Keep this matrix in sync with App routes, Sidebar items, and any new staff tabs/pages.
+// Keep this matrix in sync with App routes, SubNav items, and any new staff tabs/pages.
 // If we add, rename, or remove a tab/route, the permissions model must be updated too.
 const ALL_PAGES = [
   {key:'dashboard',label:'Dashboard'},{key:'notifications',label:'Notifications'},

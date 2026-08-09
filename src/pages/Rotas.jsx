@@ -454,7 +454,12 @@ export default function Rotas() {
               <label className="lbl">Employee</label>
               <StaffPicker
                 value={editing.employee_email}
-                onChange={({ email, name }) => setEditing(e => ({ ...e, employee_email: email, employee_name: name }))}
+                onChange={({ email, name, role }) => setEditing(e => ({
+                  ...e,
+                  employee_email: email,
+                  employee_name: name,
+                  role: e.role || role || '',
+                }))}
                 placeholder="Leave blank for an open (unassigned) shift"
               />
             </div>

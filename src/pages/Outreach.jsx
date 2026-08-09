@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
+import SubNav from '../components/SubNav'
 import { logAction } from '../utils/audit'
 import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
 import { sendManagedNotification } from '../utils/notificationPreferences'
@@ -353,7 +354,7 @@ function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
 }
 
 export default function Outreach() {
-  const { user, isAdmin, org } = useAuth()
+  const { user, isAdmin, org, can } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const reminderLock = useRef(new Set())
@@ -1173,6 +1174,13 @@ export default function Outreach() {
         </div>
         {tab === 'contacts' && <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>}
       </div>
+
+      <SubNav items={[
+        { label: 'Outreach', active: true, onClick: () => {} },
+        can('sendemail') && { label: 'Send Email', onClick: () => navigate('/send-email') },
+        can('sms_manager') && { label: 'SMS Manager', onClick: () => navigate('/sms-centre') },
+        can('proposals') && { label: 'Proposal Builder', onClick: () => navigate('/proposals') },
+      ]} />
 
       <div className="metric-grid outreach-mobile-hero" style={{ marginBottom: 22 }}>
         <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--accent)" />

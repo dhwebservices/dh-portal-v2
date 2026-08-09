@@ -1,7 +1,6 @@
 import { supabase } from './supabase'
 
 const HIRING_PERMISSION_KEYS = [
-  'recruiting_dashboard',
   'recruiting_jobs',
   'recruiting_applications',
   'recruiting_board',

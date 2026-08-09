@@ -52,7 +52,7 @@ const WORKSPACE_ITEM_KEYS = {
   recruitment: ['recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'recruiting_settings'],
   hr: ['hr_profiles', 'hr_policies', 'hr_documents', 'hr_timesheet', 'hr_onboarding', 'contract_queue', 'contract_templates', 'staff', 'org_chart'],
   client_ops: ['clients', 'clientmgmt', 'support', 'knowledge_base', 'proposals', 'website_editor', 'domains', 'competitor', 'shop_orders_view', 'shop_customers_view', 'shop_products_view'],
-  manager: ['my_department', 'my_team', 'staff', 'org_chart', 'contract_queue', 'recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'manager_board', 'shop_orders_view', 'shop_orders_edit', 'shop_products_view', 'shop_products_edit', 'shop_customers_view', 'shop_customers_edit'],
+  manager: ['my_department', 'my_team', 'staff', 'org_chart', 'contract_queue', 'recruiting_jobs', 'recruiting_applications', 'recruiting_board', 'manager_board', 'shop_orders_view', 'shop_products_view', 'shop_customers_view'],
   director: ['*'],
   admin: ['*'],
 }

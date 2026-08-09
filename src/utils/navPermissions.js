@@ -1,8 +1,8 @@
 // Single source of truth for which permission keys unlock which top-level
-// nav tab. Used by TopBar (to decide which tabs to render) and by the
-// StaffProfile Permissions tab (to group the same 54 keys under matching
-// headings). Keep in sync with ALL_PAGES in StaffProfile.jsx - if a page key
-// is added/removed there, add/remove it here too.
+// nav tab. Used by TopBar (to decide which tabs to render) and mirrors the
+// grouping of the same 55-key catalog in src/utils/permissionCatalog.js
+// (rendered on the StaffProfile Permissions tab). Keep the two in sync -
+// if a key's tab moves, or a key is added/removed, update both files.
 
 export const NAV_TABS = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', keys: [] }, // always visible
@@ -17,7 +17,7 @@ export const NAV_TABS = [
     label: 'My Work',
     path: '/my-tasks',
     keys: [
-      'mytasks', 'schedule', 'appointments', 'hr_leave', 'hr_payslips',
+      'mytasks', 'tasks', 'schedule', 'appointments', 'hr_leave', 'hr_payslips',
       'pdf_workspace', 'pdf_shared_view', 'pdf_shared_edit', 'pdf_shared_admin',
     ],
   },
@@ -42,7 +42,7 @@ export const NAV_TABS = [
     label: 'Recruiting',
     path: '/recruiting',
     keys: [
-      'recruiting_dashboard', 'recruiting_jobs', 'recruiting_applications',
+      'recruiting_jobs', 'recruiting_applications',
       'recruiting_board', 'recruiting_settings',
     ],
   },
@@ -52,8 +52,7 @@ export const NAV_TABS = [
     path: '/clients',
     keys: [
       'clients', 'clientmgmt', 'competitor', 'domains', 'website_editor',
-      'shop_orders_view', 'shop_orders_edit', 'shop_products_view',
-      'shop_products_edit', 'shop_customers_view', 'shop_customers_edit',
+      'shop_orders_view', 'shop_products_view', 'shop_customers_view',
     ],
   },
   {
@@ -66,7 +65,7 @@ export const NAV_TABS = [
     id: 'reports',
     label: 'Reports',
     path: '/reports',
-    keys: ['reports', 'manager_board', 'tasks'],
+    keys: ['reports', 'manager_board'],
   },
   {
     id: 'admin',

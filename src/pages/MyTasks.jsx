@@ -89,8 +89,10 @@ export default function MyTasks() {
         { label: 'My Tasks', active: true, onClick: () => {} },
         canManageTasks && { label: 'Manage Tasks', onClick: () => navigate('/tasks') },
         can('schedule') && { label: 'Schedule', onClick: () => navigate('/schedule') },
+        can('appointments') && { label: 'Appointments', onClick: () => navigate('/appointments') },
         can('hr_leave') && { label: 'My Leave', onClick: () => navigate('/hr/leave') },
         can('hr_payslips') && { label: 'My Payslips', onClick: () => navigate('/hr/payslips') },
+        can('pdf_workspace') && { label: 'PDF Workspace', onClick: () => navigate('/pdf-workspace') },
       ]} />
 
       {/* Filter */}

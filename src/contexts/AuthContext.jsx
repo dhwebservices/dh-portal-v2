@@ -69,7 +69,6 @@ const BASE_PERMISSIONS = {
   my_profile: true,
   search: true,
   sms_manager: false,
-  recruiting_dashboard: false,
   recruiting_jobs: false,
   recruiting_applications: false,
   recruiting_board: false,
@@ -81,11 +80,8 @@ const BASE_PERMISSIONS = {
   pdf_shared_edit: false,
   pdf_shared_admin: false,
   shop_orders_view: false,
-  shop_orders_edit: false,
   shop_products_view: false,
-  shop_products_edit: false,
   shop_customers_view: false,
-  shop_customers_edit: false,
 }
 
 function sanitizePermissions(raw) {

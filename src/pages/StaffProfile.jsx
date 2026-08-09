@@ -159,10 +159,9 @@ function buildTerminationEmailHtml({ greeting = 'there', body = '', ctaHref = ''
   `
 }
 
-// Keep this matrix in sync with App routes, Sidebar items, and any new staff tabs/pages.
+// Keep this matrix in sync with App routes, SubNav items, and any new staff tabs/pages.
 // If we add, rename, or remove a tab/route, the permissions model must be updated too.
 const HIRING_PERMISSION_KEYS = [
-  'recruiting_dashboard',
   'recruiting_jobs',
   'recruiting_applications',
   'recruiting_board',

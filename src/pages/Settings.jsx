@@ -237,6 +237,7 @@ export default function Settings() {
         can('banners') && { label: 'Banners', onClick: () => navigate('/banners') },
         can('emailtemplates') && { label: 'Email Templates', onClick: () => navigate('/email-templates') },
         can('maintenance') && { label: 'Maintenance', onClick: () => navigate('/maintenance') },
+        can('audit') && { label: 'Audit Log', onClick: () => navigate('/audit') },
       ]} />
 
       <div className="tabs">

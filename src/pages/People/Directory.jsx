@@ -201,16 +201,21 @@ export default function PeopleDirectory() {
           onClick: () => setFilterStatus('all'),
         },
         {
-          label: 'Onboarding',
+          label: 'New Starters',
           active: filterStatus === 'onboarding',
           onClick: () => setFilterStatus('onboarding'),
         },
+        can('hr_profiles') && { label: 'HR Profiles', onClick: () => navigate('/hr/profiles') },
+        can('hr_onboarding') && { label: 'HR Onboarding', onClick: () => navigate('/hr/onboarding') },
+        can('hr_policies') && { label: 'HR Policies', onClick: () => navigate('/hr/policies') },
         can('hr_leave') && { label: 'Leave', onClick: () => navigate('/hr/leave') },
         can('hr_timesheet') && { label: 'Timesheets', onClick: () => navigate('/hr/timesheets') },
         can('hr_documents') && { label: 'Documents', onClick: () => navigate('/hr/documents') },
         can('contract_queue') && { label: 'Contract Queue', onClick: () => navigate('/contract-queue') },
         can('contract_templates') && { label: 'Contract Templates', onClick: () => navigate('/contract-templates') },
         can('org_chart') && { label: 'Org Chart', onClick: () => navigate('/org-chart') },
+        can('my_team') && { label: 'My Team', onClick: () => navigate('/my-team') },
+        can('my_department') && { label: 'My Department', onClick: () => navigate('/my-department') },
       ]} />
 
       {/* Table with Filters */}
