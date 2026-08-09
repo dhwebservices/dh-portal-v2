@@ -6,22 +6,26 @@ import {
   mergeComplianceRecord,
   resolveRightToWorkRecord,
 } from '../../utils/complianceRecords'
+import { Button, StatusBadge } from '../../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 function daysUntil(dateString) {
   if (!dateString) return null
   return Math.ceil((new Date(dateString).getTime() - Date.now()) / 86400000)
 }
 
-function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
+function StatCard({ icon: Icon, label, value, hint, tone = 'var(--color-primary)' }) {
   return (
-    <div className="stat-card" style={{ minHeight: 146, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+    <div style={{ ...DS_CARD, padding: 20, minHeight: 146, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       <div style={{ width: 42, height: 42, borderRadius: 12, background: `${tone}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={18} color={tone} />
       </div>
       <div>
-        <div className="stat-val">{value}</div>
-        <div className="stat-lbl">{label}</div>
-        {hint ? <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div> : null}
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{value}</div>
+        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{label}</div>
+        {hint ? <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div> : null}
       </div>
     </div>
   )
@@ -29,10 +33,10 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'var(--accent)' }) {
 
 function Panel({ title, subtitle, children }) {
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>{title}</div>
-        {subtitle ? <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div> : null}
+    <div style={{ ...DS_CARD, overflow: 'hidden' }}>
+      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-border)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>{title}</div>
+        {subtitle ? <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div> : null}
       </div>
       {children}
     </div>
@@ -40,7 +44,7 @@ function Panel({ title, subtitle, children }) {
 }
 
 function EmptyState({ text }) {
-  return <div style={{ padding: '28px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{text}</div>
+  return <div style={{ padding: '28px 18px', color: 'var(--color-text-tertiary)', fontSize: 13, textAlign: 'center' }}>{text}</div>
 }
 
 function getComplianceTone(status) {
@@ -244,22 +248,22 @@ export default function HRDocuments() {
     : payslipCoverage.filter((row) => filter === 'missing' ? row.payslipCount === 0 : row.payslipCount > 0)
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">HR Documents</h1>
-          <p className="page-sub">Document coverage, right-to-work risk, and payroll file health across the team.</p>
+          <h1>HR Documents</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Document coverage, right-to-work risk, and payroll file health across the team.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-outline" onClick={() => navigate('/hr/compliance-rules')}>Open compliance rules</button>
+          <Button variant="secondary" onClick={() => navigate('/hr/compliance-rules')}>Open compliance rules</Button>
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 22 }}>
         <StatCard icon={FolderOpen} label="Staff documents" value={documents.length} hint="Contracts and uploaded HR files stored in the portal." />
-        <StatCard icon={FileText} label="Missing contracts" value={contractGaps.length} hint="Staff records without a contract file linked yet." tone="var(--amber)" />
-        <StatCard icon={ShieldAlert} label="RTW issues" value={expiringRightToWork.length + missingRightToWork.length} hint="Expiring or missing right-to-work evidence needing review." tone="var(--red)" />
-        <StatCard icon={Wallet} label="Payslips stored" value={payslips.length} hint="Payroll documents uploaded and available in staff accounts." tone="var(--green)" />
+        <StatCard icon={FileText} label="Missing contracts" value={contractGaps.length} hint="Staff records without a contract file linked yet." tone="var(--color-amber-500)" />
+        <StatCard icon={ShieldAlert} label="RTW issues" value={expiringRightToWork.length + missingRightToWork.length} hint="Expiring or missing right-to-work evidence needing review." tone="var(--color-red-500)" />
+        <StatCard icon={Wallet} label="Payslips stored" value={payslips.length} hint="Payroll documents uploaded and available in staff accounts." tone="var(--color-green-500)" />
       </div>
 
       <div className="dashboard-panel-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 18, marginBottom: 18 }}>
@@ -269,30 +273,30 @@ export default function HRDocuments() {
           ) : (
             <div style={{ display: 'grid' }}>
               {contractGaps.slice(0, 6).map((person, index) => (
-                <div key={`contract-${person.user_email}`} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={`contract-${person.user_email}`} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{person.full_name || person.user_email}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>No contract file uploaded yet. Current document count: {person.docCount}.</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{person.full_name || person.user_email}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>No contract file uploaded yet. Current document count: {person.docCount}.</div>
                   </div>
-                  <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(person.user_email.toLowerCase())}`)}>Open profile</button>
+                  <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/my-staff/${encodeURIComponent(person.user_email.toLowerCase())}`)}>Open profile</Button>
                 </div>
               ))}
               {missingRightToWork.slice(0, 4).map((row, index) => (
-                <div key={`rtw-missing-${row.user_email}`} style={{ padding: '15px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={`rtw-missing-${row.user_email}`} style={{ padding: '15px 18px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.user_name || row.user_email}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>Onboarding is {row.status} but no right-to-work document URL is attached.</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.user_name || row.user_email}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>Onboarding is {row.status} but no right-to-work document URL is attached.</div>
                   </div>
-                  <button className="btn btn-outline btn-sm" onClick={() => navigate('/hr/onboarding')}>Open onboarding</button>
+                  <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate('/hr/onboarding')}>Open onboarding</Button>
                 </div>
               ))}
               {expiringRightToWork.slice(0, 4).map((row) => (
-                <div key={`rtw-expiry-${row.user_email}`} style={{ padding: '15px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={`rtw-expiry-${row.user_email}`} style={{ padding: '15px 18px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.user_name || row.user_email}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>Right-to-work evidence expires in {row.remaining < 0 ? 'the past' : `${row.remaining} day${row.remaining === 1 ? '' : 's'}`}. Review before access or employment paperwork drifts.</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.user_name || row.user_email}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>Right-to-work evidence expires in {row.remaining < 0 ? 'the past' : `${row.remaining} day${row.remaining === 1 ? '' : 's'}`}. Review before access or employment paperwork drifts.</div>
                   </div>
-                  <span className={`badge badge-${row.remaining <= 14 ? 'red' : 'amber'}`}>{row.remaining <= 14 ? 'Urgent' : 'Upcoming'}</span>
+                  <StatusBadge variant={TONE_TO_VARIANT[row.remaining <= 14 ? 'red' : 'amber'] || 'info'}>{row.remaining <= 14 ? 'Urgent' : 'Upcoming'}</StatusBadge>
                 </div>
               ))}
             </div>
@@ -305,12 +309,12 @@ export default function HRDocuments() {
           ) : (
             <div style={{ display: 'grid' }}>
               {recentDocuments.map((doc, index) => (
-                <div key={doc.id} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={doc.id} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{doc.name}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>{doc.staff_name || doc.staff_email} · {doc.type || 'Document'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{doc.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>{doc.staff_name || doc.staff_email} · {doc.type || 'Document'}</div>
                   </div>
-                  <a className="btn btn-outline btn-sm" href={doc.file_url} target="_blank" rel="noreferrer">Open</a>
+                  <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => window.open(doc.file_url, '_blank', 'noreferrer')}>Open</Button>
                 </div>
               ))}
             </div>
@@ -319,10 +323,10 @@ export default function HRDocuments() {
       </div>
 
       <Panel title="Payslip coverage" subtitle="Check which staff already have payroll files in the portal and which records still need uploading.">
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className={`pill ${filter === 'all' ? 'on' : ''}`} onClick={() => setFilter('all')}>All staff</button>
-          <button className={`pill ${filter === 'missing' ? 'on' : ''}`} onClick={() => setFilter('missing')}>Missing payslips</button>
-          <button className={`pill ${filter === 'covered' ? 'on' : ''}`} onClick={() => setFilter('covered')}>With payslips</button>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant={filter === 'all' ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }} onClick={() => setFilter('all')}>All staff</Button>
+          <Button variant={filter === 'missing' ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }} onClick={() => setFilter('missing')}>Missing payslips</Button>
+          <Button variant={filter === 'covered' ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }} onClick={() => setFilter('covered')}>With payslips</Button>
         </div>
         {loading ? (
           <EmptyState text="Loading document coverage..." />
@@ -330,7 +334,7 @@ export default function HRDocuments() {
           <EmptyState text="No staff match this payslip view right now." />
         ) : (
           <div className="tbl-wrap">
-            <table className="tbl">
+            <table className="ds-table">
               <thead>
                 <tr>
                   <th>Staff</th>
@@ -343,12 +347,12 @@ export default function HRDocuments() {
               <tbody>
                 {filteredCoverage.map((row) => (
                   <tr key={row.user_email}>
-                    <td className="t-main">{row.full_name || row.user_email}</td>
+                    <td>{row.full_name || row.user_email}</td>
                     <td>{row.role || '—'}</td>
-                    <td><span className={`badge badge-${row.payslipCount === 0 ? 'amber' : 'green'}`}>{row.payslipCount}</span></td>
+                    <td><StatusBadge variant={TONE_TO_VARIANT[row.payslipCount === 0 ? 'amber' : 'green'] || 'info'}>{row.payslipCount}</StatusBadge></td>
                     <td>{(docMap[(row.user_email || '').toLowerCase()] || []).length}</td>
                     <td>
-                      <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</Button>
                     </td>
                   </tr>
                 ))}
@@ -367,7 +371,7 @@ export default function HRDocuments() {
           <EmptyState text="No staff compliance rows available right now." />
         ) : (
           <div className="tbl-wrap">
-            <table className="tbl">
+            <table className="ds-table">
               <thead>
                 <tr>
                   <th>Staff</th>
@@ -381,14 +385,14 @@ export default function HRDocuments() {
               <tbody>
                 {complianceRows.map((row) => (
                   <tr key={row.user_email}>
-                    <td className="t-main">{row.full_name || row.user_email}</td>
+                    <td>{row.full_name || row.user_email}</td>
                     <td>
-                      <span className={`badge badge-${getComplianceTone(row.contractStatus)}`}>
+                      <StatusBadge variant={TONE_TO_VARIANT[getComplianceTone(row.contractStatus)] || 'info'}>
                         {row.contractStatus === 'ok' ? 'On file' : 'Missing'}
-                      </span>
+                      </StatusBadge>
                     </td>
                     <td>
-                      <span className={`badge badge-${getComplianceTone(row.rightToWorkStatus)}`}>
+                      <StatusBadge variant={TONE_TO_VARIANT[getComplianceTone(row.rightToWorkStatus)] || 'info'}>
                         {row.rightToWorkStatus === 'ok'
                           ? 'Valid'
                           : row.rightToWorkStatus === 'warning'
@@ -396,16 +400,16 @@ export default function HRDocuments() {
                             : row.rightToWorkStatus === 'expired'
                               ? 'Expired'
                               : 'Missing'}
-                      </span>
+                      </StatusBadge>
                     </td>
                     <td>
-                      <span className={`badge badge-${row.payslipCount === 0 ? 'amber' : 'green'}`}>{row.payslipCount}</span>
+                      <StatusBadge variant={TONE_TO_VARIANT[row.payslipCount === 0 ? 'amber' : 'green'] || 'info'}>{row.payslipCount}</StatusBadge>
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                       {row.latestDocAt ? new Date(row.latestDocAt).toLocaleDateString('en-GB') : 'No upload'}
                     </td>
                     <td>
-                      <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email.toLowerCase())}`)}>Open profile</Button>
                     </td>
                   </tr>
                 ))}
@@ -423,16 +427,16 @@ export default function HRDocuments() {
         ) : (
           <div style={{ display: 'grid' }}>
             {documentTimeline.map((item, index) => (
-              <div key={item.id} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div key={item.id} style={{ padding: '15px 18px', borderTop: index === 0 ? 'none' : '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span className={`badge badge-${item.tone}`}>{item.tone === 'green' ? 'Compliant' : item.tone === 'amber' ? 'Review' : 'Risk'}</span>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{item.title}</div>
+                    <StatusBadge variant={TONE_TO_VARIANT[item.tone] || 'info'}>{item.tone === 'green' ? 'Compliant' : item.tone === 'amber' ? 'Review' : 'Risk'}</StatusBadge>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.title}</div>
                   </div>
-                  <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5 }}>{item.subtitle}</div>
-                  <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)', marginTop: 6 }}>{formatTimelineDate(item.date)}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 5 }}>{item.subtitle}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 6 }}>{formatTimelineDate(item.date)}</div>
                 </div>
-                {item.action ? <a className="btn btn-outline btn-sm" href={item.action} target="_blank" rel="noreferrer">{item.actionLabel || 'Open'}</a> : null}
+                {item.action ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => window.open(item.action, '_blank', 'noreferrer')}>{item.actionLabel || 'Open'}</Button> : null}
               </div>
             ))}
           </div>

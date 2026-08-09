@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { StaffPicker } from '../components/StaffPicker'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { enqueueMicrosoftCalendarSyncJob } from '../utils/microsoftCalendarSyncQueue'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const WEEKDAYS = DAYS.slice(0, 5)
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
@@ -272,29 +274,29 @@ export default function Schedule() {
   const canEdit = isAdmin || !onBehalfOf
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Schedule</h1><p className="page-sub">Weekly availability</p></div>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Schedule</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Weekly availability</p></div>
       </div>
 
       {/* Tabs */}
-      <div className="tabs" style={{ marginBottom:20 }}>
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
         {[['mine','My Schedule'],['team','Team View']].map(([k,l]) => (
-          <button key={k} onClick={() => switchTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+          <Button key={k} onClick={() => switchTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
 
       {/* Week navigator */}
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
-        <button className="btn btn-outline btn-sm" onClick={prevWeek}>← Prev</button>
-        <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--sub)' }}>
+        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={prevWeek}>← Prev</Button>
+        <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-text-secondary)' }}>
           Week of {fmtWeek(weekStart)}
         </div>
-        <button className="btn btn-outline btn-sm" onClick={nextWeek}>Next →</button>
-        <div style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontSize:11, color:'var(--accent)' }}>
+        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={nextWeek}>Next →</Button>
+        <div style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-primary)' }}>
           {totalHours.toFixed(1)} hrs total
         </div>
-        {submitted && <span className="badge badge-green">Submitted</span>}
+        {submitted && <StatusBadge variant="active">Submitted</StatusBadge>}
       </div>
 
       {/* ── MY SCHEDULE TAB ── */}
@@ -302,8 +304,8 @@ export default function Schedule() {
         <>
           {/* Admin: set schedule on behalf of staff */}
           {isAdmin && (
-            <div style={{ marginBottom:16, padding:'12px 16px', background:'var(--bg2)', borderRadius:10, border:'1px solid var(--border)' }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'var(--sub)', marginBottom:10 }}>
+            <div style={{ marginBottom:16, padding:'12px 16px', background:'var(--color-gray-50)', borderRadius:10, border:'1px solid var(--color-border)' }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-secondary)', marginBottom:10 }}>
                 Set schedule on behalf of staff member
               </div>
               <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
@@ -316,13 +318,13 @@ export default function Schedule() {
                   />
                 </div>
                 {onBehalfOf && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => setOnBehalfOf(null)}>
+                  <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setOnBehalfOf(null)}>
                     × Clear (back to my schedule)
-                  </button>
+                  </Button>
                 )}
               </div>
               {onBehalfOf && (
-                <div style={{ marginTop:8, fontSize:12, color:'var(--accent)', fontWeight:500 }}>
+                <div style={{ marginTop:8, fontSize:12, color:'var(--color-primary)', fontWeight:500 }}>
                   ✎ Editing schedule for: {onBehalfOf.name}
                 </div>
               )}
@@ -331,67 +333,68 @@ export default function Schedule() {
 
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
             <>
-              <div className="card card-pad" style={{ marginBottom: 16, display:'grid', gap:16 }}>
+              <div style={{ ...DS_CARD, padding:20, marginBottom: 16, display:'grid', gap:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>Weekly shortcuts</div>
-                    <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.6 }}>
+                    <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
                       Reuse a previous rota, apply a standard weekday pattern, or clear the week before rebuilding it.
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <button className="btn btn-outline btn-sm" onClick={copyPreviousWeek} disabled={saving}>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={copyPreviousWeek} disabled={saving}>
                       {saving ? 'Loading...' : 'Copy previous week'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={clearWeek}>
+                    </Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={clearWeek}>
                       Clear week
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {QUICK_PATTERNS.map((pattern) => (
-                    <button
+                    <Button
                       key={pattern.id}
-                      className="btn btn-outline btn-sm"
+                      variant="secondary"
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => applyPattern(pattern)}
                     >
                       {pattern.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
-                <div className="fg">
-                  <div>
-                    <label className="lbl">Weekday start</label>
-                    <select className="inp" value={patternForm.start} onChange={e => setPatternForm(p => ({ ...p, start: e.target.value }))}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+                  <FormField>
+                    <FormLabel>Weekday start</FormLabel>
+                    <FormSelect value={patternForm.start} onChange={e => setPatternForm(p => ({ ...p, start: e.target.value }))}>
                       {HOURS.map(h => <option key={h}>{h}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="lbl">Weekday end</label>
-                    <select className="inp" value={patternForm.end} onChange={e => setPatternForm(p => ({ ...p, end: e.target.value }))}>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Weekday end</FormLabel>
+                    <FormSelect value={patternForm.end} onChange={e => setPatternForm(p => ({ ...p, end: e.target.value }))}>
                       {HOURS.map(h => <option key={h}>{h}</option>)}
-                    </select>
-                  </div>
-                  <div className="fc">
-                    <label className="lbl">Shared note</label>
-                    <input className="inp" value={patternForm.note} onChange={e => setPatternForm(p => ({ ...p, note: e.target.value }))} placeholder="Optional note applied Monday to Friday" />
-                  </div>
+                    </FormSelect>
+                  </FormField>
+                  <FormField className="staff-onboarding-fc">
+                    <FormLabel>Shared note</FormLabel>
+                    <FormInput value={patternForm.note} onChange={e => setPatternForm(p => ({ ...p, note: e.target.value }))} placeholder="Optional note applied Monday to Friday" />
+                  </FormField>
                 </div>
 
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  <button className="btn btn-primary btn-sm" onClick={applyCustomWeekdayPattern}>
+                  <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={applyCustomWeekdayPattern}>
                     Apply weekday pattern
-                  </button>
-                  <div style={{ fontSize:12, color:'var(--faint)', display:'flex', alignItems:'center' }}>
+                  </Button>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', display:'flex', alignItems:'center' }}>
                     Fills Monday to Friday only. Weekend shifts stay as they are unless you edit them below.
                   </div>
                 </div>
               </div>
 
-              <div className="card" style={{ overflow:'hidden', marginBottom:16 }}>
-                <table className="tbl">
+              <div style={{ ...DS_CARD, overflow:'hidden', marginBottom:16 }}>
+                <table className="ds-table">
                   <thead>
                     <tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Note</th></tr>
                   </thead>
@@ -401,28 +404,28 @@ export default function Schedule() {
                       const hrs = dayHours(d)
                       return (
                         <tr key={day}>
-                          <td className="t-main" style={{ width:100 }}>{day}</td>
+                          <td style={{ width:100 }}>{day}</td>
                           <td>
-                            <select className="inp" style={{ padding:'5px 8px', fontSize:12, width:90 }}
+                            <FormSelect style={{ padding:'5px 8px', fontSize:12, width:90 }}
                               value={d.start||''} onChange={e=>setDay(day,'start',e.target.value)}
                               disabled={submitted && !isAdmin}>
                               <option value="">Off</option>
                               {HOURS.map(h=><option key={h}>{h}</option>)}
-                            </select>
+                            </FormSelect>
                           </td>
                           <td>
-                            <select className="inp" style={{ padding:'5px 8px', fontSize:12, width:90 }}
+                            <FormSelect style={{ padding:'5px 8px', fontSize:12, width:90 }}
                               value={d.end||''} onChange={e=>setDay(day,'end',e.target.value)}
                               disabled={submitted && !isAdmin}>
                               <option value="">—</option>
                               {HOURS.map(h=><option key={h}>{h}</option>)}
-                            </select>
+                            </FormSelect>
                           </td>
                           <td style={{ fontFamily:'var(--font-mono)', fontSize:12 }}>
                             {hrs > 0 ? hrs.toFixed(1)+'h' : '—'}
                           </td>
                           <td>
-                            <input className="inp" style={{ padding:'5px 8px', fontSize:12 }}
+                            <FormInput style={{ padding:'5px 8px', fontSize:12 }}
                               value={d.note||''} onChange={e=>setDay(day,'note',e.target.value)}
                               placeholder="Optional note"
                               disabled={submitted && !isAdmin}/>
@@ -436,22 +439,22 @@ export default function Schedule() {
 
               <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
                 {(!submitted || isAdmin) && (
-                  <button className="btn btn-outline" onClick={() => save(false)} disabled={saving}>
+                  <Button variant="secondary" onClick={() => save(false)} disabled={saving}>
                     {saving ? 'Saving...' : 'Save Draft'}
-                  </button>
+                  </Button>
                 )}
                 {(!submitted || isAdmin) && (
-                  <button className="btn btn-primary" onClick={() => save(true)} disabled={saving}>
+                  <Button variant="primary" onClick={() => save(true)} disabled={saving}>
                     {saving ? 'Submitting...' : onBehalfOf ? `Submit for ${onBehalfOf.name.split(' ')[0]}` : 'Submit Schedule'}
-                  </button>
+                  </Button>
                 )}
                 {submitted && !isAdmin && (
-                  <button className="btn btn-outline" onClick={editSchedule}>
+                  <Button variant="secondary" onClick={editSchedule}>
                     Edit Schedule
-                  </button>
+                  </Button>
                 )}
                 {submitted && (
-                  <span style={{ fontSize:13, color:'var(--green)', display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:13, color:'var(--color-green-500)', display:'flex', alignItems:'center', gap:6 }}>
                     ✓ Schedule submitted
                   </span>
                 )}
@@ -467,42 +470,42 @@ export default function Schedule() {
           {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
             <>
               {allSchedules.length === 0 ? (
-                <div className="card"><div className="empty"><p>No schedules submitted for this week</p></div></div>
+                <div style={{ ...DS_CARD }}><div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No schedules submitted for this week</div></div>
               ) : (
                 <>
-                  <div className="metric-grid" style={{ marginBottom: 16 }}>
-                    <div className="metric-tile">
-                      <div className="metric-label">Staff scheduled</div>
-                      <div className="metric-value">{allSchedules.length}</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom: 16 }}>
+                    <div style={{ ...DS_CARD, padding:20 }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Staff scheduled</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{allSchedules.length}</div>
                     </div>
-                    <div className="metric-tile">
-                      <div className="metric-label">Team hours</div>
-                      <div className="metric-value">
+                    <div style={{ ...DS_CARD, padding:20 }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Team hours</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>
                         {allSchedules.reduce((sum, s) => sum + Object.values(s.week_data || {}).reduce((a, d) => a + dayHours(d), 0), 0).toFixed(1)}h
                       </div>
                     </div>
-                    <div className="metric-tile">
-                      <div className="metric-label">Submitted</div>
-                      <div className="metric-value">{allSchedules.filter(s => s.submitted).length}</div>
+                    <div style={{ ...DS_CARD, padding:20 }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Submitted</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{allSchedules.filter(s => s.submitted).length}</div>
                     </div>
-                    <div className="metric-tile">
-                      <div className="metric-label">Draft</div>
-                      <div className="metric-value">{allSchedules.filter(s => !s.submitted).length}</div>
+                    <div style={{ ...DS_CARD, padding:20 }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Draft</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{allSchedules.filter(s => !s.submitted).length}</div>
                     </div>
                   </div>
 
-                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8 }}>
                     <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                          <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Staff</th>
+                        <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                          <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Staff</th>
                           {DAYS.map((d, i) => (
-                            <th key={d} style={{ textAlign: 'left', padding: '10px 10px', minWidth: 118, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>
-                              {d.slice(0, 3)} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>{new Date(shiftWeek(weekStart, i) + 'T12:00:00').getDate()}</span>
+                            <th key={d} style={{ textAlign: 'left', padding: '10px 10px', minWidth: 118, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                              {d.slice(0, 3)} <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 400 }}>{new Date(shiftWeek(weekStart, i) + 'T12:00:00').getDate()}</span>
                             </th>
                           ))}
-                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Total</th>
-                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Status</th>
+                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Total</th>
+                          <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Status</th>
                           {isAdmin && <th style={{ padding: '10px 14px' }}></th>}
                         </tr>
                       </thead>
@@ -510,11 +513,11 @@ export default function Schedule() {
                         {allSchedules.map((s) => {
                           const hrs = Object.values(s.week_data || {}).reduce((sum, d) => sum + dayHours(d), 0)
                           return (
-                            <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <tr key={s.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                               <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.user_name?.split('(')[0].trim()}</div>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{s.user_name?.split('(')[0].trim()}</div>
                                 {s.manager_edited && (
-                                  <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>
+                                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2 }}>
                                     edited by {s.manager_name?.split(' ')[0]}
                                   </div>
                                 )}
@@ -526,36 +529,36 @@ export default function Schedule() {
                                   <td key={day} style={{ padding: '8px', verticalAlign: 'top' }}>
                                     {hasShift ? (
                                       <div style={{
-                                        background: 'var(--accent-soft)',
-                                        border: '1px solid var(--accent-border)',
+                                        background: 'var(--color-blue-50)',
+                                        border: '1px solid var(--color-border)',
                                         borderRadius: 6,
                                         padding: '6px 8px',
                                       }}>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>{d.start} – {d.end}</div>
-                                        {d.note && <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{d.note}</div>}
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>{d.start} – {d.end}</div>
+                                        {d.note && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{d.note}</div>}
                                       </div>
                                     ) : (
-                                      <div style={{ textAlign: 'center', color: 'var(--faint)', fontSize: 13 }}>–</div>
+                                      <div style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 13 }}>–</div>
                                     )}
                                   </td>
                                 )
                               })}
-                              <td style={{ padding: '12px 14px', verticalAlign: 'top', fontSize: 13, fontWeight: 600, color: hrs > 0 ? 'var(--accent)' : 'var(--faint)' }}>
+                              <td style={{ padding: '12px 14px', verticalAlign: 'top', fontSize: 13, fontWeight: 600, color: hrs > 0 ? 'var(--color-primary)' : 'var(--color-text-tertiary)' }}>
                                 {hrs.toFixed(1)}h
                               </td>
                               <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
-                                <span className={'badge badge-' + (s.submitted ? 'green' : 'amber')}>
+                                <StatusBadge variant={s.submitted ? 'active' : 'warning'}>
                                   {s.submitted ? 'Submitted' : 'Draft'}
-                                </span>
+                                </StatusBadge>
                               </td>
                               {isAdmin && (
                                 <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => {
+                                  <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => {
                                     setOnBehalfOf({ email: s.user_email, name: s.user_name })
                                     switchTab('mine')
                                   }}>
                                     Edit
-                                  </button>
+                                  </Button>
                                 </td>
                               )}
                             </tr>

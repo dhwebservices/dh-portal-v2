@@ -3,6 +3,9 @@ import { supabase } from '../utils/supabase'
 import { normalizePortalPhone, sendPortalSms } from '../utils/sms'
 import { fetchSmsLogs } from '../utils/smsLogs'
 import { useAuth } from '../contexts/AuthContext'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 
 const TEMPLATE_OPTIONS = [
   {
@@ -222,28 +225,28 @@ export default function SmsCentre() {
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">SMS Centre</h1>
-          <p className="page-sub">One-way staff alerts using an approved alpha-tag sender ID</p>
+          <h1>SMS Centre</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>One-way staff alerts using an approved alpha-tag sender ID</p>
         </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.15fr) minmax(320px,0.85fr)', gap:20 }}>
         <div style={{ display:'grid', gap:20 }}>
-          <div className="card card-pad" style={{ display:'grid', gap:16 }}>
+          <div style={{ ...DS_CARD, padding:20, display:'grid', gap:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:14, flexWrap:'wrap', alignItems:'flex-start' }}>
               <div>
-                <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Compose</div>
-                <div style={{ fontSize:22, fontWeight:600, color:'var(--text)', marginTop:4 }}>Staff SMS broadcast</div>
-                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)' }}>Compose</div>
+                <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)', marginTop:4 }}>Staff SMS broadcast</div>
+                <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
                   Use this for operational alerts like onboarding ready, contract updated, outreach assigned, or custom department-wide instructions.
                 </div>
               </div>
-              <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)', minWidth:220 }}>
-                <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Delivery rules</div>
-                <div style={{ fontSize:13, color:'var(--text)', marginTop:8, lineHeight:1.55 }}>
+              <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-gray-50)', minWidth:220 }}>
+                <div style={{ fontSize:11, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Delivery rules</div>
+                <div style={{ fontSize:13, color:'var(--color-text-primary)', marginTop:8, lineHeight:1.55 }}>
                   Alpha tag only.
                   <br />
                   No SMS replies.
@@ -253,8 +256,8 @@ export default function SmsCentre() {
               </div>
             </div>
 
-            <div>
-              <label className="lbl">Message type</label>
+            <FormField>
+              <FormLabel>Message type</FormLabel>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
                 {TEMPLATE_OPTIONS.map((option) => (
                   <button
@@ -264,47 +267,49 @@ export default function SmsCentre() {
                     style={{
                       padding:'12px 14px',
                       borderRadius:12,
-                      border:`1px solid ${templateKey === option.key ? 'var(--accent-border)' : 'var(--border)'}`,
-                      background: templateKey === option.key ? 'var(--accent-soft)' : 'var(--card)',
+                      border:`1px solid ${templateKey === option.key ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      background: templateKey === option.key ? 'var(--color-blue-50)' : 'var(--color-bg-surface)',
                       textAlign:'left',
                     }}
                   >
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{option.label}</div>
-                    <div style={{ fontSize:11, color:'var(--sub)', marginTop:4 }}>{option.category}</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{option.label}</div>
+                    <div style={{ fontSize:11, color:'var(--color-text-secondary)', marginTop:4 }}>{option.category}</div>
                   </button>
                 ))}
               </div>
-            </div>
+            </FormField>
 
-            <div className="fg">
-              <div>
-                <label className="lbl">Category</label>
-                <select className="inp" value={category} onChange={(event) => setCategory(event.target.value)}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField>
+                <FormLabel>Category</FormLabel>
+                <FormSelect value={category} onChange={(event) => setCategory(event.target.value)}>
                   <option value="general">General updates</option>
                   <option value="urgent">Urgent / admin</option>
                   <option value="hr">HR updates</option>
                   <option value="tasks">Tasks</option>
                   <option value="schedule">Schedule</option>
                   <option value="appointments">Appointments</option>
-                </select>
-              </div>
-              <div>
-                <label className="lbl">Portal link</label>
-                <input className="inp" value={portalLink} onChange={(event) => setPortalLink(event.target.value)} placeholder="/notifications" />
-              </div>
+                </FormSelect>
+              </FormField>
+              <FormField>
+                <FormLabel>Portal link</FormLabel>
+                <FormInput value={portalLink} onChange={(event) => setPortalLink(event.target.value)} placeholder="/notifications" />
+              </FormField>
             </div>
 
             <div>
-              <label className="lbl">Message</label>
-              <textarea
-                className="inp"
-                rows={7}
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Write the SMS body here..."
-                style={{ resize:'vertical', lineHeight:1.6 }}
-              />
-              <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginTop:8, fontSize:12, color:'var(--sub)' }}>
+              <FormField>
+                <FormLabel>Message</FormLabel>
+                <textarea
+                  className="ds-form-input"
+                  rows={7}
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Write the SMS body here..."
+                  style={{ resize:'vertical', lineHeight:1.6, padding:'8px 12px' }}
+                />
+              </FormField>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, marginTop:8, fontSize:12, color:'var(--color-text-secondary)' }}>
                 <span>{String(message || '').trim().length} characters</span>
                 <span>Approx. {smsSegments} SMS segment{smsSegments === 1 ? '' : 's'}</span>
               </div>
@@ -314,9 +319,9 @@ export default function SmsCentre() {
               <div style={{
                 padding:'12px 14px',
                 borderRadius:10,
-                border:`1px solid ${status.type === 'error' ? 'var(--red)' : 'var(--green)'}`,
-                background: status.type === 'error' ? 'var(--red-bg)' : 'var(--green-bg)',
-                color: status.type === 'error' ? 'var(--red)' : 'var(--green)',
+                border:`1px solid ${status.type === 'error' ? 'var(--color-red-500)' : 'var(--color-green-500)'}`,
+                background: status.type === 'error' ? 'var(--color-red-50)' : 'var(--color-green-50)',
+                color: status.type === 'error' ? 'var(--color-red-500)' : 'var(--color-green-500)',
                 fontSize:13,
               }}>
                 {status.text}
@@ -324,25 +329,25 @@ export default function SmsCentre() {
             ) : null}
 
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-              <div style={{ fontSize:13, color:'var(--sub)' }}>
-                Sending to <strong style={{ color:'var(--text)' }}>{selectedRecipients.length}</strong> recipient{selectedRecipients.length === 1 ? '' : 's'} from your configured alpha tag.
+              <div style={{ fontSize:13, color:'var(--color-text-secondary)' }}>
+                Sending to <strong style={{ color:'var(--color-text-primary)' }}>{selectedRecipients.length}</strong> recipient{selectedRecipients.length === 1 ? '' : 's'} from your configured alpha tag.
               </div>
-              <button className="btn btn-primary" onClick={handleSend} disabled={sending}>
+              <Button variant="primary" onClick={handleSend} disabled={sending}>
                 {sending ? 'Sending SMS...' : 'Send SMS update'}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="card card-pad" style={{ display:'grid', gap:16 }}>
+          <div style={{ ...DS_CARD, padding:20, display:'grid', gap:16 }}>
             <div>
-              <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Audience</div>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>
+              <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)' }}>Audience</div>
+              <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6 }}>
                 Mix departments, individual staff, and manual phone entries in the same send. Duplicate numbers are removed automatically.
               </div>
             </div>
 
-            <div>
-              <label className="lbl">Departments</label>
+            <FormField>
+              <FormLabel>Departments</FormLabel>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {departments.map((department) => {
                   const active = selectedDepartments.includes(department)
@@ -354,9 +359,9 @@ export default function SmsCentre() {
                       style={{
                         padding:'9px 12px',
                         borderRadius:999,
-                        border:`1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`,
-                        background: active ? 'var(--accent-soft)' : 'var(--bg2)',
-                        color: active ? 'var(--accent)' : 'var(--text)',
+                        border:`1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        background: active ? 'var(--color-blue-50)' : 'var(--color-gray-50)',
+                        color: active ? 'var(--color-primary)' : 'var(--color-text-primary)',
                         fontSize:12,
                         fontWeight:600,
                       }}
@@ -366,15 +371,15 @@ export default function SmsCentre() {
                   )
                 })}
               </div>
-            </div>
+            </FormField>
 
             <div>
               <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:8, flexWrap:'wrap' }}>
-                <label className="lbl" style={{ marginBottom:0 }}>Staff with mobile numbers</label>
-                <select className="inp" style={{ width:220 }} value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+                <FormLabel>Staff with mobile numbers</FormLabel>
+                <FormSelect style={{ width:220 }} value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
                   <option value="all">All departments</option>
                   {departments.map((department) => <option key={department} value={department}>{department}</option>)}
-                </select>
+                </FormSelect>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10, maxHeight:300, overflow:'auto', paddingRight:4 }}>
                 {filteredStaff.map((person) => {
@@ -387,69 +392,69 @@ export default function SmsCentre() {
                       style={{
                         padding:'12px 14px',
                         borderRadius:14,
-                        border:`1px solid ${active ? 'var(--accent-border)' : 'var(--border)'}`,
-                        background: active ? 'var(--accent-soft)' : 'var(--card)',
+                        border:`1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        background: active ? 'var(--color-blue-50)' : 'var(--color-bg-surface)',
                         textAlign:'left',
                       }}
                     >
-                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{person.name}</div>
-                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{person.role} · {person.department}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:6, fontFamily:'var(--font-mono)' }}>{person.phone}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{person.name}</div>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{person.role} · {person.department}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:6, fontFamily:'var(--font-mono)' }}>{person.phone}</div>
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            <div>
-              <label className="lbl">Manual numbers</label>
+            <FormField>
+              <FormLabel>Manual numbers</FormLabel>
               <textarea
-                className="inp"
+                className="ds-form-input"
                 rows={5}
                 value={manualRecipients}
                 onChange={(event) => setManualRecipients(event.target.value)}
                 placeholder={'One number per line\nName, 07700 000000, person@dhwebsiteservices.co.uk'}
-                style={{ resize:'vertical', lineHeight:1.6 }}
+                style={{ resize:'vertical', lineHeight:1.6, padding:'8px 12px' }}
               />
-            </div>
+            </FormField>
           </div>
         </div>
 
         <div style={{ display:'grid', gap:20 }}>
-          <div className="card card-pad">
-            <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
-            <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Recipient summary</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:6 }}>Preview</div>
+            <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:12 }}>Recipient summary</div>
             <div style={{ display:'grid', gap:10 }}>
               {selectedRecipients.length === 0 ? (
-                <div style={{ padding:'14px', border:'1px dashed var(--border)', borderRadius:12, color:'var(--sub)', fontSize:13 }}>
+                <div style={{ padding:'14px', border:'1px dashed var(--color-border)', borderRadius:12, color:'var(--color-text-secondary)', fontSize:13 }}>
                   No recipients selected yet.
                 </div>
               ) : selectedRecipients.map((recipient) => (
-                <div key={`${recipient.phone}-${recipient.email || recipient.name}`} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{recipient.name || recipient.phone}</div>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{recipient.department || 'No department'}</div>
-                  <div style={{ fontSize:11, color:'var(--faint)', marginTop:6, fontFamily:'var(--font-mono)' }}>{recipient.phone}</div>
+                <div key={`${recipient.phone}-${recipient.email || recipient.name}`} style={{ padding:'12px 14px', background:'var(--color-gray-50)', border:'1px solid var(--color-border)', borderRadius:12 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{recipient.name || recipient.phone}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{recipient.department || 'No department'}</div>
+                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:6, fontFamily:'var(--font-mono)' }}>{recipient.phone}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Recent SMS</div>
-            <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Latest sends</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:6 }}>Recent SMS</div>
+            <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:12 }}>Latest sends</div>
             <div style={{ display:'grid', gap:10 }}>
               {logs.length === 0 ? (
-                <div style={{ padding:'14px', border:'1px dashed var(--border)', borderRadius:12, color:'var(--sub)', fontSize:13 }}>
+                <div style={{ padding:'14px', border:'1px dashed var(--color-border)', borderRadius:12, color:'var(--color-text-secondary)', fontSize:13 }}>
                   No SMS logs found yet.
                 </div>
               ) : logs.map((row, index) => (
-                <div key={`${row.created_at}-${row.recipient_phone}-${index}`} style={{ padding:'12px 14px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12 }}>
+                <div key={`${row.created_at}-${row.recipient_phone}-${index}`} style={{ padding:'12px 14px', background:'var(--color-gray-50)', border:'1px solid var(--color-border)', borderRadius:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:6 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.recipient_name || row.recipient_phone}</div>
-                    <span className="badge badge-blue">{row.category || 'general'}</span>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{row.recipient_name || row.recipient_phone}</div>
+                    <StatusBadge variant="info">{row.category || 'general'}</StatusBadge>
                   </div>
-                  <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{row.message}</div>
-                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginTop:8, fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.5 }}>{row.message}</div>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginTop:8, fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>
                     <span>{row.sender_id || 'Alpha tag'}</span>
                     <span>{row.status || 'queued'} · {new Date(row.created_at).toLocaleString('en-GB')}</span>
                   </div>

@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { StaffPicker } from '../components/StaffPicker'
 import { Modal } from '../components/Modal'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { Button, FormField, FormLabel, FormInput, StatusBadge } from '../components/ds'
 
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
 function getWeekStart(d = new Date()) {
@@ -263,30 +265,30 @@ export default function Rotas() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Rotas</h1><p className="page-sub">Team shift schedule</p></div>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Rotas</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Team shift schedule</p></div>
         {isAdmin && (
-          <button className="btn btn-primary btn-sm" disabled={publishing || draftCount === 0} onClick={publishWeek}>
+          <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} disabled={publishing || draftCount === 0} onClick={publishWeek}>
             {publishing ? 'Publishing…' : `Publish${draftCount > 0 ? ` (${draftCount})` : ''}`}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="tabs" style={{ marginBottom: 20 }}>
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
         {[['week', 'Week'], ['month', 'Month']].map(([k, l]) => (
-          <button key={k} onClick={() => switchView(k)} className={'tab' + (view === k ? ' on' : '')}>{l}</button>
+          <Button key={k} onClick={() => switchView(k)} variant={view === k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <button className="btn btn-outline btn-sm" onClick={goPrev}>← Prev</button>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--sub)' }}>
+        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={goPrev}>← Prev</Button>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-secondary)' }}>
           {view === 'week' ? `Week of ${fmtDate(weekStart)}` : fmtMonth(monthDate)}
         </div>
-        <button className="btn btn-outline btn-sm" onClick={goNext}>Next →</button>
+        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={goNext}>Next →</Button>
         {view === 'week' && (
-          <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)' }}>
+          <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-primary)' }}>
             {totalWeekHours.toFixed(1)} hrs scheduled
           </div>
         )}
@@ -295,62 +297,62 @@ export default function Rotas() {
       {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
         <>
           {view === 'week' && (
-            <div className="metric-grid" style={{ marginBottom: 16 }}>
-              <div className="metric-tile"><div className="metric-label">Staff on rota</div><div className="metric-value">{employeeRows.length}</div></div>
-              <div className="metric-tile"><div className="metric-label">Team hours</div><div className="metric-value">{totalWeekHours.toFixed(1)}h</div></div>
-              <div className="metric-tile"><div className="metric-label">Open shifts</div><div className="metric-value">{openShifts.length}</div></div>
-              <div className="metric-tile"><div className="metric-label">Draft</div><div className="metric-value">{draftCount}</div></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom: 16 }}>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Staff on rota</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{employeeRows.length}</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Team hours</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{totalWeekHours.toFixed(1)}h</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Open shifts</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{openShifts.length}</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Draft</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{draftCount}</div></div>
             </div>
           )}
 
           {view === 'week' ? (
             !isAdmin && employeeRows.length === 0 && openShifts.length === 0 ? (
-              <div className="card"><div className="empty"><p>No one on the rota yet</p></div></div>
+              <div style={{ ...DS_CARD }}><div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No one on the rota yet</div></div>
             ) : (
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8 }}>
                 <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Staff</th>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Staff</th>
                       {weekDates.map((date, i) => (
-                        <th key={date} style={{ textAlign: 'left', padding: '10px 10px', minWidth: 130, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>
-                          {DAYS[i].slice(0, 3)} <span style={{ color: 'var(--faint)', fontWeight: 400 }}>{new Date(date + 'T12:00:00').getDate()}</span>
+                        <th key={date} style={{ textAlign: 'left', padding: '10px 10px', minWidth: 130, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                          {DAYS[i].slice(0, 3)} <span style={{ color: 'var(--color-text-tertiary)', fontWeight: 400 }}>{new Date(date + 'T12:00:00').getDate()}</span>
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                      <td style={{ padding: '12px 14px', verticalAlign: 'top', fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>Open shifts</td>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                      <td style={{ padding: '12px 14px', verticalAlign: 'top', fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Open shifts</td>
                       {weekDates.map(date => (
                         <td key={date} style={{ padding: '8px', verticalAlign: 'top' }}>
                           {openShifts.filter(s => s.shift_date === date).map(s => (
                             <div key={s.id} onClick={() => isAdmin && openEditModal(s)}
-                              style={{ cursor: isAdmin ? 'pointer' : 'default', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '6px 8px', marginBottom: 4 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>{s.start_time} – {s.end_time}</div>
-                              {s.role && <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{s.role}</div>}
-                              {!s.published && <span className="badge badge-amber" style={{ marginTop: 4, display: 'inline-block' }}>Draft</span>}
+                              style={{ cursor: isAdmin ? 'pointer' : 'default', background: 'var(--color-blue-50)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '6px 8px', marginBottom: 4 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>{s.start_time} – {s.end_time}</div>
+                              {s.role && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{s.role}</div>}
+                              {!s.published && <span style={{ marginTop: 4, display: 'inline-block' }}><StatusBadge variant="warning">Draft</StatusBadge></span>}
                             </div>
                           ))}
-                          {isAdmin && <button className="btn btn-ghost btn-sm" style={{ width: '100%', fontSize: 12 }} onClick={() => openAddModal('', '', date)}>+ Add</button>}
+                          {isAdmin && <Button variant="ghost" style={{ height:28, fontSize: 12, padding:'0 8px', width: '100%' }} onClick={() => openAddModal('', '', date)}>+ Add</Button>}
                         </td>
                       ))}
                     </tr>
 
                     {employeeRows.map(emp => (
-                      <tr key={emp.email} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <tr key={emp.email} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--accent)', flexShrink: 0 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-blue-50)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--color-primary)', flexShrink: 0 }}>
                               {initials(emp.name)}
                             </div>
                             <div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{emp.name}</div>
-                              <div style={{ fontSize: 11, color: 'var(--faint)' }}>{employeeWeekHours(emp.email).toFixed(1)}h this week</div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{emp.name}</div>
+                              <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{employeeWeekHours(emp.email).toFixed(1)}h this week</div>
                             </div>
                           </div>
                           {isAdmin && (
-                            <button className="btn btn-ghost btn-sm" style={{ marginTop: 6, fontSize: 11 }} onClick={() => removeEmployee(emp.email)}>Remove</button>
+                            <Button variant="ghost" style={{ height:28, padding:'0 8px', marginTop: 6, fontSize: 11 }} onClick={() => removeEmployee(emp.email)}>Remove</Button>
                           )}
                         </td>
                         {weekDates.map(date => {
@@ -359,16 +361,16 @@ export default function Rotas() {
                             <td key={date} style={{ padding: '8px', verticalAlign: 'top' }}>
                               {cellShifts.map(s => (
                                 <div key={s.id} onClick={() => isAdmin && openEditModal(s)}
-                                  style={{ cursor: isAdmin ? 'pointer' : 'default', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '6px 8px', marginBottom: 4 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>{s.start_time} – {s.end_time}</div>
-                                  {s.role && <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{s.role}</div>}
-                                  {!s.published && <span className="badge badge-amber" style={{ marginTop: 4, display: 'inline-block' }}>Draft</span>}
+                                  style={{ cursor: isAdmin ? 'pointer' : 'default', background: 'var(--color-blue-50)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '6px 8px', marginBottom: 4 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>{s.start_time} – {s.end_time}</div>
+                                  {s.role && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{s.role}</div>}
+                                  {!s.published && <span style={{ marginTop: 4, display: 'inline-block' }}><StatusBadge variant="warning">Draft</StatusBadge></span>}
                                 </div>
                               ))}
                               {isAdmin ? (
-                                <button className="btn btn-ghost btn-sm" style={{ width: '100%', fontSize: 12 }} onClick={() => openAddModal(emp.email, emp.name, date)}>+ Add</button>
+                                <Button variant="ghost" style={{ height:28, padding:'0 8px', width: '100%', fontSize: 12 }} onClick={() => openAddModal(emp.email, emp.name, date)}>+ Add</Button>
                               ) : cellShifts.length === 0 && (
-                                <div style={{ textAlign: 'center', color: 'var(--faint)', fontSize: 13 }}>–</div>
+                                <div style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 13 }}>–</div>
                               )}
                             </td>
                           )
@@ -384,10 +386,10 @@ export default function Rotas() {
                               <div style={{ flex: 1 }}>
                                 <StaffPicker placeholder="Select staff member to add..." value="" onChange={addEmployee} />
                               </div>
-                              <button className="btn btn-ghost btn-sm" onClick={() => setAddingEmployee(false)}>Cancel</button>
+                              <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setAddingEmployee(false)}>Cancel</Button>
                             </div>
                           ) : (
-                            <button className="btn btn-outline btn-sm" onClick={() => setAddingEmployee(true)}>+ Add employee</button>
+                            <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setAddingEmployee(true)}>+ Add employee</Button>
                           )}
                         </td>
                       </tr>
@@ -397,29 +399,29 @@ export default function Rotas() {
               </div>
             )
           ) : (
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 8 }}>
               <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--sub)' }}>Staff</th>
+                  <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', minWidth: 170, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Staff</th>
                     {Array.from({ length: monthRange.daysInMonth }, (_, i) => i + 1).map(day => (
-                      <th key={day} style={{ textAlign: 'center', padding: '6px 4px', minWidth: 34, fontSize: 11, fontWeight: 600, color: 'var(--sub)' }}>{day}</th>
+                      <th key={day} style={{ textAlign: 'center', padding: '6px 4px', minWidth: 34, fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>{day}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {employeeRows.length === 0 ? (
-                    <tr><td colSpan={monthRange.daysInMonth + 1} style={{ padding: 24, textAlign: 'center', color: 'var(--faint)' }}>No one on the rota yet</td></tr>
+                    <tr><td colSpan={monthRange.daysInMonth + 1} style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>No one on the rota yet</td></tr>
                   ) : employeeRows.map(emp => (
-                    <tr key={emp.email} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{emp.name}</td>
+                    <tr key={emp.email} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{emp.name}</td>
                       {Array.from({ length: monthRange.daysInMonth }, (_, i) => i + 1).map(day => {
                         const dateIso = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                         const dayShifts = shifts.filter(s => s.employee_email === emp.email && s.shift_date === dateIso)
                         const hrs = dayShifts.reduce((sum, s) => sum + shiftHours(s), 0)
                         return (
                           <td key={day} onClick={() => jumpToWeek(dateIso)}
-                            style={{ padding: '6px 2px', textAlign: 'center', fontSize: 11, cursor: 'pointer', color: hrs > 0 ? 'var(--accent)' : 'var(--faint)', fontWeight: hrs > 0 ? 600 : 400 }}>
+                            style={{ padding: '6px 2px', textAlign: 'center', fontSize: 11, cursor: 'pointer', color: hrs > 0 ? 'var(--color-primary)' : 'var(--color-text-tertiary)', fontWeight: hrs > 0 ? 600 : 400 }}>
                             {hrs > 0 ? hrs.toFixed(0) + 'h' : '·'}
                           </td>
                         )
@@ -438,20 +440,20 @@ export default function Rotas() {
           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
             <div>
               {editing.id && (
-                <button className="btn btn-ghost btn-sm" onClick={deleteShift} disabled={savingShift}>Delete</button>
+                <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={deleteShift} disabled={savingShift}>Delete</Button>
               )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-outline btn-sm" onClick={() => setEditing(null)}>Cancel</button>
-              <button className="btn btn-primary btn-sm" onClick={saveShift} disabled={savingShift || !editing.start_time || !editing.end_time}>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setEditing(null)}>Cancel</Button>
+              <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={saveShift} disabled={savingShift || !editing.start_time || !editing.end_time}>
                 {savingShift ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           </div>
         }>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label className="lbl">Employee</label>
+            <FormField>
+              <FormLabel>Employee</FormLabel>
               <StaffPicker
                 value={editing.employee_email}
                 onChange={({ email, name, role }) => setEditing(e => ({
@@ -462,31 +464,37 @@ export default function Rotas() {
                 }))}
                 placeholder="Leave blank for an open (unassigned) shift"
               />
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--sub)' }}>{fmtDate(editing.shift_date)}</div>
+            </FormField>
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{fmtDate(editing.shift_date)}</div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <label className="lbl">Start</label>
-                <input type="time" className="inp" value={editing.start_time} onChange={e => setEditing(x => ({ ...x, start_time: e.target.value }))} />
+                <FormField>
+                  <FormLabel>Start</FormLabel>
+                  <FormInput type="time" value={editing.start_time} onChange={e => setEditing(x => ({ ...x, start_time: e.target.value }))} />
+                </FormField>
               </div>
               <div style={{ flex: 1 }}>
-                <label className="lbl">End</label>
-                <input type="time" className="inp" value={editing.end_time} onChange={e => setEditing(x => ({ ...x, end_time: e.target.value }))} />
+                <FormField>
+                  <FormLabel>End</FormLabel>
+                  <FormInput type="time" value={editing.end_time} onChange={e => setEditing(x => ({ ...x, end_time: e.target.value }))} />
+                </FormField>
               </div>
               <div style={{ width: 100 }}>
-                <label className="lbl">Break (min)</label>
-                <input type="number" min="0" className="inp" value={editing.break_minutes} onChange={e => setEditing(x => ({ ...x, break_minutes: e.target.value }))} />
+                <FormField>
+                  <FormLabel>Break (min)</FormLabel>
+                  <FormInput type="number" min="0" value={editing.break_minutes} onChange={e => setEditing(x => ({ ...x, break_minutes: e.target.value }))} />
+                </FormField>
               </div>
             </div>
-            <div>
-              <label className="lbl">Role</label>
-              <input type="text" className="inp" placeholder="e.g. Assistant" value={editing.role} onChange={e => setEditing(x => ({ ...x, role: e.target.value }))} />
-            </div>
-            <div>
-              <label className="lbl">Note (optional)</label>
-              <textarea className="inp" rows={2} value={editing.note} onChange={e => setEditing(x => ({ ...x, note: e.target.value }))} />
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--sub)' }}>
+            <FormField>
+              <FormLabel>Role</FormLabel>
+              <FormInput type="text" placeholder="e.g. Assistant" value={editing.role} onChange={e => setEditing(x => ({ ...x, role: e.target.value }))} />
+            </FormField>
+            <FormField>
+              <FormLabel>Note (optional)</FormLabel>
+              <textarea className="ds-form-input" rows={2} style={{ padding:'8px 12px' }} value={editing.note} onChange={e => setEditing(x => ({ ...x, note: e.target.value }))} />
+            </FormField>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-secondary)' }}>
               <input type="checkbox" checked={editing.publishNow} onChange={e => setEditing(x => ({ ...x, publishNow: e.target.checked }))} />
               Publish and send notification?
             </label>
