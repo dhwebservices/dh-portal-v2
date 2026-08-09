@@ -9,6 +9,9 @@ import { sendEmail } from '../utils/email'
 import { sendCandidateInterviewBookingEmail, sendCandidatePortalInviteEmail, sendInterviewScheduleEmail, sendRecruitingStatusEmail } from '../utils/recruitingEmails'
 import { useAuth } from '../contexts/AuthContext'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
 
 function toDateTimeInputValue(value) {
   if (!value) return ''
@@ -72,18 +75,18 @@ function buildAssignmentEmailHtml({ application, assignedUser, actor }) {
 
 function MetaCard({ label, value }) {
   return (
-    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-      <div style={{ fontSize:11, color:'var(--faint)', marginBottom:6 }}>{label}</div>
-      <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', lineHeight:1.45 }}>{value}</div>
+    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginBottom:6 }}>{label}</div>
+      <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)', lineHeight:1.45 }}>{value}</div>
     </div>
   )
 }
 
 function DetailRow({ label, value }) {
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'130px minmax(0,1fr)', gap:12, alignItems:'start', padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
-      <div style={{ fontSize:11.5, color:'var(--faint)' }}>{label}</div>
-      <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>{value || '—'}</div>
+    <div style={{ display:'grid', gridTemplateColumns:'130px minmax(0,1fr)', gap:12, alignItems:'start', padding:'10px 0', borderBottom:'1px solid var(--color-border)' }}>
+      <div style={{ fontSize:11.5, color:'var(--color-text-tertiary)' }}>{label}</div>
+      <div style={{ fontSize:13, color:'var(--color-text-primary)', lineHeight:1.6 }}>{value || '—'}</div>
     </div>
   )
 }
@@ -538,8 +541,8 @@ DH Website Services HR`)
   }
 
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
-  if (loadError) return <div className="card card-pad" style={{ maxWidth: 720, color: 'var(--red)' }}>{loadError}</div>
-  if (!application) return <div className="empty"><p>Application not found.</p></div>
+  if (loadError) return <div style={{ ...DS_CARD, padding: 20, maxWidth: 720, color: 'var(--color-red-500)' }}>{loadError}</div>
+  if (!application) return <div style={{ padding: 'var(--space-3xl)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Application not found.</div>
 
   const summaryMeta = [
     ['Role', application.job_posts?.title || 'General application'],
@@ -549,24 +552,24 @@ DH Website Services HR`)
   ]
 
   return (
-    <div className="fade-in">
-      <div style={{ border:'1px solid var(--border)', borderRadius:22, overflow:'hidden', background:'var(--card)', marginBottom:18 }}>
-        <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--border)', background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card))' }}>
+    <div className="ds-content">
+      <div style={{ border:'1px solid var(--color-border)', borderRadius:22, overflow:'hidden', background:'var(--color-bg-surface)', marginBottom:18 }}>
+        <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--color-border)', background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card))' }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
             <div style={{ minWidth:0 }}>
-              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Recruitment / Candidate</div>
-              <h1 style={{ fontSize:'clamp(28px,3vw,36px)', fontWeight:600, letterSpacing:'-0.03em', lineHeight:1, color:'var(--text)' }}>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:8 }}>Recruitment / Candidate</div>
+              <h1 style={{ fontSize:'clamp(28px,3vw,36px)', fontWeight:600, letterSpacing:'-0.03em', lineHeight:1, color:'var(--color-text-primary)' }}>
                 {application.full_name || application.email}
               </h1>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
+              <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:8, lineHeight:1.6 }}>
                 {application.job_posts?.title || 'General application'} · {application.application_ref || 'No reference'}
               </div>
             </div>
             <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
               <RecruitingStatusBadge status={application.status} />
-              <button className="btn btn-outline" onClick={() => navigate(application.job_post_id ? `/recruiting/jobs/${application.job_post_id}` : '/recruiting')}>
+              <Button variant="secondary" onClick={() => navigate(application.job_post_id ? `/recruiting/jobs/${application.job_post_id}` : '/recruiting')}>
                 Back
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -577,15 +580,15 @@ DH Website Services HR`)
         </div>
       </div>
 
-      <div className="tabs" style={{ marginBottom: 18 }}>
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
         {[
           ['overview', 'Overview'],
           ['evaluation', 'Evaluation'],
           ['actions', 'Hiring Actions'],
         ].map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)} className={'tab' + (activeTab === key ? ' on' : '')}>
+          <Button key={key} onClick={() => setActiveTab(key)} variant={activeTab === key ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -593,10 +596,10 @@ DH Website Services HR`)
         <div style={{ display:'grid', gap:18 }}>
           {activeTab === 'overview' ? (
             <>
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-                  <UserRound size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Candidate summary</div>
+                  <UserRound size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Candidate summary</div>
                 </div>
                 <div>
                   <DetailRow label="Email" value={application.email} />
@@ -608,21 +611,21 @@ DH Website Services HR`)
                   <DetailRow label="Recommendation" value={application.recommendation || 'Not set'} />
                 </div>
                 <div style={{ display:'grid', gap:14, marginTop:16 }}>
-                  <div>
-                    <label className="lbl">Experience summary</label>
-                    <div className="inp" style={{ whiteSpace:'pre-wrap', minHeight:110, alignItems:'flex-start', paddingTop:12 }}>{application.experience_summary || 'No experience summary provided.'}</div>
-                  </div>
-                  <div>
-                    <label className="lbl">Cover note</label>
-                    <div className="inp" style={{ whiteSpace:'pre-wrap', minHeight:110, alignItems:'flex-start', paddingTop:12 }}>{application.cover_note || 'No cover note provided.'}</div>
-                  </div>
+                  <FormField>
+                    <FormLabel>Experience summary</FormLabel>
+                    <div className="ds-form-input" style={{ whiteSpace:'pre-wrap', minHeight:110, alignItems:'flex-start', padding:'12px 12px' }}>{application.experience_summary || 'No experience summary provided.'}</div>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Cover note</FormLabel>
+                    <div className="ds-form-input" style={{ whiteSpace:'pre-wrap', minHeight:110, alignItems:'flex-start', padding:'12px 12px' }}>{application.cover_note || 'No cover note provided.'}</div>
+                  </FormField>
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-                  <ShieldCheck size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Candidate portal</div>
+                  <ShieldCheck size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Candidate portal</div>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
                   <MetaCard label="Portal status" value={application.portal_status || 'unclaimed'} />
@@ -639,72 +642,72 @@ DH Website Services HR`)
                     <DetailRow label="LinkedIn" value={snapshotProfile.linkedin_url} />
                     <DetailRow label="Portfolio" value={snapshotProfile.portfolio_url} />
                   </div>
-                  <div>
-                    <label className="lbl">Professional summary</label>
-                    <div className="inp" style={{ whiteSpace:'pre-wrap', minHeight:90, alignItems:'flex-start', paddingTop:12 }}>
+                  <FormField>
+                    <FormLabel>Professional summary</FormLabel>
+                    <div className="ds-form-input" style={{ whiteSpace:'pre-wrap', minHeight:90, alignItems:'flex-start', padding:'12px 12px' }}>
                       {snapshotProfile.summary || 'No candidate profile summary has been synced into this application yet.'}
                     </div>
-                  </div>
-                  <div>
-                    <label className="lbl">Skills</label>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Skills</FormLabel>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      {snapshotSkills.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No skills synced yet.</div> : null}
+                      {snapshotSkills.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No skills synced yet.</div> : null}
                       {snapshotSkills.map((skill, index) => (
-                        <div key={`${skill.name || 'skill'}-${index}`} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:999, background:'var(--bg2)', fontSize:12.5, color:'var(--text)' }}>
+                        <div key={`${skill.name || 'skill'}-${index}`} style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:999, background:'var(--color-gray-50)', fontSize:12.5, color:'var(--color-text-primary)' }}>
                           {skill.name || 'Skill'}{skill.proficiency ? ` · ${skill.proficiency}` : ''}{skill.years_experience ? ` · ${skill.years_experience}` : ''}
                         </div>
                       ))}
                     </div>
-                  </div>
-                  <div>
-                    <label className="lbl">Experience history</label>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Experience history</FormLabel>
                     <div style={{ display:'grid', gap:10 }}>
-                      {snapshotExperience.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No structured experience synced yet.</div> : null}
+                      {snapshotExperience.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No structured experience synced yet.</div> : null}
                       {snapshotExperience.map((row, index) => (
-                        <div key={`${row.company_name || 'exp'}-${index}`} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.job_title || 'Role'}{row.company_name ? ` · ${row.company_name}` : ''}</div>
-                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+                        <div key={`${row.company_name || 'exp'}-${index}`} style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{row.job_title || 'Role'}{row.company_name ? ` · ${row.company_name}` : ''}</div>
+                          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>
                             {[row.start_date, row.is_current ? 'Present' : row.end_date].filter(Boolean).join(' to ')}
                           </div>
-                          {row.summary ? <div style={{ fontSize:12.5, color:'var(--text)', marginTop:8, lineHeight:1.6 }}>{row.summary}</div> : null}
+                          {row.summary ? <div style={{ fontSize:12.5, color:'var(--color-text-primary)', marginTop:8, lineHeight:1.6 }}>{row.summary}</div> : null}
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </FormField>
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-                  <ShieldCheck size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Screening answers</div>
+                  <ShieldCheck size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Screening answers</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
-                  {Object.entries(application.screening_answers || {}).length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No screening answers saved.</div> : null}
+                  {Object.entries(application.screening_answers || {}).length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No screening answers saved.</div> : null}
                   {Object.entries(application.screening_answers || {}).map(([key, value]) => (
-                    <div key={key} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:12, color:'var(--faint)', marginBottom:8 }}>{key}</div>
-                      <div style={{ fontSize:13.5, color:'var(--text)', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{String(value || '—')}</div>
+                    <div key={key} style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginBottom:8 }}>{key}</div>
+                      <div style={{ fontSize:13.5, color:'var(--color-text-primary)', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{String(value || '—')}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-                  <NotebookPen size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Notes</div>
+                  <NotebookPen size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Notes</div>
                 </div>
-                <textarea className="inp" rows={4} value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} style={{ resize:'vertical' }} placeholder="Add a hiring note, phone screen summary, or decision context..." />
+                <textarea className="ds-form-input" rows={4} value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Add a hiring note, phone screen summary, or decision context..." />
                 <div style={{ marginTop:10 }}>
-                  <button className="btn btn-primary btn-sm" onClick={saveNote}>Save note</button>
+                  <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={saveNote}>Save note</Button>
                 </div>
                 <div style={{ display:'grid', gap:10, marginTop:16 }}>
-                  {notes.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No notes yet.</div> : null}
+                  {notes.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No notes yet.</div> : null}
                   {notes.map((note) => (
-                    <div key={note.id} style={{ padding:'12px 14px', borderRadius:12, background:'var(--bg2)', border:'1px solid var(--border)' }}>
-                      <div style={{ fontSize:12.5, color:'var(--text)', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{note.note}</div>
-                      <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:8 }}>{note.created_by_name || note.created_by_email || 'Unknown'} · {note.created_at ? new Date(note.created_at).toLocaleString('en-GB') : '—'}</div>
+                    <div key={note.id} style={{ padding:'12px 14px', borderRadius:12, background:'var(--color-gray-50)', border:'1px solid var(--color-border)' }}>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-primary)', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{note.note}</div>
+                      <div style={{ fontSize:11.5, color:'var(--color-text-tertiary)', marginTop:8 }}>{note.created_by_name || note.created_by_email || 'Unknown'} · {note.created_at ? new Date(note.created_at).toLocaleString('en-GB') : '—'}</div>
                     </div>
                   ))}
                 </div>
@@ -713,100 +716,100 @@ DH Website Services HR`)
           ) : null}
 
           {activeTab === 'evaluation' ? (
-            <div className="card card-pad">
+            <div style={{ ...DS_CARD, padding:20 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-                <Star size={16} color="var(--accent)" />
-                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Scorecard</div>
+                <Star size={16} color="var(--color-primary)" />
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Scorecard</div>
               </div>
               <div style={{ display:'grid', gap:12 }}>
-                <div>
-                  <label className="lbl">Overall rating</label>
-                  <select className="inp" value={overallRating} onChange={(e) => setOverallRating(Number(e.target.value))}>
+                <FormField>
+                  <FormLabel>Overall rating</FormLabel>
+                  <FormSelect value={overallRating} onChange={(e) => setOverallRating(Number(e.target.value))}>
                     {[0, 1, 2, 3, 4, 5].map((value) => (
                       <option key={value} value={value}>{value === 0 ? 'Not scored' : `${value}/5`}</option>
                     ))}
-                  </select>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:8 }}>
+                  </FormSelect>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:8 }}>
                     {overallRating ? `${renderStars(overallRating)} (${overallRating}/5)` : 'No overall score yet'}
                   </div>
-                </div>
+                </FormField>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:12 }}>
                   {SCORECARD_FIELDS.map(([key, label]) => (
-                    <div key={key}>
-                      <label className="lbl">{label}</label>
-                      <select className="inp" value={scorecardRatings[key] || 0} onChange={(e) => setScorecardRatings((current) => ({ ...current, [key]: Number(e.target.value) }))}>
+                    <FormField key={key}>
+                      <FormLabel>{label}</FormLabel>
+                      <FormSelect value={scorecardRatings[key] || 0} onChange={(e) => setScorecardRatings((current) => ({ ...current, [key]: Number(e.target.value) }))}>
                         {[0, 1, 2, 3, 4, 5].map((value) => (
                           <option key={value} value={value}>{value === 0 ? 'Not scored' : `${value}/5`}</option>
                         ))}
-                      </select>
-                    </div>
+                      </FormSelect>
+                    </FormField>
                   ))}
                 </div>
-                <div>
-                  <label className="lbl">Recommendation</label>
-                  <select className="inp" value={recommendation} onChange={(e) => setRecommendation(e.target.value)}>
+                <FormField>
+                  <FormLabel>Recommendation</FormLabel>
+                  <FormSelect value={recommendation} onChange={(e) => setRecommendation(e.target.value)}>
                     <option value="strong_yes">Strong yes</option>
                     <option value="yes">Yes</option>
                     <option value="hold">Hold</option>
                     <option value="concern">Concern</option>
                     <option value="no">No</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="lbl">Strengths</label>
-                  <textarea className="inp" rows={4} value={strengthsDraft} onChange={(e) => setStrengthsDraft(e.target.value)} style={{ resize:'vertical' }} placeholder="What stands out positively about this candidate?" />
-                </div>
-                <div>
-                  <label className="lbl">Risks / concerns</label>
-                  <textarea className="inp" rows={4} value={risksDraft} onChange={(e) => setRisksDraft(e.target.value)} style={{ resize:'vertical' }} placeholder="What needs caution, checking, or follow-up?" />
-                </div>
-                <div>
-                  <label className="lbl">Tags</label>
+                  </FormSelect>
+                </FormField>
+                <FormField>
+                  <FormLabel>Strengths</FormLabel>
+                  <textarea className="ds-form-input" rows={4} value={strengthsDraft} onChange={(e) => setStrengthsDraft(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="What stands out positively about this candidate?" />
+                </FormField>
+                <FormField>
+                  <FormLabel>Risks / concerns</FormLabel>
+                  <textarea className="ds-form-input" rows={4} value={risksDraft} onChange={(e) => setRisksDraft(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="What needs caution, checking, or follow-up?" />
+                </FormField>
+                <FormField>
+                  <FormLabel>Tags</FormLabel>
                   <div style={{ display:'flex', gap:8 }}>
-                    <input className="inp" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add tag and save it" onKeyDown={(e) => {
+                    <FormInput style={{ width:'100%' }} value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add tag and save it" onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
                         addTag()
                       }
                     }} />
-                    <button className="btn btn-outline" onClick={addTag}>Add</button>
+                    <Button variant="secondary" onClick={addTag}>Add</Button>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
-                    {scoreTags.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No tags yet.</div> : null}
+                    {scoreTags.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No tags yet.</div> : null}
                     {scoreTags.map((tag) => (
-                      <button key={tag} className="btn btn-outline btn-sm" onClick={() => removeTag(tag)}>{tag} ×</button>
+                      <Button key={tag} variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => removeTag(tag)}>{tag} ×</Button>
                     ))}
                   </div>
-                </div>
+                </FormField>
                 {scorecardFeedback ? <div style={{ fontSize:12.5, color: scorecardFeedback.includes('saved') ? '#1E8E5A' : '#C23B22' }}>{scorecardFeedback}</div> : null}
-                <button className="btn btn-primary" disabled={scorecardBusy} onClick={saveScorecard}>
+                <Button variant="primary" disabled={scorecardBusy} onClick={saveScorecard}>
                   {scorecardBusy ? 'Saving...' : 'Save scorecard'}
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
 
           {activeTab === 'actions' ? (
             <>
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <ShieldCheck size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Status actions</div>
+                  <ShieldCheck size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Status actions</div>
                 </div>
-                <textarea className="inp" rows={3} value={emailNote} onChange={(e) => setEmailNote(e.target.value)} style={{ resize:'vertical', marginBottom:12 }} placeholder="Optional note to include in the applicant email..." />
+                <textarea className="ds-form-input" rows={3} value={emailNote} onChange={(e) => setEmailNote(e.target.value)} style={{ resize:'vertical', marginBottom:12, padding:'8px 12px' }} placeholder="Optional note to include in the applicant email..." />
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:8 }}>
                   {['reviewing', 'shortlisted', 'interview', 'offered', 'hired', 'rejected'].map((status) => (
-                    <button key={status} className={status === 'rejected' ? 'btn btn-danger' : 'btn btn-outline'} disabled={statusBusy === status} onClick={() => changeStatus(status)}>
+                    <Button key={status} variant="secondary" style={status === 'rejected' ? { color:'var(--color-red-500)' } : undefined} disabled={statusBusy === status} onClick={() => changeStatus(status)}>
                       {statusBusy === status ? 'Updating...' : `Mark ${status}`}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <UserRound size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Candidate portal access</div>
+                  <UserRound size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Candidate portal access</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10 }}>
@@ -814,122 +817,122 @@ DH Website Services HR`)
                     <MetaCard label="Invite sent" value={application.portal_invited_at ? new Date(application.portal_invited_at).toLocaleString('en-GB') : 'Not yet'} />
                     <MetaCard label="Last viewed" value={application.portal_last_viewed_at ? new Date(application.portal_last_viewed_at).toLocaleString('en-GB') : 'No portal activity'} />
                   </div>
-                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                  <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
                     Invite existing applicants to set up their candidate portal using the email address already attached to this application. Historical applications stay intact and will be linked into the new portal account.
                   </div>
                   {portalInviteFeedback ? <div style={{ fontSize:12.5, color: portalInviteFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{portalInviteFeedback}</div> : null}
-                  <button className="btn btn-primary" disabled={portalInviteBusy} onClick={sendCandidatePortalInvite}>
+                  <Button variant="primary" disabled={portalInviteBusy} onClick={sendCandidatePortalInvite}>
                     {portalInviteBusy ? 'Sending...' : application.portal_invited_at ? 'Resend portal invite' : 'Send portal invite'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <CalendarDays size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Interview</div>
+                  <CalendarDays size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Interview</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
-                  <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:8 }}>Candidate self-booking</div>
+                  <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-gray-50)' }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>Candidate self-booking</div>
                     <div style={{ display:'grid', gap:12 }}>
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))', gap:8 }}>
-                        <div>
-                          <label className="lbl">Date</label>
-                          <input className="inp" type="date" value={bookingSlotDate} onChange={(e) => setBookingSlotDate(e.target.value)} />
-                        </div>
-                        <div>
-                          <label className="lbl">Time</label>
-                          <input className="inp" type="time" value={bookingSlotTime} onChange={(e) => setBookingSlotTime(e.target.value)} />
-                        </div>
-                        <div>
-                          <label className="lbl">Duration</label>
-                          <select className="inp" value={bookingSlotDuration} onChange={(e) => setBookingSlotDuration(Number(e.target.value))}>
+                        <FormField>
+                          <FormLabel>Date</FormLabel>
+                          <FormInput type="date" value={bookingSlotDate} onChange={(e) => setBookingSlotDate(e.target.value)} />
+                        </FormField>
+                        <FormField>
+                          <FormLabel>Time</FormLabel>
+                          <FormInput type="time" value={bookingSlotTime} onChange={(e) => setBookingSlotTime(e.target.value)} />
+                        </FormField>
+                        <FormField>
+                          <FormLabel>Duration</FormLabel>
+                          <FormSelect value={bookingSlotDuration} onChange={(e) => setBookingSlotDuration(Number(e.target.value))}>
                             <option value={30}>30 min</option>
                             <option value={45}>45 min</option>
                             <option value={60}>60 min</option>
-                          </select>
-                        </div>
+                          </FormSelect>
+                        </FormField>
                       </div>
                       <div>
-                        <button className="btn btn-outline" onClick={addBookingSlot}>Add slot</button>
+                        <Button variant="secondary" onClick={addBookingSlot}>Add slot</Button>
                       </div>
                       <div style={{ display:'grid', gap:8 }}>
-                        {bookingSlots.filter((slot) => slot.status === 'open' || slot.status === 'booked').length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No interview slots added yet.</div> : null}
+                        {bookingSlots.filter((slot) => slot.status === 'open' || slot.status === 'booked').length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No interview slots added yet.</div> : null}
                         {bookingSlots.filter((slot) => slot.status === 'open' || slot.status === 'booked').map((slot) => (
-                          <div key={slot.id} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--card)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                          <div key={slot.id} style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-bg-surface)', display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
                             <div style={{ fontSize:13 }}>
-                              <div style={{ fontWeight:600, color:'var(--text)' }}>{new Date(slot.start_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
-                              <div style={{ color:'var(--sub)', marginTop:4 }}>{slot.status === 'booked' ? 'Booked by candidate' : `${slot.interview_mode || interviewMode} · ${slot.location || interviewLocation || 'Details to follow'}`}</div>
+                              <div style={{ fontWeight:600, color:'var(--color-text-primary)' }}>{new Date(slot.start_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+                              <div style={{ color:'var(--color-text-secondary)', marginTop:4 }}>{slot.status === 'booked' ? 'Booked by candidate' : `${slot.interview_mode || interviewMode} · ${slot.location || interviewLocation || 'Details to follow'}`}</div>
                             </div>
-                            {slot.status !== 'booked' ? <button className="btn btn-outline btn-sm" onClick={() => removeBookingSlot(slot.id)}>Remove</button> : <span className="badge badge-blue">Booked</span>}
+                            {slot.status !== 'booked' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => removeBookingSlot(slot.id)}>Remove</Button> : <StatusBadge variant="info">Booked</StatusBadge>}
                           </div>
                         ))}
                       </div>
                       {bookingInviteFeedback ? <div style={{ fontSize:12.5, color: bookingInviteFeedback.includes('sent') || bookingInviteFeedback.includes('published') ? '#1E8E5A' : '#C23B22' }}>{bookingInviteFeedback}</div> : null}
-                      <button className="btn btn-primary" disabled={bookingInviteBusy} onClick={sendInterviewBookingInvite}>
+                      <Button variant="primary" disabled={bookingInviteBusy} onClick={sendInterviewBookingInvite}>
                         {bookingInviteBusy ? 'Sending...' : 'Email candidate to book interview'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="lbl">Date and time</label>
-                    <input className="inp" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="lbl">Format</label>
-                    <select className="inp" value={interviewMode} onChange={(e) => setInterviewMode(e.target.value)}>
+                  <FormField>
+                    <FormLabel>Date and time</FormLabel>
+                    <FormInput type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} />
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Format</FormLabel>
+                    <FormSelect value={interviewMode} onChange={(e) => setInterviewMode(e.target.value)}>
                       <option value="video">Video call</option>
                       <option value="phone">Phone call</option>
                       <option value="in_person">In person</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="lbl">Meeting link / location</label>
-                    <input className="inp" value={interviewLocation} onChange={(e) => setInterviewLocation(e.target.value)} placeholder="Teams link, phone number, or office address" />
-                  </div>
-                  <div>
-                    <label className="lbl">Candidate note</label>
-                    <textarea className="inp" rows={4} value={interviewNotesDraft} onChange={(e) => setInterviewNotesDraft(e.target.value)} style={{ resize:'vertical' }} placeholder="Add prep notes, arrival instructions, or who they will meet..." />
-                  </div>
-                  <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:12.5, color:'var(--sub)' }}>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Meeting link / location</FormLabel>
+                    <FormInput value={interviewLocation} onChange={(e) => setInterviewLocation(e.target.value)} placeholder="Teams link, phone number, or office address" />
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Candidate note</FormLabel>
+                    <textarea className="ds-form-input" rows={4} value={interviewNotesDraft} onChange={(e) => setInterviewNotesDraft(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Add prep notes, arrival instructions, or who they will meet..." />
+                  </FormField>
+                  <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:12.5, color:'var(--color-text-secondary)' }}>
                     <input type="checkbox" checked={sendInterviewInvite} onChange={(e) => setSendInterviewInvite(e.target.checked)} style={{ marginTop:2 }} />
                     <span>Email the interview details to the applicant from HR when saving.</span>
                   </label>
                   {interviewFeedback ? <div style={{ fontSize:12.5, color: interviewFeedback.includes('saved') || interviewFeedback.includes('sent') ? '#1E8E5A' : '#C23B22' }}>{interviewFeedback}</div> : null}
-                  <button className="btn btn-primary" disabled={interviewBusy} onClick={scheduleInterview}>
+                  <Button variant="primary" disabled={interviewBusy} onClick={scheduleInterview}>
                     {interviewBusy ? 'Saving...' : 'Schedule interview'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <div className="card card-pad">
+              <div style={{ ...DS_CARD, padding:20 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <Mail size={16} color="var(--accent)" />
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Email applicant</div>
+                  <Mail size={16} color="var(--color-primary)" />
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Email applicant</div>
                 </div>
                 <div style={{ display:'grid', gap:12 }}>
-                  <div>
-                    <label className="lbl">To</label>
-                    <div className="inp" style={{ display:'flex', alignItems:'center' }}>{application.email || '—'}</div>
-                  </div>
-                  <div>
-                    <label className="lbl">From</label>
-                    <div className="inp" style={{ display:'flex', alignItems:'center' }}>HR@dhwebsiteservices.co.uk</div>
-                  </div>
-                  <div>
-                    <label className="lbl">Subject</label>
-                    <input className="inp" value={manualEmailSubject} onChange={(e) => setManualEmailSubject(e.target.value)} placeholder="Email subject" />
-                  </div>
-                  <div>
-                    <label className="lbl">Message</label>
-                    <textarea className="inp" rows={8} value={manualEmailBody} onChange={(e) => setManualEmailBody(e.target.value)} style={{ resize:'vertical' }} placeholder="Write your email to the applicant..." />
-                  </div>
+                  <FormField>
+                    <FormLabel>To</FormLabel>
+                    <div className="ds-form-input" style={{ display:'flex', alignItems:'center' }}>{application.email || '—'}</div>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>From</FormLabel>
+                    <div className="ds-form-input" style={{ display:'flex', alignItems:'center' }}>HR@dhwebsiteservices.co.uk</div>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Subject</FormLabel>
+                    <FormInput value={manualEmailSubject} onChange={(e) => setManualEmailSubject(e.target.value)} placeholder="Email subject" />
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Message</FormLabel>
+                    <textarea className="ds-form-input" rows={8} value={manualEmailBody} onChange={(e) => setManualEmailBody(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Write your email to the applicant..." />
+                  </FormField>
                   {manualEmailFeedback ? <div style={{ fontSize:12.5, color: manualEmailFeedback.includes('successfully') ? '#1E8E5A' : '#C23B22' }}>{manualEmailFeedback}</div> : null}
-                  <button className="btn btn-primary" disabled={manualEmailBusy} onClick={sendManualEmail}>
+                  <Button variant="primary" disabled={manualEmailBusy} onClick={sendManualEmail}>
                     {manualEmailBusy ? 'Sending...' : 'Send email'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
@@ -937,32 +940,32 @@ DH Website Services HR`)
         </div>
 
         <div style={{ display:'grid', gap:18 }}>
-          <div className="card card-pad">
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>CV</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 14 }}>CV</div>
             <ApplicantCvViewer url={application.cv_file_url} />
           </div>
 
-          <div className="card card-pad">
+          <div style={{ ...DS_CARD, padding:20 }}>
             <div style={{ display: 'grid', gap: 8 }}>
-              <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Hiring owner</div>
-              <div>
-                <label className="lbl">Recruiter owner</label>
-                <select className="inp" value={assignmentEmail} onChange={(e) => setAssignmentEmail(e.target.value)}>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Hiring owner</div>
+              <FormField>
+                <FormLabel>Recruiter owner</FormLabel>
+                <FormSelect value={assignmentEmail} onChange={(e) => setAssignmentEmail(e.target.value)}>
                   <option value="">Unassigned</option>
                   {assignmentOptions.map((item) => (
                     <option key={item.email} value={item.email}>{item.name} ({item.email})</option>
                   ))}
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
               {assignmentFeedback ? <div style={{ fontSize:12.5, color: assignmentFeedback.includes('saved') ? '#1E8E5A' : '#C23B22' }}>{assignmentFeedback}</div> : null}
-              <button className="btn btn-outline" disabled={assignmentBusy} onClick={saveAssignment}>
+              <Button variant="secondary" disabled={assignmentBusy} onClick={saveAssignment}>
                 {assignmentBusy ? 'Saving...' : 'Save assignment'}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Timeline</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:12 }}>Timeline</div>
             <ApplicantTimeline history={history} />
           </div>
         </div>

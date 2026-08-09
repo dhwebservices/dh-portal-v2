@@ -24,6 +24,9 @@ import { buildDepartmentAnnouncementKey, createDepartmentAnnouncement, createTra
 import { listJobPosts } from '../utils/recruiting'
 import { fetchAuditLogs } from '../utils/auditApi'
 import { fetchEmailLogs } from '../utils/emailLogs'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -126,9 +129,9 @@ function isDateInRange(today, startDate, endDate) {
 }
 
 const TASK_BOARD_COLUMNS = [
-  ['todo', 'To Do', 'var(--faint)'],
-  ['in_progress', 'In Progress', 'var(--accent)'],
-  ['done', 'Done', 'var(--green)'],
+  ['todo', 'To Do', 'var(--color-text-tertiary)'],
+  ['in_progress', 'In Progress', 'var(--color-primary)'],
+  ['done', 'Done', 'var(--color-green-500)'],
 ]
 
 export default function MyDepartment() {
@@ -704,9 +707,9 @@ export default function MyDepartment() {
 
   if (!isDirector && !isDepartmentManager) {
     return (
-      <div className="card card-pad" style={{ maxWidth: 620 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text)' }}>Department access only</div>
-        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
+      <div style={{ ...DS_CARD, padding: 20, maxWidth: 620 }}>
+        <div style={{ fontSize: 24, color: 'var(--color-text-primary)' }}>Department access only</div>
+        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
           This page is for Directors and Department Managers. Staff without team scope can still use their own profile and day-to-day tools.
         </div>
       </div>
@@ -714,24 +717,24 @@ export default function MyDepartment() {
   }
 
   return (
-    <div className="fade-in department-shell">
-      <div className="page-hd">
+    <div className="ds-content department-shell">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">My Department</h1>
-          <p className="page-sub">Team workspace for scoped managers and Director oversight.</p>
+          <h1>My Department</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Team workspace for scoped managers and Director oversight.</p>
         </div>
         <div className="department-top-actions">
-          <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>
+          <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate('/recruiting')}>
             Department hiring
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>
+          </Button>
+          <Button variant="primary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>
             Post job
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', background: 'var(--amber-bg)', border: '1px solid var(--amber)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', marginBottom: 16 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--color-amber-50)', border: '1px solid var(--color-amber-500)', borderRadius: 10, fontSize: 13, color: 'var(--color-amber-500)', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -774,109 +777,109 @@ export default function MyDepartment() {
 
       <div className="department-stats-grid">
         <StatCard icon={Building2} label="Department" value={currentDepartment || 'None'} hint={departmentMeta?.manager_name ? `Managed by ${departmentMeta.manager_name}` : 'No department manager set'} className="department-stat-card" />
-        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--green)" className="department-stat-card" />
-        <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--accent)" className="department-stat-card" />
-        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--blue)" className="department-stat-card" />
-        <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--amber)" className="department-stat-card" />
-        <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--accent)" className="department-stat-card" />
-        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--red)" className="department-stat-card" />
-        <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--red)" className="department-stat-card" />
-        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--amber)" className="department-stat-card" />
-        <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--blue)" className="department-stat-card" />
+        <StatCard icon={Users} label="Team members" value={teamMembers.length} hint={`${activeCount} active · ${onboardingCount} onboarding`} tone="var(--color-green-500)" className="department-stat-card" />
+        <StatCard icon={Users} label="My active staff today" value={activeStaffToday} hint="Team members with portal activity recorded today" tone="var(--color-primary)" className="department-stat-card" />
+        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged by this department today" tone="var(--color-blue-500)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Outreach emails today" value={outreachEmailsToday} hint="Tracked outbound emails sent today by staff in this department" tone="var(--color-amber-500)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Department tasks" value={openDepartmentTasks.length} hint={`${overdueDepartmentTasks.length} overdue for follow-up`} tone="var(--color-primary)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + departmentTrainingDue} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${departmentTrainingDue} training due`} tone="var(--color-red-500)" className="department-stat-card" />
+        <StatCard icon={ShieldCheck} label="Pending requests" value={needsReviewCount} hint="Director approvals tied to this department" tone="var(--color-red-500)" className="department-stat-card" />
+        <StatCard icon={FolderPlus} label="Unassigned" value={unassigned.length} hint="Microsoft users waiting to be placed into a team" tone="var(--color-amber-500)" className="department-stat-card" />
+        <StatCard icon={BriefcaseBusiness} label="Department jobs" value={departmentJobs.length} hint={`${openDepartmentJobs.length} published right now`} tone="var(--color-blue-500)" className="department-stat-card" />
       </div>
 
       <div className="department-main-grid">
         <div className="department-column">
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-kicker">Department operating layer</div>
             <div className="department-mini-grid">
               <div className="department-info-card">
-                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Leave today / who’s off</div>
+                <div style={{ fontSize:12, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Leave today / who’s off</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {todayLeave.slice(0, 4).map((row) => (
-                    <div key={row.id} style={{ fontSize:12.5, color:'var(--sub)' }}>
-                      <strong style={{ color:'var(--text)' }}>{row.user_name || row.user_email}</strong> · {row.leave_type}
+                    <div key={row.id} style={{ fontSize:12.5, color:'var(--color-text-secondary)' }}>
+                      <strong style={{ color:'var(--color-text-primary)' }}>{row.user_name || row.user_email}</strong> · {row.leave_type}
                     </div>
                   ))}
-                  {todayLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>Nobody is off today.</div> : null}
+                  {todayLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>Nobody is off today.</div> : null}
                 </div>
               </div>
               <div className="department-info-card">
-                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>New starters in team</div>
+                <div style={{ fontSize:12, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em' }}>New starters in team</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {newStarters.slice(0, 4).map((row) => (
-                    <div key={row.user_email} style={{ fontSize:12.5, color:'var(--sub)' }}>
-                      <strong style={{ color:'var(--text)' }}>{row.full_name || row.user_email}</strong> · {getLifecycleLabel(row.lifecycle?.state)}
+                    <div key={row.user_email} style={{ fontSize:12.5, color:'var(--color-text-secondary)' }}>
+                      <strong style={{ color:'var(--color-text-primary)' }}>{row.full_name || row.user_email}</strong> · {getLifecycleLabel(row.lifecycle?.state)}
                     </div>
                   ))}
-                  {newStarters.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent starters in this department.</div> : null}
+                  {newStarters.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No recent starters in this department.</div> : null}
                 </div>
               </div>
               <div className="department-info-card">
-                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Department compliance</div>
-                <div style={{ marginTop:8, fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
-                  Missing RTW: <strong style={{ color:'var(--text)' }}>{missingRtwCount}</strong><br/>
-                  Unsigned contracts: <strong style={{ color:'var(--text)' }}>{pendingContractCount}</strong><br/>
-                  Training due: <strong style={{ color:'var(--text)' }}>{departmentTrainingDue}</strong><br/>
-                  Onboarding staff: <strong style={{ color:'var(--text)' }}>{onboardingCount}</strong>
+                <div style={{ fontSize:12, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Department compliance</div>
+                <div style={{ marginTop:8, fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.7 }}>
+                  Missing RTW: <strong style={{ color:'var(--color-text-primary)' }}>{missingRtwCount}</strong><br/>
+                  Unsigned contracts: <strong style={{ color:'var(--color-text-primary)' }}>{pendingContractCount}</strong><br/>
+                  Training due: <strong style={{ color:'var(--color-text-primary)' }}>{departmentTrainingDue}</strong><br/>
+                  Onboarding staff: <strong style={{ color:'var(--color-text-primary)' }}>{onboardingCount}</strong>
                 </div>
               </div>
               <div className="department-info-card">
-                <div style={{ fontSize:12, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Upcoming leave</div>
+                <div style={{ fontSize:12, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Upcoming leave</div>
                 <div style={{ marginTop:8, display:'grid', gap:8 }}>
                   {upcomingLeave.slice(0, 3).map((row) => (
-                    <div key={row.id} style={{ fontSize:12.5, color:'var(--sub)' }}>
-                      <strong style={{ color:'var(--text)' }}>{row.user_name || row.user_email}</strong> · {row.start_date}
+                    <div key={row.id} style={{ fontSize:12.5, color:'var(--color-text-secondary)' }}>
+                      <strong style={{ color:'var(--color-text-primary)' }}>{row.user_name || row.user_email}</strong> · {row.start_date}
                     </div>
                   ))}
-                  {upcomingLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No upcoming approved leave booked.</div> : null}
+                  {upcomingLeave.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No upcoming approved leave booked.</div> : null}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-head">
               <div>
                 <div className="department-panel-kicker">Department hiring</div>
                 <div className="department-panel-title">Job posts for {currentDepartment || 'this department'}</div>
               </div>
               <div className="department-panel-actions">
-                <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>Open jobs</button>
-                <button className="btn btn-primary btn-sm" onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>Create role</button>
+                <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate('/recruiting')}>Open jobs</Button>
+                <Button variant="primary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(currentDepartment || '')}`)}>Create role</Button>
               </div>
             </div>
             <div className="department-list">
-              {departmentJobs.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No job posts linked to this department yet.</div> : null}
+              {departmentJobs.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No job posts linked to this department yet.</div> : null}
               {departmentJobs.slice(0, 6).map((job) => (
                 <button key={job.id} className="department-row-button" onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
                   <span>{job.title}</span>
-                  <span style={{ fontSize:11.5, color:'var(--sub)' }}>{job.status}</span>
+                  <span style={{ fontSize:11.5, color:'var(--color-text-secondary)' }}>{job.status}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-head">
               <div>
                 <div className="department-panel-kicker">Department announcements</div>
                 <div className="department-panel-title">Post an update to the team</div>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={postAnnouncement} disabled={saving === 'announcement'}>
+              <Button variant="primary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={postAnnouncement} disabled={saving === 'announcement'}>
                 {saving === 'announcement' ? 'Posting...' : 'Post announcement'}
-              </button>
+              </Button>
             </div>
-            <div className="fg" style={{ marginTop:14 }}>
-              <div><label className="lbl">Title</label><input className="inp" value={announcementForm.title} onChange={(e) => setAnnouncementForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Team update for this week" /></div>
-              <div className="fc"><label className="lbl">Message</label><textarea className="inp" rows={3} value={announcementForm.message} onChange={(e) => setAnnouncementForm((current) => ({ ...current, message: e.target.value }))} style={{ resize:'vertical' }} placeholder="Share the update, priority, or next steps..." /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16, marginTop:14 }}>
+              <FormField><FormLabel>Title</FormLabel><FormInput value={announcementForm.title} onChange={(e) => setAnnouncementForm((current) => ({ ...current, title: e.target.value }))} placeholder="Example: Team update for this week" /></FormField>
+              <FormField className="staff-onboarding-fc"><FormLabel>Message</FormLabel><textarea className="ds-form-input" rows={3} value={announcementForm.message} onChange={(e) => setAnnouncementForm((current) => ({ ...current, message: e.target.value }))} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Share the update, priority, or next steps..." /></FormField>
             </div>
             <div style={{ display:'flex', gap:14, flexWrap:'wrap', marginTop:12 }}>
-              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--sub)' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--color-text-secondary)' }}>
                 <input type="checkbox" checked={announcementForm.email_team} onChange={(e) => setAnnouncementForm((current) => ({ ...current, email_team: e.target.checked }))} />
                 Email the team too
               </label>
-              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--sub)' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'var(--color-text-secondary)' }}>
                 <input type="checkbox" checked={announcementForm.important} onChange={(e) => setAnnouncementForm((current) => ({ ...current, important: e.target.checked }))} />
                 Mark as important
               </label>
@@ -885,18 +888,18 @@ export default function MyDepartment() {
               {departmentAnnouncements.map((item) => (
                 <div key={item.id} className="department-info-card">
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
-                    <span className={`badge badge-${item.important ? 'red' : 'blue'}`}>{item.important ? 'Important' : 'Team update'}</span>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{item.title}</div>
+                    <StatusBadge variant={item.important ? 'error' : 'info'}>{item.important ? 'Important' : 'Team update'}</StatusBadge>
                   </div>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
-                  <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{item.created_by_name || item.created_by_email} · {new Date(item.created_at).toLocaleString('en-GB')}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
+                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:6 }}>{item.created_by_name || item.created_by_email} · {new Date(item.created_at).toLocaleString('en-GB')}</div>
                 </div>
               ))}
-              {departmentAnnouncements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No department announcements posted yet.</div> : null}
+              {departmentAnnouncements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No department announcements posted yet.</div> : null}
             </div>
           </div>
 
-          <div className="card department-panel" style={{ overflow: 'hidden' }}>
+          <div className="department-panel" style={{ ...DS_CARD, overflow: 'hidden' }}>
             <div className="department-panel-head department-panel-head--bordered">
               <div>
                 <div className="department-panel-kicker">Team members</div>
@@ -904,23 +907,22 @@ export default function MyDepartment() {
               </div>
             </div>
             {teamMembers.length === 0 ? (
-              <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff currently assigned to this department.</div>
+              <div style={{ padding: '24px 18px', color: 'var(--color-text-tertiary)', fontSize: 13 }}>No staff currently assigned to this department.</div>
             ) : teamMembers.map((row) => (
               <div key={row.user_email} className="department-member-card">
                 <button onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}`)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
                   <div className="department-member-head">
                     <div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.full_name || row.user_email}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{row.role || getRoleScopeLabel(row.org?.role_scope)} · {row.manager_name || 'No manager'}</div>
                     </div>
-                    <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
+                    <StatusBadge variant={row.lifecycle?.state === 'onboarding' ? 'warning' : row.lifecycle?.state === 'active' ? 'active' : 'info'}>
                       {getLifecycleLabel(row.lifecycle?.state)}
-                    </span>
+                    </StatusBadge>
                   </div>
                 </button>
                 <div className="department-member-actions">
-                  <select
-                    className="inp"
+                  <FormSelect
                     value={memberActions[row.user_email]?.nextDepartment || ''}
                     onChange={(e) => setMemberActions((current) => ({
                       ...current,
@@ -931,35 +933,36 @@ export default function MyDepartment() {
                     {catalog.filter((item) => item.active !== false && item.name !== currentDepartment).map((item) => (
                       <option key={item.id} value={item.name}>{item.name}</option>
                     ))}
-                  </select>
+                  </FormSelect>
                   {canPreviewStaffMember(row, row.org) ? (
-                    <button
-                      className={isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                    <Button
+                      variant={isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'primary' : 'secondary'}
+                      style={{ height: 28, fontSize: 12, padding: '0 8px' }}
                       onClick={() => impersonateStaffMember(row)}
                     >
                       {isPreviewing && previewTarget?.email?.toLowerCase?.() === row.user_email?.toLowerCase() ? 'Impersonating' : 'Impersonate'}
-                    </button>
+                    </Button>
                   ) : null}
-                  <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}?tab=contracts`)}>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate(`/my-staff/${encodeURIComponent(row.user_email)}?tab=contracts`)}>
                     Contracts
-                  </button>
+                  </Button>
                   {isDirector ? (
                     <>
-                      <button className="btn btn-outline btn-sm" onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                      <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => moveDirectly(row)} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
                         {saving === row.user_email ? 'Saving...' : 'Move now'}
-                      </button>
-                      <button className="btn btn-outline btn-sm" onClick={() => removeDirectly(row)} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                      </Button>
+                      <Button variant="secondary" onClick={() => removeDirectly(row)} disabled={saving === row.user_email} style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)', borderColor: 'rgba(229,77,46,0.25)' }}>
                         Remove
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
-                      <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'move_staff')} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
+                      <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => requestDepartmentChange(row, 'move_staff')} disabled={saving === row.user_email || !memberActions[row.user_email]?.nextDepartment}>
                         {saving === row.user_email ? 'Sending...' : 'Request move'}
-                      </button>
-                      <button className="btn btn-outline btn-sm" onClick={() => requestDepartmentChange(row, 'remove_staff')} disabled={saving === row.user_email} style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}>
+                      </Button>
+                      <Button variant="secondary" onClick={() => requestDepartmentChange(row, 'remove_staff')} disabled={saving === row.user_email} style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)', borderColor: 'rgba(229,77,46,0.25)' }}>
                         Request removal
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -969,111 +972,111 @@ export default function MyDepartment() {
         </div>
 
         <div className="department-column">
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-kicker">Team activity feed</div>
             <div className="department-panel-title">Latest department actions</div>
             <div className="department-list" style={{ marginTop: 14 }}>
               {teamActivity.map((row, index) => (
                 <div key={`${row.user_name}-${row.created_at}-${index}`} className="department-info-card">
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{row.user_name || 'Team member'}</div>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>{row.action}{row.target ? ` · ${row.target}` : ''}</div>
-                  <div style={{ fontSize:11, color:'var(--faint)', marginTop:6 }}>{new Date(row.created_at).toLocaleString('en-GB')}</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{row.user_name || 'Team member'}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:5, lineHeight:1.6 }}>{row.action}{row.target ? ` · ${row.target}` : ''}</div>
+                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:6 }}>{new Date(row.created_at).toLocaleString('en-GB')}</div>
                 </div>
               ))}
-              {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent team activity yet.</div> : null}
+              {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No recent team activity yet.</div> : null}
             </div>
           </div>
 
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-kicker">Department tasks</div>
             <div className="department-panel-head">
               <div className="department-panel-title">Task board for {currentDepartment}</div>
-              <button className="btn btn-outline btn-sm" onClick={() => navigate('/tasks')}>Open full task manager</button>
+              <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate('/tasks')}>Open full task manager</Button>
             </div>
             <div className="department-task-board">
               {departmentTaskBoard.map((column) => (
                 <div key={column.key} className="department-task-column">
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:10 }}>
                     <div style={{ fontSize:12, fontWeight:700, color:column.tone, letterSpacing:'0.06em', textTransform:'uppercase' }}>{column.label}</div>
-                    <span className="badge badge-grey">{column.items.length}</span>
+                    <StatusBadge variant="info">{column.items.length}</StatusBadge>
                   </div>
                   <div style={{ display:'grid', gap:10 }}>
                     {column.items.map((task) => {
                       const isOwnedByCurrentUser = normalizePortalEmail(task.assigned_to_email) === normalizePortalEmail(user?.email)
                       return (
                         <div key={task.id} className="department-task-card">
-                          <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{task.title}</div>
-                          <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{task.title}</div>
+                          <div style={{ fontSize:11.5, color:'var(--color-text-secondary)', marginTop:5, lineHeight:1.6 }}>
                             {task.description_plain || 'No task description'}
                           </div>
-                          <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>
+                          <div style={{ fontSize:11.5, color:'var(--color-text-tertiary)', marginTop:6 }}>
                             {task.assigned_to_name ? `Owner ${task.assigned_to_name}` : 'Department queue'}
                             {task.due_date ? ` · Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : ' · No due date'}
                           </div>
                           <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
                             {!task.assigned_to_email ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => claimDepartmentTask(task)}>Claim</button>
+                              <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => claimDepartmentTask(task)}>Claim</Button>
                             ) : isOwnedByCurrentUser ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => releaseDepartmentTask(task)}>Return to queue</button>
+                              <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => releaseDepartmentTask(task)}>Return to queue</Button>
                             ) : null}
                             {task.status !== 'in_progress' ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => changeDepartmentTaskStatus(task, 'in_progress')}>Start</button>
+                              <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => changeDepartmentTaskStatus(task, 'in_progress')}>Start</Button>
                             ) : null}
                             {task.status !== 'done' ? (
-                              <button className="btn btn-outline btn-sm" onClick={() => changeDepartmentTaskStatus(task, 'done')}>Mark done</button>
+                              <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => changeDepartmentTaskStatus(task, 'done')}>Mark done</Button>
                             ) : null}
                           </div>
                         </div>
                       )
                     })}
-                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No tasks in this column.</div> : null}
+                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No tasks in this column.</div> : null}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-kicker">Unassigned Microsoft users</div>
             <div className="department-panel-title">Ready to place into a team</div>
             <div className="department-list" style={{ marginTop: 14 }}>
               {unassigned.map((row) => (
                 <div key={row.user_email} className="department-info-card">
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>{row.user_email}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.full_name || row.user_email}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>{row.user_email}</div>
                   <div style={{ marginTop: 10 }}>
                     {isDirector ? (
-                      <button className="btn btn-primary btn-sm" onClick={() => assignDirectly(row)} disabled={saving === row.user_email || !currentDepartment}>
+                      <Button variant="primary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => assignDirectly(row)} disabled={saving === row.user_email || !currentDepartment}>
                         {saving === row.user_email ? 'Assigning...' : `Assign to ${currentDepartment || 'department'}`}
-                      </button>
+                      </Button>
                     ) : (
-                      <button className="btn btn-outline btn-sm" onClick={() => requestAssignment(row)} disabled={saving === row.user_email || !currentDepartment}>
+                      <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => requestAssignment(row)} disabled={saving === row.user_email || !currentDepartment}>
                         {saving === row.user_email ? 'Sending...' : `Request into ${currentDepartment || 'department'}`}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
               ))}
-              {unassigned.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No unassigned Microsoft users right now.</div>}
+              {unassigned.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--color-text-tertiary)' }}>No unassigned Microsoft users right now.</div>}
             </div>
           </div>
 
-          <div className="card card-pad department-panel">
+          <div className="department-panel" style={{ ...DS_CARD, padding: 20 }}>
             <div className="department-panel-kicker">Department requests</div>
             <div className="department-panel-title">Requests affecting this team</div>
             <div className="department-list" style={{ marginTop: 14 }}>
               {visibleRequests.slice(0, 6).map((row) => (
                 <div key={row.id} className="department-info-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.target_name || row.target_email}</div>
-                    <span className={`badge badge-${row.status === 'approved' ? 'green' : row.status === 'rejected' ? 'red' : 'amber'}`}>{row.status}</span>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.target_name || row.target_email}</div>
+                    <StatusBadge variant={row.status === 'approved' ? 'active' : row.status === 'rejected' ? 'error' : 'warning'}>{row.status}</StatusBadge>
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 5 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 5 }}>
                     {row.current_department || 'Unassigned'} → {row.requested_department || 'Unassigned'}
                   </div>
                 </div>
               ))}
-              {visibleRequests.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No department requests for this team yet.</div>}
+              {visibleRequests.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--color-text-tertiary)' }}>No department requests for this team yet.</div>}
             </div>
           </div>
         </div>

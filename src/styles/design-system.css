@@ -399,6 +399,17 @@ small,
   transition: border-color var(--transition-normal);
 }
 
+/* Textareas share .ds-form-input for its border/focus styling but must not
+   inherit the fixed 36px control height - that collapses them to a single
+   line and makes the `rows` attribute do nothing. */
+textarea.ds-form-input {
+  height: auto;
+  min-height: 36px;
+  padding: 8px 12px;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
 .ds-form-input:focus,
 .ds-form-select:focus {
   outline: none;

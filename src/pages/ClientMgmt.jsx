@@ -19,8 +19,12 @@ import {
   getClientContractStatusLabel,
   renderClientContractHtml,
 } from '../utils/clientContracts'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 
-const STAGES = [{key:'accepted',label:'Order Accepted'},{key:'building',label:'Being Built'},{key:'nearly_there',label:'Nearly There'},{key:'ready',label:'Ready to Launch'}]
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+
+const STAGES =[{key:'accepted',label:'Order Accepted'},{key:'building',label:'Being Built'},{key:'nearly_there',label:'Nearly There'},{key:'ready',label:'Ready to Launch'}]
 const EMPTY_INV = { invoice_number:'', description:'', amount:'', due_date:'', status:'unpaid' }
 const EMPTY_DOC = { name:'', type:'Contract', file_url:'' }
 const EMPTY_UPD = { title:'', message:'' }
@@ -589,35 +593,35 @@ export default function ClientMgmt() {
   } : null
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Client Portal Management</h1><p className="page-sub">Live delivery, billing, and support view across {clients.length} client accounts.</p></div>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Client Portal Management</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live delivery, billing, and support view across {clients.length} client accounts.</p></div>
       </div>
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0,1fr))', gap:14, marginBottom:20 }}>
-        <div className="stat-card"><div className="stat-val">{stats.active}</div><div className="stat-lbl">Active clients</div></div>
-        <div className="stat-card"><div className="stat-val">{stats.openTickets}</div><div className="stat-lbl">Open tickets</div></div>
-        <div className="stat-card"><div className="stat-val">{stats.unpaidInvoices}</div><div className="stat-lbl">Unpaid invoices</div></div>
-        <div className="stat-card"><div className="stat-val">{stats.ready}</div><div className="stat-lbl">Ready to launch</div></div>
-        <div className="stat-card"><div className="stat-val">{stats.awaitingContracts}</div><div className="stat-lbl">Contracts awaiting signature</div></div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+        <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.active}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Active clients</div></div>
+        <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.openTickets}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Open tickets</div></div>
+        <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.unpaidInvoices}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Unpaid invoices</div></div>
+        <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.ready}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Ready to launch</div></div>
+        <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.awaitingContracts}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Contracts awaiting signature</div></div>
       </div>
 
-      <div className="card card-pad" style={{ marginBottom:20 }}>
+      <div style={{ ...DS_CARD, padding:20, marginBottom:20 }}>
           <div className="legacy-toolbar" style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'center' }}>
             <div style={{ position:'relative', flex:1, minWidth:220 }}>
-              <input className="inp" style={{ paddingLeft:34 }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
-              <svg style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--faint)', pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <FormInput style={{ paddingLeft:34, width:'100%' }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
+              <svg style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--color-text-tertiary)', pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
-          <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6 }}>
+          <div className="legacy-toolbar-actions" style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             {[
               ['all', 'All clients'],
               ['attention', 'Need attention'],
               ['building', 'In delivery'],
               ['ready', 'Ready to launch'],
             ].map(([key, label]) => (
-              <button key={key} onClick={() => setFilter(key)} className={'pill'+(filter===key?' on':'')}>{label}</button>
+              <Button key={key} onClick={() => setFilter(key)} variant={filter===key ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{label}</Button>
             ))}
           </div>
-          <button className="btn btn-outline" onClick={() => openModal('contractTemplates', null)}>Client contract templates</button>
+          <Button variant="secondary" onClick={() => openModal('contractTemplates', null)}>Client contract templates</Button>
         </div>
       </div>
 
@@ -628,104 +632,104 @@ export default function ClientMgmt() {
           const contractSignal = clientSignals.contractMap[client.email] || { total: 0, awaiting: 0, completed: 0, latestAt: null }
           const active = expanded === client.id
           return (
-            <div key={client.id} className="card" style={{ overflow:'hidden' }}>
+            <div key={client.id} style={{ ...DS_CARD, overflow:'hidden' }}>
               <div style={{ padding:'18px 20px', display:'grid', gridTemplateColumns:'minmax(0,1.25fr) minmax(260px,0.9fr)', gap:18, alignItems:'start' }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:14, flexWrap:'wrap' }}>
                     <div style={{ minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-                        <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>{client.name}</div>
-                        <span className="badge badge-blue">{client.plan}</span>
-                        <span className={`badge badge-${STAGE_TONES[client.deployment_status || 'accepted'] || 'grey'}`}>{STAGES.find((stage) => stage.key === (client.deployment_status || 'accepted'))?.label || 'Order Accepted'}</span>
-                        <span className={`badge badge-${client.status === 'active' ? 'green' : client.status === 'pending' ? 'amber' : 'grey'}`}>{client.status}</span>
+                        <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>{client.name}</div>
+                        <StatusBadge variant="info">{client.plan}</StatusBadge>
+                        <StatusBadge variant={TONE_TO_VARIANT[STAGE_TONES[client.deployment_status || 'accepted']] || 'info'}>{STAGES.find((stage) => stage.key === (client.deployment_status || 'accepted'))?.label || 'Order Accepted'}</StatusBadge>
+                        <StatusBadge variant={client.status === 'active' ? 'active' : client.status === 'pending' ? 'warning' : 'info'}>{client.status}</StatusBadge>
                       </div>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)', marginTop:6 }}>{client.email}</div>
-                      <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-text-tertiary)', marginTop:6 }}>{client.email}</div>
+                      <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:8, lineHeight:1.6 }}>
                         {client.contact || 'No contact name'}{client.website_url ? ` · ${client.website_url}` : ''}
                       </div>
                     </div>
-                    <select className="inp" style={{ padding:'6px 10px', fontSize:12, width:'auto', minWidth:180 }} value={client.deployment_status||'accepted'} onChange={e=>updateStage(client,e.target.value)}>
+                    <FormSelect style={{ padding:'6px 10px', fontSize:12, width:'auto', minWidth:180 }} value={client.deployment_status||'accepted'} onChange={e=>updateStage(client,e.target.value)}>
                       {STAGES.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
+                    </FormSelect>
                   </div>
 
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0, 1fr))', gap:10, marginTop:16 }}>
-                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{invoiceSignal.unpaid}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Unpaid invoices</div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{invoiceSignal.unpaid}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Unpaid invoices</div>
                     </div>
-                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{invoiceSignal.overdue}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Overdue</div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{invoiceSignal.overdue}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Overdue</div>
                     </div>
-                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{updateSignal.total}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Updates posted</div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{updateSignal.total}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Updates posted</div>
                     </div>
-                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{Number(client.value || 0) ? `£${Number(client.value).toLocaleString()}` : '—'}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Account value</div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{Number(client.value || 0) ? `£${Number(client.value).toLocaleString()}` : '—'}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Account value</div>
                     </div>
-                    <div style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                      <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{contractSignal.awaiting}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Contracts pending</div>
+                    <div style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                      <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{contractSignal.awaiting}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Contracts pending</div>
                     </div>
                   </div>
                 </div>
 
                 <div style={{ minWidth:0, display:'grid', gap:12 }}>
-                  <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:14, background:'linear-gradient(180deg, var(--card), var(--bg2))' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Latest signal</div>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginTop:8 }}>{updateSignal.latestTitle || 'No deployment update yet'}</div>
-                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>
+                  <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:14, background:'linear-gradient(180deg, var(--color-bg-surface), var(--color-gray-50))' }}>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--color-text-tertiary)' }}>Latest signal</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)', marginTop:8 }}>{updateSignal.latestTitle || 'No deployment update yet'}</div>
+                    <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6 }}>
                       Last client movement was {timeAgo(updateSignal.latestAt || invoiceSignal.latestAt || client.updated_at || client.created_at)}.
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => navigate(`/clients/${client.id}`)}>Open profile</button>
-                    <button className="btn btn-outline btn-sm" onClick={()=>openModal('invoice',client)}>Invoice</button>
-                    <button className="btn btn-outline btn-sm" onClick={()=>openModal('update',client)}>Update</button>
-                    <button className="btn btn-outline btn-sm" onClick={()=>openModal('doc',client)}>Doc</button>
-                    <button className="btn btn-outline btn-sm" onClick={()=>openModal('contract',client)}>Contracts</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>toggleExpand(client.id, client.email)}>{active ? 'Hide details' : 'Show details'}</button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/clients/${client.id}`)}>Open profile</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>openModal('invoice',client)}>Invoice</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>openModal('update',client)}>Update</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>openModal('doc',client)}>Doc</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>openModal('contract',client)}>Contracts</Button>
+                    <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>toggleExpand(client.id, client.email)}>{active ? 'Hide details' : 'Show details'}</Button>
                   </div>
                 </div>
               </div>
 
               {active && (
-                <div style={{ padding:'18px 20px', background:'var(--bg2)', borderTop:'1px solid var(--border)' }}>
+                <div style={{ padding:'18px 20px', background:'var(--color-gray-50)', borderTop:'1px solid var(--color-border)' }}>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:12, marginBottom:16 }}>
-                    <div className="card" style={{ padding:'14px 16px' }}>
-                      <div className="lbl" style={{ marginBottom:8 }}>Support</div>
-                      <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>{activeClient?.id === client.id ? activeSignals?.tickets.open : 0}</div>
-                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Open tickets for this client right now.</div>
+                    <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                      <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Support</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{activeClient?.id === client.id ? activeSignals?.tickets.open : 0}</div>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>Open tickets for this client right now.</div>
                     </div>
-                    <div className="card" style={{ padding:'14px 16px' }}>
-                      <div className="lbl" style={{ marginBottom:8 }}>Invoices</div>
-                      <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>{invoiceSignal.total}</div>
-                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>{invoiceSignal.unpaid} still unpaid.</div>
+                    <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                      <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Invoices</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{invoiceSignal.total}</div>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>{invoiceSignal.unpaid} still unpaid.</div>
                     </div>
-                    <div className="card" style={{ padding:'14px 16px' }}>
-                      <div className="lbl" style={{ marginBottom:8 }}>Account notes</div>
-                      <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>{client.notes || 'No client notes added yet.'}</div>
+                    <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                      <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Account notes</div>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.6 }}>{client.notes || 'No client notes added yet.'}</div>
                     </div>
-                    <div className="card" style={{ padding:'14px 16px' }}>
-                      <div className="lbl" style={{ marginBottom:8 }}>Contracts</div>
-                      <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>{contractSignal.total}</div>
-                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>{contractSignal.awaiting} awaiting signature.</div>
+                    <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                      <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Contracts</div>
+                      <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{contractSignal.total}</div>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>{contractSignal.awaiting} awaiting signature.</div>
                     </div>
                   </div>
 
-                  <div className="lbl" style={{ padding:'0 0 8px' }}>Support Tickets</div>
-                  {tickets.length === 0 ? <p style={{ fontSize:13, color:'var(--faint)', fontStyle:'italic' }}>No tickets</p> : tickets.map(t => (
-                    <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid var(--border)', gap:12, flexWrap:'wrap' }}>
+                  <div className="ds-form-label" style={{ display:'block', padding:'0 0 8px' }}>Support Tickets</div>
+                  {tickets.length === 0 ? <p style={{ fontSize:13, color:'var(--color-text-tertiary)', fontStyle:'italic' }}>No tickets</p> : tickets.map(t => (
+                    <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid var(--color-border)', gap:12, flexWrap:'wrap' }}>
                       <div>
                         <div style={{ fontSize:13, fontWeight:500 }}>{t.subject}</div>
-                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', marginTop:4 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</div>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)', marginTop:4 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</div>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span className={'badge badge-'+(t.status==='open'?'amber':'green')}>{t.status}</span>
-                        {t.status==='open' && <button className="btn btn-primary btn-sm" onClick={()=>{ setActiveClient(client); setActiveTicket(t); setModal('reply') }}>Reply</button>}
+                        <StatusBadge variant={t.status==='open' ? 'warning' : 'active'}>{t.status}</StatusBadge>
+                        {t.status==='open' && <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>{ setActiveClient(client); setActiveTicket(t); setModal('reply') }}>Reply</Button>}
                       </div>
                     </div>
                   ))}
@@ -734,52 +738,52 @@ export default function ClientMgmt() {
             </div>
           )
         })}
-        {!loading && filtered.length===0 && <div className="empty"><p>No clients match this view</p></div>}
+        {!loading && filtered.length===0 && <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No clients match this view</div>}
       </div>
 
-      {modal==='invoice' && <Modal title={`Invoice — ${activeClient?.name}`} onClose={close} footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={addInvoice} disabled={saving}>{saving?'Saving...':'Send Invoice'}</button></>}>
+      {modal==='invoice' && <Modal title={`Invoice — ${activeClient?.name}`} onClose={close} footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={addInvoice} disabled={saving}>{saving?'Saving...':'Send Invoice'}</Button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <div className="fg">
-            <div><label className="lbl">Invoice #</label><input className="inp" value={invoiceForm.invoice_number} onChange={e=>setInvForm(p=>({...p,invoice_number:e.target.value}))} placeholder="INV-001"/></div>
-            <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={invoiceForm.amount} onChange={e=>setInvForm(p=>({...p,amount:e.target.value}))}/></div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+            <FormField><FormLabel>Invoice #</FormLabel><FormInput value={invoiceForm.invoice_number} onChange={e=>setInvForm(p=>({...p,invoice_number:e.target.value}))} placeholder="INV-001"/></FormField>
+            <FormField><FormLabel>Amount (£)</FormLabel><FormInput type="number" value={invoiceForm.amount} onChange={e=>setInvForm(p=>({...p,amount:e.target.value}))}/></FormField>
           </div>
-          <div><label className="lbl">Description</label><input className="inp" value={invoiceForm.description} onChange={e=>setInvForm(p=>({...p,description:e.target.value}))} placeholder="Monthly Pro Plan — March 2026"/></div>
-          <div><label className="lbl">Due Date</label><input className="inp" type="date" value={invoiceForm.due_date} onChange={e=>setInvForm(p=>({...p,due_date:e.target.value}))}/></div>
+          <FormField><FormLabel>Description</FormLabel><FormInput value={invoiceForm.description} onChange={e=>setInvForm(p=>({...p,description:e.target.value}))} placeholder="Monthly Pro Plan — March 2026"/></FormField>
+          <FormField><FormLabel>Due Date</FormLabel><FormInput type="date" value={invoiceForm.due_date} onChange={e=>setInvForm(p=>({...p,due_date:e.target.value}))}/></FormField>
         </div>
       </Modal>}
 
-      {modal==='doc' && <Modal title={`Add Document — ${activeClient?.name}`} onClose={close} footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={addDocument} disabled={saving}>{saving?'Saving...':'Add'}</button></>}>
+      {modal==='doc' && <Modal title={`Add Document — ${activeClient?.name}`} onClose={close} footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={addDocument} disabled={saving}>{saving?'Saving...':'Add'}</Button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <div><label className="lbl">Document Name</label><input className="inp" value={docForm.name} onChange={e=>setDocForm(p=>({...p,name:e.target.value}))}/></div>
-          <div><label className="lbl">Type</label><select className="inp" value={docForm.type} onChange={e=>setDocForm(p=>({...p,type:e.target.value}))}>{['Contract','NDA','Invoice','Proposal','Other'].map(t=><option key={t}>{t}</option>)}</select></div>
-          <div><label className="lbl">File URL</label><input className="inp" value={docForm.file_url} onChange={e=>setDocForm(p=>({...p,file_url:e.target.value}))} placeholder="https://drive.google.com/..."/></div>
+          <FormField><FormLabel>Document Name</FormLabel><FormInput value={docForm.name} onChange={e=>setDocForm(p=>({...p,name:e.target.value}))}/></FormField>
+          <FormField><FormLabel>Type</FormLabel><FormSelect value={docForm.type} onChange={e=>setDocForm(p=>({...p,type:e.target.value}))}>{['Contract','NDA','Invoice','Proposal','Other'].map(t=><option key={t}>{t}</option>)}</FormSelect></FormField>
+          <FormField><FormLabel>File URL</FormLabel><FormInput value={docForm.file_url} onChange={e=>setDocForm(p=>({...p,file_url:e.target.value}))} placeholder="https://drive.google.com/..."/></FormField>
         </div>
       </Modal>}
 
-      {modal==='update' && <Modal title={`Post Update — ${activeClient?.name}`} onClose={close} footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={addUpdate} disabled={saving}>{saving?'Saving...':'Post'}</button></>}>
+      {modal==='update' && <Modal title={`Post Update — ${activeClient?.name}`} onClose={close} footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={addUpdate} disabled={saving}>{saving?'Saving...':'Post'}</Button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <div><label className="lbl">Title</label><input className="inp" value={updateForm.title} onChange={e=>setUpdForm(p=>({...p,title:e.target.value}))} placeholder="Homepage design complete"/></div>
-          <div><label className="lbl">Message</label><textarea className="inp" rows={4} value={updateForm.message} onChange={e=>setUpdForm(p=>({...p,message:e.target.value}))} style={{ resize:'vertical' }}/></div>
+          <FormField><FormLabel>Title</FormLabel><FormInput value={updateForm.title} onChange={e=>setUpdForm(p=>({...p,title:e.target.value}))} placeholder="Homepage design complete"/></FormField>
+          <FormField><FormLabel>Message</FormLabel><textarea className="ds-form-input" rows={4} value={updateForm.message} onChange={e=>setUpdForm(p=>({...p,message:e.target.value}))} style={{ resize:'vertical', padding:'8px 12px' }}/></FormField>
         </div>
       </Modal>}
 
-      {modal==='reply' && activeTicket && <Modal title={`Reply — ${activeTicket.subject}`} onClose={close} footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={replyTicket} disabled={saving||!replyForm.trim()}>{saving?'Sending...':'Send Reply'}</button></>}>
-        <div style={{ padding:'12px 14px', background:'var(--bg2)', borderRadius:8, marginBottom:12 }}>
-          <div className="lbl" style={{ marginBottom:6 }}>Original message</div>
-          <p style={{ fontSize:13.5, color:'var(--sub)', lineHeight:1.7 }}>{activeTicket.message}</p>
+      {modal==='reply' && activeTicket && <Modal title={`Reply — ${activeTicket.subject}`} onClose={close} footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={replyTicket} disabled={saving||!replyForm.trim()}>{saving?'Sending...':'Send Reply'}</Button></>}>
+        <div style={{ padding:'12px 14px', background:'var(--color-gray-50)', borderRadius:8, marginBottom:12 }}>
+          <div className="ds-form-label" style={{ display:'block', marginBottom:6 }}>Original message</div>
+          <p style={{ fontSize:13.5, color:'var(--color-text-secondary)', lineHeight:1.7 }}>{activeTicket.message}</p>
         </div>
-        <div><label className="lbl">Your Reply</label><textarea className="inp" rows={5} value={replyForm} onChange={e=>setReplyForm(e.target.value)} style={{ resize:'vertical' }}/></div>
+        <FormField><FormLabel>Your Reply</FormLabel><textarea className="ds-form-input" rows={5} value={replyForm} onChange={e=>setReplyForm(e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }}/></FormField>
       </Modal>}
 
-      {modal==='contractTemplates' && <Modal title="Client contract templates" onClose={close} width={980} footer={<><button className="btn btn-outline" onClick={close}>Close</button><button className="btn btn-primary" onClick={saveContractTemplate} disabled={saving}>{saving ? 'Saving...' : (editingContractTemplate ? 'Save changes' : 'Save template')}</button></>}>
+      {modal==='contractTemplates' && <Modal title="Client contract templates" onClose={close} width={980} footer={<><Button variant="secondary" onClick={close}>Close</Button><Button variant="primary" onClick={saveContractTemplate} disabled={saving}>{saving ? 'Saving...' : (editingContractTemplate ? 'Save changes' : 'Save template')}</Button></>}>
         <div style={{ display:'grid', gridTemplateColumns:'minmax(280px,0.9fr) minmax(0,1.4fr)', gap:18 }}>
           <div style={{ display:'grid', gap:12, alignContent:'start' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
               <div>
-                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Saved templates</div>
-                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Reuse a base client agreement and swap pricing/payment details at issue time.</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--color-text-primary)' }}>Saved templates</div>
+                <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>Reuse a base client agreement and swap pricing/payment details at issue time.</div>
               </div>
-              <button className="btn btn-outline btn-sm" onClick={() => {
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => {
                 setEditingContractTemplate(null)
                 setReferenceFile(null)
                 setTemplateError('')
@@ -790,134 +794,134 @@ export default function ClientMgmt() {
                   subject: 'Your agreement with DH Website Services',
                   content_html: DEFAULT_CLIENT_TEMPLATE_HTML,
                 }))
-              }}>New</button>
+              }}>New</Button>
             </div>
             <div style={{ display:'grid', gap:10, maxHeight:420, overflowY:'auto', paddingRight:4 }}>
               {clientContractTemplates.length ? clientContractTemplates.map((template) => (
-                <div key={template.id} className="card" style={{ padding:'14px 16px', display:'grid', gap:10 }}>
+                <div key={template.id} style={{ ...DS_CARD, padding:'14px 16px', display:'grid', gap:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
                     <div>
                       <div style={{ fontSize:14, fontWeight:600 }}>{template.name}</div>
-                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{template.contract_type || 'Service Agreement'}</div>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{template.contract_type || 'Service Agreement'}</div>
                     </div>
-                    <span className={`badge badge-${template.active ? 'green' : 'grey'}`}>{template.active ? 'Active' : 'Archived'}</span>
+                    <StatusBadge variant={template.active ? 'active' : 'info'}>{template.active ? 'Active' : 'Archived'}</StatusBadge>
                   </div>
-                  <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.6 }}>{template.description || 'No description yet.'}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.6 }}>{template.description || 'No description yet.'}</div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => startEditContractTemplate(template)}>Edit</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => toggleContractTemplateArchive(template)}>{template.active ? 'Archive' : 'Restore'}</button>
-                    {template.reference_file_path || template.reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openTemplateReference(template)}>Reference file</button> : null}
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => startEditContractTemplate(template)}>Edit</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => toggleContractTemplateArchive(template)}>{template.active ? 'Archive' : 'Restore'}</Button>
+                    {template.reference_file_path || template.reference_file_url ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openTemplateReference(template)}>Reference file</Button> : null}
                   </div>
                 </div>
-              )) : <div className="empty"><p>No client contract templates yet.</p></div>}
+              )) : <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No client contract templates yet.</div>}
             </div>
           </div>
 
           <div style={{ display:'grid', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label className="lbl">Template name</label><input className="inp" value={contractTemplateForm.name} onChange={(e) => setContractTemplateForm((current) => ({ ...current, name: e.target.value }))} /></div>
-              <div><label className="lbl">Contract type</label><input className="inp" value={contractTemplateForm.contract_type} onChange={(e) => setContractTemplateForm((current) => ({ ...current, contract_type: e.target.value }))} /></div>
-              <div><label className="lbl">Email subject</label><input className="inp" value={contractTemplateForm.subject} onChange={(e) => setContractTemplateForm((current) => ({ ...current, subject: e.target.value }))} /></div>
-              <div>
-                <label className="lbl">Status</label>
-                <select className="inp" value={contractTemplateForm.active ? 'active' : 'archived'} onChange={(e) => setContractTemplateForm((current) => ({ ...current, active: e.target.value === 'active' }))}>
+              <FormField><FormLabel>Template name</FormLabel><FormInput value={contractTemplateForm.name} onChange={(e) => setContractTemplateForm((current) => ({ ...current, name: e.target.value }))} /></FormField>
+              <FormField><FormLabel>Contract type</FormLabel><FormInput value={contractTemplateForm.contract_type} onChange={(e) => setContractTemplateForm((current) => ({ ...current, contract_type: e.target.value }))} /></FormField>
+              <FormField><FormLabel>Email subject</FormLabel><FormInput value={contractTemplateForm.subject} onChange={(e) => setContractTemplateForm((current) => ({ ...current, subject: e.target.value }))} /></FormField>
+              <FormField>
+                <FormLabel>Status</FormLabel>
+                <FormSelect value={contractTemplateForm.active ? 'active' : 'archived'} onChange={(e) => setContractTemplateForm((current) => ({ ...current, active: e.target.value === 'active' }))}>
                   <option value="active">Active</option>
                   <option value="archived">Archived</option>
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             </div>
-            <div><label className="lbl">Description</label><textarea className="inp" rows={3} value={contractTemplateForm.description} onChange={(e) => setContractTemplateForm((current) => ({ ...current, description: e.target.value }))} style={{ resize:'vertical' }} /></div>
+            <FormField><FormLabel>Description</FormLabel><textarea className="ds-form-input" rows={3} value={contractTemplateForm.description} onChange={(e) => setContractTemplateForm((current) => ({ ...current, description: e.target.value }))} style={{ resize:'vertical', padding:'8px 12px' }} /></FormField>
             <div>
-              <div className="lbl" style={{ marginBottom:6 }}>Template body</div>
-              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>Use placeholders like {CLIENT_CONTRACT_PLACEHOLDERS.map(([key]) => `{{${key}}}`).join(', ')}.</div>
-              <textarea className="inp" rows={14} value={contractTemplateForm.content_html} onChange={(e) => setContractTemplateForm((current) => ({ ...current, content_html: e.target.value }))} style={{ resize:'vertical', fontFamily:'var(--font-mono)', fontSize:12 }} />
+              <div className="ds-form-label" style={{ display:'block', marginBottom:6 }}>Template body</div>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:8 }}>Use placeholders like {CLIENT_CONTRACT_PLACEHOLDERS.map(([key]) => `{{${key}}}`).join(', ')}.</div>
+              <textarea className="ds-form-input" rows={14} value={contractTemplateForm.content_html} onChange={(e) => setContractTemplateForm((current) => ({ ...current, content_html: e.target.value }))} style={{ resize:'vertical', fontFamily:'var(--font-mono)', fontSize:12, padding:'8px 12px' }} />
             </div>
-            <div className="card card-pad" style={{ display:'grid', gap:10 }}>
-              <div className="lbl">Attach default contract file</div>
-              <div style={{ fontSize:12, color:'var(--sub)' }}>Optional. Keep the original PDF or source document attached to the template for internal reference.</div>
+            <div style={{ ...DS_CARD, padding:20, display:'grid', gap:10 }}>
+              <div className="ds-form-label" style={{ display:'block' }}>Attach default contract file</div>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>Optional. Keep the original PDF or source document attached to the template for internal reference.</div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                 <input ref={referenceFileRef} type="file" style={{ display:'none' }} accept=".pdf,.doc,.docx,.html" onChange={(e) => setReferenceFile(e.target.files?.[0] || null)} />
-                <button className="btn btn-outline btn-sm" onClick={() => referenceFileRef.current?.click()}>{referenceFile ? 'Change file' : 'Choose file'}</button>
-                <span style={{ fontSize:12, color: referenceFile ? 'var(--text)' : 'var(--sub)' }}>{referenceFile ? referenceFile.name : (contractTemplateForm.reference_file_name || 'No file attached')}</span>
+                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => referenceFileRef.current?.click()}>{referenceFile ? 'Change file' : 'Choose file'}</Button>
+                <span style={{ fontSize:12, color: referenceFile ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>{referenceFile ? referenceFile.name : (contractTemplateForm.reference_file_name || 'No file attached')}</span>
               </div>
             </div>
-            {templateError ? <div className="badge badge-red" style={{ justifySelf:'flex-start' }}>{templateError}</div> : null}
+            {templateError ? <span style={{ justifySelf:'flex-start' }}><StatusBadge variant="error">{templateError}</StatusBadge></span> : null}
           </div>
         </div>
       </Modal>}
 
-      {modal==='contract' && activeClient && <Modal title={`Client contracts — ${activeClient.name}`} onClose={close} width={1080} footer={<><button className="btn btn-outline" onClick={close}>Close</button><button className="btn btn-primary" onClick={issueClientContract} disabled={saving}>{saving ? 'Issuing...' : 'Issue contract'}</button></>}>
+      {modal==='contract' && activeClient && <Modal title={`Client contracts — ${activeClient.name}`} onClose={close} width={1080} footer={<><Button variant="secondary" onClick={close}>Close</Button><Button variant="primary" onClick={issueClientContract} disabled={saving}>{saving ? 'Issuing...' : 'Issue contract'}</Button></>}>
         <div style={{ display:'grid', gridTemplateColumns:'minmax(320px,0.95fr) minmax(0,1.35fr)', gap:18 }}>
           <div style={{ display:'grid', gap:14, alignContent:'start' }}>
-            <div className="card card-pad" style={{ display:'grid', gap:12 }}>
+            <div style={{ ...DS_CARD, padding:20, display:'grid', gap:12 }}>
               <div>
-                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Issue new contract</div>
-                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Set the amount due, payment terms, and push a sign-ready agreement into the client portal.</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--color-text-primary)' }}>Issue new contract</div>
+                <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>Set the amount due, payment terms, and push a sign-ready agreement into the client portal.</div>
               </div>
-              <div><label className="lbl">Template</label><select className="inp" value={contractForm.template_id} onChange={(e) => setContractForm((current) => ({ ...current, template_id: e.target.value }))}>{activeContractTemplates.length ? activeContractTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>) : <option value="">No active templates</option>}</select></div>
-              <div><label className="lbl">Service name</label><input className="inp" value={contractForm.service_name} onChange={(e) => setContractForm((current) => ({ ...current, service_name: e.target.value }))} placeholder="Website build and onboarding" /></div>
+              <FormField><FormLabel>Template</FormLabel><FormSelect value={contractForm.template_id} onChange={(e) => setContractForm((current) => ({ ...current, template_id: e.target.value }))}>{activeContractTemplates.length ? activeContractTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>) : <option value="">No active templates</option>}</FormSelect></FormField>
+              <FormField><FormLabel>Service name</FormLabel><FormInput value={contractForm.service_name} onChange={(e) => setContractForm((current) => ({ ...current, service_name: e.target.value }))} placeholder="Website build and onboarding" /></FormField>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 140px', gap:12 }}>
-                <div><label className="lbl">Amount due</label><input className="inp" type="number" value={contractForm.price_amount} onChange={(e) => setContractForm((current) => ({ ...current, price_amount: e.target.value }))} placeholder="1499" /></div>
-                <div><label className="lbl">Currency</label><select className="inp" value={contractForm.currency} onChange={(e) => setContractForm((current) => ({ ...current, currency: e.target.value }))}><option value="GBP">GBP</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                <FormField><FormLabel>Amount due</FormLabel><FormInput type="number" value={contractForm.price_amount} onChange={(e) => setContractForm((current) => ({ ...current, price_amount: e.target.value }))} placeholder="1499" /></FormField>
+                <FormField><FormLabel>Currency</FormLabel><FormSelect value={contractForm.currency} onChange={(e) => setContractForm((current) => ({ ...current, currency: e.target.value }))}><option value="GBP">GBP</option><option value="USD">USD</option><option value="EUR">EUR</option></FormSelect></FormField>
               </div>
-              <div><label className="lbl">Payment terms</label><input className="inp" value={contractForm.payment_terms} onChange={(e) => setContractForm((current) => ({ ...current, payment_terms: e.target.value }))} placeholder="50% upfront, balance due on launch" disabled={contractForm.paid_in_full} /></div>
+              <FormField><FormLabel>Payment terms</FormLabel><FormInput value={contractForm.payment_terms} onChange={(e) => setContractForm((current) => ({ ...current, payment_terms: e.target.value }))} placeholder="50% upfront, balance due on launch" disabled={contractForm.paid_in_full} /></FormField>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div><label className="lbl">Payment status</label><input className="inp" value={contractForm.payment_status} onChange={(e) => setContractForm((current) => ({ ...current, payment_status: e.target.value }))} placeholder="Due on agreed terms" disabled={contractForm.paid_in_full} /></div>
-                <div><label className="lbl">Deposit amount</label><input className="inp" type="number" value={contractForm.deposit_amount} onChange={(e) => setContractForm((current) => ({ ...current, deposit_amount: e.target.value }))} placeholder="500" disabled={contractForm.paid_in_full} /></div>
+                <FormField><FormLabel>Payment status</FormLabel><FormInput value={contractForm.payment_status} onChange={(e) => setContractForm((current) => ({ ...current, payment_status: e.target.value }))} placeholder="Due on agreed terms" disabled={contractForm.paid_in_full} /></FormField>
+                <FormField><FormLabel>Deposit amount</FormLabel><FormInput type="number" value={contractForm.deposit_amount} onChange={(e) => setContractForm((current) => ({ ...current, deposit_amount: e.target.value }))} placeholder="500" disabled={contractForm.paid_in_full} /></FormField>
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:12.5, color:'var(--sub)' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:12.5, color:'var(--color-text-secondary)' }}>
                 <input type="checkbox" checked={contractForm.paid_in_full} onChange={(e) => setContractForm((current) => ({ ...current, paid_in_full: e.target.checked, payment_terms: e.target.checked ? 'Paid in full' : current.payment_terms, payment_status: e.target.checked ? 'Paid in full' : current.payment_status }))} />
                 Client has paid in full
               </label>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div><label className="lbl">Account manager name</label><input className="inp" value={contractForm.account_manager_name || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_name: e.target.value }))} /></div>
-                <div><label className="lbl">Account manager email</label><input className="inp" value={contractForm.account_manager_email || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_email: e.target.value }))} /></div>
+                <FormField><FormLabel>Account manager name</FormLabel><FormInput value={contractForm.account_manager_name || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_name: e.target.value }))} /></FormField>
+                <FormField><FormLabel>Account manager email</FormLabel><FormInput value={contractForm.account_manager_email || ''} onChange={(e) => setContractForm((current) => ({ ...current, account_manager_email: e.target.value }))} /></FormField>
               </div>
-              <div><label className="lbl">Internal notes</label><textarea className="inp" rows={3} value={contractForm.notes} onChange={(e) => setContractForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical' }} /></div>
-              {contractError ? <div className="badge badge-red" style={{ justifySelf:'flex-start' }}>{contractError}</div> : null}
+              <FormField><FormLabel>Internal notes</FormLabel><textarea className="ds-form-input" rows={3} value={contractForm.notes} onChange={(e) => setContractForm((current) => ({ ...current, notes: e.target.value }))} style={{ resize:'vertical', padding:'8px 12px' }} /></FormField>
+              {contractError ? <span style={{ justifySelf:'flex-start' }}><StatusBadge variant="error">{contractError}</StatusBadge></span> : null}
             </div>
 
-            <div className="card card-pad" style={{ display:'grid', gap:12 }}>
+            <div style={{ ...DS_CARD, padding:20, display:'grid', gap:12 }}>
               <div>
-                <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Existing contracts</div>
-                <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>Signed agreements and contracts currently waiting on the client.</div>
+                <div style={{ fontSize:16, fontWeight:700, color:'var(--color-text-primary)' }}>Existing contracts</div>
+                <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>Signed agreements and contracts currently waiting on the client.</div>
               </div>
               <div style={{ display:'grid', gap:10, maxHeight:280, overflowY:'auto', paddingRight:4 }}>
                 {contractsForActiveClient.length ? contractsForActiveClient.map((contract) => {
                   const [statusLabel, tone] = getClientContractStatusLabel(contract.status)
                   return (
-                    <div key={contract.id} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', display:'grid', gap:8 }}>
+                    <div key={contract.id} style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)', display:'grid', gap:8 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
                         <div>
                           <div style={{ fontSize:13.5, fontWeight:600 }}>{contract.template_name || 'Client contract'}</div>
-                          <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{contract.service_name || 'Service agreement'}</div>
+                          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{contract.service_name || 'Service agreement'}</div>
                         </div>
-                        <span className={`badge badge-${tone}`}>{statusLabel}</span>
+                        <StatusBadge variant={TONE_TO_VARIANT[tone] || 'info'}>{statusLabel}</StatusBadge>
                       </div>
-                      <div style={{ fontSize:12, color:'var(--sub)' }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
                         {formatCurrencyAmount(contract.price_amount, contract.currency) || contract.price_amount || 'No amount listed'}
                         {contract.payment_terms ? ` · ${contract.payment_terms}` : ''}
                       </div>
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {contract.final_document_url ? <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Signed PDF</a> : null}
-                        {contract.template_reference_file_path || contract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={() => openIssuedContractReference(contract)}>Reference file</button> : null}
+                        {contract.final_document_url ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => window.open(contract.final_document_url, '_blank', 'noreferrer')}>Signed PDF</Button> : null}
+                        {contract.template_reference_file_path || contract.template_reference_file_url ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openIssuedContractReference(contract)}>Reference file</Button> : null}
                       </div>
                     </div>
                   )
-                }) : <div className="empty"><p>No contracts issued for this client yet.</p></div>}
+                }) : <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No contracts issued for this client yet.</div>}
               </div>
             </div>
           </div>
 
-          <div className="card card-pad" style={{ display:'grid', gap:14, alignContent:'start' }}>
+          <div style={{ ...DS_CARD, padding:20, display:'grid', gap:14, alignContent:'start' }}>
             <div>
-              <div style={{ fontSize:16, fontWeight:700, color:'var(--text)' }}>Live preview</div>
-              <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>This is what the client will review and sign in their portal.</div>
+              <div style={{ fontSize:16, fontWeight:700, color:'var(--color-text-primary)' }}>Live preview</div>
+              <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>This is what the client will review and sign in their portal.</div>
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              {contractForm.price_amount ? <span className="badge badge-blue">{formatCurrencyAmount(contractForm.price_amount, contractForm.currency) || contractForm.price_amount}</span> : null}
-              {contractForm.paid_in_full ? <span className="badge badge-green">Paid in full</span> : null}
-              {contractForm.payment_terms ? <span className="badge badge-grey">{contractForm.payment_terms}</span> : null}
+              {contractForm.price_amount ? <StatusBadge variant="info">{formatCurrencyAmount(contractForm.price_amount, contractForm.currency) || contractForm.price_amount}</StatusBadge> : null}
+              {contractForm.paid_in_full ? <StatusBadge variant="active">Paid in full</StatusBadge> : null}
+              {contractForm.payment_terms ? <StatusBadge variant="info">{contractForm.payment_terms}</StatusBadge> : null}
             </div>
             <div style={{ background:'#f8f6f1', border:'1px solid #e7e1d8', borderRadius:18, padding:22, minHeight:420, maxHeight:680, overflowY:'auto' }}>
               {contractPreview ? (
@@ -928,7 +932,7 @@ export default function ClientMgmt() {
                   }) }} />
                 </div>
               ) : (
-                <div style={{ fontSize:13, color:'var(--sub)' }}>Choose an active template to preview the contract.</div>
+                <div style={{ fontSize:13, color:'var(--color-text-secondary)' }}>Choose an active template to preview the contract.</div>
               )}
             </div>
           </div>

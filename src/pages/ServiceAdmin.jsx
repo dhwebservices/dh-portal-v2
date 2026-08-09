@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchServiceAdminOverview, runServiceAdminAction } from '../utils/serviceAdmin'
+import { Button, StatusBadge } from '../components/ds'
+
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
 
 const TABS = [
   { key: 'control', label: 'Control Center' },
@@ -52,10 +55,10 @@ function formatDateTime(value) {
 
 function badgeTone(status = '') {
   const safe = String(status || '').toLowerCase()
-  if (['pass', 'configured', 'operational'].includes(safe)) return 'badge-green'
-  if (['degraded', 'warning'].includes(safe)) return 'badge-amber'
-  if (['missing', 'fail', 'outage', 'incident'].includes(safe)) return 'badge-red'
-  return 'badge-blue'
+  if (['pass', 'configured', 'operational'].includes(safe)) return 'green'
+  if (['degraded', 'warning'].includes(safe)) return 'amber'
+  if (['missing', 'fail', 'outage', 'incident'].includes(safe)) return 'red'
+  return 'blue'
 }
 
 function Card({ title, value, meta, action, onClick }) {
@@ -66,7 +69,7 @@ function Card({ title, value, meta, action, onClick }) {
         <div className="service-admin-stat__value">{value}</div>
         {meta ? <div className="service-admin-stat__meta">{meta}</div> : null}
       </div>
-      {action && onClick ? <button className="btn btn-outline btn-sm" onClick={onClick}>{action}</button> : null}
+      {action && onClick ? <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px', justifySelf: 'start', maxWidth: '100%' }} onClick={onClick}>{action}</Button> : null}
     </div>
   )
 }
@@ -232,7 +235,7 @@ export default function ServiceAdmin() {
               <div className="service-admin-section__eyebrow">Operational checks</div>
               <h3>Current issues</h3>
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate('/admin-safeguards')}>Open safeguards</button>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => navigate('/admin-safeguards')}>Open safeguards</Button>
           </div>
           {flaggedChecks.length === 0 ? (
             <div className="service-admin-empty">No failed or warning checks at the moment.</div>
@@ -244,7 +247,7 @@ export default function ServiceAdmin() {
                     <strong>{check.check_key || 'Check'}</strong>
                     <div>{check.detail || 'Issue requires review.'}</div>
                   </div>
-                  <span className={`badge ${badgeTone(check.status)}`}>{check.status}</span>
+                  <StatusBadge variant={TONE_TO_VARIANT[badgeTone(check.status)] || 'info'}>{check.status}</StatusBadge>
                 </div>
               ))}
             </div>
@@ -258,9 +261,9 @@ export default function ServiceAdmin() {
           <h3>Current presence</h3>
           <div className="service-admin-chip-stack">
             {(auditRecovery.liveStaff || []).map((person) => (
-              <span key={person.email} className="badge badge-green">
+              <StatusBadge key={person.email} variant="active">
                 {person.user_name || person.email} · {person.status}
-              </span>
+              </StatusBadge>
             ))}
           </div>
         </div>
@@ -308,9 +311,9 @@ export default function ServiceAdmin() {
             </label>
           </div>
           <div className="service-admin-actions">
-            <button className="btn btn-primary" onClick={() => runAction('portal_maintenance_update', { portal_maintenance: portalMaintenanceDraft }, 'Portal maintenance updated')} disabled={busyAction === 'portal_maintenance_update'}>
+            <Button variant="primary" onClick={() => runAction('portal_maintenance_update', { portal_maintenance: portalMaintenanceDraft }, 'Portal maintenance updated')} disabled={busyAction === 'portal_maintenance_update'}>
               {busyAction === 'portal_maintenance_update' ? 'Saving…' : 'Save maintenance state'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -345,9 +348,9 @@ export default function ServiceAdmin() {
                     {STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                   </select>
                   <input value={draft.note} onChange={(event) => setStatusDrafts((current) => ({ ...current, [system.name]: { ...draft, note: event.target.value, public_note: event.target.value } }))} placeholder="Public note" />
-                  <button className="btn btn-outline btn-sm" onClick={() => runAction('status_update', { status: draft }, `${system.name} updated`)} disabled={busyAction === 'status_update'}>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => runAction('status_update', { status: draft }, `${system.name} updated`)} disabled={busyAction === 'status_update'}>
                     Save
-                  </button>
+                  </Button>
                 </div>
               )
             })}
@@ -397,9 +400,9 @@ export default function ServiceAdmin() {
             </label>
           </div>
           <div className="service-admin-actions">
-            <button className="btn btn-primary" onClick={() => runAction('release_publish', { release: releaseForm, current_version: overview?.releaseManager?.currentVersion || '' }, 'Release published')} disabled={busyAction === 'release_publish'}>
+            <Button variant="primary" onClick={() => runAction('release_publish', { release: releaseForm, current_version: overview?.releaseManager?.currentVersion || '' }, 'Release published')} disabled={busyAction === 'release_publish'}>
               {busyAction === 'release_publish' ? 'Publishing…' : 'Publish release'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -440,9 +443,9 @@ export default function ServiceAdmin() {
             </label>
           </div>
           <div className="service-admin-actions">
-            <button className="btn btn-outline" onClick={() => runAction('feature_flag_upsert', { flag: flagForm }, 'Feature flag saved')} disabled={busyAction === 'feature_flag_upsert'}>
+            <Button variant="secondary" onClick={() => runAction('feature_flag_upsert', { flag: flagForm }, 'Feature flag saved')} disabled={busyAction === 'feature_flag_upsert'}>
               Save feature flag
-            </button>
+            </Button>
           </div>
           <div className="service-admin-list">
             {featureFlags.map((flag) => (
@@ -451,7 +454,7 @@ export default function ServiceAdmin() {
                   <strong>{flag.key}</strong>
                   <div>{flag.description || flag.audience_scope || 'No description'}</div>
                 </div>
-                <span className={`badge ${flag.enabled ? 'badge-green' : 'badge-grey'}`}>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
+                <StatusBadge variant={flag.enabled ? 'active' : 'info'}>{flag.enabled ? 'Enabled' : 'Disabled'}</StatusBadge>
               </div>
             ))}
           </div>
@@ -514,8 +517,8 @@ export default function ServiceAdmin() {
             ))}
           </div>
           <div className="service-admin-actions">
-            <button
-              className="btn btn-primary"
+            <Button
+              variant="primary"
               onClick={() => runAction(
                 'config_save',
                 {
@@ -532,7 +535,7 @@ export default function ServiceAdmin() {
               disabled={busyAction === 'config_save'}
             >
               {busyAction === 'config_save' ? 'Saving…' : 'Save configuration'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -585,10 +588,10 @@ export default function ServiceAdmin() {
                   <div>{integration.detail}</div>
                 </div>
                 <div className="service-admin-row-actions">
-                  <span className={`badge ${badgeTone(integration.status)}`}>{integration.status}</span>
-                  <button className="btn btn-outline btn-sm" onClick={() => runAction('integration_test', { integration_key: integration.key }, `${integration.label} check completed`)} disabled={busyAction === 'integration_test'}>
+                  <StatusBadge variant={TONE_TO_VARIANT[badgeTone(integration.status)] || 'info'}>{integration.status}</StatusBadge>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => runAction('integration_test', { integration_key: integration.key }, `${integration.label} check completed`)} disabled={busyAction === 'integration_test'}>
                     Test
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -619,9 +622,9 @@ export default function ServiceAdmin() {
             </label>
           </div>
           <div className="service-admin-actions">
-            <button className="btn btn-primary" onClick={() => runAction('session_revoke', { session_control: { emails: sessionEmails.split('\n'), reason: sessionReason } }, 'Sessions revoked')} disabled={busyAction === 'session_revoke'}>
+            <Button variant="primary" onClick={() => runAction('session_revoke', { session_control: { emails: sessionEmails.split('\n'), reason: sessionReason } }, 'Sessions revoked')} disabled={busyAction === 'session_revoke'}>
               {busyAction === 'session_revoke' ? 'Revoking…' : 'Force re-login'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -675,15 +678,15 @@ export default function ServiceAdmin() {
   }
 
   return (
-    <div className="fade-in service-admin-page">
-      <div className="page-hd">
+    <div className="ds-content service-admin-page">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Service Admin</h1>
-          <p className="page-sub">Platform operations, release control, service status, and recovery</p>
+          <h1>Service Admin</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Platform operations, release control, service status, and recovery</p>
         </div>
         <div className="service-admin-top-actions">
-          <button className="btn btn-outline" onClick={() => navigate('/maintenance')}>Legacy maintenance</button>
-          <button className="btn btn-outline" onClick={() => navigate('/settings')}>Legacy settings</button>
+          <Button variant="secondary" onClick={() => navigate('/maintenance')}>Legacy maintenance</Button>
+          <Button variant="secondary" onClick={() => navigate('/settings')}>Legacy settings</Button>
         </div>
       </div>
 
