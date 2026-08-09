@@ -28,6 +28,11 @@ import {
 import { openSecureDocument } from '../../utils/fileAccess'
 import { sendEmail } from '../../utils/email'
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../../components/ds'
+import {
+  buildEntraGroupCatalogKey,
+  mergeEntraGroupCatalog,
+  resolveStarterGroupIds,
+} from '../../utils/entraGroups'
 
 function assertSupabaseOk(result, label) {
   if (result?.error) {
@@ -570,6 +575,8 @@ export default function HROnboarding() {
   const [starterRoles, setStarterRoles] = useState([])
   const [starterContractTemplates, setStarterContractTemplates] = useState([])
   const [starterProvisioningResult, setStarterProvisioningResult] = useState(null)
+  const [entraGroupCatalog, setEntraGroupCatalog] = useState([])
+  const [selectedOptionalGroupIds, setSelectedOptionalGroupIds] = useState([])
   const rtwRef = useRef()
   const [starterForm, setStarterForm] = useState({
     full_name: '',
@@ -695,6 +702,7 @@ export default function HROnboarding() {
       { data: departmentCatalogSetting },
       { data: permissionRows },
       { data: contractTemplateSettings },
+      { data: entraGroupSetting },
     ] = await Promise.all([
       isReviewer ? supabase.from('onboarding_submissions').select('*').order('submitted_at', { ascending:false }) : Promise.resolve({ data:[] }),
       supabase.from('onboarding_submissions').select('*').ilike('user_email', currentEmail).maybeSingle(),
@@ -706,6 +714,7 @@ export default function HROnboarding() {
       isReviewer ? supabase.from('portal_settings').select('value').eq('key', 'department_catalog').maybeSingle() : Promise.resolve({ data:null }),
       isReviewer ? supabase.from('user_permissions').select('user_email,permissions,onboarding') : Promise.resolve({ data:[] }),
       isReviewer ? supabase.from('portal_settings').select('key,value').like('key', 'contract_template:%') : Promise.resolve({ data:[] }),
+      isReviewer ? supabase.from('portal_settings').select('value').eq('key', buildEntraGroupCatalogKey()).maybeSingle() : Promise.resolve({ data:null }),
     ])
     const profile = Array.isArray(profileRows) ? profileRows[0] || {} : (profileRows || {})
     const orgRecord = mergeOrgRecord(orgSetting?.value?.value ?? orgSetting?.value ?? {}, {
@@ -780,6 +789,10 @@ export default function HROnboarding() {
         .filter((item) => item.active !== false)
         .sort((a, b) => a.name.localeCompare(b.name))
       setStarterContractTemplates(templates)
+
+      setEntraGroupCatalog(mergeEntraGroupCatalog(
+        entraGroupSetting?.value?.value ?? entraGroupSetting?.value ?? []
+      ).filter((group) => group.active && group.group_id))
     }
     const summaryEmailSet = new Set((all || []).map((submission) => normalizeEmail(submission.user_email)))
     const orphanPayloads = Object.entries(payloadMap)
@@ -1092,6 +1105,7 @@ export default function HROnboarding() {
         department: starterForm.department.trim(),
         jobTitle: starterForm.job_title.trim(),
         managerEmail: normalizeEmail(starterForm.manager_email),
+        groupIds: resolveStarterGroupIds(entraGroupCatalog, selectedOptionalGroupIds),
       }),
     })
 
@@ -1733,10 +1747,57 @@ export default function HROnboarding() {
             />
             Create the Microsoft 365 account first using the work email and temporary password above.
           </label>
+
+          {/* Entra group membership, applied automatically at account creation.
+              Configured once in Settings → Entra Groups. */}
+          {starterProvisioningEnabled && entraGroupCatalog.length > 0 && (() => {
+            const autoGroups = entraGroupCatalog.filter((g) => g.auto_assign)
+            const optionalGroups = entraGroupCatalog.filter((g) => !g.auto_assign)
+            return (
+              <div style={{ marginBottom:16, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', marginBottom:8 }}>Entra group membership</div>
+                {autoGroups.length > 0 && (
+                  <div style={{ fontSize:13, color:'var(--text)', marginBottom: optionalGroups.length ? 10 : 0 }}>
+                    Will be added to: <strong>{autoGroups.map((g) => g.name).join(', ')}</strong>
+                  </div>
+                )}
+                {optionalGroups.length > 0 && (
+                  <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+                    {optionalGroups.map((group) => (
+                      <label key={group.id} style={{ display:'flex', alignItems:'center', gap:7, fontSize:13, color:'var(--text)', cursor:'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedOptionalGroupIds.includes(group.id)}
+                          onChange={(e) => setSelectedOptionalGroupIds((current) => e.target.checked
+                            ? [...current, group.id]
+                            : current.filter((id) => id !== group.id))}
+                          style={{ width:16, height:16, accentColor:'var(--accent)' }}
+                        />
+                        {group.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           {starterProvisioningResult?.user?.userPrincipalName ? (
             <div style={{ marginBottom:16, padding:'11px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--green-bg)', color:'var(--text)', fontSize:13.5 }}>
               Microsoft account ready: <strong>{starterProvisioningResult.user.userPrincipalName}</strong>
               {starterProvisioningResult.licenseAssigned ? ' · default licence assigned' : ''}
+              {starterProvisioningResult.groups?.requested
+                ? ` · ${starterProvisioningResult.groups.added}/${starterProvisioningResult.groups.requested} groups assigned`
+                : ''}
+            </div>
+          ) : null}
+          {starterProvisioningResult?.groups?.failed?.length ? (
+            <div style={{ marginBottom:16 }}>
+              <Alert variant="warning">
+                The account was created, but {starterProvisioningResult.groups.failed.length} group
+                {starterProvisioningResult.groups.failed.length === 1 ? '' : 's'} could not be assigned. Check the Object
+                IDs in Settings → Entra Groups, and that the app registration has GroupMember.ReadWrite.All with admin
+                consent. You may need to add these manually in Entra for now.
+              </Alert>
             </div>
           ) : null}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:14 }}>

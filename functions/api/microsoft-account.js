@@ -130,6 +130,24 @@ async function assignManager(token, userId, managerEmail) {
   return manager
 }
 
+async function addToGroup(token, userId, groupId) {
+  // Graph returns 400 with "already exist" if the user is already a member -
+  // treat that as success so re-running provisioning is safe.
+  try {
+    await graphFetch(token, `/groups/${encodeURIComponent(groupId)}/members/$ref`, {
+      method: 'POST',
+      body: JSON.stringify({
+        '@odata.id': `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+      }),
+    })
+    return { groupId, ok: true }
+  } catch (error) {
+    const message = String(error?.message || '')
+    if (message.includes('already exist')) return { groupId, ok: true, alreadyMember: true }
+    return { groupId, ok: false, error: message }
+  }
+}
+
 async function assignLicense(token, userId, skuId) {
   if (!skuId) return null
   return graphFetch(token, `/users/${encodeURIComponent(userId)}/assignLicense`, {
@@ -202,6 +220,17 @@ export async function onRequestPost(context) {
       licenseAssigned = true
     }
 
+    // Security/distribution group membership. Reported per-group so one bad
+    // group ID surfaces clearly instead of silently swallowing the rest -
+    // the account itself is already created by this point either way.
+    const groupIds = Array.isArray(data.groupIds)
+      ? [...new Set(data.groupIds.map((id) => String(id || '').trim()).filter(Boolean))]
+      : []
+    const groupResults = []
+    for (const groupId of groupIds) {
+      groupResults.push(await addToGroup(token, createdUser.id, groupId))
+    }
+
     return json({
       ok: true,
       user: {
@@ -211,6 +240,11 @@ export async function onRequestPost(context) {
       },
       manager,
       licenseAssigned,
+      groups: {
+        requested: groupIds.length,
+        added: groupResults.filter((r) => r.ok).length,
+        failed: groupResults.filter((r) => !r.ok),
+      },
     })
   } catch (error) {
     console.warn('Microsoft account provisioning failed:', error)

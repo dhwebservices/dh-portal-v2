@@ -7,7 +7,12 @@ import { logAction } from '../utils/audit'
 import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 import SubNav from '../components/SubNav'
-import { Button, FormField, FormLabel, FormInput, StatusBadge } from '../components/ds'
+import { Button, FormField, FormLabel, FormInput, StatusBadge, Alert } from '../components/ds'
+import {
+  buildEntraGroupCatalogKey,
+  createEntraGroupSkeleton,
+  mergeEntraGroupCatalog,
+} from '../utils/entraGroups'
 
 const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
@@ -20,6 +25,8 @@ export default function Settings() {
   const [success, setSuccess] = useState('')
   const [saved, setSaved]   = useState('')
   const [previousWhatsNew, setPreviousWhatsNew] = useState(null)
+  const [entraGroups, setEntraGroups] = useState([])
+  const [newGroupName, setNewGroupName] = useState('')
   const [previewWhatsNewIndex, setPreviewWhatsNewIndex] = useState(0)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
@@ -48,6 +55,7 @@ export default function Settings() {
       const map = {}
       data.forEach(r => { map[r.key] = r.value?.value ?? r.value })
       setSettings(p => ({ ...p, ...map }))
+      setEntraGroups(mergeEntraGroupCatalog(map[buildEntraGroupCatalogKey()] || []))
       if (map.whats_new_payload) {
         const nextPayload = {
           active: map.whats_new_payload.active === true,
@@ -83,6 +91,34 @@ export default function Settings() {
       supabase.from('portal_settings').upsert({ key, value: { value: settings[key] } }, { onConflict:'key' })
     ))
     setSaving(false); setSaved(section); setTimeout(() => setSaved(''), 3000)
+  }
+
+  const saveEntraGroups = async (nextGroups) => {
+    const merged = mergeEntraGroupCatalog(nextGroups)
+    setEntraGroups(merged)
+    setSaving(true)
+    await supabase.from('portal_settings').upsert({
+      key: buildEntraGroupCatalogKey(),
+      value: { value: merged },
+    }, { onConflict: 'key' })
+    setSaving(false)
+    setSaved('entra_groups')
+    setTimeout(() => setSaved(''), 3000)
+  }
+
+  const addEntraGroup = () => {
+    if (!newGroupName.trim()) return
+    saveEntraGroups([...entraGroups, createEntraGroupSkeleton(newGroupName)])
+    setNewGroupName('')
+  }
+
+  const updateEntraGroup = (id, patch) => {
+    saveEntraGroups(entraGroups.map((g) => g.id === id ? { ...g, ...patch, updated_at: new Date().toISOString() } : g))
+  }
+
+  const removeEntraGroup = (group) => {
+    if (!window.confirm(`Remove "${group.name}" from the group list? This does not delete the group in Entra.`)) return
+    saveEntraGroups(entraGroups.filter((g) => g.id !== group.id))
   }
 
   const updateWhatsNewCard = (index, key, value) => {
@@ -243,7 +279,7 @@ export default function Settings() {
       ]} />
 
       <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['danger','Danger Zone']].map(([k,l]) => (
+        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
           <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
@@ -256,6 +292,108 @@ export default function Settings() {
             <Field label="Support Email" k="support_email" type="email" placeholder="support@dhwebsiteservices.co.uk"/>
           </div>
           <SaveBtn section="general"/>
+        </div>
+      )}
+
+      {tab === 'entra_groups' && (
+        <div style={{ ...DS_CARD, padding:20, maxWidth:860 }}>
+          <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>Entra security groups</div>
+          <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, marginBottom:16 }}>
+            Groups listed here are applied automatically when a new starter's Microsoft 365 account is created,
+            so you no longer have to set group membership by hand in Entra. Paste each group's <strong>Object ID</strong> from
+            Entra admin center → Groups → the group → Overview. Mark a group <strong>Automatic</strong> to add every new
+            starter to it; leave it off to make it an optional tick-box on the new starter form.
+          </div>
+
+          <div style={{ marginBottom:16 }}>
+            <Alert variant="warning">
+              This needs the <strong>GroupMember.ReadWrite.All</strong> application permission on the &quot;DH portal&quot; Entra app
+              registration, with admin consent granted. Without it the account is still created correctly, but group
+              assignment will report a failure for each group.
+            </Alert>
+          </div>
+
+          <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+            <FormInput
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addEntraGroup()}
+              placeholder="Group name (e.g. All Users)"
+              style={{ flex:1, minWidth:220 }}
+            />
+            <Button variant="primary" onClick={addEntraGroup} disabled={saving || !newGroupName.trim()}>+ Add group</Button>
+            {saved === 'entra_groups' && <span style={{ fontSize:13, color:'var(--color-green-500)', alignSelf:'center' }}>✓ Saved</span>}
+          </div>
+
+          {entraGroups.length === 0 ? (
+            <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>
+              No groups configured yet. Add the ones every new starter should join.
+            </div>
+          ) : (
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  <th>Group</th>
+                  <th style={{ width:'34%' }}>Entra Object ID</th>
+                  <th style={{ width:'14%' }}>Assignment</th>
+                  <th style={{ width:'10%' }}>Active</th>
+                  <th style={{ width:'8%' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {entraGroups.map((group) => (
+                  <tr key={group.id}>
+                    <td>
+                      <FormInput
+                        value={group.name}
+                        onChange={(e) => setEntraGroups((cur) => cur.map((g) => g.id === group.id ? { ...g, name: e.target.value } : g))}
+                        onBlur={(e) => updateEntraGroup(group.id, { name: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <FormInput
+                        value={group.group_id}
+                        onChange={(e) => setEntraGroups((cur) => cur.map((g) => g.id === group.id ? { ...g, group_id: e.target.value } : g))}
+                        onBlur={(e) => updateEntraGroup(group.id, { group_id: e.target.value.trim() })}
+                        placeholder="00000000-0000-0000-0000-000000000000"
+                        style={{ fontFamily:'var(--font-mono)', fontSize:12 }}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant={group.auto_assign ? 'primary' : 'secondary'}
+                        style={{ height:28, fontSize:12, padding:'0 8px' }}
+                        onClick={() => updateEntraGroup(group.id, { auto_assign: !group.auto_assign })}
+                        disabled={saving}
+                      >
+                        {group.auto_assign ? 'Automatic' : 'Optional'}
+                      </Button>
+                    </td>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        style={{ height:28, fontSize:12, padding:'0 8px' }}
+                        onClick={() => updateEntraGroup(group.id, { active: !group.active })}
+                        disabled={saving}
+                      >
+                        {group.active ? 'Active' : 'Off'}
+                      </Button>
+                    </td>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }}
+                        onClick={() => removeEntraGroup(group)}
+                        disabled={saving}
+                      >
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
