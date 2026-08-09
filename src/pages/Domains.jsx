@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button, FormInput, StatusBadge } from '../components/ds'
 
 const TLDS = ['.co.uk','.com','.org.uk','.net','.org','.io','.co','.uk']
 
@@ -28,26 +29,28 @@ export default function Domains() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">Domain Checker</h1><p className="page-sub">Check domain availability</p></div></div>
-      <div className="card card-pad" style={{ maxWidth:600, marginBottom:20 }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Domain Checker</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Check domain availability</p></div>
+      </div>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20, maxWidth:600, marginBottom:20 }}>
         <div style={{ display:'flex', gap:10 }}>
-          <input className="inp" value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter domain name (e.g. mybusiness)" onKeyDown={e=>e.key==='Enter'&&check()} style={{ flex:1 }}/>
-          <button className="btn btn-primary" onClick={check} disabled={loading}>{loading ? 'Checking...' : 'Check'}</button>
+          <FormInput value={input} onChange={e=>setInput(e.target.value)} placeholder="Enter domain name (e.g. mybusiness)" onKeyDown={e=>e.key==='Enter'&&check()} style={{ flex:1 }}/>
+          <Button variant="primary" onClick={check} disabled={loading}>{loading ? 'Checking...' : 'Check'}</Button>
         </div>
       </div>
       {results.length > 0 && (
-        <div className="card" style={{ overflow:'hidden', maxWidth:600 }}>
-          <table className="tbl">
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden', maxWidth:600 }}>
+          <table className="ds-table">
             <thead><tr><th>Domain</th><th>Status</th></tr></thead>
             <tbody>
               {results.map(r => (
                 <tr key={r.domain}>
-                  <td className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{r.domain}</td>
+                  <td style={{ fontFamily:'var(--font-mono)' }}>{r.domain}</td>
                   <td>
-                    {r.available === null ? <span className="badge badge-grey">Unknown</span>
-                    : r.available ? <span className="badge badge-green">✓ Available</span>
-                    : <span className="badge badge-red">✗ Taken</span>}
+                    {r.available === null ? <StatusBadge variant="info">Unknown</StatusBadge>
+                    : r.available ? <StatusBadge variant="active">✓ Available</StatusBadge>
+                    : <StatusBadge variant="error">✗ Taken</StatusBadge>}
                   </td>
                 </tr>
               ))}

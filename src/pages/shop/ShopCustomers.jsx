@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchShopCustomers, fetchShopOrders } from '../../utils/shop'
+import { FormInput, Alert } from '../../components/ds'
 
 export default function ShopCustomers() {
   const [customers, setCustomers] = useState([])
@@ -44,21 +45,23 @@ export default function ShopCustomers() {
   const selectedCustomer = filtered.find((customer) => customer.id === selectedCustomerId) || filtered[0] || null
   const customerOrders = orders.filter((order) => order.customer_id === selectedCustomer?.id)
 
+  const cardStyle = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
+
   return (
-    <div className="fade-in">
-      <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 400, color: 'var(--text)' }}>Shop customers</div>
-          <div style={{ fontSize: 14, color: 'var(--sub)', marginTop: 6 }}>Review customer accounts, contact details, and order history.</div>
+          <h1>Shop customers</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Review customer accounts, contact details, and order history.</p>
         </div>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customers…" style={inputStyle} />
+        <FormInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customers…" style={{ width: 280 }} />
       </div>
 
-      {error ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(180,35,24,0.24)', color: '#b42318' }}>{error}</div> : null}
+      {error ? <div style={{ marginBottom: 16 }}><Alert variant="warning">{error}</Alert></div> : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(360px, 0.85fr)', gap: 16 }}>
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>
+        <div style={{ ...cardStyle, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
             Customers
           </div>
           {(loading ? [] : filtered).map((customer) => (
@@ -70,73 +73,63 @@ export default function ShopCustomers() {
                 textAlign: 'left',
                 padding: '16px 18px',
                 border: 0,
-                borderTop: '1px solid var(--border)',
-                background: customer.id === selectedCustomer?.id ? 'var(--bg2)' : 'transparent',
+                borderTop: '1px solid var(--color-border)',
+                background: customer.id === selectedCustomer?.id ? 'var(--color-gray-50)' : 'transparent',
                 cursor: 'pointer',
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{customer.first_name} {customer.last_name}</div>
-              <div style={{ marginTop: 4, fontSize: 13, color: 'var(--sub)' }}>{customer.email}</div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 14, fontSize: 12, color: 'var(--faint)' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{customer.first_name} {customer.last_name}</div>
+              <div style={{ marginTop: 4, fontSize: 13, color: 'var(--color-text-secondary)' }}>{customer.email}</div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 14, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 <span>{customer.order_count || 0} orders</span>
                 <span>£{Number(customer.total_spend || 0).toFixed(2)} spend</span>
               </div>
             </button>
           ))}
-          {!loading && !filtered.length ? <div style={{ padding: 24, color: 'var(--sub)', fontSize: 14 }}>No customers found.</div> : null}
+          {!loading && !filtered.length ? <div style={{ padding: 24, color: 'var(--color-text-secondary)', fontSize: 14 }}>No customers found.</div> : null}
         </div>
 
-        <div className="card card-pad">
+        <div style={{ ...cardStyle, padding: 20 }}>
           {selectedCustomer ? (
             <div style={{ display: 'grid', gap: 18 }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, color: 'var(--text)' }}>{selectedCustomer.first_name} {selectedCustomer.last_name}</div>
-                <div style={{ marginTop: 6, fontSize: 14, color: 'var(--sub)' }}>{selectedCustomer.email}</div>
-                <div style={{ marginTop: 4, fontSize: 14, color: 'var(--sub)' }}>{selectedCustomer.phone || 'No phone recorded'}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--color-text-primary)' }}>{selectedCustomer.first_name} {selectedCustomer.last_name}</div>
+                <div style={{ marginTop: 6, fontSize: 14, color: 'var(--color-text-secondary)' }}>{selectedCustomer.email}</div>
+                <div style={{ marginTop: 4, fontSize: 14, color: 'var(--color-text-secondary)' }}>{selectedCustomer.phone || 'No phone recorded'}</div>
               </div>
 
-              <div className="card card-pad" style={{ background: 'var(--bg2)' }}>
-                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Summary</div>
+              <div style={{ ...cardStyle, background: 'var(--color-gray-50)', padding: 16 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Summary</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginTop: 10 }}>
-                  <div><div style={{ fontSize: 12, color: 'var(--faint)' }}>Account</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{selectedCustomer.account_status}</div></div>
-                  <div><div style={{ fontSize: 12, color: 'var(--faint)' }}>Orders</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>{selectedCustomer.order_count || 0}</div></div>
-                  <div><div style={{ fontSize: 12, color: 'var(--faint)' }}>Spend</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>£{Number(selectedCustomer.total_spend || 0).toFixed(2)}</div></div>
+                  <div><div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Account</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>{selectedCustomer.account_status}</div></div>
+                  <div><div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Orders</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>{selectedCustomer.order_count || 0}</div></div>
+                  <div><div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Spend</div><div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>£{Number(selectedCustomer.total_spend || 0).toFixed(2)}</div></div>
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 10 }}>Recent orders</div>
+                <div style={{ fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 10 }}>Recent orders</div>
                 <div style={{ display: 'grid', gap: 10 }}>
                   {customerOrders.map((order) => (
-                    <div key={order.id} className="card card-pad" style={{ background: 'var(--bg2)' }}>
+                    <div key={order.id} style={{ ...cardStyle, background: 'var(--color-gray-50)', padding: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                         <div>
-                          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{order.order_number}</div>
-                          <div style={{ marginTop: 4, fontSize: 13, color: 'var(--sub)' }}>{order.order_status} · {order.procurement_status}</div>
+                          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{order.order_number}</div>
+                          <div style={{ marginTop: 4, fontSize: 13, color: 'var(--color-text-secondary)' }}>{order.order_status} · {order.procurement_status}</div>
                         </div>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>£{Number(order.grand_total || 0).toFixed(2)}</div>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>£{Number(order.grand_total || 0).toFixed(2)}</div>
                       </div>
                     </div>
                   ))}
-                  {!customerOrders.length ? <div style={{ color: 'var(--sub)', fontSize: 14 }}>No orders for this customer yet.</div> : null}
+                  {!customerOrders.length ? <div style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>No orders for this customer yet.</div> : null}
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ color: 'var(--sub)', fontSize: 14 }}>Select a customer to review them.</div>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Select a customer to review them.</div>
           )}
         </div>
       </div>
     </div>
   )
-}
-
-const inputStyle = {
-  width: 280,
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  padding: '10px 12px',
-  background: 'var(--card)',
-  color: 'var(--text)',
-  fontSize: 14,
 }

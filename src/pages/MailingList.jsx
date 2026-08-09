@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Search } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { logAction } from '../utils/audit'
+import { Button, FormInput, StatusBadge } from '../components/ds'
 
 export default function MailingList() {
   const { user } = useAuth()
@@ -66,68 +68,77 @@ export default function MailingList() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Mailing List</h1>
-          <p className="page-sub">{active} active subscribers · {unsub} unsubscribed</p>
+          <h1>Mailing List</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{active} active subscribers · {unsub} unsubscribed</p>
         </div>
-        <button className="btn btn-outline" onClick={exportCsv}>⬇ Export CSV</button>
+        <Button variant="secondary" onClick={exportCsv}>⬇ Export CSV</Button>
       </div>
 
       {/* Stats */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:24, maxWidth:480 }}>
-        <div className="stat-card"><div className="stat-val" style={{ color:'var(--green)' }}>{active}</div><div className="stat-lbl">Active</div></div>
-        <div className="stat-card"><div className="stat-val" style={{ color:'var(--amber)' }}>{unsub}</div><div className="stat-lbl">Unsubscribed</div></div>
-        <div className="stat-card"><div className="stat-val">{subscribers.length}</div><div className="stat-lbl">Total</div></div>
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-green-500)' }}>{active}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Active</div>
+        </div>
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-amber-500)' }}>{unsub}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Unsubscribed</div>
+        </div>
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{subscribers.length}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Total</div>
+        </div>
       </div>
 
       {/* Filters */}
       <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
         <div style={{ position:'relative', flex:1, minWidth:200 }}>
-          <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input className="inp" style={{ paddingLeft:32 }} placeholder="Search email or name..." value={search} onChange={e => setSearch(e.target.value)}/>
+          <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--color-text-tertiary)' }}/>
+          <FormInput style={{ paddingLeft:32, width:'100%' }} placeholder="Search email or name..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
         <div style={{ display:'flex', gap:6 }}>
           {[['all','All'],['active','Active'],['unsubscribed','Unsubscribed']].map(([k,l]) => (
-            <button key={k} onClick={() => setFilter(k)} className={'pill'+(filter===k?' on':'')}>{l}</button>
+            <Button key={k} variant={filter===k ? 'primary' : 'secondary'} onClick={() => setFilter(k)}>{l}</Button>
           ))}
         </div>
       </div>
 
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-          <table className="tbl">
+          <table className="ds-table">
             <thead>
               <tr><th>Email</th><th>Name</th><th>Source</th><th>Subscribed</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {filtered.map(s => (
                 <tr key={s.id}>
-                  <td className="t-main" style={{ fontFamily:'var(--font-mono)', fontSize:12 }}>{s.email}</td>
+                  <td style={{ fontFamily:'var(--font-mono)', fontSize:12 }}>{s.email}</td>
                   <td style={{ fontSize:13 }}>{s.name || '—'}</td>
-                  <td style={{ fontSize:12, color:'var(--faint)' }}>{s.source || 'website_popup'}</td>
-                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)' }}>
+                  <td style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>{s.source || 'website_popup'}</td>
+                  <td style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-text-tertiary)' }}>
                     {s.subscribed_at ? new Date(s.subscribed_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '—'}
                   </td>
                   <td>
-                    <span className={'badge badge-' + (s.unsubscribed ? 'red' : 'green')}>
+                    <StatusBadge variant={s.unsubscribed ? 'error' : 'active'}>
                       {s.unsubscribed ? 'Unsubscribed' : 'Active'}
-                    </span>
+                    </StatusBadge>
                   </td>
                   <td>
                     <div style={{ display:'flex', gap:4 }}>
                       {s.unsubscribed
-                        ? <button className="btn btn-ghost btn-sm" onClick={() => resubscribe(s.id)}>Resubscribe</button>
-                        : <button className="btn btn-outline btn-sm" onClick={() => unsubscribe(s.id, s.email)}>Unsubscribe</button>
+                        ? <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => resubscribe(s.id)}>Resubscribe</Button>
+                        : <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => unsubscribe(s.id, s.email)}>Unsubscribe</Button>
                       }
-                      <button className="btn btn-danger btn-sm" onClick={() => deleteEntry(s.id, s.email)}>Delete</button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => deleteEntry(s.id, s.email)}>Delete</Button>
                     </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>
+                <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>
                   {search ? 'No results for "' + search + '"' : 'No subscribers yet'}
                 </td></tr>
               )}

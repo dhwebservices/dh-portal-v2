@@ -10,7 +10,7 @@ export default function RecruitingApplications() {
   const initialJob = new URLSearchParams(location.search).get('job') || 'all'
 
   return (
-    <div className="fade-in">
+    <div className="ds-content">
       <SubNav items={[
         { label: 'Dashboard', onClick: () => navigate('/recruiting/dashboard') },
         can('recruiting_jobs') && { label: 'Jobs', onClick: () => navigate('/recruiting') },

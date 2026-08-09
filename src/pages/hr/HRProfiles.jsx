@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Search } from 'lucide-react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { Modal } from '../../components/Modal'
+import { Button, FormField, FormLabel, FormInput, FormSelect, Alert } from '../../components/ds'
 import { buildStaffWorkspaceKey, getWorkspaceLabel, normalizeWorkspace, WORKSPACE_OPTIONS } from '../../utils/workspaces'
 
 const EMPTY = { full_name:'',role:'',department:'',contract_type:'',start_date:'',phone:'',personal_email:'',address:'',manager_name:'',hr_notes:'',bank_name:'',account_name:'',sort_code:'',account_number:'',primary_workspace:'' }
@@ -67,72 +69,74 @@ export default function HRProfiles() {
   const filtered = profiles.filter(p => { const q=search.toLowerCase(); return !q||p.full_name?.toLowerCase().includes(q)||p.user_email?.toLowerCase().includes(q)||p.role?.toLowerCase().includes(q) })
 
   return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">HR Profiles</h1><p className="page-sub">{profiles.length} staff</p></div></div>
+    <div className="ds-content">
+      <div className="ds-page-header"><div><h1>HR Profiles</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{profiles.length} staff</p></div></div>
       <div style={{ position:'relative', maxWidth:400, marginBottom:20 }}>
-        <input className="inp" style={{ paddingLeft:34 }} placeholder="Search staff..." value={search} onChange={e=>setSearch(e.target.value)}/>
-        <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <FormInput style={{ paddingLeft:34, width:'100%' }} placeholder="Search staff..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--color-text-tertiary)' }}/>
       </div>
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-          <table className="tbl">
+          <table className="ds-table">
             <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Workspace</th><th>Contract</th><th>Start</th><th></th></tr></thead>
             <tbody>
               {filtered.map(p => (
                 <tr key={p.id||p.user_email}>
-                  <td className="t-main">{p.full_name||p.user_email}</td>
+                  <td>{p.full_name||p.user_email}</td>
                   <td>{p.role||'—'}</td>
                   <td>{p.department||'—'}</td>
                   <td>{p.primary_workspace ? getWorkspaceLabel(p.primary_workspace) : 'Auto'}</td>
                   <td>{p.contract_type||'—'}</td>
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{p.start_date||'—'}</td>
-                  <td>{isManager && <button className="btn btn-outline btn-sm" onClick={()=>openEdit(p)}>Edit</button>}</td>
+                  <td>{isManager && <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>openEdit(p)}>Edit</Button>}</td>
                 </tr>
               ))}
-              {filtered.length===0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No profiles found</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No profiles found</td></tr>}
             </tbody>
           </table>
         )}
       </div>
 
       {modal && selected && (
-        <Modal title={`Edit — ${selected.full_name||selected.user_email}`} onClose={close} width={600} footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save'}</button></>}>
-          <div className="tabs" style={{ marginBottom:16 }}>
+        <Modal title={`Edit — ${selected.full_name||selected.user_email}`} onClose={close} width={600} footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save'}</Button></>}>
+          <div style={{ display:'flex', gap:8, marginBottom:16, borderBottom:'1px solid var(--color-border)' }}>
             {[['info','Info'],['hr','HR Details'],['bank','Bank Details']].map(([k,l]) => (
-              <button key={k} onClick={()=>setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+              <button key={k} onClick={()=>setTab(k)} style={{ padding:'8px 0', marginRight:16, background:'none', border:'none', borderBottom: tab===k ? '2px solid var(--color-text-primary)' : '2px solid transparent', color: tab===k ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontSize:14, cursor:'pointer' }}>{l}</button>
             ))}
           </div>
-          {tab==='info' && <div className="fg">
-            <div><label className="lbl">Full Name</label><input className="inp" value={form.full_name} onChange={e=>sf('full_name',e.target.value)}/></div>
-            <div><label className="lbl">Role</label><input className="inp" value={form.role} onChange={e=>sf('role',e.target.value)}/></div>
-            <div><label className="lbl">Department</label><input className="inp" value={form.department} onChange={e=>sf('department',e.target.value)}/></div>
-            <div><label className="lbl">Primary Workspace</label>
-              <select className="inp" value={form.primary_workspace || ''} onChange={e=>sf('primary_workspace', normalizeWorkspace(e.target.value))}>
+          {tab==='info' && <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+            <FormField><FormLabel>Full Name</FormLabel><FormInput value={form.full_name} onChange={e=>sf('full_name',e.target.value)}/></FormField>
+            <FormField><FormLabel>Role</FormLabel><FormInput value={form.role} onChange={e=>sf('role',e.target.value)}/></FormField>
+            <FormField><FormLabel>Department</FormLabel><FormInput value={form.department} onChange={e=>sf('department',e.target.value)}/></FormField>
+            <FormField>
+              <FormLabel>Primary Workspace</FormLabel>
+              <FormSelect value={form.primary_workspace || ''} onChange={e=>sf('primary_workspace', normalizeWorkspace(e.target.value))}>
                 <option value="">Auto / infer from role</option>
                 {WORKSPACE_OPTIONS.filter(([key]) => key !== 'self_service').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-              </select>
-            </div>
-            <div><label className="lbl">Manager</label><input className="inp" value={form.manager_name} onChange={e=>sf('manager_name',e.target.value)}/></div>
-            <div><label className="lbl">Phone</label><input className="inp" value={form.phone} onChange={e=>sf('phone',e.target.value)}/></div>
-            <div><label className="lbl">Personal Email</label><input className="inp" value={form.personal_email} onChange={e=>sf('personal_email',e.target.value)}/></div>
-            <div className="fc"><label className="lbl">Address</label><textarea className="inp" rows={2} value={form.address} onChange={e=>sf('address',e.target.value)} style={{ resize:'vertical' }}/></div>
+              </FormSelect>
+            </FormField>
+            <FormField><FormLabel>Manager</FormLabel><FormInput value={form.manager_name} onChange={e=>sf('manager_name',e.target.value)}/></FormField>
+            <FormField><FormLabel>Phone</FormLabel><FormInput value={form.phone} onChange={e=>sf('phone',e.target.value)}/></FormField>
+            <FormField><FormLabel>Personal Email</FormLabel><FormInput value={form.personal_email} onChange={e=>sf('personal_email',e.target.value)}/></FormField>
+            <FormField className="staff-onboarding-fc"><FormLabel>Address</FormLabel><textarea className="ds-form-input" rows={2} value={form.address} onChange={e=>sf('address',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }}/></FormField>
           </div>}
-          {tab==='hr' && <div className="fg">
-            <div><label className="lbl">Contract Type</label>
-              <select className="inp" value={form.contract_type} onChange={e=>sf('contract_type',e.target.value)}>
+          {tab==='hr' && <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+            <FormField>
+              <FormLabel>Contract Type</FormLabel>
+              <FormSelect value={form.contract_type} onChange={e=>sf('contract_type',e.target.value)}>
                 {['','Full-time','Part-time','Contractor','Zero Hours','Apprentice'].map(t=><option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div><label className="lbl">Start Date</label><input className="inp" type="date" value={form.start_date} onChange={e=>sf('start_date',e.target.value)}/></div>
-            <div className="fc"><label className="lbl">HR Notes (admin only)</label><textarea className="inp" rows={3} value={form.hr_notes} onChange={e=>sf('hr_notes',e.target.value)} style={{ resize:'vertical' }}/></div>
+              </FormSelect>
+            </FormField>
+            <FormField><FormLabel>Start Date</FormLabel><FormInput type="date" value={form.start_date} onChange={e=>sf('start_date',e.target.value)}/></FormField>
+            <FormField className="staff-onboarding-fc"><FormLabel>HR Notes (admin only)</FormLabel><textarea className="ds-form-input" rows={3} value={form.hr_notes} onChange={e=>sf('hr_notes',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }}/></FormField>
           </div>}
           {tab==='bank' && <div>
-            <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:7, fontSize:13, color:'var(--amber)', marginBottom:14 }}>Bank details are sensitive — only admins can edit these.</div>
-            <div className="fg">
-              <div><label className="lbl">Bank Name</label><input className="inp" value={form.bank_name} onChange={e=>sf('bank_name',e.target.value)}/></div>
-              <div><label className="lbl">Account Name</label><input className="inp" value={form.account_name} onChange={e=>sf('account_name',e.target.value)}/></div>
-              <div><label className="lbl">Sort Code</label><input className="inp" value={form.sort_code} onChange={e=>sf('sort_code',e.target.value)} placeholder="12-34-56"/></div>
-              <div><label className="lbl">Account Number</label><input className="inp" value={form.account_number} onChange={e=>sf('account_number',e.target.value)} placeholder="12345678"/></div>
+            <div style={{ marginBottom:14 }}><Alert variant="warning">Bank details are sensitive — only admins can edit these.</Alert></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Bank Name</FormLabel><FormInput value={form.bank_name} onChange={e=>sf('bank_name',e.target.value)}/></FormField>
+              <FormField><FormLabel>Account Name</FormLabel><FormInput value={form.account_name} onChange={e=>sf('account_name',e.target.value)}/></FormField>
+              <FormField><FormLabel>Sort Code</FormLabel><FormInput value={form.sort_code} onChange={e=>sf('sort_code',e.target.value)} placeholder="12-34-56"/></FormField>
+              <FormField><FormLabel>Account Number</FormLabel><FormInput value={form.account_number} onChange={e=>sf('account_number',e.target.value)} placeholder="12345678"/></FormField>
             </div>
           </div>}
         </Modal>

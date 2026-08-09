@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button, FormInput, Alert } from '../components/ds'
 
 export default function Competitor() {
   const [url, setUrl]         = useState('')
@@ -27,37 +28,39 @@ export default function Competitor() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">Competitor Lookup</h1><p className="page-sub">Research competitor websites</p></div></div>
-      <div className="card card-pad" style={{ maxWidth:600, marginBottom:20 }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Competitor Lookup</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Research competitor websites</p></div>
+      </div>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20, maxWidth:600, marginBottom:20 }}>
         <div style={{ display:'flex', gap:10 }}>
-          <input className="inp" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://competitor.co.uk" onKeyDown={e=>e.key==='Enter'&&lookup()} style={{ flex:1 }}/>
-          <button className="btn btn-primary" onClick={lookup} disabled={loading}>{loading?'Looking up...':'Look Up'}</button>
+          <FormInput value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://competitor.co.uk" onKeyDown={e=>e.key==='Enter'&&lookup()} style={{ flex:1 }}/>
+          <Button variant="primary" onClick={lookup} disabled={loading}>{loading?'Looking up...':'Look Up'}</Button>
         </div>
-        {error && <div style={{ marginTop:10, fontSize:13, color:'var(--red)' }}>{error}</div>}
+        {error && <div style={{ marginTop:10 }}><Alert variant="warning">{error}</Alert></div>}
       </div>
       {result && (
         <div style={{ display:'flex', flexDirection:'column', gap:16, maxWidth:600 }}>
-          <div className="card card-pad">
-            <div className="lbl" style={{ marginBottom:12 }}>Domain Info</div>
+          <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}>
+            <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Domain Info</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, borderBottom:'1px solid var(--border)', paddingBottom:8 }}>
-                <span style={{ color:'var(--faint)' }}>Domain</span>
-                <span className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{result.domain}</span>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, borderBottom:'1px solid var(--color-border)', paddingBottom:8 }}>
+                <span style={{ color:'var(--color-text-tertiary)' }}>Domain</span>
+                <span style={{ fontFamily:'var(--font-mono)', color:'var(--color-text-primary)' }}>{result.domain}</span>
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, borderBottom:'1px solid var(--border)', paddingBottom:8 }}>
-                <span style={{ color:'var(--faint)' }}>IP Addresses</span>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, borderBottom:'1px solid var(--color-border)', paddingBottom:8 }}>
+                <span style={{ color:'var(--color-text-tertiary)' }}>IP Addresses</span>
                 <span style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{result.ips.join(', ') || '—'}</span>
               </div>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:13 }}>
-                <span style={{ color:'var(--faint)' }}>Mail Servers</span>
+                <span style={{ color:'var(--color-text-tertiary)' }}>Mail Servers</span>
                 <span style={{ fontFamily:'var(--font-mono)', fontSize:11, textAlign:'right', maxWidth:300 }}>{result.mx.join(', ') || '—'}</span>
               </div>
             </div>
           </div>
-          <div className="card card-pad">
-            <div className="lbl" style={{ marginBottom:12 }}>Preview Site</div>
-            <a href={result.url} target="_blank" rel="noreferrer" className="btn btn-outline">Open {result.domain} ↗</a>
+          <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}>
+            <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Preview Site</div>
+            <Button variant="secondary" onClick={() => window.open(result.url, '_blank', 'noreferrer')}>Open {result.domain} ↗</Button>
           </div>
         </div>
       )}

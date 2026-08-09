@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { sendEmail } from '../utils/email'
 import { useAuth } from '../contexts/AuthContext'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
+import { Button, FormField, FormLabel, FormInput, FormSelect, Alert } from '../components/ds'
 
 const FROM_OPTIONS = [
   { value: 'clients', label: 'Client Services', address: 'clients@dhwebsiteservices.co.uk' },
@@ -83,37 +84,37 @@ export default function SendEmail() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Send Email</h1>
-          <p className="page-sub">Send outreach or client emails</p>
+          <h1>Send Email</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Send outreach or client emails</p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* From */}
-          <div>
-            <label className="lbl">From</label>
+          <FormField>
+            <FormLabel>From</FormLabel>
             <div style={{ display: 'flex', gap: 8 }}>
               {fromOptions.map(o => (
                 <button key={o.value} onClick={() => sf('from_key', o.value)}
-                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid ' + (form.from_key === o.value ? 'var(--accent)' : 'var(--border)'), background: form.from_key === o.value ? 'var(--accent-soft)' : 'var(--bg2)', cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: form.from_key === o.value ? 'var(--accent)' : 'var(--text)' }}>{o.label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--faint)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{o.value === 'user' ? (user?.email || '—') : o.address}</div>
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: 'var(--border-radius-md)', border: '1px solid ' + (form.from_key === o.value ? 'var(--color-primary)' : 'var(--color-border)'), background: form.from_key === o.value ? 'var(--color-blue-50)' : 'var(--color-bg-surface)', cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: form.from_key === o.value ? 'var(--color-primary)' : 'var(--color-text-primary)' }}>{o.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{o.value === 'user' ? (user?.email || '—') : o.address}</div>
                 </button>
               ))}
             </div>
-          </div>
+          </FormField>
 
           {/* To */}
-          <div>
-            <label className="lbl">To</label>
-            <input className="inp" value={form.to} onChange={e => sf('to', e.target.value)}
-              placeholder="email@example.com" type="email" style={{ marginBottom: 6 }}/>
-            <select className="inp" value="" onChange={e => sf('to', e.target.value)}>
+          <FormField>
+            <FormLabel>To</FormLabel>
+            <FormInput value={form.to} onChange={e => sf('to', e.target.value)}
+              placeholder="email@example.com" type="email" style={{ marginBottom: 6, width: '100%' }}/>
+            <FormSelect value="" onChange={e => sf('to', e.target.value)}>
               <option value="">— Or pick a contact —</option>
               {outreach.length > 0 && (
                 <optgroup label="📋 Outreach Contacts">
@@ -140,47 +141,47 @@ export default function SendEmail() {
                   ))}
                 </optgroup>
               )}
-            </select>
-          </div>
+            </FormSelect>
+          </FormField>
 
           {/* Subject */}
-          <div>
-            <label className="lbl">Subject</label>
-            <input className="inp" value={form.subject} onChange={e => sf('subject', e.target.value)} placeholder="Subject line"/>
-          </div>
+          <FormField>
+            <FormLabel>Subject</FormLabel>
+            <FormInput value={form.subject} onChange={e => sf('subject', e.target.value)} placeholder="Subject line"/>
+          </FormField>
 
           {/* Body */}
-          <div>
-            <label className="lbl">Message</label>
-            <textarea className="inp" rows={14} value={form.body} onChange={e => sf('body', e.target.value)}
-              placeholder="Write your message..." style={{ resize: 'vertical', lineHeight: 1.7 }}/>
-          </div>
+          <FormField>
+            <FormLabel>Message</FormLabel>
+            <textarea className="ds-form-input" rows={14} value={form.body} onChange={e => sf('body', e.target.value)}
+              placeholder="Write your message..." style={{ resize: 'vertical', lineHeight: 1.7, padding: '8px 12px' }}/>
+          </FormField>
 
-          {error && <div style={{ padding: '10px 14px', background: 'var(--red-bg)', border: '1px solid var(--red)', borderRadius: 7, fontSize: 13, color: 'var(--red)' }}>{error}</div>}
-          {sent  && <div style={{ padding: '10px 14px', background: 'var(--green-bg)', border: '1px solid var(--green)', borderRadius: 7, fontSize: 13, color: 'var(--green)' }}>✓ Email sent successfully</div>}
+          {error && <Alert variant="warning">{error}</Alert>}
+          {sent  && <Alert variant="info">✓ Email sent successfully</Alert>}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn btn-primary" onClick={send} disabled={sending}>
+            <Button variant="primary" onClick={send} disabled={sending}>
               {sending ? 'Sending...' : '✉️ Send Email'}
-            </button>
-            <span style={{ fontSize: 12, color: 'var(--faint)' }}>
-              Sending as: <strong style={{ color: 'var(--text)' }}>DH Website Services — {selectedFrom.label}</strong> &lt;{selectedFrom.address}&gt;
+            </Button>
+            <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              Sending as: <strong style={{ color: 'var(--color-text-primary)' }}>DH Website Services — {selectedFrom.label}</strong> &lt;{selectedFrom.address}&gt;
             </span>
           </div>
         </div>
 
         {/* Templates */}
-        <div className="card card-pad">
-          <div className="lbl" style={{ marginBottom: 12 }}>Email Templates</div>
+        <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 12 }}>Email Templates</div>
           {templates.length === 0
-            ? <p style={{ fontSize: 13, color: 'var(--faint)' }}>No templates saved yet</p>
+            ? <p style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>No templates saved yet</p>
             : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {templates.map(t => (
                   <button key={t.id} onClick={() => applyTemplate(t.id)}
-                    style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: form.template_id === t.id ? 'var(--accent-soft)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s', borderColor: form.template_id === t.id ? 'var(--accent)' : 'var(--border)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--faint)' }}>{t.subject}</div>
+                    style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--border-radius-md)', border: '1px solid ' + (form.template_id === t.id ? 'var(--color-primary)' : 'var(--color-border)'), background: form.template_id === t.id ? 'var(--color-blue-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 2 }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{t.subject}</div>
                   </button>
                 ))}
               </div>

@@ -3,7 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { BriefcaseBusiness, CircleCheck, Clock3, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import SubNav from '../components/SubNav'
+import { Button, StatusBadge } from '../components/ds'
 import { buildRequisitionPatch, deleteJobPost, getRequisitionStatusTone, listJobPosts, saveJobPost } from '../utils/recruiting'
+
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
 
 export default function RecruitingJobs() {
   const navigate = useNavigate()
@@ -70,117 +73,106 @@ export default function RecruitingJobs() {
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
   return (
-    <div className="fade-in">
-      <div style={{ border:'1px solid var(--border)', borderRadius:22, overflow:'hidden', background:'var(--card)', marginBottom:18 }}>
-        <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--border)' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>
-            <div>
-              <h1 style={{ fontSize:'clamp(28px,3vw,36px)', fontWeight:600, letterSpacing:'-0.03em', lineHeight:1, color:'var(--text)' }}>
-                Recruitment
-              </h1>
-              <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
-                {departmentFilter ? `${filtered.length} roles linked to ${departmentFilter}.` : `${jobs.length} roles across draft, approval, and live publishing states. Open any role to view its overview and applications.`}
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div>
+          <h1>Recruitment</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>
+            {departmentFilter ? `${filtered.length} roles linked to ${departmentFilter}.` : `${jobs.length} roles across draft, approval, and live publishing states. Open any role to view its overview and applications.`}
+          </p>
+        </div>
+        <Button variant="primary" onClick={() => navigate(`/recruiting/jobs/new${departmentFilter ? `?department=${encodeURIComponent(departmentFilter)}` : ''}`)}>
+          New role
+        </Button>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:10, marginBottom:20 }}>
+        {[
+          { label: 'All roles', value: stats.total, icon: FileText },
+          { label: 'Published', value: stats.published, icon: CircleCheck },
+          { label: 'Pending approval', value: stats.approvals, icon: Clock3 },
+          { label: 'Drafts', value: stats.drafts, icon: BriefcaseBusiness },
+        ].map((item) => {
+          const Icon = item.icon
+          return (
+            <div key={item.label} style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', background:'var(--color-bg-surface)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
+                <div style={{ fontSize:11, color:'var(--color-text-secondary)' }}>{item.label}</div>
+                <Icon size={15} color="var(--color-text-tertiary)" />
               </div>
+              <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)', marginTop:10, lineHeight:1 }}>{item.value}</div>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate(`/recruiting/jobs/new${departmentFilter ? `?department=${encodeURIComponent(departmentFilter)}` : ''}`)}
-            >
-              New role
-            </button>
-          </div>
+          )
+        })}
+      </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:10, marginTop:18 }}>
-            {[
-              { label: 'All roles', value: stats.total, icon: FileText, tone: 'var(--accent)' },
-              { label: 'Published', value: stats.published, icon: CircleCheck, tone: 'var(--green)' },
-              { label: 'Pending approval', value: stats.approvals, icon: Clock3, tone: 'var(--amber)' },
-              { label: 'Drafts', value: stats.drafts, icon: BriefcaseBusiness, tone: 'var(--blue)' },
-            ].map((item) => {
-              const Icon = item.icon
-              return (
-                <div key={item.label} style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:16, background:'var(--bg2)' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
-                    <div style={{ fontSize:11, color:'var(--sub)' }}>{item.label}</div>
-                    <Icon size={15} color={item.tone} />
-                  </div>
-                  <div style={{ fontSize:24, fontWeight:600, color:'var(--text)', marginTop:10, lineHeight:1 }}>{item.value}</div>
-                </div>
-              )
-            })}
-          </div>
+      <SubNav items={[
+        { label: 'Dashboard', onClick: () => navigate('/recruiting/dashboard') },
+        { label: 'Jobs', active: true, onClick: () => {} },
+        can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
+        can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
+        can('recruiting_settings') && { label: 'Settings', onClick: () => navigate('/recruiting/settings') },
+      ]} />
 
-          <SubNav items={[
-            { label: 'Dashboard', onClick: () => navigate('/recruiting/dashboard') },
-            { label: 'Jobs', active: true, onClick: () => {} },
-            can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
-            can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
-            can('recruiting_settings') && { label: 'Settings', onClick: () => navigate('/recruiting/settings') },
-          ]} />
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+        {['all', 'pending_approval', 'draft', 'published', 'archived'].map((item) => (
+          <Button key={item} variant={filter === item ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }} onClick={() => setFilter(item)}>
+            {item === 'all' ? 'All roles' : item === 'pending_approval' ? 'Pending approval' : item.charAt(0).toUpperCase() + item.slice(1)}
+          </Button>
+        ))}
+        {departmentFilter ? (
+          <Button variant="secondary" style={{ height:30, fontSize:12, padding:'0 10px' }} onClick={() => navigate('/recruiting')}>
+            Clear department
+          </Button>
+        ) : null}
+      </div>
 
-          <div style={{ display:'flex', gap:8, marginTop:18, flexWrap:'wrap' }}>
-            {['all', 'pending_approval', 'draft', 'published', 'archived'].map((item) => (
-              <button key={item} className={filter === item ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'} onClick={() => setFilter(item)}>
-                {item === 'all' ? 'All roles' : item === 'pending_approval' ? 'Pending approval' : item.charAt(0).toUpperCase() + item.slice(1)}
-              </button>
-            ))}
-            {departmentFilter ? (
-              <button className="btn btn-outline btn-sm" onClick={() => navigate('/recruiting')}>
-                Clear department
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{ padding:'16px 20px 18px' }}>
-          <div style={{ border:'1px solid var(--border)', borderRadius:16, overflow:'hidden' }}>
-            {filtered.length === 0 ? (
-              <div className="empty"><p>No job posts in this view yet.</p></div>
-            ) : (
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Role</th>
-                    <th>Department</th>
-                    <th>Requisition</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((job) => (
-                    <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
-                      <td className="t-main">
-                        <div>{job.title}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>
-                          {job.headcount_requested || 1} hire{Number(job.headcount_requested || 1) === 1 ? '' : 's'} · {job.requisition_priority || 'standard'} priority
-                        </div>
-                      </td>
-                      <td>{job.department || '—'}</td>
-                      <td><span className={`badge badge-${getRequisitionStatusTone(job.requisition_status)}`}>{(job.requisition_status || 'draft').replace(/_/g, ' ')}</span></td>
-                      <td><span className={`badge badge-${job.status === 'published' ? 'green' : job.status === 'draft' ? 'amber' : 'grey'}`}>{job.status}</span></td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{job.updated_at ? new Date(job.updated_at).toLocaleDateString('en-GB') : '—'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }} onClick={(event) => event.stopPropagation()}>
-                          {isDirector && job.requisition_status === 'pending_approval' ? (
-                            <>
-                              <button className="btn btn-outline btn-sm" disabled={savingId === job.id} onClick={() => decideRequisition(job, 'rejected')}>Reject</button>
-                              <button className="btn btn-outline btn-sm" disabled={savingId === job.id} onClick={() => decideRequisition(job, 'approved')}>Approve</button>
-                            </>
-                          ) : null}
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>Open</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate(`/recruiting/jobs/${job.id}?mode=edit`)}>Edit</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => remove(job)}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden' }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No job posts in this view yet.</div>
+        ) : (
+          <table className="ds-table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Requisition</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((job) => (
+                <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>
+                  <td>
+                    <div>{job.title}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                      {job.headcount_requested || 1} hire{Number(job.headcount_requested || 1) === 1 ? '' : 's'} · {job.requisition_priority || 'standard'} priority
+                    </div>
+                  </td>
+                  <td>{job.department || '—'}</td>
+                  <td><StatusBadge variant={TONE_TO_VARIANT[getRequisitionStatusTone(job.requisition_status)] || 'info'}>{(job.requisition_status || 'draft').replace(/_/g, ' ')}</StatusBadge></td>
+                  <td><StatusBadge variant={job.status === 'published' ? 'active' : job.status === 'draft' ? 'warning' : 'info'}>{job.status}</StatusBadge></td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{job.updated_at ? new Date(job.updated_at).toLocaleDateString('en-GB') : '—'}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }} onClick={(event) => event.stopPropagation()}>
+                      {isDirector && job.requisition_status === 'pending_approval' ? (
+                        <>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} disabled={savingId === job.id} onClick={() => decideRequisition(job, 'rejected')}>Reject</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} disabled={savingId === job.id} onClick={() => decideRequisition(job, 'approved')}>Approve</Button>
+                        </>
+                      ) : null}
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/recruiting/jobs/${job.id}`)}>Open</Button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/recruiting/jobs/${job.id}?mode=edit`)}>Edit</Button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => remove(job)}>Delete</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
