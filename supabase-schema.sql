@@ -130,6 +130,32 @@ create table if not exists schedules (
   unique(user_email, week_start)
 );
 
+-- Rotas (manager-assigned shifts, separate from the self-reported schedules above)
+create table if not exists shifts (
+  id uuid default gen_random_uuid() primary key,
+  employee_email text,
+  employee_name text,
+  shift_date date not null,
+  start_time text not null,
+  end_time text not null,
+  break_minutes int default 0,
+  role text,
+  note text,
+  published boolean default false,
+  created_by text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists shifts_date_idx on shifts(shift_date);
+create index if not exists shifts_employee_idx on shifts(employee_email);
+
+create table if not exists rota_employees (
+  id uuid default gen_random_uuid() primary key,
+  employee_email text not null unique,
+  employee_name text,
+  added_at timestamptz default now()
+);
+
 -- Staff & commissions
 create table if not exists staff (
   id uuid default gen_random_uuid() primary key,
@@ -473,6 +499,8 @@ alter table clients               enable row level security;
 alter table support_tickets       enable row level security;
 alter table tasks                 enable row level security;
 alter table schedules             enable row level security;
+alter table shifts                enable row level security;
+alter table rota_employees        enable row level security;
 alter table staff                 enable row level security;
 alter table commissions           enable row level security;
 alter table commission_settings   enable row level security;
@@ -507,6 +535,8 @@ create policy "allow_all" on clients                for all using (true) with ch
 create policy "allow_all" on support_tickets        for all using (true) with check (true);
 create policy "allow_all" on tasks                  for all using (true) with check (true);
 create policy "allow_all" on schedules              for all using (true) with check (true);
+create policy "allow_all" on shifts                 for all using (true) with check (true);
+create policy "allow_all" on rota_employees         for all using (true) with check (true);
 create policy "allow_all" on staff                  for all using (true) with check (true);
 create policy "allow_all" on commissions            for all using (true) with check (true);
 create policy "allow_all" on commission_settings    for all using (true) with check (true);

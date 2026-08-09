@@ -58,6 +58,7 @@ const Search = lazyRetry(() => import('./pages/Search'), 'search')
 const MyDepartment = lazyRetry(() => import('./pages/MyDepartment'), 'my-department')
 const MyTeam = lazyRetry(() => import('./pages/MyTeam'), 'my-team')
 const Schedule = lazyRetry(() => import('./pages/Schedule'), 'schedule')
+const Rotas = lazyRetry(() => import('./pages/Rotas'), 'rotas')
 const Reports = lazyRetry(() => import('./pages/Reports'), 'reports')
 const ManagerBoard = lazyRetry(() => import('./pages/ManagerBoard'), 'manager-board')
 const Departments = lazyRetry(() => import('./pages/Departments'), 'departments')
@@ -730,6 +731,7 @@ function PortalLayout() {
               <Route path="/tasks"           element={<PermissionGate permKey="tasks"><Tasks /></PermissionGate>} />
               <Route path="/my-tasks"        element={<PermissionGate permKey="mytasks"><MyTasks /></PermissionGate>} />
               <Route path="/schedule"        element={<PermissionGate permKey="schedule"><Schedule /></PermissionGate>} />
+              <Route path="/rotas"           element={<PermissionGate permKey="rota"><Rotas /></PermissionGate>} />
               <Route path="/reports"         element={<PermissionGate permKey="reports"><Reports /></PermissionGate>} />
               <Route path="/manager-board"   element={<PermissionGate permKey="manager_board"><ManagerBoard /></PermissionGate>} />
               <Route path="/departments"     element={<PermissionGate permKey="departments"><Departments /></PermissionGate>} />

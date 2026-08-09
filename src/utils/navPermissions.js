@@ -22,6 +22,12 @@ export const NAV_TABS = [
     ],
   },
   {
+    id: 'rota',
+    label: 'Rotas',
+    path: '/rotas',
+    keys: ['rota'],
+  },
+  {
     id: 'people',
     label: 'People',
     path: '/people',

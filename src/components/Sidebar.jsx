@@ -44,6 +44,7 @@ const SECTIONS = [
       { to: '/tasks',        icon: 'check', label: 'All Tasks',    desc: 'Manage all tasks',  key: 'tasks'        , note: 'Task assignment, progress, and ownership' },
       { to: '/my-tasks',     icon: 'check', label: 'My Tasks',     desc: 'Your task list',    key: 'mytasks'      , note: 'Your assigned work and due items' },
       { to: '/schedule',     icon: 'cal',   label: 'Schedule',     desc: 'Calendar view',     key: 'schedule'     , note: 'Availability, bookings, and calendar planning' },
+      { to: '/rotas',        icon: 'cal',   label: 'Rotas',        desc: 'Shift scheduling',  key: 'rota'         , note: 'Manager-built team shift rota' },
       { to: '/appointments', icon: 'cal',   label: 'Appointments', desc: 'Book & manage',     key: 'appointments' },
     ]
   },
