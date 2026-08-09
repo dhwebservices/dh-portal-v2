@@ -27,6 +27,7 @@ import {
 } from '../../utils/contracts'
 import { openSecureDocument } from '../../utils/fileAccess'
 import { sendEmail } from '../../utils/email'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../../components/ds'
 
 function assertSupabaseOk(result, label) {
   if (result?.error) {
@@ -542,7 +543,7 @@ function buildReviewSections(submission = {}) {
 }
 
 export default function HROnboarding() {
-  const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding } = useAuth()
+  const { user, isAdmin, isDirector, isDepartmentManager, managedDepartments, isOnboarding, logout } = useAuth()
   const isReviewer = (isAdmin || isDepartmentManager) && !isOnboarding
   const canSeeAllSubmissions = isDirector || isAdmin
   const [submissions, setSubmissions] = useState([])
@@ -1650,11 +1651,40 @@ export default function HROnboarding() {
 
   if (loading) return <div className="spin-wrap"><div className="spin"/></div>
 
+  const wizardCard = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)', padding: 24 }
+  const wizardFieldGrid = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 'var(--space-md)' }
+  const toneToVariant = { green: 'active', amber: 'warning', red: 'error', grey: 'info' }
+
   return (
     <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Onboarding</h1><p className="page-sub">Staff onboarding forms and submissions</p></div>
-      </div>
+      {isOnboarding && (
+        <header style={{
+          background: '#2563EB',
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 24px',
+          marginBottom: 32,
+        }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>DH</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{user?.name || user?.email}</span>
+            <button
+              onClick={logout}
+              style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, color: '#fff', fontSize: 13, padding: '6px 12px', cursor: 'pointer' }}
+            >
+              Sign out
+            </button>
+          </div>
+        </header>
+      )}
+
+      {isReviewer && (
+        <div className="page-hd">
+          <div><h1 className="page-title">Onboarding</h1><p className="page-sub">Staff onboarding forms and submissions</p></div>
+        </div>
+      )}
 
       {/* Admin panel */}
       {isReviewer && (
@@ -1848,236 +1878,237 @@ export default function HROnboarding() {
 
       {/* Staff form */}
       {!isReviewer && (!mySubmission || mySubmission.status === 'draft' || mySubmission.status === 'rejected') ? (
-        <div className="staff-onboarding-shell">
+        <div className="ds-content">
           {mySubmission?.status === 'rejected' && (
-            <div className="staff-onboarding-alert staff-onboarding-alert-error">
+            <Alert variant="warning" className="staff-onboarding-alert-error-tone" icon="⛔">
               <div>Your previous submission was rejected. Review the notes below, make the changes, and resubmit.</div>
-              {mySubmission.admin_notes && <div><strong>Notes:</strong> {mySubmission.admin_notes}</div>}
-            </div>
+              {mySubmission.admin_notes && <div style={{ marginTop: 4 }}><strong>Notes:</strong> {mySubmission.admin_notes}</div>}
+            </Alert>
           )}
 
-          <div className="staff-onboarding-layout">
-            <aside className="staff-onboarding-hero">
-              <div className="staff-onboarding-hero-copy">
-                <span className="staff-onboarding-kicker">New starter setup</span>
-                <h2>Welcome to DH Website Services, {user?.name?.split(' ')[0] || 'there'}.</h2>
-                <p>
-                  Complete your onboarding details, upload your right-to-work document, and sign your contract once it has been issued.
-                </p>
+          <div style={{ ...wizardCard, marginBottom: 24 }}>
+            <StatusBadge variant="info">New starter setup</StatusBadge>
+            <h2 style={{ margin: '12px 0 8px', fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--color-text-primary)' }}>
+              Welcome to DH Website Services, {user?.name?.split(' ')[0] || 'there'}.
+            </h2>
+            <p style={{ margin: 0, maxWidth: 640, fontSize: 14, lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
+              Complete your onboarding details, upload your right-to-work document, and sign your contract once it has been issued.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16, marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--color-border)' }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Account</div>
+                <strong style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>{user?.email || 'Work account'}</strong>
               </div>
-              <div className="staff-onboarding-hero-meta">
-                <div>
-                  <span>Account</span>
-                  <strong>{user?.email || 'Work account'}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>{mySubmission?.status === 'rejected' ? 'Needs revision' : 'In progress'}</strong>
-                </div>
-                <div>
-                  <span>Approval flow</span>
-                  <strong>Submitted to your assigned manager</strong>
-                </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 4 }}>Status</div>
+                <StatusBadge variant={mySubmission?.status === 'rejected' ? 'warning' : 'info'}>
+                  {mySubmission?.status === 'rejected' ? 'Needs revision' : 'In progress'}
+                </StatusBadge>
               </div>
-            </aside>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Approval flow</div>
+                <strong style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>Submitted to your assigned manager</strong>
+              </div>
+            </div>
+          </div>
 
-            <div className="staff-onboarding-main">
-              <div className="staff-onboarding-progress">
-                <div className="staff-onboarding-progress-head">
-                  <div>
-                    <span>Form completion</span>
-                    <strong>Step {step + 1} of {STEPS.length}</strong>
-                  </div>
-                  <strong className={pct === 100 ? 'is-complete' : ''}>{pct}%</strong>
-                </div>
-                <div className="staff-onboarding-progress-rail">
-                  <div style={{ width:`${pct}%` }}/>
-                </div>
-              </div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+              <span>Step {step + 1} of {STEPS.length}</span>
+              <strong style={{ color: pct === 100 ? 'var(--color-green-500)' : 'var(--color-text-primary)' }}>{pct}%</strong>
+            </div>
+            <div style={{ height: 6, borderRadius: 999, background: 'var(--color-gray-100)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-primary)', transition: 'width 0.2s ease' }} />
+            </div>
+          </div>
 
-              <div className="staff-onboarding-step-nav" role="tablist" aria-label="Onboarding steps">
-                {STEPS.map((s,i) => (
-                  <button
-                    key={s.key}
-                    onClick={() => setStep(i)}
-                    className={`staff-onboarding-step-chip ${step===i ? 'is-active' : ''}`}
-                    type="button"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+          <div role="tablist" aria-label="Onboarding steps" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '16px 0 24px' }}>
+            {STEPS.map((s,i) => (
+              <button
+                key={s.key}
+                onClick={() => setStep(i)}
+                type="button"
+                style={{
+                  height: 36, padding: '0 14px', borderRadius: 'var(--border-radius-md)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: step === i ? 'var(--color-primary)' : 'var(--color-bg-surface)',
+                  color: step === i ? '#fff' : 'var(--color-text-secondary)',
+                  border: step === i ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
 
-              <div className="staff-onboarding-panel">
-                <div className="staff-onboarding-panel-head">
-                  <div>
-                    <span>{STEPS[step].label}</span>
-                    <h3>{STEP_INTRO[STEPS[step].key]?.title || STEPS[step].label}</h3>
-                  </div>
-                  <p>{STEP_INTRO[STEPS[step].key]?.description}</p>
-                </div>
+          <div style={wizardCard}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 4 }}>{STEPS[step].label}</div>
+              <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>{STEP_INTRO[STEPS[step].key]?.title || STEPS[step].label}</h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>{STEP_INTRO[STEPS[step].key]?.description}</p>
+            </div>
             {step === 0 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <div className="fg">
-                  <div><label className="lbl">Legal Full Name *</label><input className="inp" value={form.full_name} onChange={e=>sf('full_name',e.target.value)} placeholder="As on passport/ID"/></div>
-                  <div><label className="lbl">Preferred Name</label><input className="inp" value={form.preferred_name} onChange={e=>sf('preferred_name',e.target.value)} placeholder="What you like to be called"/></div>
-                  <div><label className="lbl">Date of Birth *</label><input className="inp" type="date" value={form.dob} onChange={e=>sf('dob',e.target.value)}/></div>
-                  <div><label className="lbl">Gender</label>
-                    <select className="inp" value={form.gender} onChange={e=>sf('gender',e.target.value)}>
-                      <option value="">Prefer not to say</option>
-                      {['Male','Female','Non-binary','Prefer to self-describe','Prefer not to say'].map(g=><option key={g}>{g}</option>)}
-                    </select>
-                  </div>
-                  <div><label className="lbl">Nationality</label><input className="inp" value={form.nationality} onChange={e=>sf('nationality',e.target.value)} placeholder="e.g. British"/></div>
-                  <div><label className="lbl">National Insurance Number *</label><input className="inp" value={form.ni_number} onChange={e=>sf('ni_number',e.target.value)} placeholder="AB 12 34 56 C" style={{ fontFamily:'var(--font-mono)' }}/></div>
-                </div>
+              <div style={wizardFieldGrid}>
+                <FormField><FormLabel required>Legal Full Name</FormLabel><FormInput value={form.full_name} onChange={e=>sf('full_name',e.target.value)} placeholder="As on passport/ID"/></FormField>
+                <FormField><FormLabel>Preferred Name</FormLabel><FormInput value={form.preferred_name} onChange={e=>sf('preferred_name',e.target.value)} placeholder="What you like to be called"/></FormField>
+                <FormField><FormLabel required>Date of Birth</FormLabel><FormInput type="date" value={form.dob} onChange={e=>sf('dob',e.target.value)}/></FormField>
+                <FormField>
+                  <FormLabel>Gender</FormLabel>
+                  <FormSelect value={form.gender} onChange={e=>sf('gender',e.target.value)}>
+                    <option value="">Prefer not to say</option>
+                    {['Male','Female','Non-binary','Prefer to self-describe','Prefer not to say'].map(g=><option key={g}>{g}</option>)}
+                  </FormSelect>
+                </FormField>
+                <FormField><FormLabel>Nationality</FormLabel><FormInput value={form.nationality} onChange={e=>sf('nationality',e.target.value)} placeholder="e.g. British"/></FormField>
+                <FormField><FormLabel required>National Insurance Number</FormLabel><FormInput value={form.ni_number} onChange={e=>sf('ni_number',e.target.value)} placeholder="AB 12 34 56 C" style={{ fontFamily:'var(--font-mono)' }}/></FormField>
               </div>
             )}
 
             {step === 1 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <div className="fg">
-                  <div className="fc"><label className="lbl">Address Line 1 *</label><input className="inp" value={form.address_line1} onChange={e=>sf('address_line1',e.target.value)} placeholder="House number and street"/></div>
-                  <div className="fc"><label className="lbl">Address Line 2</label><input className="inp" value={form.address_line2} onChange={e=>sf('address_line2',e.target.value)} placeholder="Apartment, flat, etc."/></div>
-                  <div><label className="lbl">City / Town *</label><input className="inp" value={form.city} onChange={e=>sf('city',e.target.value)}/></div>
-                  <div><label className="lbl">Postcode *</label><input className="inp" value={form.postcode} onChange={e=>sf('postcode',e.target.value)} style={{ fontFamily:'var(--font-mono)' }}/></div>
-                  <div><label className="lbl">Personal Email *</label><input className="inp" type="email" value={form.personal_email} onChange={e=>sf('personal_email',e.target.value)}/></div>
-                  <div><label className="lbl">Personal Phone *</label><input className="inp" value={form.personal_phone} onChange={e=>sf('personal_phone',e.target.value)} placeholder="07700 000000"/></div>
-                </div>
+              <div style={wizardFieldGrid}>
+                <FormField className="staff-onboarding-fc"><FormLabel required>Address Line 1</FormLabel><FormInput value={form.address_line1} onChange={e=>sf('address_line1',e.target.value)} placeholder="House number and street"/></FormField>
+                <FormField className="staff-onboarding-fc"><FormLabel>Address Line 2</FormLabel><FormInput value={form.address_line2} onChange={e=>sf('address_line2',e.target.value)} placeholder="Apartment, flat, etc."/></FormField>
+                <FormField><FormLabel required>City / Town</FormLabel><FormInput value={form.city} onChange={e=>sf('city',e.target.value)}/></FormField>
+                <FormField><FormLabel required>Postcode</FormLabel><FormInput value={form.postcode} onChange={e=>sf('postcode',e.target.value)} style={{ fontFamily:'var(--font-mono)' }}/></FormField>
+                <FormField><FormLabel required>Personal Email</FormLabel><FormInput type="email" value={form.personal_email} onChange={e=>sf('personal_email',e.target.value)}/></FormField>
+                <FormField><FormLabel required>Personal Phone</FormLabel><FormInput value={form.personal_phone} onChange={e=>sf('personal_phone',e.target.value)} placeholder="07700 000000"/></FormField>
               </div>
             )}
 
             {step === 2 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <div className="staff-onboarding-note">
-                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
-                    These employment details are set by DH Website Services. If anything looks wrong, contact your department manager before submitting.
-                  </div>
-                </div>
-                <div className="fg">
-                  <div><label className="lbl">Job Title</label><input className="inp" value={form.job_title || employmentContext.job_title} readOnly /></div>
-                  <div><label className="lbl">Department</label><input className="inp" value={form.department || employmentContext.department} readOnly /></div>
-                  <div><label className="lbl">Start Date</label><input className="inp" type="date" value={form.start_date || employmentContext.start_date} readOnly /></div>
-                  <div><label className="lbl">Contract Type</label><input className="inp" value={form.contract_type || employmentContext.contract_type} readOnly /></div>
-                  <div><label className="lbl">Hours per Week</label><input className="inp" type="number" value={form.hours_per_week} onChange={e=>sf('hours_per_week',e.target.value)} placeholder="e.g. 37.5"/></div>
-                  <div><label className="lbl">Work Location</label>
-                    <select className="inp" value={form.work_location} onChange={e=>sf('work_location',e.target.value)}>
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <Alert variant="info">
+                  These employment details are set by DH Website Services. If anything looks wrong, contact your department manager before submitting.
+                </Alert>
+                <div style={wizardFieldGrid}>
+                  <FormField><FormLabel>Job Title</FormLabel><FormInput value={form.job_title || employmentContext.job_title} disabled /></FormField>
+                  <FormField><FormLabel>Department</FormLabel><FormInput value={form.department || employmentContext.department} disabled /></FormField>
+                  <FormField><FormLabel>Start Date</FormLabel><FormInput type="date" value={form.start_date || employmentContext.start_date} disabled /></FormField>
+                  <FormField><FormLabel>Contract Type</FormLabel><FormInput value={form.contract_type || employmentContext.contract_type} disabled /></FormField>
+                  <FormField><FormLabel>Hours per Week</FormLabel><FormInput type="number" value={form.hours_per_week} onChange={e=>sf('hours_per_week',e.target.value)} placeholder="e.g. 37.5"/></FormField>
+                  <FormField>
+                    <FormLabel>Work Location</FormLabel>
+                    <FormSelect value={form.work_location} onChange={e=>sf('work_location',e.target.value)}>
                       <option value="">Select...</option>
                       {['Remote','Office','Hybrid','On-site (client)'].map(l=><option key={l}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div><label className="lbl">Manager Name</label><input className="inp" value={form.manager_name || employmentContext.manager_name} readOnly /></div>
-                  <div><label className="lbl">Manager Email</label><input className="inp" value={form.manager_email || employmentContext.manager_email} readOnly /></div>
-                  <div className="fc" style={{ marginTop:8 }}>
-                    <label className={`staff-onboarding-check ${form.company_portal_confirmed ? 'is-checked' : ''}`}>
-                      <input type="checkbox" checked={form.company_portal_confirmed} onChange={e=>sf('company_portal_confirmed',e.target.checked)} style={{ width:18,height:18,accentColor:'var(--green)',flexShrink:0,marginTop:1 }}/>
-                      <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
-                        I have installed <strong>Microsoft Company Portal</strong> on my work device and confirmed I can access it.
-                      </span>
-                    </label>
-                    <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
-                      Install Company Portal before submitting onboarding so device access and company policies can be applied correctly.
-                    </div>
+                    </FormSelect>
+                  </FormField>
+                  <FormField><FormLabel>Manager Name</FormLabel><FormInput value={form.manager_name || employmentContext.manager_name} disabled /></FormField>
+                  <FormField><FormLabel>Manager Email</FormLabel><FormInput value={form.manager_email || employmentContext.manager_email} disabled /></FormField>
+                </div>
+                <div>
+                  <label className={`staff-onboarding-check ${form.company_portal_confirmed ? 'is-checked' : ''}`}>
+                    <input type="checkbox" checked={form.company_portal_confirmed} onChange={e=>sf('company_portal_confirmed',e.target.checked)} style={{ width:18,height:18,accentColor:'var(--green)',flexShrink:0,marginTop:1 }}/>
+                    <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+                      I have installed <strong>Microsoft Company Portal</strong> on my work device and confirmed I can access it.
+                    </span>
+                  </label>
+                  <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:8, lineHeight:1.6 }}>
+                    Install Company Portal before submitting onboarding so device access and company policies can be applied correctly.
                   </div>
                 </div>
               </div>
             )}
 
             {step === 3 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <p style={{ fontSize:13, color:'var(--sub)' }}>Who should we contact in an emergency? This information is kept confidential.</p>
-                <div className="fg">
-                  <div><label className="lbl">Full Name *</label><input className="inp" value={form.emergency_name} onChange={e=>sf('emergency_name',e.target.value)}/></div>
-                  <div><label className="lbl">Relationship</label><input className="inp" value={form.emergency_relationship} onChange={e=>sf('emergency_relationship',e.target.value)} placeholder="e.g. Partner, Parent, Sibling"/></div>
-                  <div><label className="lbl">Phone Number *</label><input className="inp" value={form.emergency_phone} onChange={e=>sf('emergency_phone',e.target.value)} placeholder="07700 000000"/></div>
-                  <div><label className="lbl">Email Address</label><input className="inp" type="email" value={form.emergency_email} onChange={e=>sf('emergency_email',e.target.value)}/></div>
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ margin: 0, fontSize:13, color:'var(--color-text-secondary)' }}>Who should we contact in an emergency? This information is kept confidential.</p>
+                <div style={wizardFieldGrid}>
+                  <FormField><FormLabel required>Full Name</FormLabel><FormInput value={form.emergency_name} onChange={e=>sf('emergency_name',e.target.value)}/></FormField>
+                  <FormField><FormLabel>Relationship</FormLabel><FormInput value={form.emergency_relationship} onChange={e=>sf('emergency_relationship',e.target.value)} placeholder="e.g. Partner, Parent, Sibling"/></FormField>
+                  <FormField><FormLabel required>Phone Number</FormLabel><FormInput value={form.emergency_phone} onChange={e=>sf('emergency_phone',e.target.value)} placeholder="07700 000000"/></FormField>
+                  <FormField><FormLabel>Email Address</FormLabel><FormInput type="email" value={form.emergency_email} onChange={e=>sf('emergency_email',e.target.value)}/></FormField>
                 </div>
               </div>
             )}
 
             {step === 4 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <div className="staff-onboarding-note is-blue">
-                  Your bank details are stored securely and only accessible by HR/admin. They are used solely for payroll purposes.
-                </div>
-                <div className="fg">
-                  <div><label className="lbl">Bank Name *</label><input className="inp" value={form.bank_name} onChange={e=>sf('bank_name',e.target.value)} placeholder="e.g. Barclays, HSBC"/></div>
-                  <div><label className="lbl">Account Name *</label><input className="inp" value={form.account_name} onChange={e=>sf('account_name',e.target.value)} placeholder="Name on account"/></div>
-                  <div><label className="lbl">Sort Code *</label><input className="inp" value={form.sort_code} onChange={e=>sf('sort_code',e.target.value)} placeholder="12-34-56" style={{ fontFamily:'var(--font-mono)' }}/></div>
-                  <div><label className="lbl">Account Number *</label><input className="inp" value={form.account_number} onChange={e=>sf('account_number',e.target.value)} placeholder="12345678" style={{ fontFamily:'var(--font-mono)' }}/></div>
-                  <div><label className="lbl">Payment Frequency</label>
-                    <select className="inp" value={form.payment_frequency} onChange={e=>sf('payment_frequency',e.target.value)}>
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <Alert variant="info">Your bank details are stored securely and only accessible by HR/admin. They are used solely for payroll purposes.</Alert>
+                <div style={wizardFieldGrid}>
+                  <FormField><FormLabel required>Bank Name</FormLabel><FormInput value={form.bank_name} onChange={e=>sf('bank_name',e.target.value)} placeholder="e.g. Barclays, HSBC"/></FormField>
+                  <FormField><FormLabel required>Account Name</FormLabel><FormInput value={form.account_name} onChange={e=>sf('account_name',e.target.value)} placeholder="Name on account"/></FormField>
+                  <FormField><FormLabel required>Sort Code</FormLabel><FormInput value={form.sort_code} onChange={e=>sf('sort_code',e.target.value)} placeholder="12-34-56" style={{ fontFamily:'var(--font-mono)' }}/></FormField>
+                  <FormField><FormLabel required>Account Number</FormLabel><FormInput value={form.account_number} onChange={e=>sf('account_number',e.target.value)} placeholder="12345678" style={{ fontFamily:'var(--font-mono)' }}/></FormField>
+                  <FormField>
+                    <FormLabel>Payment Frequency</FormLabel>
+                    <FormSelect value={form.payment_frequency} onChange={e=>sf('payment_frequency',e.target.value)}>
                       {['Monthly','Weekly','Fortnightly'].map(f=><option key={f}>{f}</option>)}
-                    </select>
-                  </div>
+                    </FormSelect>
+                  </FormField>
                 </div>
               </div>
             )}
 
             {step === 5 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-                <p style={{ fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>Under UK law, we are required to check your right to work before employment begins. Please provide one of the documents below.</p>
-                <div className="fg">
-                  <div className="fc"><label className="lbl">Document Type *</label>
-                    <select className="inp" value={form.rtw_type} onChange={e=>sf('rtw_type',e.target.value)}>
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ margin: 0, fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.6 }}>Under UK law, we are required to check your right to work before employment begins. Please provide one of the documents below.</p>
+                <div style={wizardFieldGrid}>
+                  <FormField className="staff-onboarding-fc">
+                    <FormLabel required>Document Type</FormLabel>
+                    <FormSelect value={form.rtw_type} onChange={e=>sf('rtw_type',e.target.value)}>
                       <option value="">Select document type...</option>
                       {RTW_DOCS.map(d=><option key={d}>{d}</option>)}
-                    </select>
-                  </div>
+                    </FormSelect>
+                  </FormField>
                   {form.rtw_type === 'Visa (specify type)' && (
-                    <div className="fc"><label className="lbl">Visa Type / Notes</label><input className="inp" value={form.rtw_notes} onChange={e=>sf('rtw_notes',e.target.value)} placeholder="e.g. Skilled Worker visa, expiry date..."/></div>
+                    <FormField className="staff-onboarding-fc"><FormLabel>Visa Type / Notes</FormLabel><FormInput value={form.rtw_notes} onChange={e=>sf('rtw_notes',e.target.value)} placeholder="e.g. Skilled Worker visa, expiry date..."/></FormField>
                   )}
-                  <div><label className="lbl">Document Expiry Date</label><input className="inp" type="date" value={form.rtw_expiry} onChange={e=>sf('rtw_expiry',e.target.value)}/><div style={{ fontSize:11, color:'var(--faint)', marginTop:4 }}>Leave blank if document does not expire (e.g. British passport)</div></div>
-                  <div>
-                    <label className="lbl">Upload Document *</label>
+                  <FormField>
+                    <FormLabel>Document Expiry Date</FormLabel>
+                    <FormInput type="date" value={form.rtw_expiry} onChange={e=>sf('rtw_expiry',e.target.value)}/>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:4 }}>Leave blank if document does not expire (e.g. British passport)</div>
+                  </FormField>
+                  <FormField>
+                    <FormLabel required>Upload Document</FormLabel>
                     <input type="file" ref={rtwRef} style={{ display:'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={e=>{ if(e.target.files[0]) uploadRTW(e.target.files[0]) }}/>
                     {form.rtw_document_url ? (
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                        <span className="badge badge-green">✓ Uploaded</span>
-                        {rtwUploadName ? <span style={{ fontSize:12, color:'var(--sub)' }}>{rtwUploadName}</span> : null}
-                        <a href={form.rtw_document_url} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--accent)' }}>View document</a>
-                        <button onClick={() => rtwRef.current?.click()} className="btn btn-outline btn-sm" disabled={rtwUploading}>{rtwUploading ? 'Uploading...' : 'Replace'}</button>
+                        <StatusBadge variant="active">✓ Uploaded</StatusBadge>
+                        {rtwUploadName ? <span style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{rtwUploadName}</span> : null}
+                        <a href={form.rtw_document_url} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--color-primary)' }}>View document</a>
+                        <Button variant="secondary" onClick={() => rtwRef.current?.click()} disabled={rtwUploading} style={{ height:30, fontSize:12, padding:'0 10px' }}>{rtwUploading ? 'Uploading...' : 'Replace'}</Button>
                       </div>
                     ) : (
                       <div style={{ display:'grid', gap:8 }}>
-                        <button onClick={() => rtwRef.current?.click()} className="btn btn-outline" style={{ marginTop:4 }} disabled={rtwUploading}>
+                        <Button variant="secondary" onClick={() => rtwRef.current?.click()} disabled={rtwUploading} style={{ marginTop:4, alignSelf:'flex-start' }}>
                           {rtwUploading ? 'Uploading...' : '📎 Upload Document (PDF, JPG, PNG)'}
-                        </button>
-                        <div style={{ fontSize:12, color:rtwUploadName ? 'var(--text)' : 'var(--sub)' }}>
+                        </Button>
+                        <div style={{ fontSize:12, color:rtwUploadName ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>
                           {rtwUploadName ? `Selected: ${rtwUploadName}` : 'No document uploaded yet.'}
                         </div>
                       </div>
                     )}
                     {rtwUploadError ? (
-                      <div style={{ fontSize:12, color:'var(--red)', marginTop:8 }}>
+                      <div style={{ fontSize:12, color:'var(--color-red-500)', marginTop:8 }}>
                         {rtwUploadError}
                       </div>
                     ) : null}
                     {!form.rtw_document_url && !rtwUploadError && rtwUploadName && !rtwUploading ? (
-                      <div style={{ fontSize:12, color:'var(--green)', marginTop:8 }}>
+                      <div style={{ fontSize:12, color:'var(--color-green-500)', marginTop:8 }}>
                         Document ready and uploaded successfully.
                       </div>
                     ) : null}
-                  </div>
+                  </FormField>
                 </div>
-                <div className="staff-onboarding-note">
+                <Alert variant="info">
                   <strong>Acceptable documents include:</strong> UK/EU passport, BRP card, UK birth certificate with NI evidence. Documents will be reviewed by HR within 2 working days. If you have any questions, contact your manager.
-                </div>
+                </Alert>
               </div>
             )}
 
             {step === 6 && (
-              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 {staffContract ? (
-                  <div className="staff-onboarding-contract-shell">
+                  <div style={wizardCard}>
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap', marginBottom:10 }}>
                       <div>
-                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{staffContract.template_name || 'Employment contract'}</div>
-                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4 }}>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>{staffContract.template_name || 'Employment contract'}</div>
+                        <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4 }}>
                           Issued by {staffContract.manager_signature?.name || staffContract.manager_name || 'Department manager'} · {staffContract.contract_type || 'Employment Contract'}
                         </div>
                       </div>
-                      {contractStatusLabel ? <span className={`badge badge-${contractStatusLabel[1]}`}>{contractStatusLabel[0]}</span> : null}
+                      {contractStatusLabel ? <StatusBadge variant={toneToVariant[contractStatusLabel[1]] || 'info'}>{contractStatusLabel[0]}</StatusBadge> : null}
                     </div>
                     <div className="staff-onboarding-contract-preview">
                       <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderContractHtml(staffContract.template_html || '', staffContract.merge_fields || {}), {
@@ -2086,32 +2117,32 @@ export default function HROnboarding() {
                       }) }} />
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
-                      {staffContract.template_reference_file_path || staffContract.template_reference_file_url ? <button className="btn btn-outline btn-sm" onClick={openContractReferenceFile}>Open attached template file</button> : null}
-                      {staffContract.final_document_path || staffContract.final_document_url ? <button className="btn btn-outline btn-sm" onClick={openSignedContractFile}>Open signed PDF</button> : null}
+                      {staffContract.template_reference_file_path || staffContract.template_reference_file_url ? <Button variant="secondary" onClick={openContractReferenceFile} style={{ height:30, fontSize:12, padding:'0 10px' }}>Open attached template file</Button> : null}
+                      {staffContract.final_document_path || staffContract.final_document_url ? <Button variant="secondary" onClick={openSignedContractFile} style={{ height:30, fontSize:12, padding:'0 10px' }}>Open signed PDF</Button> : null}
                       {staffContract.status === 'awaiting_staff_signature' ? (
-                        <button className="btn btn-primary btn-sm" onClick={signContract} disabled={contractSigning}>
+                        <Button variant="primary" onClick={signContract} disabled={contractSigning} style={{ height:30, fontSize:12, padding:'0 10px' }}>
                           {contractSigning ? 'Signing contract...' : `Sign as ${form.full_name || user?.name || user?.email || 'staff member'}`}
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                     {contractMessage ? (
-                      <div style={{ fontSize:12.5, color:contractRequirementMet ? 'var(--green)' : 'var(--amber)', marginTop:10 }}>
+                      <div style={{ fontSize:12.5, color:contractRequirementMet ? 'var(--color-green-500)' : 'var(--color-amber-500)', marginTop:10 }}>
                         {contractMessage}
                       </div>
                     ) : null}
                   </div>
                 ) : (
-                  <div className="staff-onboarding-alert staff-onboarding-alert-warn">
+                  <Alert variant="warning">
                     <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
                       <div>
-                        <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>No contract issued yet</div>
-                        <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.7, maxWidth:620 }}>
+                        <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>No contract issued yet</div>
+                        <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.7, maxWidth:620 }}>
                           Your manager needs to issue your contract before onboarding can be submitted. Once it has been issued, it will appear here for you to review and sign digitally.
                         </div>
                       </div>
-                      <span className="badge badge-amber">Waiting for manager</span>
+                      <StatusBadge variant="warning">Waiting for manager</StatusBadge>
                     </div>
-                  </div>
+                  </Alert>
                 )}
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {[
@@ -2124,63 +2155,62 @@ export default function HROnboarding() {
                     </label>
                   ))}
                 </div>
-                <div>
-                  <label className="lbl">Additional Notes / Questions for HR</label>
-                  <textarea className="inp" rows={4} value={form.additional_notes} onChange={e=>sf('additional_notes',e.target.value)} style={{ resize:'vertical' }} placeholder="Anything you'd like HR to know, or any questions you have..."/>
-                </div>
+                <FormField>
+                  <FormLabel>Additional Notes / Questions for HR</FormLabel>
+                  <textarea className="ds-form-input" rows={4} value={form.additional_notes} onChange={e=>sf('additional_notes',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Anything you'd like HR to know, or any questions you have..."/>
+                </FormField>
                 {!staffContract && (
-                  <div style={{ fontSize:12, color:'var(--amber)' }}>
+                  <div style={{ fontSize:12, color:'var(--color-amber-500)' }}>
                     ⚠ A manager-issued contract must appear here before onboarding can be submitted.
                   </div>
                 )}
                 {staffContract && (!contractRequirementMet || !form.handbook_read || !form.data_consent) && (
-                  <div style={{ fontSize:12, color:'var(--amber)' }}>
+                  <div style={{ fontSize:12, color:'var(--color-amber-500)' }}>
                     ⚠ Please sign the contract and complete the sign-off section before submitting
                   </div>
                 )}
                 {!form.company_portal_confirmed && (
-                  <div style={{ fontSize:12, color:'var(--amber)' }}>⚠ Please confirm Microsoft Company Portal has been installed before submitting</div>
+                  <div style={{ fontSize:12, color:'var(--color-amber-500)' }}>⚠ Please confirm Microsoft Company Portal has been installed before submitting</div>
                 )}
               </div>
             )}
 
-            {/* Navigation */}
-            <div className="staff-onboarding-actions">
+            <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginTop:28, paddingTop:20, borderTop:'1px solid var(--color-border)' }}>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {step > 0 && <button className="btn btn-outline" onClick={() => setStep(s=>s-1)}>← Back</button>}
-                <button className="btn btn-ghost" onClick={saveDraft} disabled={saving}>Save Draft</button>
+                {step > 0 && <Button variant="secondary" onClick={() => setStep(s=>s-1)}>← Back</Button>}
+                <Button variant="ghost" onClick={saveDraft} disabled={saving}>Save Draft</Button>
               </div>
               <div>
                 {step < STEPS.length-1
-                  ? <button className="btn btn-primary" onClick={() => setStep(s=>s+1)}>Next →</button>
-                  : <button className="btn btn-primary" onClick={submit} disabled={saving||!contractRequirementMet||!form.handbook_read||!form.data_consent||!form.company_portal_confirmed}>
+                  ? <Button variant="primary" onClick={() => setStep(s=>s+1)}>Next →</Button>
+                  : <Button variant="primary" onClick={submit} disabled={saving||!contractRequirementMet||!form.handbook_read||!form.data_consent||!form.company_portal_confirmed}>
                       {saving ? 'Submitting...' : '✓ Submit Onboarding'}
-                    </button>
+                    </Button>
                 }
-              </div>
-            </div>
               </div>
             </div>
           </div>
         </div>
       ) : !isReviewer ? (
-        <div className="card card-pad" style={{ maxWidth:480, textAlign:'center' }}>
-          <div style={{ fontSize:52, marginBottom:16 }}>
-            {mySubmission.status==='approved' ? '✅' : mySubmission.status==='submitted' ? '⏳' : '🔄'}
-          </div>
-          <h2 style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:400, marginBottom:8 }}>
-            {mySubmission.status==='approved' ? 'Onboarding Complete' : 'Submission Under Review'}
-          </h2>
-          <p style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, marginBottom:20 }}>
-            {mySubmission.status==='approved'
-              ? 'Your onboarding has been approved by HR. Welcome to the team!'
-              : 'Your onboarding form has been submitted and is being reviewed by HR. You\'ll be notified once approved.'}
-          </p>
-          {mySubmission.status === 'submitted' && (
-            <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
-              Submitted {new Date(mySubmission.submitted_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}
+        <div className="ds-content">
+          <div style={{ ...wizardCard, maxWidth:480, textAlign:'center', margin:'0 auto' }}>
+            <div style={{ fontSize:52, marginBottom:16 }}>
+              {mySubmission.status==='approved' ? '✅' : mySubmission.status==='submitted' ? '⏳' : '🔄'}
             </div>
-          )}
+            <h2 style={{ fontSize:22, fontWeight:600, marginBottom:8, color:'var(--color-text-primary)' }}>
+              {mySubmission.status==='approved' ? 'Onboarding Complete' : 'Submission Under Review'}
+            </h2>
+            <p style={{ fontSize:14, color:'var(--color-text-secondary)', lineHeight:1.7, marginBottom:20 }}>
+              {mySubmission.status==='approved'
+                ? 'Your onboarding has been approved by HR. Welcome to the team!'
+                : 'Your onboarding form has been submitted and is being reviewed by HR. You\'ll be notified once approved.'}
+            </p>
+            {mySubmission.status === 'submitted' && (
+              <div style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>
+                Submitted {new Date(mySubmission.submitted_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}
+              </div>
+            )}
+          </div>
         </div>
       ) : submissions.length === 0 ? (
         <div className="card card-pad" style={{ maxWidth:560 }}>
