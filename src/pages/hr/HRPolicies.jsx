@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { Button, FormField, FormLabel, FormInput, StatusBadge, Alert } from '../../components/ds'
 
 export default function HRPolicies() {
   const { user, can } = useAuth()
@@ -105,35 +106,39 @@ export default function HRPolicies() {
     }
   })()
 
-  return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">HR Policies</h1><p className="page-sub">{policies.length} policies</p></div></div>
+  const cardStyle = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+  const ackVariant = (count) => count === 0 ? 'error' : count < 2 ? 'warning' : 'active'
 
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:14, marginBottom:20 }}>
-        <div className="stat-card"><div className="stat-val">{summary.total}</div><div className="stat-lbl">Policies</div></div>
-        <div className="stat-card"><div className="stat-val">{summary.acknowledged}</div><div className="stat-lbl">{isManager ? 'With reads' : 'Acknowledged'}</div></div>
-        <div className="stat-card"><div className="stat-val">{summary.outstanding}</div><div className="stat-lbl">{isManager ? 'Need attention' : 'Still to read'}</div></div>
+  return (
+    <div className="ds-content">
+      <div className="ds-page-header"><div><h1>HR Policies</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{policies.length} policies</p></div></div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.total}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Policies</div></div>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.acknowledged}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{isManager ? 'With reads' : 'Acknowledged'}</div></div>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.outstanding}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{isManager ? 'Need attention' : 'Still to read'}</div></div>
       </div>
 
       {!isManager && summary.outstanding > 0 && (
-        <div className="card card-pad" style={{ marginBottom:20, borderColor:'var(--amber)', background:'linear-gradient(180deg, var(--card), var(--amber-bg))' }}>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)' }}>Action needed</div>
-          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginTop:6 }}>You still have {summary.outstanding} policy{summary.outstanding === 1 ? '' : 'ies'} to acknowledge.</div>
-          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>Open each policy below, review the PDF, and acknowledge it so your HR record stays current.</div>
+        <div style={{ marginBottom:20 }}>
+          <Alert variant="warning">
+            <div style={{ fontSize:15, fontWeight:600 }}>You still have {summary.outstanding} policy{summary.outstanding === 1 ? '' : 'ies'} to acknowledge.</div>
+            <div style={{ fontSize:13, marginTop:6, lineHeight:1.6 }}>Open each policy below, review the PDF, and acknowledge it so your HR record stays current.</div>
+          </Alert>
         </div>
       )}
 
       {isManager && summary.leastRead.length > 0 && (
-        <div className="card card-pad" style={{ marginBottom:20 }}>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Coverage snapshot</div>
+        <div style={{ ...cardStyle, padding:20, marginBottom:20 }}>
+          <div style={{ fontSize:11, letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:10 }}>Coverage snapshot</div>
           <div style={{ display:'grid', gap:10 }}>
             {summary.leastRead.map(({ policy, count }) => (
-              <div key={policy.id} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+              <div key={policy.id} style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid var(--color-border)' }}>
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{policy.title}</div>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:3 }}>{policy.description || 'No description provided.'}</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>{policy.title}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:3 }}>{policy.description || 'No description provided.'}</div>
                 </div>
-                <span className={`badge badge-${count === 0 ? 'red' : count < 2 ? 'amber' : 'green'}`}>{count} acknowledgements</span>
+                <StatusBadge variant={ackVariant(count)}>{count} acknowledgements</StatusBadge>
               </div>
             ))}
           </div>
@@ -141,11 +146,11 @@ export default function HRPolicies() {
       )}
 
       {isManager && (
-        <div className="card card-pad" style={{ marginBottom:20, maxWidth:480 }}>
-          <div className="lbl" style={{ marginBottom:12 }}>Upload Policy</div>
+        <div style={{ ...cardStyle, padding:20, marginBottom:20, maxWidth:480 }}>
+          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Upload Policy</div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <div><label className="lbl">Title</label><input className="inp" value={form.title} onChange={e=>{ setForm(p=>({...p,title:e.target.value})); if (uploadError) setUploadError('') }} placeholder="e.g. Remote Working Policy"/></div>
-            <div><label className="lbl">Description</label><input className="inp" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Short description..."/></div>
+            <FormField><FormLabel>Title</FormLabel><FormInput value={form.title} onChange={e=>{ setForm(p=>({...p,title:e.target.value})); if (uploadError) setUploadError('') }} placeholder="e.g. Remote Working Policy"/></FormField>
+            <FormField><FormLabel>Description</FormLabel><FormInput value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Short description..."/></FormField>
             <input
               type="file"
               accept=".pdf,application/pdf"
@@ -159,63 +164,63 @@ export default function HRPolicies() {
               }}
             />
             <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-              <button className="btn btn-outline" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
+              <Button variant="secondary" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
                 {selectedFile ? 'Change PDF' : 'Choose PDF'}
-              </button>
-              <button className="btn btn-primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
+              </Button>
+              <Button variant="primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
                 {uploading ? 'Uploading...' : 'Upload PDF'}
-              </button>
+              </Button>
             </div>
-            <div style={{ fontSize:12, color:selectedFile ? 'var(--text)' : 'var(--sub)' }}>
+            <div style={{ fontSize:12, color:selectedFile ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>
               {selectedFile ? `Selected: ${selectedFile.name}` : 'No PDF selected yet.'}
             </div>
-            {uploadError ? <div style={{ fontSize:12, color:'var(--red)' }}>{uploadError}</div> : null}
-            {uploadSuccess ? <div style={{ fontSize:12, color:'var(--green)' }}>{uploadSuccess}</div> : null}
+            {uploadError ? <div style={{ fontSize:12, color:'var(--color-red-500)' }}>{uploadError}</div> : null}
+            {uploadSuccess ? <div style={{ fontSize:12, color:'var(--color-green-500)' }}>{uploadSuccess}</div> : null}
           </div>
         </div>
       )}
 
       {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {policies.length===0 && <div className="empty"><p>No policies uploaded yet</p></div>}
+          {policies.length===0 && <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No policies uploaded yet</div>}
           {policies.map(p => {
             const acknowledged = acks.includes(p.id)
             const ackCount = summary.ackByPolicy[p.id] || 0
             return (
-              <div key={p.id} className="card card-pad" style={{ display:'grid', gap:12 }}>
+              <div key={p.id} style={{ ...cardStyle, padding:20, display:'grid', gap:12 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
                   <div style={{ minWidth:0, flex:1 }}>
-                    <div style={{ fontSize:15, fontWeight:600, marginBottom:4, color:'var(--text)' }}>{p.title}</div>
-                    {p.description && <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.55 }}>{p.description}</div>}
+                    <div style={{ fontSize:15, fontWeight:600, marginBottom:4, color:'var(--color-text-primary)' }}>{p.title}</div>
+                    {p.description && <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.55 }}>{p.description}</div>}
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                    <span className="badge badge-blue">{fileTypeLabel(p.file_path || p.file_url || p.title)}</span>
-                    <span className="badge badge-grey">Uploaded {new Date(p.created_at).toLocaleDateString('en-GB')}</span>
-                    {isManager ? <span className={`badge badge-${ackCount === 0 ? 'red' : ackCount < 2 ? 'amber' : 'green'}`}>{ackCount} acknowledgements</span> : null}
+                    <StatusBadge variant="info">{fileTypeLabel(p.file_path || p.file_url || p.title)}</StatusBadge>
+                    <StatusBadge variant="info">Uploaded {new Date(p.created_at).toLocaleDateString('en-GB')}</StatusBadge>
+                    {isManager ? <StatusBadge variant={ackVariant(ackCount)}>{ackCount} acknowledgements</StatusBadge> : null}
                     {!isManager ? (
                       acknowledged
-                        ? <span className="badge badge-green">Acknowledged</span>
-                        : <span className="badge badge-amber">Needs acknowledgement</span>
+                        ? <StatusBadge variant="active">Acknowledged</StatusBadge>
+                        : <StatusBadge variant="warning">Needs acknowledgement</StatusBadge>
                     ) : null}
                   </div>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--color-border)' }}>
                   <div style={{ display:'grid', gap:4 }}>
-                    <div style={{ fontSize:12, color:'var(--sub)' }}>
-                      Uploaded by <strong style={{ color:'var(--text)', fontWeight:600 }}>{p.uploaded_by || 'Unknown uploader'}</strong>
+                    <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+                      Uploaded by <strong style={{ color:'var(--color-text-primary)', fontWeight:600 }}>{p.uploaded_by || 'Unknown uploader'}</strong>
                     </div>
-                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>
                       {p.file_path || 'Stored in HR documents'}
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap' }}>
-                    <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Open PDF</a>
+                    <Button variant="secondary" onClick={() => window.open(p.file_url, '_blank', 'noreferrer')}>Open PDF</Button>
                   {isManager && (
-                    <button className="btn btn-danger btn-sm" onClick={() => del(p)}>Delete</button>
+                    <Button variant="secondary" style={{ color:'var(--color-red-500)' }} onClick={() => del(p)}>Delete</Button>
                   )}
                   {!isManager && (acknowledged
-                    ? <span className="badge badge-green">✓ Acknowledged</span>
-                    : <button className="btn btn-primary btn-sm" onClick={()=>acknowledge(p.id)}>Acknowledge</button>
+                    ? <StatusBadge variant="active">✓ Acknowledged</StatusBadge>
+                    : <Button variant="primary" onClick={()=>acknowledge(p.id)}>Acknowledge</Button>
                   )}
                 </div>
               </div>

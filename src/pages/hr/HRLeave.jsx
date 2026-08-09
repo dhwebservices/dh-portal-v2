@@ -3,6 +3,7 @@ import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { Modal } from '../../components/Modal'
 import { StaffPicker } from '../../components/StaffPicker'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../../components/ds'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
@@ -206,29 +207,26 @@ export default function HRLeave() {
     load()
   }
 
-  const statusBadge = (s) => {
-    const map = { approved: 'green', rejected: 'red', pending: 'amber' }
-    return <span className={'badge badge-' + (map[s] || 'grey')}>{s}</span>
-  }
+  const statusVariant = (s) => ({ approved: 'active', rejected: 'error', pending: 'warning' }[s] || 'info')
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Leave Requests</h1></div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Request Leave</button>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Leave Requests</h1></div>
+        <Button variant="primary" onClick={openAdd}>+ Request Leave</Button>
       </div>
 
       {!isManager && (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24, maxWidth:400 }}>
-          <div className="stat-card"><div className="stat-val" style={{ color:'var(--green)' }}>25</div><div className="stat-lbl">Annual Days Left</div></div>
-          <div className="stat-card"><div className="stat-val" style={{ color:'var(--amber)' }}>10</div><div className="stat-lbl">Sick Days Left</div></div>
+          <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-green-500)' }}>25</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Annual Days Left</div></div>
+          <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-amber-500)' }}>10</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Sick Days Left</div></div>
         </div>
       )}
 
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> :
-         requests.length === 0 ? <div className="empty"><p>No leave requests</p></div> : (
-          <table className="tbl">
+         requests.length === 0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No leave requests</div> : (
+          <table className="ds-table">
             <thead>
               <tr>
                 {isManager && <th>Staff Member</th>}
@@ -240,9 +238,9 @@ export default function HRLeave() {
               {requests.map(r => (
                 <tr key={r.id}>
                   {isManager && (
-                    <td className="t-main">
+                    <td>
                       <div style={{ fontWeight:500 }}>{r.user_name}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)' }}>{r.user_email}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{r.user_email}</div>
                     </td>
                   )}
                   <td>{r.leave_type}</td>
@@ -250,18 +248,18 @@ export default function HRLeave() {
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{r.end_date}</td>
                   <td>{r.days}</td>
                   <td>
-                    {statusBadge(r.status)}
-                    {r.approved_by && <div style={{ fontSize:11, color:'var(--faint)', marginTop:2 }}>by {r.approved_by}</div>}
+                    <StatusBadge variant={statusVariant(r.status)}>{r.status}</StatusBadge>
+                    {r.approved_by && <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:2 }}>by {r.approved_by}</div>}
                   </td>
                   {isManager && (
                     <td>
                       <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                         {r.status === 'pending' && <>
-                          <button className="btn btn-sm" style={{ background:'var(--green,#22c55e)', color:'#fff', border:'none' }} onClick={() => decide(r, 'approved')}>Approve</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => decide(r, 'rejected')}>Reject</button>
+                          <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => decide(r, 'approved')}>Approve</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => decide(r, 'rejected')}>Reject</Button>
                         </>}
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => deleteLeave(r)}>Delete</button>
+                        <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(r)}>Edit</Button>
+                        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => deleteLeave(r)}>Delete</Button>
                       </div>
                     </td>
                   )}
@@ -277,16 +275,14 @@ export default function HRLeave() {
           title={editing ? 'Edit Leave Request' : (isManager ? 'Request / Book Leave' : 'Request Leave')}
           onClose={() => { setModal(false); setEditing(null) }}
           footer={
-            <><button className="btn btn-outline" onClick={() => { setModal(false); setEditing(null) }}>Cancel</button>
-            <button className="btn btn-primary" onClick={submit} disabled={saving || !form.start_date || !form.end_date}>
+            <><Button variant="secondary" onClick={() => { setModal(false); setEditing(null) }}>Cancel</Button>
+            <Button variant="primary" onClick={submit} disabled={saving || !form.start_date || !form.end_date}>
               {saving ? 'Saving...' : editing ? 'Save Changes' : 'Submit Request'}
-            </button></>
+            </Button></>
           }>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {!editing && isManager && (
-              <div style={{ padding:'10px 14px', background:'var(--blue-bg)', border:'1px solid var(--blue)', borderRadius:7, fontSize:13, color:'var(--blue)' }}>
-                As a manager you can book leave on behalf of a staff member.
-              </div>
+              <Alert variant="info">As a manager you can book leave on behalf of a staff member.</Alert>
             )}
             {!editing && isManager && (
               <StaffPicker label="On behalf of (leave blank for yourself)" value={form.on_behalf_of_email}
@@ -294,28 +290,28 @@ export default function HRLeave() {
                 placeholder="Select staff member or leave blank..."/>
             )}
             {editing && isManager && (
-              <div>
-                <label className="lbl">Status</label>
-                <select className="inp" value={form.status} onChange={e => sf('status', e.target.value)}>
+              <FormField>
+                <FormLabel>Status</FormLabel>
+                <FormSelect value={form.status} onChange={e => sf('status', e.target.value)}>
                   <option value="pending">Pending</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             )}
-            <div>
-              <label className="lbl">Leave Type</label>
-              <select className="inp" value={form.leave_type} onChange={e => sf('leave_type', e.target.value)}>
+            <FormField>
+              <FormLabel>Leave Type</FormLabel>
+              <FormSelect value={form.leave_type} onChange={e => sf('leave_type', e.target.value)}>
                 {TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
+              </FormSelect>
+            </FormField>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>From</FormLabel><FormInput type="date" value={form.start_date} onChange={e => sf('start_date', e.target.value)}/></FormField>
+              <FormField><FormLabel>To</FormLabel><FormInput type="date" value={form.end_date} onChange={e => sf('end_date', e.target.value)}/></FormField>
             </div>
-            <div className="fg">
-              <div><label className="lbl">From</label><input className="inp" type="date" value={form.start_date} onChange={e => sf('start_date', e.target.value)}/></div>
-              <div><label className="lbl">To</label><input className="inp" type="date" value={form.end_date} onChange={e => sf('end_date', e.target.value)}/></div>
-            </div>
-            <div><label className="lbl">Reason (optional)</label><textarea className="inp" rows={3} value={form.reason} onChange={e => sf('reason', e.target.value)} style={{ resize:'vertical' }}/></div>
+            <FormField><FormLabel>Reason (optional)</FormLabel><textarea className="ds-form-input" rows={3} value={form.reason} onChange={e => sf('reason', e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }}/></FormField>
             {editing && isManager && (
-              <div><label className="lbl">Manager Notes</label><textarea className="inp" rows={2} value={form.notes||''} onChange={e => sf('notes', e.target.value)} style={{ resize:'vertical' }} placeholder="Internal notes (not shown to staff)..."/></div>
+              <FormField><FormLabel>Manager Notes</FormLabel><textarea className="ds-form-input" rows={2} value={form.notes||''} onChange={e => sf('notes', e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Internal notes (not shown to staff)..."/></FormField>
             )}
           </div>
         </Modal>

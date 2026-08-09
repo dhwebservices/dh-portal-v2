@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../../components/ds'
 
 export default function HRPayslips() {
   const { user, can } = useAuth()
@@ -98,28 +99,31 @@ export default function HRPayslips() {
     latestUpload: payslips[0]?.uploaded_at,
   }
 
-  return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">Payslips</h1></div></div>
+  const cardStyle = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0,1fr))', gap:14, marginBottom:20 }}>
-        <div className="stat-card"><div className="stat-val">{summary.total}</div><div className="stat-lbl">Payslips stored</div></div>
-        <div className="stat-card"><div className="stat-val">{summary.visible}</div><div className="stat-lbl">Visible in view</div></div>
-        <div className="stat-card"><div className="stat-val">{isManager ? summary.staffCovered : availablePeriods.length}</div><div className="stat-lbl">{isManager ? 'Staff covered' : 'Periods available'}</div></div>
-        <div className="stat-card"><div className="stat-val">{summary.latestUpload ? new Date(summary.latestUpload).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—'}</div><div className="stat-lbl">Latest upload</div></div>
+  return (
+    <div className="ds-content">
+      <div className="ds-page-header"><div><h1>Payslips</h1></div></div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0,1fr))', gap:14, marginBottom:20 }}>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.total}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Payslips stored</div></div>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.visible}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Visible in view</div></div>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{isManager ? summary.staffCovered : availablePeriods.length}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{isManager ? 'Staff covered' : 'Periods available'}</div></div>
+        <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.latestUpload ? new Date(summary.latestUpload).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—'}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Latest upload</div></div>
       </div>
 
       {isManager && (
-        <div className="card card-pad" style={{ marginBottom:20, maxWidth:560 }}>
-          <div className="lbl" style={{ marginBottom:12 }}>Upload Payslip</div>
-          <div className="fg" style={{ marginBottom:12 }}>
-            <div><label className="lbl">Staff Member</label>
-              <select className="inp" value={form.user_email} onChange={e=>{ const s=staff.find(s=>s.email===e.target.value); setForm(p=>({...p,user_email:e.target.value,user_name:s?.name||''})); setUploadError(''); setUploadSuccess('') }}>
+        <div style={{ ...cardStyle, padding:20, marginBottom:20, maxWidth:560 }}>
+          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Upload Payslip</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16, marginBottom:12 }}>
+            <FormField>
+              <FormLabel>Staff Member</FormLabel>
+              <FormSelect value={form.user_email} onChange={e=>{ const s=staff.find(s=>s.email===e.target.value); setForm(p=>({...p,user_email:e.target.value,user_name:s?.name||''})); setUploadError(''); setUploadSuccess('') }}>
                 <option value="">Select staff...</option>
                 {staff.map(s=><option key={s.email} value={s.email}>{s.name}</option>)}
-              </select>
-            </div>
-            <div><label className="lbl">Period</label><input className="inp" value={form.period} onChange={e=>{ setForm(p=>({...p,period:e.target.value})); setUploadError(''); setUploadSuccess('') }} placeholder="e.g. March 2026"/></div>
+              </FormSelect>
+            </FormField>
+            <FormField><FormLabel>Period</FormLabel><FormInput value={form.period} onChange={e=>{ setForm(p=>({...p,period:e.target.value})); setUploadError(''); setUploadSuccess('') }} placeholder="e.g. March 2026"/></FormField>
           </div>
           <input
             type="file"
@@ -134,74 +138,74 @@ export default function HRPayslips() {
             }}
           />
           <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
-            <button className="btn btn-outline" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
+            <Button variant="secondary" type="button" onClick={()=>fileRef.current?.click()} disabled={uploading}>
               {selectedFile ? 'Change PDF' : 'Choose PDF'}
-            </button>
-            <button className="btn btn-primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
+            </Button>
+            <Button variant="primary" type="button" onClick={upload} disabled={uploading || !selectedFile}>
               {uploading?'Uploading...':'Upload PDF'}
-            </button>
+            </Button>
           </div>
-          <div style={{ fontSize:12, color:selectedFile ? 'var(--text)' : 'var(--sub)', marginTop:10 }}>
+          <div style={{ fontSize:12, color:selectedFile ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', marginTop:10 }}>
             {selectedFile ? `Selected: ${selectedFile.name}` : 'No PDF selected yet.'}
           </div>
-          {uploadError ? <div style={{ fontSize:12, color:'var(--red)', marginTop:8 }}>{uploadError}</div> : null}
-          {uploadSuccess ? <div style={{ fontSize:12, color:'var(--green)', marginTop:8 }}>{uploadSuccess}</div> : null}
+          {uploadError ? <div style={{ fontSize:12, color:'var(--color-red-500)', marginTop:8 }}>{uploadError}</div> : null}
+          {uploadSuccess ? <div style={{ fontSize:12, color:'var(--color-green-500)', marginTop:8 }}>{uploadSuccess}</div> : null}
         </div>
       )}
 
-      <div className="card card-pad" style={{ marginBottom:20 }}>
+      <div style={{ ...cardStyle, padding:20, marginBottom:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, flexWrap:'wrap', alignItems:'flex-end' }}>
           <div>
-            <div className="lbl" style={{ marginBottom:6 }}>Library view</div>
-            <div style={{ fontSize:13, color:'var(--sub)' }}>Filter payslips by period and, for admins, by staff member.</div>
+            <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:6 }}>Library view</div>
+            <div style={{ fontSize:13, color:'var(--color-text-secondary)' }}>Filter payslips by period and, for admins, by staff member.</div>
           </div>
-          <div className="fg" style={{ width:'min(560px, 100%)' }}>
-            <div>
-              <label className="lbl">Period</label>
-              <select className="inp" value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16, width:'min(560px, 100%)' }}>
+            <FormField>
+              <FormLabel>Period</FormLabel>
+              <FormSelect value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}>
                 <option value="all">All periods</option>
                 {availablePeriods.map((period) => <option key={period} value={period}>{period}</option>)}
-              </select>
-            </div>
+              </FormSelect>
+            </FormField>
             {isManager ? (
-              <div>
-                <label className="lbl">Staff member</label>
-                <select className="inp" value={staffFilter} onChange={(e) => setStaffFilter(e.target.value)}>
+              <FormField>
+                <FormLabel>Staff member</FormLabel>
+                <FormSelect value={staffFilter} onChange={(e) => setStaffFilter(e.target.value)}>
                   <option value="all">All staff</option>
                   {staff.map((person) => <option key={person.email} value={person.email}>{person.name}</option>)}
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             ) : null}
           </div>
         </div>
       </div>
 
-      <div className="card" style={{ overflow:'hidden' }}>
-        {loading ? <div className="spin-wrap"><div className="spin"/></div> : filteredPayslips.length===0 ? <div className="empty"><p>No payslips match this view yet.</p></div> : (
+      <div style={{ ...cardStyle, overflow:'hidden' }}>
+        {loading ? <div className="spin-wrap"><div className="spin"/></div> : filteredPayslips.length===0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No payslips match this view yet.</div> : (
           <div style={{ display:'grid', gap:12, padding:12 }}>
             {filteredPayslips.map((p) => (
-              <div key={p.id} className="card" style={{ padding:16, display:'grid', gap:12 }}>
+              <div key={p.id} style={{ ...cardStyle, padding:16, display:'grid', gap:12 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
                   <div style={{ minWidth:0, flex:1 }}>
-                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>
                       {isManager ? (p.user_name || p.user_email) : p.period}
                     </div>
-                    <div style={{ fontSize:13, color:'var(--sub)', marginTop:4 }}>
+                    <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:4 }}>
                       {isManager ? `${p.period} payslip` : 'Payroll document ready to open'}
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                    <span className="badge badge-blue">{fileTypeLabel(p.file_path || p.file_url)}</span>
-                    <span className="badge badge-green">Stored</span>
-                    <span className="badge badge-grey">Uploaded {new Date(p.uploaded_at).toLocaleDateString('en-GB')}</span>
+                    <StatusBadge variant="info">{fileTypeLabel(p.file_path || p.file_url)}</StatusBadge>
+                    <StatusBadge variant="active">Stored</StatusBadge>
+                    <StatusBadge variant="info">Uploaded {new Date(p.uploaded_at).toLocaleDateString('en-GB')}</StatusBadge>
                   </div>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--color-border)' }}>
                   <div style={{ display:'grid', gap:4 }}>
-                    {isManager ? <div style={{ fontSize:12, color:'var(--sub)' }}>{p.user_email}</div> : null}
-                    <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{p.file_path || 'Stored in HR documents'}</div>
+                    {isManager ? <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{p.user_email}</div> : null}
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{p.file_path || 'Stored in HR documents'}</div>
                   </div>
-                  <a href={p.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Open payslip</a>
+                  <Button variant="secondary" onClick={() => window.open(p.file_url, '_blank', 'noreferrer')}>Open payslip</Button>
                 </div>
               </div>
             ))}
