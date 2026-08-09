@@ -50,7 +50,6 @@ const Tasks = lazyRetry(() => import('./pages/Tasks'), 'tasks')
 const MyTasks = lazyRetry(() => import('./pages/MyTasks'), 'my-tasks')
 const MyProfile = lazyRetry(() => import('./pages/MyProfile'), 'my-profile')
 const ClientProfile = lazyRetry(() => import('./pages/ClientProfile'), 'client-profile')
-const MyStaff = lazyRetry(() => import('./pages/MyStaff'), 'my-staff')
 const StaffProfile = lazyRetry(() => import('./pages/StaffProfile'), 'staff-profile')
 const PeopleDirectory = lazyRetry(() => import('./pages/People/Directory'), 'people-directory')
 const PeopleStaffProfile = lazyRetry(() => import('./pages/People/StaffProfile'), 'people-staff-profile')
@@ -739,7 +738,10 @@ function PortalLayout() {
               <Route path="/contract-templates" element={<PermissionGate permKey="contract_templates"><ContractTemplates /></PermissionGate>} />
               <Route path="/admin-safeguards" element={<PermissionGate permKey="safeguards"><AdminSafeguards /></PermissionGate>} />
               <Route path="/org-chart"       element={<PermissionGate permKey="org_chart"><OrgChart /></PermissionGate>} />
-              <Route path="/my-staff"        element={<PermissionGate permKey="staff"><MyStaff /></PermissionGate>} />
+              {/* My Staff was merged into the People directory - keep the old
+                  list URL working for existing links, notifications and bookmarks.
+                  The /my-staff/:email deep link still resolves to the staff profile. */}
+              <Route path="/my-staff"        element={<Navigate to="/people" replace />} />
               <Route path="/my-staff/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />
               <Route path="/people"          element={<PermissionGate permKey="staff"><PeopleDirectory /></PermissionGate>} />
               <Route path="/staff-profile/:email" element={<PermissionGate permKey="staff"><StaffProfile /></PermissionGate>} />

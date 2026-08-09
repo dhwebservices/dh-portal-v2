@@ -175,9 +175,9 @@ export function resolveWorkspaceHomeRoute({ workspace = '', preferences = {}, ca
     self_service: [preferredDefault, defaultLandingMap.notifications, { path: '/my-profile', key: 'my_profile' }],
     outreach: [{ path: '/outreach', key: 'outreach' }, defaultLandingMap.notifications, defaultLandingMap.mytasks],
     recruitment: [{ path: '/recruiting', key: 'recruiting_jobs' }, defaultLandingMap.notifications, defaultLandingMap.mytasks],
-    hr: [{ path: '/hr/profiles', key: 'hr_profiles' }, { path: '/hr/onboarding', key: 'hr_onboarding' }, { path: '/my-staff', key: 'staff' }],
+    hr: [{ path: '/hr/profiles', key: 'hr_profiles' }, { path: '/hr/onboarding', key: 'hr_onboarding' }, { path: '/people', key: 'staff' }],
     client_ops: [{ path: '/client-mgmt', key: 'clientmgmt' }, { path: '/clients', key: 'clients' }, { path: '/support', key: 'support' }],
-    manager: [{ path: '/my-department', key: 'my_department' }, { path: '/recruiting', key: 'recruiting_jobs' }, { path: '/my-staff', key: 'staff' }],
+    manager: [{ path: '/my-department', key: 'my_department' }, { path: '/recruiting', key: 'recruiting_jobs' }, { path: '/people', key: 'staff' }],
     director: [{ path: '/dashboard', key: 'dashboard' }, { path: '/reports', key: 'reports' }, { path: '/departments', key: 'departments' }],
     admin: [{ path: '/reports', key: 'reports' }, { path: '/dashboard', key: 'dashboard' }, { path: '/settings', key: 'settings' }],
   }[normalizedWorkspace] || [preferredDefault]
