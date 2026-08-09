@@ -304,8 +304,8 @@ export default function Rotas() {
           )}
 
           {view === 'week' ? (
-            employeeRows.length === 0 && openShifts.length === 0 ? (
-              <div className="card"><div className="empty"><p>No one on the rota yet{isAdmin ? ' — add an employee below to get started' : ''}</p></div></div>
+            !isAdmin && employeeRows.length === 0 && openShifts.length === 0 ? (
+              <div className="card"><div className="empty"><p>No one on the rota yet</p></div></div>
             ) : (
               <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
                 <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>

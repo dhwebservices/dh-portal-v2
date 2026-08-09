@@ -17,6 +17,7 @@ export const ALL_PAGES = [
   {key:'proposals',     label:'Proposal Builder',   group:'Outreach'},
   {key:'mytasks',       label:'My Tasks',           group:'My Work'},
   {key:'schedule',      label:'Schedule',           group:'My Work'},
+  {key:'rota',          label:'Rotas',              group:'Rotas', desc:'Manager-built team shift rota'},
   {key:'appointments',  label:'Appointments',       group:'My Work'},
   {key:'hr_leave',      label:'My Leave',           group:'My Work'},
   {key:'hr_payslips',   label:'My Payslips',        group:'My Work'},
@@ -67,7 +68,7 @@ export const ALL_PAGES = [
   {key:'settings',      label:'Settings',           group:'Admin'},
 ]
 
-export const PERMISSION_GROUPS = ['Home', 'Outreach', 'My Work', 'People', 'Recruiting', 'Websites', 'Support', 'Reports', 'Admin']
+export const PERMISSION_GROUPS = ['Home', 'Outreach', 'My Work', 'Rotas', 'People', 'Recruiting', 'Websites', 'Support', 'Reports', 'Admin']
 
 export const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
