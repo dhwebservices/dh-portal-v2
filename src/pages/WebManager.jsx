@@ -7,6 +7,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { PaymentsHub } from '../components/PaymentsHub'
 import { sendEmail } from '../utils/email'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 const GCLESS_BASE = 'https://api.gocardless.com'
 const PLANS = [
@@ -53,9 +57,9 @@ function paymentTypeLabel(paymentType = '') {
 // ── Sections ──────────────────────────────────────────────────────────
 function NavTab({ label, active, onClick, badge }) {
   return (
-    <button onClick={onClick} style={{ padding:'10px 18px', background: active ? 'var(--card)' : 'transparent', border:'none', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent', fontFamily:'var(--font-body)', fontSize:13, fontWeight: active ? 600 : 400, color: active ? 'var(--text)' : 'var(--sub)', cursor:'pointer', display:'flex', alignItems:'center', gap:6, marginBottom:-1, transition:'all 0.15s', whiteSpace:'nowrap' }}>
+    <button onClick={onClick} style={{ padding:'10px 18px', background: active ? 'var(--color-bg-surface)' : 'transparent', border:'none', borderBottom: active ? '2px solid var(--color-primary)' : '2px solid transparent', fontFamily:'var(--font-body)', fontSize:13, fontWeight: active ? 600 : 400, color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', cursor:'pointer', display:'flex', alignItems:'center', gap:6, marginBottom:-1, transition:'all 0.15s', whiteSpace:'nowrap' }}>
       {label}
-      {badge > 0 && <span style={{ background:'var(--red)', color:'#fff', fontSize:9, fontWeight:700, minWidth:16, height:16, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 4px' }}>{badge}</span>}
+      {badge > 0 && <span style={{ background:'var(--color-red-500)', color:'#fff', fontSize:9, fontWeight:700, minWidth:16, height:16, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 4px' }}>{badge}</span>}
     </button>
   )
 }
@@ -247,19 +251,19 @@ function ClientProfile({ client, onBack }) {
   }
 
   return (
-    <div className="fade-in">
+    <div className="ds-content">
       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24 }}>
-        <button onClick={onBack} style={{ background:'none', border:'1px solid var(--border)', borderRadius:7, padding:'7px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>← Clients</button>
+        <button onClick={onBack} style={{ background:'none', border:'1px solid var(--color-border)', borderRadius:7, padding:'7px 14px', cursor:'pointer', color:'var(--color-text-secondary)', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>← Clients</button>
         <div>
-          <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:600, letterSpacing:'-0.02em', lineHeight:1 }}>{client.name}</h1>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', marginTop:4, letterSpacing:'0.08em' }}>{client.email} · {client.plan}</div>
+          <h1 style={{ fontSize:28, fontWeight:600, letterSpacing:'-0.02em', lineHeight:1 }}>{client.name}</h1>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)', marginTop:4, letterSpacing:'0.08em' }}>{client.email} · {client.plan}</div>
         </div>
         <div style={{ marginLeft:'auto' }}>
-          <span className={'badge badge-'+(client.status==='active'?'green':'grey')}>{client.status}</span>
+          <StatusBadge variant={TONE_TO_VARIANT[client.status==='active'?'green':'grey'] || 'info'}>{client.status}</StatusBadge>
         </div>
       </div>
 
-      <div style={{ display:'flex', borderBottom:'1px solid var(--border)', marginBottom:24 }}>
+      <div style={{ display:'flex', borderBottom:'1px solid var(--color-border)', marginBottom:24 }}>
         {[['overview','Overview'],['editor','Edit Website'],['invoices','Invoices'],['payments','Payments']].map(([k,l]) => (
           <NavTab key={k} label={l} active={tab===k} onClick={()=>setTab(k)} badge={k==='invoices' ? invoices.filter(i=>i.status==='unpaid').length : 0}/>
         ))}
@@ -267,57 +271,57 @@ function ClientProfile({ client, onBack }) {
 
       {tab==='overview' && (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
-          <div className="card card-pad">
-            <div className="lbl" style={{ marginBottom:14 }}>Client Details</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div className="ds-form-label" style={{ display:'block', marginBottom:14 }}>Client Details</div>
             {[['Name',client.name],['Email',client.email],['Phone',client.phone||'—'],['Plan',client.plan],['Status',client.status],['Value',client.value?'£'+Number(client.value).toLocaleString():'—']].map(([k,v]) => (
-              <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'7px 0', borderBottom:'1px solid var(--border)' }}>
-                <span style={{ color:'var(--faint)', fontFamily:'var(--font-mono)', fontSize:10, textTransform:'uppercase', letterSpacing:'0.08em' }}>{k}</span>
+              <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'7px 0', borderBottom:'1px solid var(--color-border)' }}>
+                <span style={{ color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', fontSize:10, textTransform:'uppercase', letterSpacing:'0.08em' }}>{k}</span>
                 <span style={{ fontWeight:500 }}>{v}</span>
               </div>
             ))}
           </div>
-          <div className="card card-pad">
-            <div className="lbl" style={{ marginBottom:14 }}>GoCardless</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div className="ds-form-label" style={{ display:'block', marginBottom:14 }}>GoCardless</div>
             {gcStatus?.status === 'active' ? (
               <div>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <span style={{ width:8,height:8,borderRadius:'50%',background:'var(--green)',display:'inline-block' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color:'var(--green)' }}>Mandate Active</span>
+                  <span style={{ width:8,height:8,borderRadius:'50%',background:'var(--color-green-500)',display:'inline-block' }}/>
+                  <span style={{ fontSize:13, fontWeight:500, color:'var(--color-green-500)' }}>Mandate Active</span>
                 </div>
-                <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{gcStatus.mandate_id}</div>
+                <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{gcStatus.mandate_id}</div>
               </div>
             ) : gcStatus ? (
               <div>
-                <p style={{ fontSize:13, color:'var(--sub)', marginBottom:14, lineHeight:1.6 }}>The client still needs to complete the secure GoCardless authorisation page before the mandate becomes active.</p>
-                {gcError && <div style={{ fontSize:12, color:'var(--red)', marginBottom:8 }}>{gcError}</div>}
-                {gcSuccess && <div style={{ fontSize:12, color:'var(--green)', marginBottom:8 }}>✓ {gcSuccess}</div>}
-                <div style={{ fontSize:12, color:'var(--amber)' }}>Pending authorisation</div>
+                <p style={{ fontSize:13, color:'var(--color-text-secondary)', marginBottom:14, lineHeight:1.6 }}>The client still needs to complete the secure GoCardless authorisation page before the mandate becomes active.</p>
+                {gcError && <div style={{ fontSize:12, color:'var(--color-red-500)', marginBottom:8 }}>{gcError}</div>}
+                {gcSuccess && <div style={{ fontSize:12, color:'var(--color-green-500)', marginBottom:8 }}>✓ {gcSuccess}</div>}
+                <div style={{ fontSize:12, color:'var(--color-amber-500)' }}>Pending authorisation</div>
               </div>
             ) : (
               <div>
-                <p style={{ fontSize:13, color:'var(--sub)', marginBottom:14, lineHeight:1.6 }}>Set up Direct Debit mandate for automated monthly payments via GoCardless.</p>
-                {gcError && <div style={{ fontSize:12, color:'var(--red)', marginBottom:8 }}>{gcError}</div>}
-                {gcSuccess && <div style={{ fontSize:12, color:'var(--green)', marginBottom:8 }}>✓ {gcSuccess}</div>}
-                <button className="btn btn-primary btn-sm" onClick={setupGoCardless} disabled={saving}>{saving?'Opening...':'Set Up Direct Debit'}</button>
+                <p style={{ fontSize:13, color:'var(--color-text-secondary)', marginBottom:14, lineHeight:1.6 }}>Set up Direct Debit mandate for automated monthly payments via GoCardless.</p>
+                {gcError && <div style={{ fontSize:12, color:'var(--color-red-500)', marginBottom:8 }}>{gcError}</div>}
+                {gcSuccess && <div style={{ fontSize:12, color:'var(--color-green-500)', marginBottom:8 }}>✓ {gcSuccess}</div>}
+                <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={setupGoCardless} disabled={saving}>{saving?'Opening...':'Set Up Direct Debit'}</Button>
               </div>
             )}
-            <div className="lbl" style={{ marginTop:20, marginBottom:10 }}>Quick Actions</div>
+            <div className="ds-form-label" style={{ display:'block', marginTop:20, marginBottom:10 }}>Quick Actions</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={()=>{ setTab('invoices'); setModal('invoice') }}>+ Create Invoice</button>
-              <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={()=>setTab('editor')}>✎ Edit Their Website</button>
+              <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={()=>{ setTab('invoices'); setModal('invoice') }}>+ Create Invoice</Button>
+              <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={()=>setTab('editor')}>✎ Edit Their Website</Button>
             </div>
           </div>
         </div>
       )}
 
       {tab==='editor' && (
-        <div className="card" style={{ overflow:'hidden' }}>
-          <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ ...DS_CARD, overflow:'hidden' }}>
+          <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div>
               <div style={{ fontWeight:600, fontSize:14 }}>Website Editor — {client.name}</div>
-              <div style={{ fontSize:12, color:'var(--faint)', marginTop:2 }}>Visual editor for client's site</div>
+              <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:2 }}>Visual editor for client's site</div>
             </div>
-            {client.website_url && <a href={client.website_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Preview Site ↗</a>}
+            {client.website_url && <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => window.open(client.website_url, '_blank', 'noreferrer')}>Preview Site ↗</Button>}
           </div>
           {client.website_url ? (
             <SiteEditor url={client.website_url} title={client.name}/>
@@ -333,21 +337,21 @@ function ClientProfile({ client, onBack }) {
       {tab==='invoices' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-            <button className="btn btn-primary" onClick={()=>setModal('invoice')}>+ Create Invoice</button>
+            <Button variant="primary" onClick={()=>setModal('invoice')}>+ Create Invoice</Button>
           </div>
-          <div className="card" style={{ overflow:'hidden' }}>
-            {loadingInv ? <div className="spin-wrap"><div className="spin"/></div> : invoices.length===0 ? <div className="empty"><p>No invoices yet</p></div> : (
-              <table className="tbl">
+          <div style={{ ...DS_CARD, overflow:'hidden' }}>
+            {loadingInv ? <div className="spin-wrap"><div className="spin"/></div> : invoices.length===0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No invoices yet</div> : (
+              <table className="ds-table">
                 <thead><tr><th>Invoice #</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {invoices.map(inv => (
                     <tr key={inv.id}>
-                      <td className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
+                      <td style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
                       <td>{inv.description}</td>
                       <td>£{Number(inv.amount||0).toLocaleString()}</td>
                       <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{inv.due_date||'—'}</td>
-                      <td><span className={'badge badge-'+(inv.status==='paid'?'green':'amber')}>{inv.status}</span></td>
-                      <td>{inv.status==='unpaid' && <button className="btn btn-ghost btn-sm" onClick={()=>markPaid(inv.id)}>Mark Paid</button>}</td>
+                      <td><StatusBadge variant={TONE_TO_VARIANT[inv.status==='paid'?'green':'amber'] || 'info'}>{inv.status}</StatusBadge></td>
+                      <td>{inv.status==='unpaid' && <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={()=>markPaid(inv.id)}>Mark Paid</Button>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -362,31 +366,31 @@ function ClientProfile({ client, onBack }) {
       )}
 
       {modal==='invoice' && (
-        <Modal title="Create Invoice" onClose={()=>setModal(null)} footer={<><button className="btn btn-outline" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-primary" onClick={createInvoice} disabled={saving}>{saving?'Saving...':'Create Invoice'}</button></>}>
+        <Modal title="Create Invoice" onClose={()=>setModal(null)} footer={<><Button variant="secondary" onClick={()=>setModal(null)}>Cancel</Button><Button variant="primary" onClick={createInvoice} disabled={saving}>{saving?'Saving...':'Create Invoice'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="fg">
-              <div><label className="lbl">Invoice #</label><input className="inp" value={invForm.invoice_number} onChange={e=>sf('invoice_number',e.target.value)} placeholder="INV-001"/></div>
-              <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={invForm.amount} onChange={e=>sf('amount',e.target.value)}/></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Invoice #</FormLabel><FormInput value={invForm.invoice_number} onChange={e=>sf('invoice_number',e.target.value)} placeholder="INV-001"/></FormField>
+              <FormField><FormLabel>Amount (£)</FormLabel><FormInput type="number" value={invForm.amount} onChange={e=>sf('amount',e.target.value)}/></FormField>
             </div>
-            <div><label className="lbl">Description</label><input className="inp" value={invForm.description} onChange={e=>sf('description',e.target.value)} placeholder="Web Design — March 2026"/></div>
-            <div><label className="lbl">Payment Type</label>
+            <FormField><FormLabel>Description</FormLabel><FormInput value={invForm.description} onChange={e=>sf('description',e.target.value)} placeholder="Web Design — March 2026"/></FormField>
+            <FormField><FormLabel>Payment Type</FormLabel>
               <div style={{ display:'flex', gap:8, marginTop:6 }}>
                 {[['one_off','One-off Payment'],['monthly','Monthly Plan']].map(([v,l]) => (
-                  <button key={v} onClick={()=>sf('payment_type',v)} style={{ flex:1, padding:'10px', borderRadius:7, border:`2px solid ${invForm.payment_type===v?'var(--accent)':'var(--border)'}`, background: invForm.payment_type===v ? 'var(--accent-soft)' : 'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color: invForm.payment_type===v ? 'var(--accent)' : 'var(--sub)', transition:'all 0.15s' }}>{l}</button>
+                  <button key={v} onClick={()=>sf('payment_type',v)} style={{ flex:1, padding:'10px', borderRadius:7, border:`2px solid ${invForm.payment_type===v?'var(--color-primary)':'var(--color-border)'}`, background: invForm.payment_type===v ? 'var(--color-blue-50)' : 'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color: invForm.payment_type===v ? 'var(--color-primary)' : 'var(--color-text-secondary)', transition:'all 0.15s' }}>{l}</button>
                 ))}
               </div>
-            </div>
+            </FormField>
             {invForm.payment_type==='monthly' && (
-              <div>
-                <label className="lbl">Select Plan</label>
-                <select className="inp" value={invForm.plan_id} onChange={e=>{ const plan=PLANS.find(p=>p.id===e.target.value); sf('plan_id',e.target.value); if(plan?.monthly) sf('amount',plan.monthly) }}>
+              <FormField>
+                <FormLabel>Select Plan</FormLabel>
+                <FormSelect value={invForm.plan_id} onChange={e=>{ const plan=PLANS.find(p=>p.id===e.target.value); sf('plan_id',e.target.value); if(plan?.monthly) sf('amount',plan.monthly) }}>
                   <option value="">— Select plan —</option>
                   {PLANS.filter(p=>p.monthly).map(p=><option key={p.id} value={p.id}>{p.name} — £{p.monthly}/mo</option>)}
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             )}
-            <div><label className="lbl">Due Date</label><input className="inp" type="date" value={invForm.due_date} onChange={e=>sf('due_date',e.target.value)}/></div>
-            {invForm.payment_type==='monthly' && <div style={{ padding:'10px 14px', background:'var(--blue-bg)', border:'1px solid var(--blue)', borderRadius:7, fontSize:13, color:'var(--blue)' }}>Monthly payments will be collected automatically via GoCardless Direct Debit once a mandate is active for this client.</div>}
+            <FormField><FormLabel>Due Date</FormLabel><FormInput type="date" value={invForm.due_date} onChange={e=>sf('due_date',e.target.value)}/></FormField>
+            {invForm.payment_type==='monthly' && <div style={{ padding:'10px 14px', background:'var(--color-blue-50)', border:'1px solid var(--color-blue-500)', borderRadius:7, fontSize:13, color:'var(--color-blue-500)' }}>Monthly payments will be collected automatically via GoCardless Direct Debit once a mandate is active for this client.</div>}
           </div>
         </Modal>
       )}
@@ -425,18 +429,18 @@ export default function WebManager() {
     <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center' }}>
         <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
-        <h2 style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:600, marginBottom:8 }}>Access Restricted</h2>
-        <p style={{ color:'var(--sub)', marginBottom:20 }}>You need permission to access Web Manager.</p>
-        <button onClick={() => navigate('/')} className="btn btn-outline">← Go Back</button>
+        <h2 style={{ fontSize:26, fontWeight:600, marginBottom:8 }}>Access Restricted</h2>
+        <p style={{ color:'var(--color-text-secondary)', marginBottom:20 }}>You need permission to access Web Manager.</p>
+        <Button onClick={() => navigate('/')} variant="secondary">← Go Back</Button>
       </div>
     </div>
   )
 
   if (selected) return (
     <div style={{ minHeight:'100vh', background:'var(--bg)' }}>
-      <div style={{ background:'var(--card)', borderBottom:'1px solid var(--border)', padding:'0 32px', display:'flex', alignItems:'center', gap:0 }}>
-        <button onClick={() => navigate('/')} style={{ padding:'16px 16px 16px 0', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, color:'var(--text)' }}>DH <span style={{ color:'var(--accent)' }}>Web</span></button>
-        <div style={{ width:1, height:24, background:'var(--border)', margin:'0 16px' }}/>
+      <div style={{ background:'var(--color-bg-surface)', borderBottom:'1px solid var(--color-border)', padding:'0 32px', display:'flex', alignItems:'center', gap:0 }}>
+        <button onClick={() => navigate('/')} style={{ padding:'16px 16px 16px 0', background:'none', border:'none', cursor:'pointer', fontSize:20, fontWeight:700, color:'var(--color-text-primary)' }}>DH <span style={{ color:'var(--color-primary)' }}>Web</span></button>
+        <div style={{ width:1, height:24, background:'var(--color-border)', margin:'0 16px' }}/>
         <div style={{ display:'flex', borderBottom:'none' }}>
           {[['clients','Clients'],['publicsite','Our Public Site']].map(([k,l]) => canEditPublicSite || k!=='publicsite' ? <NavTab key={k} label={l} active={section===k} onClick={()=>{ setSelected(null); setSection(k) }}/> : null)}
         </div>
@@ -450,54 +454,54 @@ export default function WebManager() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)' }}>
       {/* Web Manager header nav */}
-      <div style={{ background:'var(--card)', borderBottom:'1px solid var(--border)', padding:'0 32px', display:'flex', alignItems:'center' }}>
-        <button onClick={() => navigate('/')} style={{ padding:'16px 16px 16px 0', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, color:'var(--text)', flexShrink:0 }}>DH <span style={{ color:'var(--accent)' }}>Web</span></button>
-        <div style={{ width:1, height:24, background:'var(--border)', margin:'0 16px', flexShrink:0 }}/>
+      <div style={{ background:'var(--color-bg-surface)', borderBottom:'1px solid var(--color-border)', padding:'0 32px', display:'flex', alignItems:'center' }}>
+        <button onClick={() => navigate('/')} style={{ padding:'16px 16px 16px 0', background:'none', border:'none', cursor:'pointer', fontSize:20, fontWeight:700, color:'var(--color-text-primary)', flexShrink:0 }}>DH <span style={{ color:'var(--color-primary)' }}>Web</span></button>
+        <div style={{ width:1, height:24, background:'var(--color-border)', margin:'0 16px', flexShrink:0 }}/>
         <div style={{ display:'flex', flex:1 }}>
           <NavTab label="Client Sites" active={section==='clients'} onClick={()=>setSection('clients')}/>
           {canEditPublicSite && <NavTab label="Our Public Site" active={section==='publicsite'} onClick={()=>setSection('publicsite')}/>}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0' }}>
-          <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+          <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--color-blue-50)', border:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
             <img src="/dh-logo-icon.png" alt="DH avatar" style={{ width:18, height:18, objectFit:'contain' }} />
           </div>
-          <span style={{ fontSize:12, color:'var(--sub)' }}>{user?.name}</span>
+          <span style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{user?.name}</span>
         </div>
       </div>
 
       <div style={{ padding:'28px 32px' }}>
         {section==='publicsite' && canEditPublicSite ? <PublicSiteEditor/> : (
-          <div className="fade-in">
+          <div className="ds-content">
             <div style={{ marginBottom:24 }}>
-              <h1 style={{ fontFamily:'var(--font-display)', fontSize:34, fontWeight:600, letterSpacing:'-0.02em' }}>Client Sites</h1>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', marginTop:6, letterSpacing:'0.1em', textTransform:'uppercase' }}>{clients.length} active clients</p>
+              <h1 style={{ fontSize:34, fontWeight:600, letterSpacing:'-0.02em' }}>Client Sites</h1>
+              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)', marginTop:6, letterSpacing:'0.1em', textTransform:'uppercase' }}>{clients.length} active clients</p>
             </div>
 
             <div style={{ position:'relative', maxWidth:400, marginBottom:24 }}>
-              <input className="inp" style={{ paddingLeft:34 }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
-              <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <FormInput style={{ paddingLeft:34, width:'100%' }} placeholder="Search clients..." value={search} onChange={e=>setSearch(e.target.value)}/>
+              <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--color-text-tertiary)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
 
             {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
                 {clients.filter(c=>{ const q=search.toLowerCase(); return !q||c.name?.toLowerCase().includes(q)||c.email?.toLowerCase().includes(q) }).map(client => (
-                  <button key={client.id} onClick={()=>setSelected(client)} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px', textAlign:'left', cursor:'pointer', transition:'all 0.18s' }}
-                    onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(184,150,12,0.1)' }}
-                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
+                  <button key={client.id} onClick={()=>setSelected(client)} style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:12, padding:'20px', textAlign:'left', cursor:'pointer', transition:'all 0.18s' }}
+                    onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--color-primary)'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(184,150,12,0.1)' }}
+                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--color-border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
                   >
-                    <div style={{ width:44, height:44, borderRadius:10, background:'var(--blue-bg)', border:'1px solid rgba(26,86,219,0.15)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14, fontSize:18, fontWeight:700, fontFamily:'var(--font-display)', color:'var(--blue)' }}>
+                    <div style={{ width:44, height:44, borderRadius:10, background:'var(--color-blue-50)', border:'1px solid rgba(26,86,219,0.15)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14, fontSize:18, fontWeight:700, color:'var(--color-blue-500)' }}>
                       {client.name?.[0]?.toUpperCase()}
                     </div>
                     <div style={{ fontSize:15, fontWeight:600, marginBottom:4 }}>{client.name}</div>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', marginBottom:10 }}>{client.email}</div>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)', marginBottom:10 }}>{client.email}</div>
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                      <span className="badge badge-blue">{client.plan}</span>
-                      <span className={'badge badge-'+(client.status==='active'?'green':'grey')}>{client.status}</span>
-                      {client.deployment_status && <span className="badge badge-amber">{client.deployment_status?.replace('_',' ')}</span>}
+                      <StatusBadge variant="info">{client.plan}</StatusBadge>
+                      <StatusBadge variant={TONE_TO_VARIANT[client.status==='active'?'green':'grey'] || 'info'}>{client.status}</StatusBadge>
+                      {client.deployment_status && <StatusBadge variant="warning">{client.deployment_status?.replace('_',' ')}</StatusBadge>}
                     </div>
                   </button>
                 ))}
-                {clients.length===0 && <div className="empty"><p>No active clients yet.<br/>Add clients in the HR Portal first.</p></div>}
+                {clients.length===0 && <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No active clients yet.<br/>Add clients in the HR Portal first.</div>}
               </div>
             )}
           </div>

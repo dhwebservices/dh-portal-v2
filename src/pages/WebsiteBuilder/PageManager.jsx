@@ -4,6 +4,7 @@ import { Plus, Globe, Edit, Eye, FileText, Layout, Sparkles, Search, Filter } fr
 import { SectionPanel, EmptyState } from '../../components/ui'
 import { supabase } from '../../utils/supabase'
 import NewPageModal from '../../components/website-builder/NewPageModal'
+import { Button } from '../../components/ds'
 
 export default function PageManager() {
   const navigate = useNavigate()
@@ -56,21 +57,21 @@ export default function PageManager() {
   }
 
   return (
-    <div className="page-layout">
-      <div className="page-header">
-        <div className="page-header-content">
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div className="page-header-icon">
             <Globe size={20} />
           </div>
           <div>
-            <h1 className="page-title">Website Builder</h1>
-            <div className="page-subtitle">Create and manage website pages visually</div>
+            <h1>Website Builder</h1>
+            <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Create and manage website pages visually</p>
           </div>
         </div>
-        <button className="btn btn-primary" onClick={handleNewPage}>
+        <Button variant="primary" onClick={handleNewPage}>
           <Plus size={16} />
           New Page
-        </button>
+        </Button>
       </div>
 
       <div className="page-body">
@@ -81,11 +82,11 @@ export default function PageManager() {
             <div className="stat-label">Total Pages</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: 'var(--green)' }}>{stats.published}</div>
+            <div className="stat-value" style={{ color: 'var(--color-green-500)' }}>{stats.published}</div>
             <div className="stat-label">Published</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: 'var(--amber)' }}>{stats.draft}</div>
+            <div className="stat-value" style={{ color: 'var(--color-amber-500)' }}>{stats.draft}</div>
             <div className="stat-label">Drafts</div>
           </div>
         </div>
@@ -207,8 +208,9 @@ function PageCard({ page, onRefresh }) {
             Updated {formatDate(page.updated_at)}
           </div>
           <div className="page-card-actions">
-            <button
-              className="btn btn-ghost btn-xs"
+            <Button
+              variant="ghost"
+              style={{ height: 28, fontSize: 12, padding: '0 8px' }}
               onClick={(e) => {
                 e.stopPropagation()
                 navigate(`/website-builder/edit/${page.id}`)
@@ -216,10 +218,11 @@ function PageCard({ page, onRefresh }) {
             >
               <Edit size={12} />
               Edit
-            </button>
+            </Button>
             {page.status === 'published' && (
-              <button
-                className="btn btn-ghost btn-xs"
+              <Button
+                variant="ghost"
+                style={{ height: 28, fontSize: 12, padding: '0 8px' }}
                 onClick={(e) => {
                   e.stopPropagation()
                   window.open(`/${page.slug}`, '_blank')
@@ -227,7 +230,7 @@ function PageCard({ page, onRefresh }) {
               >
                 <Eye size={12} />
                 View
-              </button>
+              </Button>
             )}
           </div>
         </div>

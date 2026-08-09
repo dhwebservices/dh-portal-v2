@@ -9,6 +9,9 @@ import AssetManager from '../../components/website-builder/AssetManager'
 import { deployPage, previewPage } from '../../utils/website-deploy'
 import 'grapesjs/dist/css/grapes.min.css'
 import '../../styles/website-builder/editor.css'
+import { Button } from '../../components/ds'
+
+const DS_BTN_SM = { height: 28, fontSize: 12, padding: '0 8px' }
 
 export default function Editor() {
   const { pageId } = useParams()
@@ -236,10 +239,10 @@ export default function Editor() {
         {/* Editor Toolbar */}
         <div className="editor-toolbar">
           <div className="editor-toolbar-section">
-            <button className="btn btn-sm btn-ghost" onClick={handleBack}>
+            <Button variant="ghost" style={DS_BTN_SM} onClick={handleBack}>
               <ArrowLeft size={16} />
               Back
-            </button>
+            </Button>
 
             <div className="editor-divider" />
 
@@ -288,42 +291,45 @@ export default function Editor() {
           </div>
 
           <div className="editor-toolbar-section">
-            <button
-              className="btn btn-sm btn-ghost"
+            <Button
+              variant="ghost"
+              style={DS_BTN_SM}
               onClick={handlePreview}
               disabled={previewing || !isReady}
             >
               <Eye size={16} />
               {previewing ? 'Opening...' : 'Preview'}
-            </button>
+            </Button>
 
-            <button
-              className="btn btn-sm btn-ghost"
+            <Button
+              variant="ghost"
+              style={DS_BTN_SM}
               onClick={handleManualSave}
               disabled={saving}
             >
               <Save size={16} />
               {saving ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
 
-            <button
-              className="btn btn-sm btn-primary"
+            <Button
+              variant="primary"
               onClick={handlePublish}
               disabled={publishing || !isReady || !page}
-              style={{ background: publishing ? 'var(--green)' : undefined }}
+              style={{ ...DS_BTN_SM, background: publishing ? 'var(--color-green-500)' : undefined }}
             >
               <Globe size={16} />
               {publishing ? 'Publishing...' : page?.status === 'published' ? 'Republish' : 'Publish'}
-            </button>
+            </Button>
 
             {deployedUrl && (
-              <button
-                className="btn btn-sm btn-ghost"
+              <Button
+                variant="ghost"
+                style={DS_BTN_SM}
                 onClick={() => window.open(deployedUrl, '_blank')}
                 title="View live site"
               >
                 <ExternalLink size={16} />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -343,24 +349,24 @@ export default function Editor() {
             <div className="editor-sidebar-section">
               <div className="editor-sidebar-header">
                 <span>Assets</span>
-                <button
-                  className="btn btn-xs btn-ghost"
+                <Button
+                  variant="ghost"
                   onClick={() => setShowAssetManager(true)}
-                  style={{ padding: '4px 8px' }}
+                  style={{ ...DS_BTN_SM, padding: '4px 8px' }}
                 >
                   <ImageIcon size={12} />
                   Manage
-                </button>
+                </Button>
               </div>
               <div className="editor-sidebar-content">
-                <button
-                  className="btn btn-sm"
+                <Button
+                  variant="secondary"
                   onClick={() => setShowAssetManager(true)}
-                  style={{ width: '100%', justifyContent: 'center' }}
+                  style={{ ...DS_BTN_SM, width: '100%', justifyContent: 'center' }}
                 >
                   <Upload size={14} />
                   Upload Assets
-                </button>
+                </Button>
               </div>
             </div>
             <div className="editor-sidebar-section" style={{ flex: 1, minHeight: 0 }}>

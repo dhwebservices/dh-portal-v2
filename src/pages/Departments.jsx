@@ -15,6 +15,10 @@ import {
   mergeOrgRecord,
 } from '../utils/orgStructure'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -95,15 +99,15 @@ async function notifyDepartmentRemoval({ staffRow, previousDepartment, sentBy })
   }).catch(() => {})
 }
 
-function Metric({ icon: Icon, label, value, hint, accent = 'var(--accent)' }) {
+function Metric({ icon: Icon, label, value, hint, accent = 'var(--color-primary)' }) {
   return (
-    <div className="stat-card">
+    <div style={{ ...DS_CARD, padding: 20 }}>
       <div style={{ width: 42, height: 42, borderRadius: 12, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
         <Icon size={18} color={accent} />
       </div>
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sub)', lineHeight: 1.5 }}>{hint}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{label}</div>
+      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{hint}</div>
     </div>
   )
 }
@@ -582,9 +586,9 @@ export default function Departments() {
 
   if (!isDirector) {
     return (
-      <div className="card card-pad" style={{ maxWidth: 620 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text)' }}>Director-only departments</div>
-        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
+      <div style={{ ...DS_CARD, padding: 20, maxWidth: 620 }}>
+        <div style={{ fontSize: 24, color: 'var(--color-text-primary)' }}>Director-only departments</div>
+        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
           Department creation, approval, and company-wide moves are restricted to the Director role.
         </div>
       </div>
@@ -592,73 +596,71 @@ export default function Departments() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Departments</h1>
-          <p className="page-sub">Director control centre for departments, manager assignments, and approval requests.</p>
+          <h1>Departments</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Director control centre for departments, manager assignments, and approval requests.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-outline" onClick={() => navigate('/recruiting')}>Open Hiring</button>
-          <button className="btn btn-primary" onClick={() => navigate('/recruiting/jobs/new')}>Post job</button>
+          <Button variant="secondary" onClick={() => navigate('/recruiting')}>Open Hiring</Button>
+          <Button variant="primary" onClick={() => navigate('/recruiting/jobs/new')}>Post job</Button>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', background: 'var(--amber-bg)', border: '1px solid var(--amber)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', marginBottom: 16 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--color-amber-50)', border: '1px solid var(--color-amber-500)', borderRadius: 10, fontSize: 13, color: 'var(--color-amber-500)', marginBottom: 16 }}>
           {error}
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <Metric icon={Building2} label="Departments" value={catalog.filter((row) => row.active !== false).length} hint="Active company departments" />
-        <Metric icon={Users} label="Assigned staff" value={profiles.filter((row) => row.department).length} hint="People already placed into a department" accent="var(--green)" />
-        <Metric icon={FolderPlus} label="Unassigned users" value={unassigned.length} hint="Microsoft users waiting for org placement" accent="var(--amber)" />
-        <Metric icon={CheckCircle2} label="Pending approvals" value={pendingRequests.length} hint="Department requests awaiting Director action" accent="var(--red)" />
+        <Metric icon={Users} label="Assigned staff" value={profiles.filter((row) => row.department).length} hint="People already placed into a department" accent="var(--color-green-500)" />
+        <Metric icon={FolderPlus} label="Unassigned users" value={unassigned.length} hint="Microsoft users waiting for org placement" accent="var(--color-amber-500)" />
+        <Metric icon={CheckCircle2} label="Pending approvals" value={pendingRequests.length} hint="Department requests awaiting Director action" accent="var(--color-red-500)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(360px,0.9fr)', gap: 18 }} className="staff-profile-main-grid">
         <div style={{ display: 'grid', gap: 18 }}>
-          <div className="card card-pad">
+          <div style={{ ...DS_CARD, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department catalogue</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Create and manage departments</div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Department catalogue</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>Create and manage departments</div>
               </div>
               <div style={{ display: 'flex', gap: 8, width: 'min(420px,100%)' }}>
-                <input className="inp" value={newDepartment} onChange={(e) => setNewDepartment(e.target.value)} placeholder="New department name" />
-                <button className="btn btn-primary" onClick={addDepartment} disabled={savingKey === 'new-department'}>{savingKey === 'new-department' ? 'Adding...' : 'Add'}</button>
+                <FormInput value={newDepartment} onChange={(e) => setNewDepartment(e.target.value)} placeholder="New department name" />
+                <Button variant="primary" onClick={addDepartment} disabled={savingKey === 'new-department'}>{savingKey === 'new-department' ? 'Adding...' : 'Add'}</Button>
               </div>
             </div>
 
             <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
               {departmentCounts.map((department) => (
-                <div key={department.id} style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 14, background: 'var(--bg2)' }}>
+                <div key={department.id} style={{ border: '1px solid var(--color-border)', borderRadius: 14, padding: 14, background: 'var(--color-gray-50)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{department.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{department.count} staff assigned</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{department.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{department.count} staff assigned</div>
                     </div>
-                    <span className={`badge badge-${department.active !== false ? 'green' : 'grey'}`}>{department.active !== false ? 'Active' : 'Archived'}</span>
+                    <StatusBadge variant={TONE_TO_VARIANT[department.active !== false ? 'green' : 'grey'] || 'info'}>{department.active !== false ? 'Active' : 'Archived'}</StatusBadge>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, marginTop: 14, alignItems: 'end' }}>
-                    <div>
-                      <label className="lbl">Department name</label>
+                    <FormField>
+                      <FormLabel>Department name</FormLabel>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <input
-                          className="inp"
+                        <FormInput
                           value={renameMap[department.id] ?? department.name}
                           onChange={(e) => setRenameMap((current) => ({ ...current, [department.id]: e.target.value }))}
                         />
-                        <button className="btn btn-outline btn-sm" onClick={() => renameDepartment(department)} disabled={savingKey === `rename:${department.id}`}>
+                        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => renameDepartment(department)} disabled={savingKey === `rename:${department.id}`}>
                           {savingKey === `rename:${department.id}` ? 'Saving...' : 'Rename'}
-                        </button>
+                        </Button>
                       </div>
-                    </div>
-                    <div>
-                      <label className="lbl">Department Manager</label>
-                      <select
-                        className="inp"
+                    </FormField>
+                    <FormField>
+                      <FormLabel>Department Manager</FormLabel>
+                      <FormSelect
                         value={department.manager_email || ''}
                         onChange={(e) => {
                           const match = profiles.find((row) => row.user_email === e.target.value)
@@ -670,94 +672,96 @@ export default function Departments() {
                       >
                         <option value="">— No department manager —</option>
                         {profiles.map((row) => <option key={row.user_email} value={row.user_email}>{row.full_name || row.user_email}</option>)}
-                      </select>
-                    </div>
+                      </FormSelect>
+                    </FormField>
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-outline btn-sm"
+                    <Button
+                      variant="secondary"
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => navigate(`/recruiting?department=${encodeURIComponent(department.name)}`)}
                     >
                       View jobs
-                    </button>
-                    <button
-                      className="btn btn-primary btn-sm"
+                    </Button>
+                    <Button
+                      variant="primary"
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => navigate(`/recruiting/jobs/new?department=${encodeURIComponent(department.name)}`)}
                     >
                       Post job
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => updateDepartment(department.id, { active: !department.active })} disabled={savingKey === department.id}>
+                    </Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => updateDepartment(department.id, { active: !department.active })} disabled={savingKey === department.id}>
                       {department.active !== false ? 'Archive' : 'Restore'}
-                    </button>
+                    </Button>
                     <div>
                     </div>
-                    <button
-                      className="btn btn-outline btn-sm"
+                    <Button
+                      variant="secondary"
                       onClick={() => deleteDepartment(department)}
                       disabled={savingKey === `delete:${department.id}`}
-                      style={{ color: 'var(--red)', borderColor: 'rgba(229,77,46,0.25)' }}
+                      style={{ height:28, fontSize:12, padding:'0 8px', color: 'var(--color-red-500)', borderColor: 'rgba(229,77,46,0.25)' }}
                     >
                       {savingKey === `delete:${department.id}` ? 'Deleting...' : 'Delete'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Pending requests</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Manager requests awaiting approval</div>
+          <div style={{ ...DS_CARD, padding: 20 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Pending requests</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>Manager requests awaiting approval</div>
             <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
               {pendingRequests.map((request) => (
-                <div key={request.id} style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 14, background: 'var(--bg2)' }}>
+                <div key={request.id} style={{ border: '1px solid var(--color-border)', borderRadius: 14, padding: 14, background: 'var(--color-gray-50)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{request.target_name || request.target_email}</div>
-                      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{request.current_department || 'Unassigned'} → {request.requested_department || 'Unassigned'}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{request.target_name || request.target_email}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{request.current_department || 'Unassigned'} → {request.requested_department || 'Unassigned'}</div>
                     </div>
-                    <span className="badge badge-amber">Pending</span>
+                    <StatusBadge variant="warning">Pending</StatusBadge>
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--faint)', marginTop: 8 }}>Requested by {request.requested_by_name || request.requested_by_email}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--color-text-tertiary)', marginTop: 8 }}>Requested by {request.requested_by_name || request.requested_by_email}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-                    <button className="btn btn-primary btn-sm" onClick={() => decideRequest(request, 'approve')} disabled={savingKey === request.id}>Approve</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => decideRequest(request, 'reject')} disabled={savingKey === request.id}>Reject</button>
+                    <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => decideRequest(request, 'approve')} disabled={savingKey === request.id}>Approve</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => decideRequest(request, 'reject')} disabled={savingKey === request.id}>Reject</Button>
                   </div>
                 </div>
               ))}
-              {pendingRequests.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>No pending department requests right now.</div>}
+              {pendingRequests.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--color-text-tertiary)' }}>No pending department requests right now.</div>}
             </div>
           </div>
         </div>
 
-        <div className="card card-pad">
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Unassigned Microsoft users</div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Place new users into the org</div>
+        <div style={{ ...DS_CARD, padding: 20 }}>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Unassigned Microsoft users</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>Place new users into the org</div>
           <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
             {unassigned.map((row) => {
               const value = assignments[row.user_email] || { department: '', role_scope: 'staff' }
               return (
-                <div key={row.user_email} style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 14, background: 'var(--bg2)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--sub)', marginTop: 4 }}>{row.user_email}</div>
+                <div key={row.user_email} style={{ border: '1px solid var(--color-border)', borderRadius: 14, padding: 14, background: 'var(--color-gray-50)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.full_name || row.user_email}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>{row.user_email}</div>
                   <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-                    <select className="inp" value={value.department} onChange={(e) => setAssignments((current) => ({ ...current, [row.user_email]: { ...value, department: e.target.value } }))}>
+                    <FormSelect value={value.department} onChange={(e) => setAssignments((current) => ({ ...current, [row.user_email]: { ...value, department: e.target.value } }))}>
                       <option value="">Choose department</option>
                       {catalog.filter((item) => item.active !== false).map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
-                    </select>
-                    <select className="inp" value={value.role_scope} onChange={(e) => setAssignments((current) => ({ ...current, [row.user_email]: { ...value, role_scope: e.target.value } }))}>
+                    </FormSelect>
+                    <FormSelect value={value.role_scope} onChange={(e) => setAssignments((current) => ({ ...current, [row.user_email]: { ...value, role_scope: e.target.value } }))}>
                       <option value="staff">Staff</option>
                       <option value="department_manager">Department Manager</option>
                       <option value="read_only">Read Only</option>
-                    </select>
-                    <button className="btn btn-primary btn-sm" onClick={() => applyAssignment(row)} disabled={savingKey === row.user_email || !value.department}>
+                    </FormSelect>
+                    <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => applyAssignment(row)} disabled={savingKey === row.user_email || !value.department}>
                       {savingKey === row.user_email ? 'Assigning...' : 'Assign now'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )
             })}
-            {unassigned.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--faint)' }}>Everyone already belongs to a department.</div>}
+            {unassigned.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--color-text-tertiary)' }}>Everyone already belongs to a department.</div>}
           </div>
         </div>
       </div>

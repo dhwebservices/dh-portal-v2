@@ -7,7 +7,9 @@ import { logAction } from '../utils/audit'
 import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 import SubNav from '../components/SubNav'
+import { Button, FormField, FormLabel, FormInput, StatusBadge } from '../components/ds'
 
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 const EMPTY_WHATS_NEW_CARD = { tag:'', title:'', body:'' }
 export default function Settings() {
   const { user, isAdmin, can } = useAuth()
@@ -161,8 +163,8 @@ export default function Settings() {
 
   const SaveBtn = ({ section }) => (
     <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
-      <button className="btn btn-primary" onClick={() => save(section)} disabled={saving}>{saving?'Saving...':'Save Changes'}</button>
-      {saved === section && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span>}
+      <Button variant="primary" onClick={() => save(section)} disabled={saving}>{saving?'Saving...':'Save Changes'}</Button>
+      {saved === section && <span style={{ fontSize:13, color:'var(--color-green-500)' }}>✓ Saved</span>}
     </div>
   )
 
@@ -206,27 +208,27 @@ export default function Settings() {
   }
 
   const Field = ({ label, k, type='text', placeholder='' }) => (
-    <div>
-      <label className="lbl">{label}</label>
-      <input className="inp" type={type} value={settings[k]||''} onChange={e => set(k, e.target.value)} placeholder={placeholder}/>
-    </div>
+    <FormField>
+      <FormLabel>{label}</FormLabel>
+      <FormInput type={type} value={settings[k]||''} onChange={e => set(k, e.target.value)} placeholder={placeholder}/>
+    </FormField>
   )
 
   const Toggle = ({ label, desc, k }) => (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid var(--border)' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid var(--color-border)' }}>
       <div>
         <div style={{ fontSize:13, fontWeight:500 }}>{label}</div>
-        {desc && <div style={{ fontSize:12, color:'var(--faint)', marginTop:2 }}>{desc}</div>}
+        {desc && <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:2 }}>{desc}</div>}
       </div>
-      <button onClick={() => set(k, !settings[k])} style={{ width:40, height:22, borderRadius:11, background: settings[k] ? 'var(--green)' : 'var(--border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+      <button onClick={() => set(k, !settings[k])} style={{ width:40, height:22, borderRadius:11, background: settings[k] ? 'var(--color-green-500)' : 'var(--color-border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
         <div style={{ position:'absolute', top:2, left: settings[k] ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
       </button>
     </div>
   )
 
   return (
-    <div className="fade-in">
-      <div className="page-hd"><div><h1 className="page-title">Settings</h1></div></div>
+    <div className="ds-content">
+      <div className="ds-page-header"><div><h1>Settings</h1></div></div>
 
       <SubNav items={[
         { label: 'Portal Settings', active: true, onClick: () => {} },
@@ -240,14 +242,14 @@ export default function Settings() {
         can('audit') && { label: 'Audit Log', onClick: () => navigate('/audit') },
       ]} />
 
-      <div className="tabs">
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
         {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['danger','Danger Zone']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+          <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
 
       {tab === 'general' && (
-        <div className="card card-pad" style={{ maxWidth:520 }}>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:520 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <Field label="Portal Name" k="portal_name" placeholder="DH Staff Portal"/>
             <Field label="Portal Tagline" k="portal_tagline" placeholder="DH Website Services"/>
@@ -258,14 +260,14 @@ export default function Settings() {
       )}
 
       {tab === 'email' && (
-        <div className="card card-pad" style={{ maxWidth:520 }}>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:520 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <Field label="From Name" k="from_name" placeholder="DH Website Services"/>
-            <div>
-              <label className="lbl">Email Footer Text</label>
-              <textarea className="inp" rows={3} value={settings.email_footer||''} onChange={e => set('email_footer',e.target.value)} style={{ resize:'vertical' }} placeholder="Company address shown in email footers"/>
-            </div>
-            <div style={{ padding:'12px 14px', background:'var(--bg2)', borderRadius:8, fontSize:13, color:'var(--sub)' }}>
+            <FormField>
+              <FormLabel>Email Footer Text</FormLabel>
+              <textarea className="ds-form-input" rows={3} value={settings.email_footer||''} onChange={e => set('email_footer',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Company address shown in email footers"/>
+            </FormField>
+            <div style={{ padding:'12px 14px', background:'var(--color-gray-50)', borderRadius:8, fontSize:13, color:'var(--color-text-secondary)' }}>
               Emails are sent via your Cloudflare Worker. Make sure the worker is deployed and has your email provider credentials set.
             </div>
           </div>
@@ -274,25 +276,25 @@ export default function Settings() {
       )}
 
       {tab === 'payments' && (
-        <div className="card card-pad" style={{ maxWidth:520 }}>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:520 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ padding:'12px 14px', background:'var(--blue-bg)', border:'1px solid var(--blue)', borderRadius:8, fontSize:13, color:'var(--blue)' }}>
+            <div style={{ padding:'12px 14px', background:'var(--color-blue-50)', border:'1px solid var(--color-blue-500)', borderRadius:8, fontSize:13, color:'var(--color-blue-500)' }}>
               GoCardless API keys are used to set up Direct Debit mandates and collect payments from clients automatically.
             </div>
-            <div><label className="lbl">Environment</label>
+            <FormField><FormLabel>Environment</FormLabel>
               <div style={{ display:'flex', gap:8 }}>
                 {[['sandbox','Sandbox (Testing)'],['live','Live (Production)']].map(([v,l]) => (
-                  <button key={v} onClick={() => set('gocardless_env',v)} style={{ flex:1, padding:'10px', borderRadius:7, border:`2px solid ${settings.gocardless_env===v?'var(--accent)':'var(--border)'}`, background: settings.gocardless_env===v ? 'var(--accent-soft)' : 'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color: settings.gocardless_env===v ? 'var(--accent)' : 'var(--sub)' }}>{l}</button>
+                  <button key={v} onClick={() => set('gocardless_env',v)} style={{ flex:1, padding:'10px', borderRadius:7, border:`2px solid ${settings.gocardless_env===v?'var(--color-primary)':'var(--color-border)'}`, background: settings.gocardless_env===v ? 'var(--color-blue-50)' : 'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color: settings.gocardless_env===v ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>{l}</button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label className="lbl">GoCardless API Key</label>
-              <input className="inp" type="password" value={settings.gocardless_key||''} onChange={e => set('gocardless_key',e.target.value)} placeholder="live_..."/>
-              <div style={{ fontSize:11, color:'var(--faint)', marginTop:5 }}>Get your API key from GoCardless Dashboard → Developers → API Keys</div>
-            </div>
+            </FormField>
+            <FormField>
+              <FormLabel>GoCardless API Key</FormLabel>
+              <FormInput type="password" value={settings.gocardless_key||''} onChange={e => set('gocardless_key',e.target.value)} placeholder="live_..."/>
+              <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:5 }}>Get your API key from GoCardless Dashboard → Developers → API Keys</div>
+            </FormField>
             {settings.gocardless_env === 'live' && (
-              <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:7, fontSize:13, color:'var(--amber)' }}>
+              <div style={{ padding:'10px 14px', background:'var(--color-amber-50)', border:'1px solid var(--color-amber-500)', borderRadius:7, fontSize:13, color:'var(--color-amber-500)' }}>
                 ⚠️ Live mode — real money will be collected from clients
               </div>
             )}
@@ -302,7 +304,7 @@ export default function Settings() {
       )}
 
       {tab === 'notifications' && (
-        <div className="card card-pad" style={{ maxWidth:520 }}>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:520 }}>
           <div>
             <Toggle label="New support ticket" desc="Notify when a client submits a support ticket" k="notify_new_ticket"/>
             <Toggle label="New client added" desc="Notify when a new client is onboarded" k="notify_new_client"/>
@@ -315,77 +317,77 @@ export default function Settings() {
 
       {tab === 'experience' && (
         <div style={{ display:'grid', gap:18, maxWidth:860 }}>
-          <div className="card card-pad">
+          <div style={{ ...DS_CARD, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
               <div>
-                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>What’s New popup</div>
-                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>What’s New popup</div>
+                <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
                   Publish a multi-card update modal for staff. It appears once per user for each version until they dismiss it.
                 </div>
               </div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <button onClick={() => setWhatsNew((current) => ({ ...current, active: !current.active }))} style={{ width:40, height:22, borderRadius:11, background: whatsNew.active ? 'var(--green)' : 'var(--border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
+                <button onClick={() => setWhatsNew((current) => ({ ...current, active: !current.active }))} style={{ width:40, height:22, borderRadius:11, background: whatsNew.active ? 'var(--color-green-500)' : 'var(--color-border)', border:'none', cursor:'pointer', position:'relative', flexShrink:0 }}>
                   <div style={{ position:'absolute', top:2, left: whatsNew.active ? 20 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
                 </button>
-                <span style={{ fontSize:12, color: whatsNew.active ? 'var(--green)' : 'var(--faint)', fontWeight:600 }}>
+                <span style={{ fontSize:12, color: whatsNew.active ? 'var(--color-green-500)' : 'var(--color-text-tertiary)', fontWeight:600 }}>
                   {whatsNew.active ? 'Live' : 'Off'}
                 </span>
               </div>
             </div>
 
             <div style={{ display:'grid', gap:14 }}>
-              <div className="fg">
-                <div><label className="lbl">Version</label><input className="inp" value={whatsNew.version} onChange={e => setWhatsNew((current) => ({ ...current, version: e.target.value }))} placeholder="e.g. 2.4.0" /></div>
-                <div><label className="lbl">Title</label><input className="inp" value={whatsNew.title} onChange={e => setWhatsNew((current) => ({ ...current, title: e.target.value }))} placeholder="What’s New in DH Portal" /></div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+                <FormField><FormLabel>Version</FormLabel><FormInput value={whatsNew.version} onChange={e => setWhatsNew((current) => ({ ...current, version: e.target.value }))} placeholder="e.g. 2.4.0" /></FormField>
+                <FormField><FormLabel>Title</FormLabel><FormInput value={whatsNew.title} onChange={e => setWhatsNew((current) => ({ ...current, title: e.target.value }))} placeholder="What’s New in DH Portal" /></FormField>
               </div>
-              <div>
-                <label className="lbl">Intro</label>
-                <textarea className="inp" rows={3} value={whatsNew.intro} onChange={e => setWhatsNew((current) => ({ ...current, intro: e.target.value }))} style={{ resize:'vertical' }} placeholder="Short introduction shown above the cards" />
-              </div>
+              <FormField>
+                <FormLabel>Intro</FormLabel>
+                <textarea className="ds-form-input" rows={3} value={whatsNew.intro} onChange={e => setWhatsNew((current) => ({ ...current, intro: e.target.value }))} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Short introduction shown above the cards" />
+              </FormField>
             </div>
           </div>
 
-          <div className="card card-pad">
+          <div style={{ ...DS_CARD, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
               <div>
-                <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>Update cards</div>
-                <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>Add as many cards as you need for new features, changes, or improvements.</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>Update cards</div>
+                <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6 }}>Add as many cards as you need for new features, changes, or improvements.</div>
               </div>
-              <button className="btn btn-outline btn-sm" onClick={addWhatsNewCard}>Add card</button>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={addWhatsNewCard}>Add card</Button>
             </div>
 
             <div style={{ display:'grid', gap:14 }}>
               {whatsNew.cards.map((card, index) => (
-                <div key={`whats-new-card-${index}`} style={{ padding:'14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                <div key={`whats-new-card-${index}`} style={{ padding:'14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Card {index + 1}</div>
-                    <button className="btn btn-danger btn-sm" onClick={() => removeWhatsNewCard(index)}>Remove</button>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>Card {index + 1}</div>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => removeWhatsNewCard(index)}>Remove</Button>
                   </div>
                   <div style={{ display:'grid', gap:12 }}>
-                    <div className="fg">
-                      <div><label className="lbl">Tag</label><input className="inp" value={card.tag || ''} onChange={e => updateWhatsNewCard(index, 'tag', e.target.value)} placeholder="e.g. New, Improved" /></div>
-                      <div><label className="lbl">Title</label><input className="inp" value={card.title || ''} onChange={e => updateWhatsNewCard(index, 'title', e.target.value)} placeholder="What changed?" /></div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+                      <FormField><FormLabel>Tag</FormLabel><FormInput value={card.tag || ''} onChange={e => updateWhatsNewCard(index, 'tag', e.target.value)} placeholder="e.g. New, Improved" /></FormField>
+                      <FormField><FormLabel>Title</FormLabel><FormInput value={card.title || ''} onChange={e => updateWhatsNewCard(index, 'title', e.target.value)} placeholder="What changed?" /></FormField>
                     </div>
-                    <div>
-                      <label className="lbl">Body</label>
-                      <textarea className="inp" rows={4} value={card.body || ''} onChange={e => updateWhatsNewCard(index, 'body', e.target.value)} style={{ resize:'vertical' }} placeholder="Short explanation of the update" />
-                    </div>
+                    <FormField>
+                      <FormLabel>Body</FormLabel>
+                      <textarea className="ds-form-input" rows={4} value={card.body || ''} onChange={e => updateWhatsNewCard(index, 'body', e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Short explanation of the update" />
+                    </FormField>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize:16, fontWeight:600, color:'var(--text)', marginBottom:12 }}>Preview</div>
-            <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--accent-soft)', border:'1px solid var(--accent-border)', marginBottom:14 }}>
-              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:6 }}>Version {whatsNew.version || '—'}</div>
-              <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
-              <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>{whatsNew.intro || 'Your intro text will appear here.'}</div>
+          <div style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:12 }}>Preview</div>
+            <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--color-blue-50)', border:'1px solid var(--color-border)', marginBottom:14 }}>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:6 }}>Version {whatsNew.version || '—'}</div>
+              <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
+              <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.7 }}>{whatsNew.intro || 'Your intro text will appear here.'}</div>
             </div>
             <div style={{ display:'grid', gap:14 }}>
               <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-                <div style={{ fontSize:12, color:'var(--sub)' }}>
+                <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
                   Previewing card {Math.min(previewWhatsNewIndex + 1, previewCards.length)} of {previewCards.length}
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
@@ -398,7 +400,7 @@ export default function Settings() {
                         height: 10,
                         borderRadius: 999,
                         border: 'none',
-                        background: index === previewWhatsNewIndex ? 'var(--accent)' : 'var(--border)',
+                        background: index === previewWhatsNewIndex ? 'var(--color-primary)' : 'var(--color-border)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                       }}
@@ -407,38 +409,38 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div style={{ padding:'18px', border:'1px solid var(--border)', borderRadius:14, background:'var(--card)', minHeight:220, display:'grid', alignContent:'start' }}>
-                {activePreviewCard?.tag ? <span className="badge badge-blue" style={{ marginBottom:10 }}>{activePreviewCard.tag}</span> : null}
-                <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:8 }}>{activePreviewCard?.title || 'Update title'}</div>
-                <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.7 }}>{activePreviewCard?.body || 'Card details appear here.'}</div>
+              <div style={{ padding:'18px', border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-bg-surface)', minHeight:220, display:'grid', alignContent:'start' }}>
+                {activePreviewCard?.tag ? <span style={{ marginBottom:10 }}><StatusBadge variant="info">{activePreviewCard.tag}</StatusBadge></span> : null}
+                <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>{activePreviewCard?.title || 'Update title'}</div>
+                <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.7 }}>{activePreviewCard?.body || 'Card details appear here.'}</div>
               </div>
 
               <div style={{ display:'flex', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
-                <button className="btn btn-outline btn-sm" onClick={() => setPreviewWhatsNewIndex((current) => Math.max(0, current - 1))} disabled={previewWhatsNewIndex === 0}>Previous</button>
-                <button className="btn btn-outline btn-sm" onClick={() => setPreviewWhatsNewIndex((current) => Math.min(previewCards.length - 1, current + 1))} disabled={previewWhatsNewIndex >= previewCards.length - 1}>Next</button>
+                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setPreviewWhatsNewIndex((current) => Math.max(0, current - 1))} disabled={previewWhatsNewIndex === 0}>Previous</Button>
+                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setPreviewWhatsNewIndex((current) => Math.min(previewCards.length - 1, current + 1))} disabled={previewWhatsNewIndex >= previewCards.length - 1}>Next</Button>
               </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
-              <button className="btn btn-primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</button>
-              {saved === 'experience' && <span style={{ fontSize:13, color:'var(--green)' }}>✓ Saved</span>}
+              <Button variant="primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</Button>
+              {saved === 'experience' && <span style={{ fontSize:13, color:'var(--color-green-500)' }}>✓ Saved</span>}
             </div>
           </div>
         </div>
       )}
 
       {tab === 'danger' && (
-        <div className="card card-pad" style={{ maxWidth:520, border:'2px solid var(--red)' }}>
-          <div style={{ fontSize:16, fontWeight:600, color:'var(--red)', marginBottom:16 }}>⚠️ Danger Zone</div>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:520, border:'2px solid var(--color-red-500)' }}>
+          <div style={{ fontSize:16, fontWeight:600, color:'var(--color-red-500)', marginBottom:16 }}>⚠️ Danger Zone</div>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--border)' }}>
+            <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--color-border)' }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>Clear Audit Log</div>
-              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:10 }}>Permanently delete all audit log entries older than 90 days.</div>
-              <button className="btn btn-danger btn-sm" onClick={clearOldAuditLogs} disabled={!isAdmin}>Clear Old Logs</button>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:10 }}>Permanently delete all audit log entries older than 90 days.</div>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={clearOldAuditLogs} disabled={!isAdmin}>Clear Old Logs</Button>
             </div>
-            <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--border)' }}>
+            <div style={{ padding:'14px', borderRadius:8, border:'1px solid var(--color-border)' }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>Export All Data</div>
-              <div style={{ fontSize:12, color:'var(--sub)', marginBottom:10 }}>Download a full export of portal data as JSON.</div>
-              <button className="btn btn-outline btn-sm" onClick={exportPortalData} disabled={!isAdmin}>Export JSON</button>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:10 }}>Download a full export of portal data as JSON.</div>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={exportPortalData} disabled={!isAdmin}>Export JSON</Button>
             </div>
           </div>
         </div>

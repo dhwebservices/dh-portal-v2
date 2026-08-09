@@ -13,6 +13,9 @@ import {
   splitPdfWorkspaceDocument,
   uploadPdfWorkspaceFiles,
 } from '../utils/pdfWorkspace'
+import { Button } from '../components/ds'
+
+const DS_BTN_SM = { height:28, fontSize:12, padding:'0 8px' }
 
 const VIEWS = [
   { key: 'recent', label: 'Recent' },
@@ -385,8 +388,8 @@ export default function PDFWorkspace() {
           </p>
         </div>
         <div className="pdf-workspace-hero-actions">
-          <button className="btn secondary" onClick={handleCreateFolder} disabled={saving || (scope !== 'personal' && !permissions.pdf_shared_edit)}>New folder</button>
-          <button className="btn" onClick={handleUploadClick} disabled={saving || (scope !== 'personal' && !permissions.pdf_shared_edit)}>Upload PDF</button>
+          <Button variant="secondary" onClick={handleCreateFolder} disabled={saving || (scope !== 'personal' && !permissions.pdf_shared_edit)}>New folder</Button>
+          <Button variant="secondary" onClick={handleUploadClick} disabled={saving || (scope !== 'personal' && !permissions.pdf_shared_edit)}>Upload PDF</Button>
         </div>
       </section>
 
@@ -492,9 +495,9 @@ export default function PDFWorkspace() {
           <div className="pdf-workspace-bulkbar">
             <span>{selectedCount ? `${selectedCount} selected` : 'Select PDFs for bulk actions'}</span>
             <div>
-              <button className="btn secondary sm" onClick={handleMerge} disabled={saving || selectedCount < 2}>Merge</button>
-              <button className="btn secondary sm" onClick={() => handleMove('shared')} disabled={saving || !activeDocument || !permissions.pdf_shared_edit}>Move to shared</button>
-              <button className="btn secondary sm" onClick={() => handleMove('template', { is_template: true })} disabled={saving || !activeDocument || !permissions.pdf_shared_edit}>Save as template</button>
+              <Button variant="secondary" style={DS_BTN_SM} onClick={handleMerge} disabled={saving || selectedCount < 2}>Merge</Button>
+              <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleMove('shared')} disabled={saving || !activeDocument || !permissions.pdf_shared_edit}>Move to shared</Button>
+              <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleMove('template', { is_template: true })} disabled={saving || !activeDocument || !permissions.pdf_shared_edit}>Save as template</Button>
             </div>
           </div>
 
@@ -551,33 +554,33 @@ export default function PDFWorkspace() {
                   <h2>{activeDocument.title || activeDocument.filename}</h2>
                 </div>
                 {activeDocument.download_url ? (
-                  <a className="btn secondary sm" href={activeDocument.download_url} target="_blank" rel="noreferrer">
+                  <Button variant="secondary" style={DS_BTN_SM} onClick={() => window.open(activeDocument.download_url, '_blank', 'noreferrer')}>
                     Download
-                  </a>
+                  </Button>
                 ) : null}
               </div>
 
               <div className="pdf-workspace-action-strip">
-                <button className="btn secondary sm" onClick={handleSplit} disabled={saving}>Split</button>
-                <button className="btn secondary sm" onClick={handleReorder} disabled={saving}>Reorder</button>
-                <button className="btn secondary sm" onClick={() => handleRotate(-90)} disabled={saving}>Rotate left</button>
-                <button className="btn secondary sm" onClick={() => handleRotate(90)} disabled={saving}>Rotate right</button>
-                <button className="btn secondary sm" onClick={handleCompress} disabled={saving}>Compress</button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleSplit} disabled={saving}>Split</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleReorder} disabled={saving}>Reorder</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleRotate(-90)} disabled={saving}>Rotate left</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleRotate(90)} disabled={saving}>Rotate right</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleCompress} disabled={saving}>Compress</Button>
               </div>
 
               <div className="pdf-workspace-action-strip">
-                <button className="btn secondary sm" onClick={() => handleAnnotation('text')} disabled={saving}>Text note</button>
-                <button className="btn secondary sm" onClick={() => handleAnnotation('stamp')} disabled={saving}>Stamp</button>
-                <button className="btn secondary sm" onClick={() => handleAnnotation('sign')} disabled={saving}>Sign</button>
-                <button className="btn secondary sm" onClick={() => handleAnnotation('highlight')} disabled={saving}>Highlight</button>
-                <button className="btn secondary sm" onClick={handleRedact} disabled={saving}>Redact export</button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleAnnotation('text')} disabled={saving}>Text note</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleAnnotation('stamp')} disabled={saving}>Stamp</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleAnnotation('sign')} disabled={saving}>Sign</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={() => handleAnnotation('highlight')} disabled={saving}>Highlight</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleRedact} disabled={saving}>Redact export</Button>
               </div>
 
               <div className="pdf-workspace-action-strip">
-                <button className="btn secondary sm" onClick={handleRequestReview} disabled={saving}>Request review</button>
-                <button className="btn secondary sm" onClick={handleRequestSignature} disabled={saving}>Request signature</button>
-                <button className="btn secondary sm" onClick={handleShare} disabled={saving || !permissions.pdf_shared_edit}>Share internally</button>
-                <button className="btn secondary sm" onClick={handleMarkFinal} disabled={saving}>Mark final</button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleRequestReview} disabled={saving}>Request review</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleRequestSignature} disabled={saving}>Request signature</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleShare} disabled={saving || !permissions.pdf_shared_edit}>Share internally</Button>
+                <Button variant="secondary" style={DS_BTN_SM} onClick={handleMarkFinal} disabled={saving}>Mark final</Button>
               </div>
 
               <div className="pdf-workspace-preview-frame">

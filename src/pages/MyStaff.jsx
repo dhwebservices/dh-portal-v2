@@ -14,6 +14,10 @@ import {
   createDefaultAccountSecurityRecord,
   mergeAccountSecurityRecord,
 } from '../utils/accountSecurity'
+import { Button, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 function isRecentlyActive(value) {
   if (!value) return false
@@ -382,34 +386,34 @@ export default function MyStaff() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">My Staff</h1><p className="page-sub">{activeStaff.length} active staff · {terminatedStaff.length} terminated records · {activeCount} active now</p></div>
-        <button className="btn btn-outline" onClick={load} disabled={loading} style={{ display:'flex', alignItems:'center', gap:6 }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>My Staff</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{activeStaff.length} active staff · {terminatedStaff.length} terminated records · {activeCount} active now</p></div>
+        <Button variant="secondary" onClick={load} disabled={loading} style={{ display:'flex', alignItems:'center', gap:6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
           {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
+        </Button>
       </div>
 
-      <div style={{ marginBottom:20, border:'1px solid var(--border)', borderRadius:20, background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--page-tint) 8%), var(--card))', padding:'20px 22px' }}>
+      <div style={{ marginBottom:20, border:'1px solid var(--color-border)', borderRadius:20, background:'linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 92%, var(--page-tint) 8%), var(--color-bg-surface))', padding:'20px 22px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', flexWrap:'wrap', marginBottom:16 }}>
           <div>
-            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8 }}>People board</div>
-            <div style={{ fontSize:24, fontWeight:600, color:'var(--text)', letterSpacing:'-0.03em', lineHeight:1 }}>Staff workspace</div>
-            <div style={{ fontSize:13, color:'var(--sub)', marginTop:8, lineHeight:1.6, maxWidth:560 }}>
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:8 }}>People board</div>
+            <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)', letterSpacing:'-0.03em', lineHeight:1 }}>Staff workspace</div>
+            <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:8, lineHeight:1.6, maxWidth:560 }}>
               A cleaner view of your people, with lifecycle, presence, and quick actions visible on each staff card.
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(120px,1fr))', gap:10, minWidth:'min(100%, 320px)' }}>
             {[
-              { label: isDirector ? 'Active staff' : 'Visible staff', value: activeStaff.length, tone: 'var(--text)' },
-              { label: 'Active now', value: activeCount, tone: 'var(--green)' },
-              { label: 'Onboarding', value: activeStaff.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length, tone: 'var(--amber)' },
-              { label: 'Terminated', value: terminatedStaff.length, tone: 'var(--red)' },
-              { label: 'Unassigned', value: unassignedUsers.length, tone: 'var(--accent)' },
+              { label: isDirector ? 'Active staff' : 'Visible staff', value: activeStaff.length, tone: 'var(--color-text-primary)' },
+              { label: 'Active now', value: activeCount, tone: 'var(--color-green-500)' },
+              { label: 'Onboarding', value: activeStaff.filter((u) => permsMap[u.email?.toLowerCase()]?.onboarding).length, tone: 'var(--color-amber-500)' },
+              { label: 'Terminated', value: terminatedStaff.length, tone: 'var(--color-red-500)' },
+              { label: 'Unassigned', value: unassignedUsers.length, tone: 'var(--color-primary)' },
             ].map((item) => (
-              <div key={item.label} style={{ padding:'12px 14px', borderRadius:14, border:'1px solid var(--border)', background:'var(--card)' }}>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>{item.label}</div>
+              <div key={item.label} style={{ padding:'12px 14px', borderRadius:14, border:'1px solid var(--color-border)', background:'var(--color-bg-surface)' }}>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:6 }}>{item.label}</div>
                 <div style={{ fontSize:24, fontWeight:600, color:item.tone, lineHeight:1 }}>{item.value}</div>
               </div>
             ))}
@@ -419,73 +423,74 @@ export default function MyStaff() {
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             {filterOptions.map(([key, label]) => (
-              <button
+              <Button
                 key={key}
-                className={`btn ${statusFilter === key ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                variant={statusFilter === key ? 'primary' : 'secondary'}
+                style={{ height:28, fontSize:12, padding:'0 8px' }}
                 onClick={() => setStatusFilter(key)}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div style={{ position:'relative', width:'min(100%, 360px)' }}>
-            <Search style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--faint)' }} size={14} />
-            <input className="inp" style={{ paddingLeft:36, borderRadius:999 }} placeholder="Search by name, role, department..." value={search} onChange={e => setSearch(e.target.value)}/>
+            <Search style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--color-text-tertiary)' }} size={14} />
+            <FormInput style={{ paddingLeft:36, borderRadius:999 }} placeholder="Search by name, role, department..." value={search} onChange={e => setSearch(e.target.value)}/>
           </div>
         </div>
       </div>
 
       {!isDirector && managedDepartments.length > 0 && (
-        <div className="card" style={{ padding:'14px 16px', marginBottom:18 }}>
-          <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Scoped view</div>
-          <div style={{ marginTop:6, fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
-            You are viewing staff inside your department scope only: <strong style={{ color:'var(--text)' }}>{managedDepartments.filter((item) => item !== '*').join(', ') || 'Your department'}</strong>.
+        <div style={{ ...DS_CARD, padding:'14px 16px', marginBottom:18 }}>
+          <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', fontWeight:700 }}>Scoped view</div>
+          <div style={{ marginTop:6, fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
+            You are viewing staff inside your department scope only: <strong style={{ color:'var(--color-text-primary)' }}>{managedDepartments.filter((item) => item !== '*').join(', ') || 'Your department'}</strong>.
           </div>
         </div>
       )}
 
       {selectedUsers.length > 0 && (
-        <div className="card" style={{ padding:'14px 16px', marginBottom:18, display:'grid', gap:14 }}>
+        <div style={{ ...DS_CARD, padding:'14px 16px', marginBottom:18, display:'grid', gap:14 }}>
           <div>
-            <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Bulk access control</div>
-            <div style={{ marginTop:6, fontSize:13, color:'var(--sub)', lineHeight:1.6 }}>
+            <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', fontWeight:700 }}>Bulk access control</div>
+            <div style={{ marginTop:6, fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
               {selectedUsers.length} staff account{selectedUsers.length === 1 ? '' : 's'} selected.
             </div>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-end', flexWrap:'wrap' }}>
             <div style={{ display:'grid', gap:8, minWidth:'min(100%, 320px)' }}>
-              <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)', fontWeight:700 }}>Batch permissions</div>
+              <div style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)', fontWeight:700 }}>Batch permissions</div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                <select className="inp" value={bulkPermissionRole} onChange={(e) => setBulkPermissionRole(e.target.value)} style={{ minWidth:220 }}>
+                <FormSelect value={bulkPermissionRole} onChange={(e) => setBulkPermissionRole(e.target.value)} style={{ minWidth:220 }}>
                   {Object.keys(ROLE_DEFAULTS).map((role) => (
                     <option key={role} value={role}>{role}</option>
                   ))}
-                </select>
-                <button className="btn btn-primary btn-sm" onClick={applyBulkPermissions} disabled={bulkSaving}>
+                </FormSelect>
+                <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={applyBulkPermissions} disabled={bulkSaving}>
                   {bulkSaving ? 'Saving...' : `Apply ${bulkPermissionRole} permissions`}
-                </button>
+                </Button>
               </div>
-              <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>
+              <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.5 }}>
                 Replaces the selected users&apos; page permissions with the chosen preset and keeps their current onboarding flag.
               </div>
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('relogin')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Force re-login'}</button>
-              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('suspend')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Suspend access'}</button>
-              <button className="btn btn-outline btn-sm" onClick={() => applyBulkSecurity('restore')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Restore access'}</button>
-              <button className="btn btn-outline btn-sm" onClick={clearSelectedUsers} disabled={bulkSaving}>Clear</button>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => applyBulkSecurity('relogin')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Force re-login'}</Button>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => applyBulkSecurity('suspend')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Suspend access'}</Button>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => applyBulkSecurity('restore')} disabled={bulkSaving}>{bulkSaving ? 'Saving...' : 'Restore access'}</Button>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={clearSelectedUsers} disabled={bulkSaving}>Clear</Button>
             </div>
           </div>
         </div>
       )}
 
-      {error && <div style={{ padding:'10px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, fontSize:13, color:'var(--amber)', marginBottom:16 }}>{error}</div>}
+      {error && <div style={{ padding:'10px 14px', background:'var(--color-amber-50)', border:'1px solid var(--color-amber-500)', borderRadius:8, fontSize:13, color:'var(--color-amber-500)', marginBottom:16 }}>{error}</div>}
 
       {loading ? (
         <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
           {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="card" style={{ padding:22, borderRadius:18 }}>
+            <div key={i} style={{ ...DS_CARD, padding:22, borderRadius:18 }}>
               <div className="skel" style={{ width:64, height:64, borderRadius:18, marginBottom:14 }}/>
               <div className="skel" style={{ width:'68%', height:14, marginBottom:8 }}/>
               <div className="skel" style={{ width:'44%', height:12, marginBottom:16 }}/>
@@ -525,11 +530,11 @@ export default function MyStaff() {
             return (
               <div
                 key={u.id}
-                style={{ background:'linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--page-tint) 6%), var(--card))', border:'1px solid var(--border)', borderRadius:18, padding:'18px', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'grid', gap:14, position:'relative', minHeight: 330 }}
+                style={{ background:'linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 94%, var(--page-tint) 6%), var(--color-bg-surface))', border:'1px solid var(--color-border)', borderRadius:18, padding:'18px', transition:'all 0.2s cubic-bezier(0.16,1,0.3,1)', display:'grid', gap:14, position:'relative', minHeight: 330 }}
                 onMouseOver={e => { e.currentTarget.style.borderColor=colour; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${colour}22` }}
-                onMouseOut={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
+                onMouseOut={e => { e.currentTarget.style.borderColor='var(--color-border)'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
               >
-                <label style={{ position:'absolute', top:14, left:14, zIndex:2, display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, borderRadius:999, background:'var(--card)', border:'1px solid var(--border)', cursor:'pointer' }}>
+                <label style={{ position:'absolute', top:14, left:14, zIndex:2, display:'flex', alignItems:'center', justifyContent:'center', width:24, height:24, borderRadius:999, background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', cursor:'pointer' }}>
                   <input
                     type="checkbox"
                     checked={selectedUsers.includes(userEmail)}
@@ -538,13 +543,13 @@ export default function MyStaff() {
                   />
                 </label>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
-                  <div style={{ width:64, height:64, borderRadius:18, background:colour+'18', border:`1px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:600, color:colour, fontFamily:'var(--font-display)', flexShrink:0 }}>
+                  <div style={{ width:64, height:64, borderRadius:18, background:colour+'18', border:`1px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, fontWeight:600, color:colour, flexShrink:0 }}>
                     {getInitials(u.name)}
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                    <span className={`badge badge-${lifecycleTone}`}>{getLifecycleLabel(lifecycleState)}</span>
-                    {portalAccessLocked ? <span className="badge badge-red">Suspended</span> : null}
-                    <span className={`badge badge-${isActiveNow ? 'green' : 'grey'}`}>{formatPresenceLabel(profile.last_seen)}</span>
+                    <StatusBadge variant={TONE_TO_VARIANT[lifecycleTone] || 'info'}>{getLifecycleLabel(lifecycleState)}</StatusBadge>
+                    {portalAccessLocked ? <StatusBadge variant="error">Suspended</StatusBadge> : null}
+                    <StatusBadge variant={TONE_TO_VARIANT[isActiveNow ? 'green' : 'grey'] || 'info'}>{formatPresenceLabel(profile.last_seen)}</StatusBadge>
                   </div>
                 </div>
 
@@ -553,63 +558,66 @@ export default function MyStaff() {
                   style={{ width:'100%', border:'none', background:'transparent', padding:0, cursor:'pointer', display:'grid', gap:12, textAlign:'left' }}
                 >
                   <div>
-                    <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', lineHeight:1.1 }}>{profile.full_name || u.name}</div>
-                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:6, lineHeight:1.55 }}>{profile.role || u.jobTitle || 'No role assigned yet'}</div>
+                    <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', lineHeight:1.1 }}>{profile.full_name || u.name}</div>
+                    <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.55 }}>{profile.role || u.jobTitle || 'No role assigned yet'}</div>
                   </div>
 
-                  <div style={{ display:'grid', gap:10, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)' }}>
+                  <div style={{ display:'grid', gap:10, padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-gray-50)' }}>
                     <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
-                      <Building2 size={15} style={{ color:'var(--faint)', marginTop:1 }} />
-                      <div style={{ fontSize:12.5, color:'var(--text)' }}>{profile.department || 'No department assigned'}</div>
+                      <Building2 size={15} style={{ color:'var(--color-text-tertiary)', marginTop:1 }} />
+                      <div style={{ fontSize:12.5, color:'var(--color-text-primary)' }}>{profile.department || 'No department assigned'}</div>
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
-                      <Briefcase size={15} style={{ color:'var(--faint)', marginTop:1 }} />
-                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{profile.contract_type || 'Contract type not set'}</div>
+                      <Briefcase size={15} style={{ color:'var(--color-text-tertiary)', marginTop:1 }} />
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.5 }}>{profile.contract_type || 'Contract type not set'}</div>
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'18px minmax(0,1fr)', gap:10, alignItems:'start' }}>
-                      <ShieldCheck size={15} style={{ color:'var(--faint)', marginTop:1 }} />
-                      <div style={{ fontSize:12, color:'var(--sub)', lineHeight:1.5 }}>{targetOrg.manager_name || profile.manager_name || 'No manager assigned'}</div>
+                      <ShieldCheck size={15} style={{ color:'var(--color-text-tertiary)', marginTop:1 }} />
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', lineHeight:1.5 }}>{targetOrg.manager_name || profile.manager_name || 'No manager assigned'}</div>
                     </div>
                   </div>
                 </button>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, alignItems:'center', marginTop:'auto' }}>
-                  <button
-                    className="btn btn-outline btn-sm"
+                  <Button
+                    variant="secondary"
                     onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}`)}
-                    style={{ justifyContent:'center' }}
+                    style={{ height:28, fontSize:12, padding:'0 8px', justifyContent:'center' }}
                   >
                     <Eye size={14} />
                     Open profile
-                  </button>
+                  </Button>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                    <button
-                      className="btn btn-outline btn-sm"
+                    <Button
+                      variant="secondary"
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=contracts`)}
                     >
                       <FileText size={14} />
                       Contracts
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180 }}>{userEmail}</span>
+                  <span style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180 }}>{userEmail}</span>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                  <button
-                      className="btn btn-outline btn-sm"
+                  <Button
+                      variant="secondary"
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => navigate(`/my-staff/${encodeURIComponent(u.email.toLowerCase())}?tab=notify`)}
                     >
                       <Sparkles size={14} />
                       Notify
-                    </button>
+                    </Button>
                   {canImpersonate && !TERMINATED_STATES.has(lifecycleState) ? (
-                    <button
-                      className={isCurrentImpersonation ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}
+                    <Button
+                      variant={isCurrentImpersonation ? 'primary' : 'secondary'}
+                      style={{ height:28, fontSize:12, padding:'0 8px' }}
                       onClick={() => impersonate(u, profile, targetOrg)}
                     >
                       {isCurrentImpersonation ? 'Impersonating' : 'Impersonate'}
-                    </button>
+                    </Button>
                   ) : null}
                   </div>
                 </div>
@@ -618,7 +626,7 @@ export default function MyStaff() {
           })}
           {filtered.length === 0 && !loading && (
             <div style={{ gridColumn:'1/-1' }}>
-              <div className="empty"><p>No staff found</p></div>
+              <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No staff found</div>
             </div>
           )}
         </div>
