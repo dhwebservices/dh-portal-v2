@@ -111,6 +111,7 @@ export default function RecruitingJobs() {
           </div>
 
           <SubNav items={[
+            { label: 'Dashboard', onClick: () => navigate('/recruiting/dashboard') },
             { label: 'Jobs', active: true, onClick: () => {} },
             can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
             can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },

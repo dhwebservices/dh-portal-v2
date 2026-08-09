@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { BriefcaseBusiness, Clock3, Trophy, Users } from 'lucide-react'
 import { listApplications, listJobPosts } from '../utils/recruiting'
 import RecruitingStatusBadge from '../components/RecruitingStatusBadge'
+import SubNav from '../components/SubNav'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function RecruitingDashboard() {
   const navigate = useNavigate()
+  const { can } = useAuth()
   const [jobs, setJobs] = useState([])
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +42,13 @@ export default function RecruitingDashboard() {
 
   return (
     <div className="fade-in">
+      <SubNav items={[
+        { label: 'Dashboard', active: true, onClick: () => {} },
+        can('recruiting_jobs') && { label: 'Jobs', onClick: () => navigate('/recruiting') },
+        can('recruiting_applications') && { label: 'Applications', onClick: () => navigate('/recruiting/applications') },
+        can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
+        can('recruiting_settings') && { label: 'Settings', onClick: () => navigate('/recruiting/settings') },
+      ]} />
       <div style={{ border:'1px solid var(--border)', borderRadius:22, overflow:'hidden', background:'var(--card)', marginBottom:18 }}>
         <div style={{ padding:'18px 20px 16px', borderBottom:'1px solid var(--border)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', flexWrap:'wrap' }}>

@@ -12,6 +12,7 @@ export default function RecruitingApplications() {
   return (
     <div className="fade-in">
       <SubNav items={[
+        { label: 'Dashboard', onClick: () => navigate('/recruiting/dashboard') },
         can('recruiting_jobs') && { label: 'Jobs', onClick: () => navigate('/recruiting') },
         { label: 'Applications', active: true, onClick: () => {} },
         can('recruiting_board') && { label: 'Board', onClick: () => navigate('/recruiting/board') },
