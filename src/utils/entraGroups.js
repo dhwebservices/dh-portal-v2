@@ -9,6 +9,12 @@
  *
  * Stored as a single portal_settings row, same shape/pattern as the
  * department catalog in orgStructure.js.
+ *
+ * SETUP REQUIRED before this does anything: the "DH portal" Entra app
+ * registration (App ID 79722400-3699-4f12-a4a1-df71949b5805) needs the
+ * GroupMember.ReadWrite.All *Application* permission with tenant admin
+ * consent - it currently only has Mail.Read and User.ReadWrite.All. Without
+ * it, accounts are still created correctly but every group assignment fails.
  */
 
 export function buildEntraGroupCatalogKey() {
