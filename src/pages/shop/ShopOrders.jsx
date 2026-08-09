@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { fetchShopOrders, fetchShopProducts, createManualShopOrder, updateShopOrder, buildVariantLabel } from '../../utils/shop'
 import { sendAwaitingDispatchEmail, sendDeliveredEmail } from '../../utils/shopNotifications'
+import { Button, FormInput, FormSelect, Alert } from '../../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
 
 const EMPTY_MANUAL_ORDER = {
   first_name: '',
@@ -130,14 +133,14 @@ export default function ShopOrders() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 400, color: 'var(--text)' }}>Shop orders</div>
-          <div style={{ fontSize: 14, color: 'var(--sub)', marginTop: 6 }}>Track paid orders, procurement steps, fulfilment, and manual sales.</div>
+          <h1>Shop orders</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Track paid orders, procurement steps, fulfilment, and manual sales.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={inputStyle}>
+          <FormSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: '100%' }}>
             <option value="all">All statuses</option>
             <option value="awaiting_procurement">Awaiting procurement</option>
             <option value="procured">Procured</option>
@@ -145,16 +148,16 @@ export default function ShopOrders() {
             <option value="dispatched">Dispatched</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
-          </select>
-          <button className="btn-primary" onClick={() => setManualOrderOpen(true)}>Create customer order</button>
+          </FormSelect>
+          <Button variant="primary" onClick={() => setManualOrderOpen(true)}>Create customer order</Button>
         </div>
       </div>
 
-      {error ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(180,35,24,0.24)', color: '#b42318' }}>{error}</div> : null}
+      {error ? <div style={{ marginBottom: 16 }}><Alert variant="warning">{error}</Alert></div> : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(360px, 0.85fr)', gap: 16 }}>
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>
+        <div style={{ ...DS_CARD, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
             Orders
           </div>
           {(loading ? [] : filteredOrders).map((order) => (
@@ -166,17 +169,17 @@ export default function ShopOrders() {
                 textAlign: 'left',
                 padding: '16px 18px',
                 border: 0,
-                borderTop: '1px solid var(--border)',
-                background: order.id === selectedOrder?.id ? 'var(--bg2)' : 'transparent',
+                borderTop: '1px solid var(--color-border)',
+                background: order.id === selectedOrder?.id ? 'var(--color-gray-50)' : 'transparent',
                 cursor: 'pointer',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{order.order_number}</div>
-                  <div style={{ marginTop: 4, fontSize: 13, color: 'var(--sub)' }}>{order.customer_name} · {order.email}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{order.order_number}</div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: 'var(--color-text-secondary)' }}>{order.customer_name} · {order.email}</div>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>£{Number(order.grand_total || 0).toFixed(2)}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>£{Number(order.grand_total || 0).toFixed(2)}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 <span style={pillStyle('payment', order.payment_status)}>{order.payment_status}</span>
@@ -185,42 +188,42 @@ export default function ShopOrders() {
               </div>
             </button>
           ))}
-          {!loading && !filteredOrders.length ? <div style={{ padding: 24, color: 'var(--sub)', fontSize: 14 }}>No orders found.</div> : null}
+          {!loading && !filteredOrders.length ? <div style={{ padding: 24, color: 'var(--color-text-secondary)', fontSize: 14 }}>No orders found.</div> : null}
         </div>
 
-        <div className="card card-pad">
+        <div style={{ ...DS_CARD, padding: 20 }}>
           {selectedOrder ? (
             <div style={{ display: 'grid', gap: 18 }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Order detail</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 400, color: 'var(--text)', marginTop: 8 }}>{selectedOrder.order_number}</div>
-                <div style={{ marginTop: 6, fontSize: 14, color: 'var(--sub)' }}>{selectedOrder.customer_name} · {selectedOrder.email}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Order detail</div>
+                <div style={{ fontSize: 28, fontWeight: 400, color: 'var(--color-text-primary)', marginTop: 8 }}>{selectedOrder.order_number}</div>
+                <div style={{ marginTop: 6, fontSize: 14, color: 'var(--color-text-secondary)' }}>{selectedOrder.customer_name} · {selectedOrder.email}</div>
               </div>
 
               <div style={{ display: 'grid', gap: 10 }}>
                 {(selectedOrder.shop_order_items || []).map((item) => (
-                  <div key={item.id} className="card card-pad" style={{ background: 'var(--bg2)' }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{item.product_name}</div>
-                    <div style={{ marginTop: 4, fontSize: 13, color: 'var(--sub)' }}>{item.variant_label || 'Standard configuration'} · Qty {item.quantity}</div>
-                    <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>£{Number(item.line_total || 0).toFixed(2)}</div>
+                  <div key={item.id} style={{ ...DS_CARD, padding: 20, background: 'var(--color-gray-50)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.product_name}</div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: 'var(--color-text-secondary)' }}>{item.variant_label || 'Standard configuration'} · Qty {item.quantity}</div>
+                    <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>£{Number(item.line_total || 0).toFixed(2)}</div>
                   </div>
                 ))}
               </div>
 
               <div style={{ display: 'grid', gap: 10 }}>
-                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Actions</div>
+                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Actions</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <button className="btn-outline btn-sm" onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'confirmed' })}>Confirm</button>
-                  <button className="btn-outline btn-sm" onClick={() => handleStatusUpdate(selectedOrder.id, { procurement_status: 'checking_supplier' })}>Check supplier</button>
-                  <button className="btn-outline btn-sm" onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'ordered_from_supplier', procurement_status: 'ordered' })}>Mark ordered</button>
-                  <button className="btn-outline btn-sm" onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'dispatched', fulfilment_status: 'fulfilled' })}>Mark dispatched</button>
-                  <button className="btn-outline btn-sm" onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'delivered', procurement_status: 'completed' })}>Mark delivered</button>
-                  <button className="btn btn-sm" style={{ color: '#b42318' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'cancelled', payment_status: 'refunded' })}>Cancel / refund</button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'confirmed' })}>Confirm</Button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => handleStatusUpdate(selectedOrder.id, { procurement_status: 'checking_supplier' })}>Check supplier</Button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'ordered_from_supplier', procurement_status: 'ordered' })}>Mark ordered</Button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'dispatched', fulfilment_status: 'fulfilled' })}>Mark dispatched</Button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'delivered', procurement_status: 'completed' })}>Mark delivered</Button>
+                  <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)' }} onClick={() => handleStatusUpdate(selectedOrder.id, { order_status: 'cancelled', payment_status: 'refunded' })}>Cancel / refund</Button>
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ color: 'var(--sub)', fontSize: 14 }}>Select an order to review it.</div>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>Select an order to review it.</div>
           )}
         </div>
       </div>
@@ -232,59 +235,60 @@ export default function ShopOrders() {
           width={960}
           footer={
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-              <button className="btn" onClick={() => setManualOrderOpen(false)}>Close</button>
-              <button className="btn-primary" onClick={handleManualOrderSubmit} disabled={saving}>{saving ? 'Creating…' : 'Create order'}</button>
+              <Button variant="secondary" onClick={() => setManualOrderOpen(false)}>Close</Button>
+              <Button variant="primary" onClick={handleManualOrderSubmit} disabled={saving}>{saving ? 'Creating…' : 'Create order'}</Button>
             </div>
           }
         >
           <form onSubmit={handleManualOrderSubmit} style={{ display: 'grid', gap: 16 }}>
             <div style={grid2}>
-              <label style={fieldStyle}><span>First name</span><input value={manualOrder.first_name} onChange={(e) => setManualOrder((current) => ({ ...current, first_name: e.target.value }))} style={inputStyle} /></label>
-              <label style={fieldStyle}><span>Last name</span><input value={manualOrder.last_name} onChange={(e) => setManualOrder((current) => ({ ...current, last_name: e.target.value }))} style={inputStyle} /></label>
-              <label style={fieldStyle}><span>Email</span><input value={manualOrder.email} onChange={(e) => setManualOrder((current) => ({ ...current, email: e.target.value }))} style={inputStyle} /></label>
-              <label style={fieldStyle}><span>Phone</span><input value={manualOrder.phone} onChange={(e) => setManualOrder((current) => ({ ...current, phone: e.target.value }))} style={inputStyle} /></label>
+              <label style={fieldStyle}><span>First name</span><FormInput value={manualOrder.first_name} onChange={(e) => setManualOrder((current) => ({ ...current, first_name: e.target.value }))} style={{ width: '100%' }} /></label>
+              <label style={fieldStyle}><span>Last name</span><FormInput value={manualOrder.last_name} onChange={(e) => setManualOrder((current) => ({ ...current, last_name: e.target.value }))} style={{ width: '100%' }} /></label>
+              <label style={fieldStyle}><span>Email</span><FormInput value={manualOrder.email} onChange={(e) => setManualOrder((current) => ({ ...current, email: e.target.value }))} style={{ width: '100%' }} /></label>
+              <label style={fieldStyle}><span>Phone</span><FormInput value={manualOrder.phone} onChange={(e) => setManualOrder((current) => ({ ...current, phone: e.target.value }))} style={{ width: '100%' }} /></label>
             </div>
 
             <label style={fieldStyle}>
               <span>Internal notes</span>
-              <textarea value={manualOrder.notes} onChange={(e) => setManualOrder((current) => ({ ...current, notes: e.target.value }))} style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }} />
+              <textarea className="ds-form-input" value={manualOrder.notes} onChange={(e) => setManualOrder((current) => ({ ...current, notes: e.target.value }))} style={{ width: '100%', minHeight: 90, resize: 'vertical', padding: '8px 12px' }} />
             </label>
 
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400 }}>Order items</div>
-                <button
+                <div style={{ fontSize: 22, fontWeight: 400 }}>Order items</div>
+                <Button
                   type="button"
-                  className="btn-outline btn-sm"
+                  variant="secondary"
+                  style={{ height: 28, fontSize: 12, padding: '0 8px' }}
                   onClick={() => setManualOrder((current) => ({ ...current, items: [...current.items, { product_id: '', variant_id: '', quantity: 1 }] }))}
                 >
                   Add item
-                </button>
+                </Button>
               </div>
               {manualOrder.items.map((item, index) => {
                 const product = products.find((entry) => entry.id === item.product_id)
                 return (
-                  <div key={`${index}-${item.product_id}-${item.variant_id}`} className="card card-pad" style={{ borderStyle: 'dashed' }}>
+                  <div key={`${index}-${item.product_id}-${item.variant_id}`} style={{ ...DS_CARD, padding: 20, borderStyle: 'dashed' }}>
                     <div style={grid3}>
                       <label style={fieldStyle}>
                         <span>Product</span>
-                        <select value={item.product_id} onChange={(e) => updateManualItem(index, 'product_id', e.target.value)} style={inputStyle}>
+                        <FormSelect value={item.product_id} onChange={(e) => updateManualItem(index, 'product_id', e.target.value)} style={{ width: '100%' }}>
                           <option value="">Select product</option>
                           {products.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-                        </select>
+                        </FormSelect>
                       </label>
                       <label style={fieldStyle}>
                         <span>Variant</span>
-                        <select value={item.variant_id} onChange={(e) => updateManualItem(index, 'variant_id', e.target.value)} style={inputStyle}>
+                        <FormSelect value={item.variant_id} onChange={(e) => updateManualItem(index, 'variant_id', e.target.value)} style={{ width: '100%' }}>
                           <option value="">Select variant</option>
                           {(product?.variants || []).map((variant) => (
                             <option key={variant.id} value={variant.id}>{buildVariantLabel(variant) || variant.sku || 'Variant'} · £{Number(variant.price || 0).toFixed(2)}</option>
                           ))}
-                        </select>
+                        </FormSelect>
                       </label>
                       <label style={fieldStyle}>
                         <span>Quantity</span>
-                        <input type="number" min="1" value={item.quantity} onChange={(e) => updateManualItem(index, 'quantity', e.target.value)} style={inputStyle} />
+                        <FormInput type="number" min="1" value={item.quantity} onChange={(e) => updateManualItem(index, 'quantity', e.target.value)} style={{ width: '100%' }} />
                       </label>
                     </div>
                   </div>
@@ -298,21 +302,11 @@ export default function ShopOrders() {
   )
 }
 
-const inputStyle = {
-  width: '100%',
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  padding: '10px 12px',
-  background: 'var(--card)',
-  color: 'var(--text)',
-  fontSize: 14,
-}
-
 const fieldStyle = {
   display: 'grid',
   gap: 8,
   fontSize: 13,
-  color: 'var(--sub)',
+  color: 'var(--color-text-secondary)',
 }
 
 const grid2 = {

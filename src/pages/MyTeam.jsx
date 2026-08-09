@@ -12,6 +12,11 @@ import { createDepartmentAnnouncement, createTrainingRecord } from '../utils/peo
 import { fetchAuditLogs } from '../utils/auditApi'
 import { fetchEmailLogs } from '../utils/emailLogs'
 import { StatCard } from '../components/ui'
+import { Button, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 function normalizePortalEmail(value = '') {
   return String(value || '').toLowerCase().trim()
@@ -39,9 +44,9 @@ function isDateInRange(today, startDate, endDate) {
 }
 
 const TASK_BOARD_COLUMNS = [
-  ['todo', 'To Do', 'var(--faint)'],
-  ['in_progress', 'In Progress', 'var(--accent)'],
-  ['done', 'Done', 'var(--green)'],
+  ['todo', 'To Do', 'var(--color-text-tertiary)'],
+  ['in_progress', 'In Progress', 'var(--color-primary)'],
+  ['done', 'Done', 'var(--color-green-500)'],
 ]
 
 export default function MyTeam() {
@@ -196,9 +201,9 @@ export default function MyTeam() {
 
   if (!currentDepartment) {
     return (
-      <div className="card card-pad" style={{ maxWidth: 620 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text)' }}>No team assigned</div>
-        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--sub)', lineHeight: 1.7 }}>
+      <div style={{ ...DS_CARD, padding: 20, maxWidth: 620 }}>
+        <div style={{ fontSize: 24, color: 'var(--color-text-primary)' }}>No team assigned</div>
+        <div style={{ marginTop: 8, fontSize: 14, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
           Your staff profile is not currently assigned to a department yet, so there is no team view available.
         </div>
       </div>
@@ -208,132 +213,132 @@ export default function MyTeam() {
   if (loading) return <div className="spin-wrap"><div className="spin" /></div>
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">View My Team</h1>
-          <p className="page-sub">Read-only team view for {currentDepartment}.</p>
+          <h1>View My Team</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Read-only team view for {currentDepartment}.</p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard icon={Building2} label="Department" value={currentDepartment} hint={manager ? `Managed by ${manager.full_name || manager.user_email}` : 'No department manager set'} />
-        <StatCard icon={Users} label="Team members" value={profiles.length} hint="People currently assigned to this department" tone="var(--green)" />
-        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged today" tone="var(--blue)" />
-        <StatCard icon={ShieldCheck} label="Open team tasks" value={openTasks.length} hint={`${overdueTasks.length} overdue`} tone="var(--amber)" />
-        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + trainingDueCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${trainingDueCount} training due`} tone="var(--red)" />
+        <StatCard icon={Users} label="Team members" value={profiles.length} hint="People currently assigned to this department" tone="var(--color-green-500)" />
+        <StatCard icon={FolderPlus} label="Outreach added today" value={outreachAddedToday} hint="New client-contact records logged today" tone="var(--color-blue-500)" />
+        <StatCard icon={ShieldCheck} label="Open team tasks" value={openTasks.length} hint={`${overdueTasks.length} overdue`} tone="var(--color-amber-500)" />
+        <StatCard icon={ShieldCheck} label="Compliance watch" value={missingRtwCount + pendingContractCount + trainingDueCount} hint={`${missingRtwCount} missing RTW · ${pendingContractCount} unsigned contracts · ${trainingDueCount} training due`} tone="var(--color-red-500)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(320px,0.85fr)', gap: 18 }} className="staff-profile-main-grid">
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team members</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>{currentDepartment}</div>
+        <div style={{ ...DS_CARD, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Team members</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>{currentDepartment}</div>
           </div>
           {profiles.length === 0 ? (
-            <div style={{ padding: '24px 18px', color: 'var(--faint)', fontSize: 13 }}>No staff are currently assigned to this department.</div>
+            <div style={{ padding: '24px 18px', color: 'var(--color-text-tertiary)', fontSize: 13 }}>No staff are currently assigned to this department.</div>
           ) : profiles.map((row) => (
-            <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+            <div key={row.user_email} style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>{row.full_name || row.user_email}</div>
-                  <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{row.role || 'Staff'} · {row.org?.role_scope === 'department_manager' ? 'Department Manager' : 'Team member'}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.full_name || row.user_email}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{row.role || 'Staff'} · {row.org?.role_scope === 'department_manager' ? 'Department Manager' : 'Team member'}</div>
                 </div>
-                <span className={`badge badge-${row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'}`}>
+                <StatusBadge variant={TONE_TO_VARIANT[row.lifecycle?.state === 'onboarding' ? 'amber' : row.lifecycle?.state === 'active' ? 'green' : 'blue'] || 'info'}>
                   {getLifecycleLabel(row.lifecycle?.state)}
-                </span>
+                </StatusBadge>
               </div>
             </div>
           ))}
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department announcements</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Team updates</div>
+          <div style={{ ...DS_CARD, padding: 20 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Department announcements</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>Team updates</div>
             <div style={{ display:'grid', gap:10, marginTop:14 }}>
               {announcements.slice(0, 4).map((item) => (
-                <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)' }}>
+                <div key={item.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--color-border)', background:'var(--color-gray-50)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center' }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{item.title}</div>
-                    <span className={`badge badge-${item.important ? 'red' : 'blue'}`}>{item.important ? 'Important' : 'Update'}</span>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{item.title}</div>
+                    <StatusBadge variant={TONE_TO_VARIANT[item.important ? 'red' : 'blue'] || 'info'}>{item.important ? 'Important' : 'Update'}</StatusBadge>
                   </div>
-                  <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6 }}>{item.message}</div>
                 </div>
               ))}
-              {announcements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No team announcements yet.</div> : null}
+              {announcements.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No team announcements yet.</div> : null}
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Team overview</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>Manager and team activity</div>
+          <div style={{ ...DS_CARD, padding: 20 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Team overview</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginTop: 4 }}>Manager and team activity</div>
             <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Manager</div>
-                <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{manager?.full_name || org?.reports_to_name || 'No manager set'}</div>
-                <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{manager?.user_email || org?.reports_to_email || 'Director assignment pending'}</div>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Manager</div>
+                <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{manager?.full_name || org?.reports_to_name || 'No manager set'}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{manager?.user_email || org?.reports_to_email || 'Director assignment pending'}</div>
               </div>
-              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department activity today</div>
-                <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
-                  Outreach added: <strong style={{ color: 'var(--text)' }}>{outreachAddedToday}</strong><br />
-                  Emails sent: <strong style={{ color: 'var(--text)' }}>{outreachEmailsToday}</strong><br />
-                  Open team tasks: <strong style={{ color: 'var(--text)' }}>{openTasks.length}</strong><br />
-                  Staff off today: <strong style={{ color: 'var(--text)' }}>{todayLeave.length}</strong><br />
-                  New starters: <strong style={{ color: 'var(--text)' }}>{newStarters.length}</strong>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department activity today</div>
+                <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
+                  Outreach added: <strong style={{ color: 'var(--color-text-primary)' }}>{outreachAddedToday}</strong><br />
+                  Emails sent: <strong style={{ color: 'var(--color-text-primary)' }}>{outreachEmailsToday}</strong><br />
+                  Open team tasks: <strong style={{ color: 'var(--color-text-primary)' }}>{openTasks.length}</strong><br />
+                  Staff off today: <strong style={{ color: 'var(--color-text-primary)' }}>{todayLeave.length}</strong><br />
+                  New starters: <strong style={{ color: 'var(--color-text-primary)' }}>{newStarters.length}</strong>
                 </div>
               </div>
-              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team activity feed</div>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team activity feed</div>
                 <div style={{ marginTop: 8, display:'grid', gap:8 }}>
                   {teamActivity.map((row, index) => (
-                    <div key={`${row.user_name}-${row.created_at}-${index}`} style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
-                      <strong style={{ color:'var(--text)' }}>{row.user_name || 'Team member'}</strong> · {row.action}
+                    <div key={`${row.user_name}-${row.created_at}-${index}`} style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
+                      <strong style={{ color:'var(--color-text-primary)' }}>{row.user_name || 'Team member'}</strong> · {row.action}
                     </div>
                   ))}
-                  {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No recent team activity yet.</div> : null}
+                  {teamActivity.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No recent team activity yet.</div> : null}
                 </div>
               </div>
-              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-                <div style={{ fontSize: 12, color: 'var(--faint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Leave and compliance</div>
-                <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.7 }}>
-                  Missing RTW: <strong style={{ color: 'var(--text)' }}>{missingRtwCount}</strong><br />
-                  Unsigned contracts: <strong style={{ color: 'var(--text)' }}>{pendingContractCount}</strong><br />
-                  Training due: <strong style={{ color: 'var(--text)' }}>{trainingDueCount}</strong><br />
-                  Off today: <strong style={{ color: 'var(--text)' }}>{todayLeave.length}</strong>
+              <div style={{ padding: '12px 13px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Leave and compliance</div>
+                <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
+                  Missing RTW: <strong style={{ color: 'var(--color-text-primary)' }}>{missingRtwCount}</strong><br />
+                  Unsigned contracts: <strong style={{ color: 'var(--color-text-primary)' }}>{pendingContractCount}</strong><br />
+                  Training due: <strong style={{ color: 'var(--color-text-primary)' }}>{trainingDueCount}</strong><br />
+                  Off today: <strong style={{ color: 'var(--color-text-primary)' }}>{todayLeave.length}</strong>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="card card-pad">
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>Department tasks</div>
+          <div style={{ ...DS_CARD, padding: 20 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Department tasks</div>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginTop: 4, flexWrap:'wrap' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Team task board</div>
-              <button className="btn btn-outline btn-sm" onClick={() => navigate('/tasks')}>Open full task manager</button>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Team task board</div>
+              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate('/tasks')}>Open full task manager</Button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:14 }}>
               {taskBoard.map((column) => (
-                <div key={column.key} style={{ border:'1px solid var(--border)', borderRadius:14, background:'var(--bg2)', padding:12 }}>
+                <div key={column.key} style={{ border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-gray-50)', padding:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:10 }}>
                     <div style={{ fontSize:12, fontWeight:700, color:column.tone, letterSpacing:'0.06em', textTransform:'uppercase' }}>{column.label}</div>
-                    <span className="badge badge-grey">{column.items.length}</span>
+                    <StatusBadge variant="info">{column.items.length}</StatusBadge>
                   </div>
                   <div style={{ display:'grid', gap:10 }}>
                     {column.items.map((task) => (
-                      <div key={task.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--border)', background:'var(--card)' }}>
-                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{task.title}</div>
-                        <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5, lineHeight:1.6 }}>
+                      <div key={task.id} style={{ padding:'12px 13px', borderRadius:12, border:'1px solid var(--color-border)', background:'var(--color-bg-surface)' }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)' }}>{task.title}</div>
+                        <div style={{ fontSize:11.5, color:'var(--color-text-secondary)', marginTop:5, lineHeight:1.6 }}>
                           {task.description_plain || 'No description'}
                         </div>
-                        <div style={{ fontSize:11.5, color:'var(--faint)', marginTop:6 }}>
+                        <div style={{ fontSize:11.5, color:'var(--color-text-tertiary)', marginTop:6 }}>
                           {task.assigned_to_name ? `Owner ${task.assigned_to_name}` : 'Department queue'}
                           {task.due_date ? ` · Due ${new Date(task.due_date).toLocaleDateString('en-GB')}` : ' · No due date'}
                         </div>
                       </div>
                     ))}
-                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--faint)' }}>No tasks in this column.</div> : null}
+                    {column.items.length === 0 ? <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>No tasks in this column.</div> : null}
                   </div>
                 </div>
               ))}

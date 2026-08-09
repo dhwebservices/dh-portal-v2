@@ -3,6 +3,10 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import SystemBannerCard from '../components/SystemBannerCard'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+const KICKER = { fontSize:11, letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--color-text-tertiary)', marginBottom:10 }
 
 const TYPES = [
   { key:'info',    label:'Info',    color:'var(--accent)', bg:'var(--accent-soft)', border:'var(--accent-border)' },
@@ -80,33 +84,33 @@ export default function Banners() {
   const livePreviewBanners = banners.filter((b) => b.active && (!b.ends_at || new Date(b.ends_at) > new Date()))
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Banners & Popups</h1>
-          <p className="page-sub">{activeCount} active · {banners.length} total</p>
+          <h1>Banners &amp; Popups</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{activeCount} active · {banners.length} total</p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Create Banner</button>
+        <Button variant="primary" onClick={openAdd}>+ Create Banner</Button>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
-        <div className="stat-card">
-          <div className="stat-val">{activeCount}</div>
-          <div className="stat-lbl">Live banners</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{activeCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Live banners</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val">{urgentCount}</div>
-          <div className="stat-lbl">Urgent live alerts</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{urgentCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Urgent live alerts</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val">{banners.filter(b => b.target_email).length}</div>
-          <div className="stat-lbl">Targeted to one staff member</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{banners.filter(b => b.target_email).length}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Targeted to one staff member</div>
         </div>
       </div>
 
       {/* Active banners preview */}
       <div style={{ marginBottom:20 }}>
-        <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>System status banner</div>
+        <div style={KICKER}>System status banner</div>
         <SystemBannerCard
           title="All Systems"
           statusText={overallStatus === 'operational' ? 'Operational' : overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}
@@ -121,7 +125,7 @@ export default function Banners() {
 
       {activeCount > 0 && (
         <div style={{ marginBottom:20 }}>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Live Preview</div>
+          <div style={KICKER}>Live Preview</div>
           <div style={{ display:'grid', gap:10 }}>
           {livePreviewBanners.map(b => {
             const tone = b.type === 'urgent' ? 'urgent' : b.type === 'warning' ? 'warning' : b.type === 'success' ? 'success' : 'info'
@@ -146,37 +150,37 @@ export default function Banners() {
       )}
 
       {/* Banners list */}
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ ...DS_CARD, overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : banners.length === 0 ? (
-          <div className="empty"><p>No banners yet.<br/>Create one to show announcements to staff.</p></div>
+          <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No banners yet. Create one to show announcements to staff.</div>
         ) : (
           <div style={{ display:'grid', gap:0 }}>
             {banners.map(b => {
               const t = typeInfo(b.type)
               const expired = b.ends_at && new Date(b.ends_at) < new Date()
               return (
-                <div key={b.id} style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)', display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:16, alignItems:'start' }}>
+                <div key={b.id} style={{ padding:'16px 18px', borderBottom:'1px solid var(--color-border)', display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:16, alignItems:'start' }}>
                   <div style={{ minWidth:0 }}>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
-                      <div style={{ fontWeight:600, color:'var(--text)', fontSize:14 }}>{b.title || b.message?.slice(0,40) || 'Untitled banner'}</div>
-                      <span className={`badge badge-${b.active && !expired ? 'green' : 'grey'}`}>{expired ? 'Expired' : b.active ? 'Active' : 'Off'}</span>
-                      <span className={`badge badge-${b.type === 'urgent' ? 'red' : b.type === 'warning' ? 'amber' : b.type === 'success' ? 'green' : 'blue'}`}>{b.type}</span>
+                      <div style={{ fontWeight:600, color:'var(--color-text-primary)', fontSize:14 }}>{b.title || b.message?.slice(0,40) || 'Untitled banner'}</div>
+                      <StatusBadge variant={b.active && !expired ? 'active' : 'info'}>{expired ? 'Expired' : b.active ? 'Active' : 'Off'}</StatusBadge>
+                      <StatusBadge variant={b.type === 'urgent' ? 'error' : b.type === 'warning' ? 'warning' : b.type === 'success' ? 'active' : 'info'}>{b.type}</StatusBadge>
                     </div>
-                    <div style={{ fontSize:13, color:'var(--sub)', lineHeight:1.65, marginBottom:10 }}>{b.message}</div>
+                    <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.65, marginBottom:10 }}>{b.message}</div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      <span className="badge badge-grey">{b.target_email ? b.target_email : 'all staff'}</span>
-                      <span className="badge badge-grey">{b.target_page || 'all pages'}</span>
-                      <span className="badge badge-grey">{b.display_type || 'banner'}</span>
-                      <span className="badge badge-grey">{b.dismissible ? 'dismissible' : 'locked'}</span>
-                      <span className="badge badge-grey">{b.ends_at ? new Date(b.ends_at).toLocaleDateString('en-GB') : 'no expiry'}</span>
+                      <StatusBadge variant="info">{b.target_email ? b.target_email : 'all staff'}</StatusBadge>
+                      <StatusBadge variant="info">{b.target_page || 'all pages'}</StatusBadge>
+                      <StatusBadge variant="info">{b.display_type || 'banner'}</StatusBadge>
+                      <StatusBadge variant="info">{b.dismissible ? 'dismissible' : 'locked'}</StatusBadge>
+                      <StatusBadge variant="info">{b.ends_at ? new Date(b.ends_at).toLocaleDateString('en-GB') : 'no expiry'}</StatusBadge>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => toggle(b.id, b.active)}>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => toggle(b.id, b.active)}>
                       {b.active ? 'Disable' : 'Enable'}
-                    </button>
-                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(b)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => del(b.id)}>Delete</button>
+                    </Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(b)}>Edit</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => del(b.id)}>Delete</Button>
                   </div>
                 </div>
               )
@@ -187,64 +191,64 @@ export default function Banners() {
 
       {modal && (
         <Modal title={editing ? 'Edit Banner' : 'Create Banner'} onClose={close}
-          footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}>
+          footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
             {/* Type selector */}
-            <div>
-              <label className="lbl" style={{ marginBottom:8 }}>Type</label>
+            <FormField>
+              <FormLabel>Type</FormLabel>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6 }}>
                 {TYPES.map(t => (
                   <button key={t.key} onClick={() => sf('type', t.key)}
-                    style={{ padding:'10px 8px', borderRadius:8, border:`2px solid ${form.type===t.key ? t.border : 'var(--border)'}`, background: form.type===t.key ? t.bg : 'transparent', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:4, transition:'all 0.15s' }}>
+                    style={{ padding:'10px 8px', borderRadius:'var(--border-radius-md)', border:`2px solid ${form.type===t.key ? 'var(--color-primary)' : 'var(--color-border)'}`, background: form.type===t.key ? 'var(--color-blue-50)' : 'transparent', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:4, transition:'all 0.15s' }}>
                     <span style={{ fontSize:18 }}>{ICONS[t.key]}</span>
-                    <span style={{ fontSize:11, fontWeight:500, color: form.type===t.key ? t.color : 'var(--sub)' }}>{t.label}</span>
+                    <span style={{ fontSize:11, fontWeight:500, color: form.type===t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>{t.label}</span>
                   </button>
                 ))}
               </div>
-            </div>
+            </FormField>
 
-            <div><label className="lbl">Title</label><input className="inp" value={form.title} onChange={e=>sf('title',e.target.value)} placeholder="e.g. System Maintenance Tonight"/></div>
-            <div><label className="lbl">Message</label><textarea className="inp" rows={3} value={form.message} onChange={e=>sf('message',e.target.value)} style={{ resize:'vertical' }} placeholder="Detailed message shown to staff..."/></div>
+            <FormField><FormLabel>Title</FormLabel><FormInput value={form.title} onChange={e=>sf('title',e.target.value)} placeholder="e.g. System Maintenance Tonight"/></FormField>
+            <FormField><FormLabel>Message</FormLabel><textarea className="ds-form-input" rows={3} value={form.message} onChange={e=>sf('message',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Detailed message shown to staff..."/></FormField>
 
-            <div className="fg">
-              <div><label className="lbl">Display As</label>
-                <select className="inp" value={form.display_type} onChange={e=>sf('display_type',e.target.value)}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Display As</FormLabel>
+                <FormSelect value={form.display_type} onChange={e=>sf('display_type',e.target.value)}>
                   <option value="banner">Banner Bar</option>
                   <option value="popup">Popup Modal</option>
-                </select>
-              </div>
-              <div><label className="lbl">Show To</label>
-                <select className="inp" value={form.target} onChange={e=>sf('target',e.target.value)}>
+                </FormSelect>
+              </FormField>
+              <FormField><FormLabel>Show To</FormLabel>
+                <FormSelect value={form.target} onChange={e=>sf('target',e.target.value)}>
                   <option value="staff">All Staff</option>
                   <option value="all">Everyone</option>
-                </select>
-              </div>
-              <div><label className="lbl">Expires</label><input className="inp" type="date" value={form.ends_at} onChange={e=>sf('ends_at',e.target.value)}/></div>
+                </FormSelect>
+              </FormField>
+              <FormField><FormLabel>Expires</FormLabel><FormInput type="date" value={form.ends_at} onChange={e=>sf('ends_at',e.target.value)}/></FormField>
             </div>
 
-            <div className="fg">
-              <div><label className="lbl">Target Page</label>
-                <select className="inp" value={form.target_page || 'all'} onChange={e=>sf('target_page',e.target.value)}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Target Page</FormLabel>
+                <FormSelect value={form.target_page || 'all'} onChange={e=>sf('target_page',e.target.value)}>
                   <option value="all">All pages</option>
                   <option value="dashboard">Dashboard only</option>
                   <option value="notifications">Notifications only</option>
                   <option value="my-profile">My Profile only</option>
-                </select>
-              </div>
-              <div className="fc">
-                <label className="lbl">Specific Staff Email</label>
-                <input className="inp" value={form.target_email || ''} onChange={e=>sf('target_email',e.target.value.toLowerCase())} placeholder="Leave blank for all staff" />
-              </div>
+                </FormSelect>
+              </FormField>
+              <FormField>
+                <FormLabel>Specific Staff Email</FormLabel>
+                <FormInput value={form.target_email || ''} onChange={e=>sf('target_email',e.target.value.toLowerCase())} placeholder="Leave blank for all staff" />
+              </FormField>
             </div>
 
             <div style={{ display:'flex', gap:20 }}>
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
-                <input type="checkbox" checked={form.active} onChange={e=>sf('active',e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }}/>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--color-text-primary)' }}>
+                <input type="checkbox" checked={form.active} onChange={e=>sf('active',e.target.checked)} style={{ accentColor:'var(--color-primary)', width:16, height:16 }}/>
                 Active immediately
               </label>
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
-                <input type="checkbox" checked={form.dismissible} onChange={e=>sf('dismissible',e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }}/>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--color-text-primary)' }}>
+                <input type="checkbox" checked={form.dismissible} onChange={e=>sf('dismissible',e.target.checked)} style={{ accentColor:'var(--color-primary)', width:16, height:16 }}/>
                 Dismissible
               </label>
             </div>
@@ -252,7 +256,7 @@ export default function Banners() {
             {/* Live preview */}
             {(form.title || form.message) && (
               <div>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--faint)', marginBottom:6 }}>Preview</div>
+                <div style={{ ...KICKER, marginBottom:6 }}>Preview</div>
                 <SystemBannerCard
                   title={form.title || 'Banner preview'}
                   tone={form.type === 'urgent' ? 'urgent' : form.type === 'warning' ? 'warning' : form.type === 'success' ? 'success' : 'info'}

@@ -5,13 +5,14 @@ import { Modal } from '../components/Modal'
 import { StaffPicker } from '../components/StaffPicker'
 import { sendManagedNotification } from '../utils/notificationPreferences'
 import { buildTaskDescription, enrichTask } from '../utils/taskMetadata'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const EMPTY  = { title:'', description:'', assigned_to_email:'', assigned_to_name:'', assigned_department:'', due_date:'', priority:'medium', status:'todo' }
 const PRIORITIES = ['low','medium','high','urgent']
 const STATUSES   = ['todo','in_progress','done']
-const prioColor  = { low:'var(--sub)', medium:'var(--accent)', high:'var(--amber,#f59e0b)', urgent:'var(--red)' }
-const prioBg     = { low:'var(--bg2)', medium:'var(--accent-soft)', high:'#fef3c7', urgent:'#fee2e2' }
+const prioColor  = { low:'var(--color-text-secondary)', medium:'var(--color-primary)', high:'var(--color-amber-500)', urgent:'var(--color-red-500)' }
+const prioBg     = { low:'var(--color-gray-50)', medium:'var(--color-blue-50)', high:'#fef3c7', urgent:'#fee2e2' }
 
 export default function Tasks() {
   const { user, org } = useAuth()
@@ -128,69 +129,69 @@ export default function Tasks() {
   })
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Manage Tasks</h1>
-          <p className="page-sub">{tasks.filter(t => t.status !== 'done').length} open tasks</p>
+          <h1>Manage Tasks</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{tasks.filter(t => t.status !== 'done').length} open tasks</p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd}>+ New Task</button>
+        <Button variant="primary" onClick={openAdd}>+ New Task</Button>
       </div>
 
       {/* Filters */}
       <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
         <div style={{ position:'relative', flex:1, minWidth:200 }}>
-          <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input className="inp" style={{ paddingLeft:34 }} placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)}/>
+          <svg style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--color-text-tertiary)',pointerEvents:'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <FormInput style={{ paddingLeft:34, width:'100%' }} placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
           {[['all','All'],['todo','To Do'],['in_progress','In Progress'],['done','Done'],['mine','Mine']].map(([v,l]) => (
-            <button key={v} onClick={() => setFilter(v)} className={'pill'+(filter===v?' on':'')}>{l}</button>
+            <Button key={v} onClick={() => setFilter(v)} variant={filter===v ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
           ))}
         </div>
       </div>
 
       {/* Table */}
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)', overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
-          <table className="tbl">
+          <table className="ds-table">
             <thead><tr><th>Task</th><th>Assigned To</th><th>Department</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {filtered.map(t => (
                 <tr key={t.id} style={{ cursor:'pointer' }} onClick={() => setDetail(t)}>
-                  <td className="t-main" style={{ maxWidth:280 }}>
+                  <td style={{ maxWidth:280 }}>
                     <div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
-                    {t.description_plain && <div style={{ fontSize:11, color:'var(--faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:260 }}>{t.description_plain}</div>}
+                    {t.description_plain && <div style={{ fontSize:11, color:'var(--color-text-tertiary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:260 }}>{t.description_plain}</div>}
                   </td>
                   <td>
                     {t.assigned_to_name ? (
                       <span style={{ display:'flex', alignItems:'center', gap:6 }}>
-                        <span style={{ width:20, height:20, borderRadius:'50%', background:'var(--accent-soft)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:600, color:'var(--accent)', flexShrink:0 }}>
+                        <span style={{ width:20, height:20, borderRadius:'50%', background:'var(--color-blue-50)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:600, color:'var(--color-primary)', flexShrink:0 }}>
                           {t.assigned_to_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
                         </span>
                         {t.assigned_to_name}
                       </span>
-                    ) : <span style={{ color:'var(--faint)' }}>Unassigned</span>}
+                    ) : <span style={{ color:'var(--color-text-tertiary)' }}>Unassigned</span>}
                   </td>
-                  <td>{t.assigned_department ? <span className="badge badge-blue">{t.assigned_department}</span> : <span style={{ color:'var(--faint)' }}>—</span>}</td>
+                  <td>{t.assigned_department ? <StatusBadge variant="info">{t.assigned_department}</StatusBadge> : <span style={{ color:'var(--color-text-tertiary)' }}>—</span>}</td>
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{t.due_date ? new Date(t.due_date).toLocaleDateString('en-GB') : '—'}</td>
                   <td><span style={{ padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background: prioBg[t.priority], color: prioColor[t.priority] }}>{t.priority}</span></td>
                   <td>
-                    <select className="inp" style={{ padding:'4px 8px', fontSize:12, width:'auto' }} value={t.status}
+                    <FormSelect style={{ padding:'4px 8px', fontSize:12, width:'auto' }} value={t.status}
                       onClick={e => e.stopPropagation()}
                       onChange={e => { e.stopPropagation(); updateStatus(t.id, e.target.value) }}>
                       {STATUSES.map(s => <option key={s} value={s}>{s.replace('_',' ')}</option>)}
-                    </select>
+                    </FormSelect>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display:'flex', gap:4 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(t)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => del(t.id)}>Del</button>
+                      <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(t)}>Edit</Button>
+                      <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => del(t.id)}>Del</Button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No tasks found</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No tasks found</td></tr>}
             </tbody>
           </table>
         )}
@@ -210,27 +211,27 @@ export default function Tasks() {
       {/* Add/Edit Modal */}
       {modal && (
         <Modal title={editing ? 'Edit Task' : 'New Task'} onClose={close}
-          footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Task'}</button></>}>
+          footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Task'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label className="lbl">Title *</label><input className="inp" value={form.title} onChange={e=>sf('title',e.target.value)} placeholder="Task title"/></div>
-            <div><label className="lbl">Description</label><textarea className="inp" rows={3} value={form.description} onChange={e=>sf('description',e.target.value)} style={{ resize:'vertical' }} placeholder="Optional details..."/></div>
+            <FormField><FormLabel required>Title</FormLabel><FormInput value={form.title} onChange={e=>sf('title',e.target.value)} placeholder="Task title"/></FormField>
+            <FormField><FormLabel>Description</FormLabel><textarea className="ds-form-input" rows={3} value={form.description} onChange={e=>sf('description',e.target.value)} style={{ resize:'vertical', padding:'8px 12px' }} placeholder="Optional details..."/></FormField>
             <StaffPicker label="Assign To" value={form.assigned_to_email}
               onChange={({ email, name }) => { sf('assigned_to_email', email); sf('assigned_to_name', name) }}
               placeholder="Select a staff member..."/>
-            <div>
-              <label className="lbl">Assign to department</label>
-              <select className="inp" value={form.assigned_department || ''} onChange={e => sf('assigned_department', e.target.value)}>
+            <FormField>
+              <FormLabel>Assign to department</FormLabel>
+              <FormSelect value={form.assigned_department || ''} onChange={e => sf('assigned_department', e.target.value)}>
                 <option value="">No department task</option>
                 {departmentCatalog.map((item) => <option key={item.id || item.name} value={item.name}>{item.name}</option>)}
-              </select>
-            </div>
-            <div className="fg">
-              <div><label className="lbl">Due Date</label><input className="inp" type="date" value={form.due_date} onChange={e=>sf('due_date',e.target.value)}/></div>
-              <div><label className="lbl">Priority</label>
-                <select className="inp" value={form.priority} onChange={e=>sf('priority',e.target.value)}>
+              </FormSelect>
+            </FormField>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Due Date</FormLabel><FormInput type="date" value={form.due_date} onChange={e=>sf('due_date',e.target.value)}/></FormField>
+              <FormField><FormLabel>Priority</FormLabel>
+                <FormSelect value={form.priority} onChange={e=>sf('priority',e.target.value)}>
                   {PRIORITIES.map(p => <option key={p}>{p}</option>)}
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             </div>
           </div>
         </Modal>
@@ -323,65 +324,65 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
     setPosting(false)
   }
 
-  const statusColor = { todo: 'var(--sub)', in_progress: 'var(--accent)', done: 'var(--green,#22c55e)' }
+  const statusColor = { todo: 'var(--color-text-secondary)', in_progress: 'var(--color-primary)', done: 'var(--color-green-500)' }
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
-      <div style={{ position:'relative', width:520, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
+      <div style={{ position:'relative', width:520, maxWidth:'95vw', height:'100vh', background:'var(--color-bg-surface)', borderLeft:'1px solid var(--color-border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
 
         {/* Header */}
-        <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start' }}>
+        <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--color-border)', display:'flex', gap:12, alignItems:'flex-start' }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:18, fontWeight:600, color:'var(--text)', marginBottom:6, lineHeight:1.3 }}>{task.title}</div>
+            <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:6, lineHeight:1.3 }}>{task.title}</div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
               <span style={{ padding:'3px 10px', borderRadius:5, fontSize:11, fontWeight:600, background: prioBg[task.priority], color: prioColor[task.priority] }}>{task.priority}</span>
-              {task.due_date && <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Due {new Date(task.due_date).toLocaleDateString('en-GB')}</span>}
-              {task.assigned_to_name && <span style={{ fontSize:11, color:'var(--sub)' }}>→ {task.assigned_to_name}</span>}
+              {task.due_date && <span style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>Due {new Date(task.due_date).toLocaleDateString('en-GB')}</span>}
+              {task.assigned_to_name && <span style={{ fontSize:11, color:'var(--color-text-secondary)' }}>→ {task.assigned_to_name}</span>}
             </div>
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--color-text-tertiary)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
         </div>
 
         {/* Status selector */}
-        <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)', display:'flex', gap:8, alignItems:'center' }}>
-          <span style={{ fontSize:12, color:'var(--faint)', marginRight:4 }}>Status:</span>
+        <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--color-border)', display:'flex', gap:8, alignItems:'center' }}>
+          <span style={{ fontSize:12, color:'var(--color-text-tertiary)', marginRight:4 }}>Status:</span>
           {STATUSES.map(s => (
             <button key={s} onClick={() => changeStatus(s)}
-              style={{ padding:'6px 14px', borderRadius:7, border:'1px solid ' + (status===s ? statusColor[s] : 'var(--border)'), background: status===s ? (s==='done'?'#dcfce7':s==='in_progress'?'var(--accent-soft)':'var(--bg2)') : 'transparent', color: status===s ? statusColor[s] : 'var(--sub)', cursor:'pointer', fontSize:12, fontWeight: status===s ? 600 : 400, transition:'all 0.15s' }}>
+              style={{ padding:'6px 14px', borderRadius:7, border:'1px solid ' + (status===s ? statusColor[s] : 'var(--color-border)'), background: status===s ? (s==='done'?'#dcfce7':s==='in_progress'?'var(--color-blue-50)':'var(--color-gray-50)') : 'transparent', color: status===s ? statusColor[s] : 'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontWeight: status===s ? 600 : 400, transition:'all 0.15s' }}>
               {s === 'in_progress' ? 'In Progress' : s === 'done' ? '✓ Done' : 'To Do'}
             </button>
           ))}
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto' }} onClick={onEdit}>Edit</button>
+          <Button variant="ghost" style={{ marginLeft:'auto', height:28, fontSize:12, padding:'0 8px' }} onClick={onEdit}>Edit</Button>
         </div>
 
         {/* Description */}
         {task.description_plain && (
-          <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Description</div>
-            <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{task.description_plain}</div>
+          <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--color-border)' }}>
+            <div style={{ fontSize:11, fontWeight:600, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Description</div>
+            <div style={{ fontSize:13, color:'var(--color-text-primary)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{task.description_plain}</div>
           </div>
         )}
 
         {/* Comments */}
         <div style={{ flex:1, padding:'16px 24px', display:'flex', flexDirection:'column', gap:12 }}>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+          <div style={{ fontSize:11, fontWeight:600, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
             Comments {comments.length > 0 && '(' + comments.length + ')'}
           </div>
           {comments.length === 0 && (
-            <div style={{ fontSize:13, color:'var(--faint)', textAlign:'center', padding:'24px 0' }}>No comments yet</div>
+            <div style={{ fontSize:13, color:'var(--color-text-tertiary)', textAlign:'center', padding:'24px 0' }}>No comments yet</div>
           )}
           {comments.map(c => (
             <div key={c.id} style={{ display:'flex', gap:10 }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:600, color:'var(--accent)', flexShrink:0 }}>
+              <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--color-blue-50)', border:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:600, color:'var(--color-primary)', flexShrink:0 }}>
                 {(c.user_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
               </div>
-              <div style={{ flex:1, background:'var(--bg2)', borderRadius:10, padding:'10px 14px' }}>
+              <div style={{ flex:1, background:'var(--color-gray-50)', borderRadius:10, padding:'10px 14px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{c.user_name || c.user_email}</span>
-                  <span style={{ fontSize:11, color:'var(--faint)' }}>{new Date(c.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
+                  <span style={{ fontSize:12, fontWeight:600, color:'var(--color-text-primary)' }}>{c.user_name || c.user_email}</span>
+                  <span style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{new Date(c.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
                 </div>
-                <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.5, whiteSpace:'pre-wrap' }}>{c.body}</div>
+                <div style={{ fontSize:13, color:'var(--color-text-primary)', lineHeight:1.5, whiteSpace:'pre-wrap' }}>{c.body}</div>
               </div>
             </div>
           ))}
@@ -389,14 +390,14 @@ function TaskDetail({ task, user, onClose, onStatusChange, onEdit }) {
         </div>
 
         {/* Comment input */}
-        <div style={{ padding:'16px 24px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
-          <textarea className="inp" rows={2} value={comment} onChange={e => setComment(e.target.value)}
+        <div style={{ padding:'16px 24px', borderTop:'1px solid var(--color-border)', display:'flex', gap:10 }}>
+          <textarea className="ds-form-input" rows={2} value={comment} onChange={e => setComment(e.target.value)}
             onKeyDown={e => { if (e.key==='Enter' && (e.metaKey||e.ctrlKey)) postComment() }}
-            placeholder="Add a comment... (Cmd+Enter to send)" style={{ flex:1, resize:'none', fontSize:13 }}/>
-          <button className="btn btn-primary" onClick={postComment} disabled={posting || !comment.trim()}
+            placeholder="Add a comment... (Cmd+Enter to send)" style={{ flex:1, resize:'none', fontSize:13, padding:'8px 12px' }}/>
+          <Button variant="primary" onClick={postComment} disabled={posting || !comment.trim()}
             style={{ alignSelf:'flex-end', whiteSpace:'nowrap' }}>
             {posting ? '...' : 'Send'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

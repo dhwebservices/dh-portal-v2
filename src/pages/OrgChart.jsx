@@ -4,9 +4,9 @@ import { supabase } from '../utils/supabase'
 import { mergeLifecycleRecord, TERMINATED_STATES } from '../utils/staffLifecycle'
 
 const cardStyle = {
-  background: 'var(--card)',
-  border: '1px solid var(--border)',
-  borderRadius: 14,
+  background: 'var(--color-bg-surface)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 'var(--border-radius-lg)',
 }
 
 const normalizeEmail = (email = '') => email.toLowerCase().trim()
@@ -86,7 +86,7 @@ function PersonCard({ person, reportsCount, onOpen }) {
       }}
       onMouseOut={(e) => {
         e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.borderColor = 'var(--border)'
+        e.currentTarget.style.borderColor = 'var(--color-border)'
         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'
       }}
     >
@@ -110,9 +110,9 @@ function PersonCard({ person, reportsCount, onOpen }) {
               width: 42,
               height: 42,
               borderRadius: '50%',
-              background: 'var(--accent-soft)',
+              background: 'var(--color-blue-50)',
               border: '1px solid var(--accent-border)',
-              color: 'var(--accent)',
+              color: 'var(--color-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -125,13 +125,13 @@ function PersonCard({ person, reportsCount, onOpen }) {
           </div>
         )}
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.3 }}>
             {person.full_name || person.user_email}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
             {person.role || 'Staff'}
           </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--faint)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {person.user_email}
           </div>
         </div>
@@ -139,7 +139,7 @@ function PersonCard({ person, reportsCount, onOpen }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
         {person.department ? (
-          <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--bg2)', fontSize: 11, color: 'var(--sub)' }}>
+          <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--color-gray-50)', fontSize: 11, color: 'var(--color-text-secondary)' }}>
             {person.department}
           </span>
         ) : null}
@@ -148,17 +148,17 @@ function PersonCard({ person, reportsCount, onOpen }) {
             padding: '4px 8px',
             borderRadius: 999,
             background: person.onboarding ? 'var(--amber-bg)' : 'var(--green-bg)',
-            color: person.onboarding ? 'var(--amber)' : 'var(--green)',
+            color: person.onboarding ? 'var(--color-amber-500)' : 'var(--color-green-500)',
             fontSize: 11,
           }}
         >
           {person.onboarding ? 'Onboarding' : 'Active'}
         </span>
-        <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 11 }}>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--color-blue-50)', color: 'var(--color-primary)', fontSize: 11 }}>
           {reportsCount} {reportsCount === 1 ? 'report' : 'reports'}
         </span>
       </div>
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--color-primary)', fontWeight: 600 }}>
         Open staff profile {'->'}
       </div>
     </button>
@@ -323,11 +323,11 @@ export default function OrgChart() {
   }, [people])
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Organisation Chart</h1>
-          <p className="page-sub">Live reporting lines from staff profiles and manager assignments.</p>
+          <h1>Organisation Chart</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live reporting lines from staff profiles and manager assignments.</p>
         </div>
       </div>
 
@@ -339,23 +339,23 @@ export default function OrgChart() {
           ['Onboarding', stats.onboarding, 'Not fully active yet'],
         ].map(([label, value, hint]) => (
           <div key={label} style={{ ...cardStyle, padding: 16 }}>
-            <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--text)', lineHeight: 1 }}>{value}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginTop: 8 }}>
+            <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1 }}>{value}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginTop: 8 }}>
               {label}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6 }}>{hint}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>{hint}</div>
           </div>
         ))}
       </div>
 
       <div style={{ ...cardStyle, padding: 18, marginBottom: 20, display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Live view</div>
-          <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>Live view</div>
+          <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 4 }}>
             Updates automatically when staff profiles or manager assignments change.
           </div>
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-tertiary)' }}>
           {updatedAt ? `Last synced ${new Date(updatedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'Waiting for data'}
         </div>
       </div>
@@ -363,7 +363,7 @@ export default function OrgChart() {
       {loading ? (
         <div className="spin-wrap"><div className="spin" /></div>
       ) : people.length === 0 ? (
-        <div className="empty"><p>No staff profiles found for the org chart yet.</p></div>
+        <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No staff profiles found for the org chart yet.</div>
       ) : (
         <div
           style={{

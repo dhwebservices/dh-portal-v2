@@ -11,6 +11,9 @@ import {
   Users,
 } from 'lucide-react'
 import { supabase } from '../utils/supabase'
+import { Button, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 
 const RECENT_SEARCHES_KEY = 'dh-portal-recent-searches'
 
@@ -66,9 +69,9 @@ function dedupeStaffResults(items = []) {
 
 function ResultCountCard({ label, value }) {
   return (
-    <div className="stat-card" style={{ padding: 16 }}>
-      <div className="stat-val" style={{ fontSize: 24 }}>{value}</div>
-      <div className="stat-lbl">{label}</div>
+    <div style={{ ...DS_CARD, padding: 16 }}>
+      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{label}</div>
     </div>
   )
 }
@@ -142,7 +145,7 @@ export default function Search() {
     return (
       <>
         {str.slice(0, idx)}
-        <mark style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 4, padding: '0 2px' }}>
+        <mark style={{ background: 'var(--color-blue-50)', color: 'var(--color-primary)', borderRadius: 4, padding: '0 2px' }}>
           {str.slice(idx, idx + q.length)}
         </mark>
         {str.slice(idx + q.length)}
@@ -192,21 +195,21 @@ export default function Search() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Search</h1>
-          <p className="page-sub">Find clients, staff, tasks, tickets, notifications, and invoices from one place.</p>
+          <h1>Search</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Find clients, staff, tasks, tickets, notifications, and invoices from one place.</p>
         </div>
       </div>
 
-      <div className="card card-pad" style={{ marginBottom: 24 }}>
+      <div style={{ ...DS_CARD, padding: 20, marginBottom: 24 }}>
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <SearchIcon size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--faint)', pointerEvents: 'none' }} />
+          <SearchIcon size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
           <input
             ref={inputRef}
-            className="inp"
-            style={{ paddingLeft: 44, paddingRight: 40, fontSize: 16, borderRadius: 999, height: 50 }}
+            className="ds-form-input"
+            style={{ paddingLeft: 44, paddingRight: 40, fontSize: 16, borderRadius: 999, height: 50, width: '100%' }}
             placeholder="Search staff, clients, tasks, tickets, notifications..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -218,19 +221,19 @@ export default function Search() {
           ) : query ? (
             <button
               onClick={() => setQuery('')}
-              style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--faint)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+              style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
             >
               ×
             </button>
           ) : null}
         </div>
 
-        <div className="tabs" style={{ marginBottom: recentSearches.length ? 14 : 0 }}>
-          <button className={`tab${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>All</button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: recentSearches.length ? 14 : 0, flexWrap: 'wrap' }}>
+          <Button variant={filter === 'all' ? 'primary' : 'secondary'} style={{ height: 30, fontSize: 12, padding: '0 10px' }} onClick={() => setFilter('all')}>All</Button>
           {SECTIONS.map((section) => (
-            <button key={section.key} className={`tab${filter === section.key ? ' on' : ''}`} onClick={() => setFilter(section.key)}>
+            <Button key={section.key} variant={filter === section.key ? 'primary' : 'secondary'} style={{ height: 30, fontSize: 12, padding: '0 10px' }} onClick={() => setFilter(section.key)}>
               {section.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -246,7 +249,7 @@ export default function Search() {
       </div>
 
       {query.trim().length >= 2 && total > 0 ? (
-        <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16, marginBottom: 24 }}>
           <ResultCountCard label="Total Results" value={total} />
           <ResultCountCard label="Matched Sections" value={activeSections.length} />
           <ResultCountCard label="Active Filter" value={filter === 'all' ? 'All' : SECTIONS.find((section) => section.key === filter)?.label || 'All'} />
@@ -254,14 +257,14 @@ export default function Search() {
       ) : null}
 
       {query.trim().length >= 2 && !loading && total === 0 ? (
-        <div className="empty"><p>No results for "<strong>{query}</strong>"</p></div>
+        <div style={{ padding: 'var(--space-3xl)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No results for "<strong>{query}</strong>"</div>
       ) : null}
 
       {!query.trim() && recentSearches.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <FileText size={22} style={{ color: 'var(--faint)', marginBottom: 10 }} />
-          <div style={{ fontSize: 14, color: 'var(--sub)', marginBottom: 6 }}>Start typing to search the portal</div>
-          <div style={{ fontSize: 12, color: 'var(--faint)' }}>Results will group by section and link you straight into the right page.</div>
+        <div style={{ ...DS_CARD, textAlign: 'center', padding: '40px 20px' }}>
+          <FileText size={22} style={{ color: 'var(--color-text-tertiary)', marginBottom: 10 }} />
+          <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Start typing to search the portal</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Results will group by section and link you straight into the right page.</div>
         </div>
       ) : null}
 
@@ -274,12 +277,12 @@ export default function Search() {
           return (
             <div key={section.key}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--accent-soft)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--color-blue-50)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon size={16} />
                 </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{section.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>{items.length} result{items.length !== 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>{items.length} result{items.length !== 1 ? 's' : ''}</div>
                 </div>
               </div>
 
@@ -294,34 +297,34 @@ export default function Search() {
                       gap: 14,
                       padding: '14px 16px',
                       borderRadius: 12,
-                      border: '1px solid var(--border)',
-                      background: 'var(--card)',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-surface)',
                       textAlign: 'left',
                       cursor: 'pointer',
                       transition: 'all 0.15s',
                     }}
-                    onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-soft)' }}
-                    onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--card)' }}
+                    onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.background = 'var(--color-blue-50)' }}
+                    onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = 'var(--color-bg-surface)' }}
                   >
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg2)', color: 'var(--sub)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-gray-50)', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Icon size={16} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4, lineHeight: 1.4 }}>
                         {highlight(getTitle(section, item), query)}
                       </div>
                       {getExcerpt(section, item) ? (
-                        <div style={{ fontSize: 12, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
                           {highlight(String(getExcerpt(section, item)).slice(0, 160), query)}
                         </div>
                       ) : null}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {getMeta(section, item).map((metaItem) => (
-                          <span key={metaItem} className="badge badge-grey">{metaItem}</span>
+                          <StatusBadge key={metaItem} variant="info">{metaItem}</StatusBadge>
                         ))}
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>Open</span>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>Open</span>
                   </button>
                 ))}
               </div>

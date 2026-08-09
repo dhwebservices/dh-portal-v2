@@ -5,6 +5,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { createStaffContract, getContractStatusLabel } from '../utils/contracts'
 import { normalizeEmail } from '../utils/hrProfileSync'
 import { sendManagedNotification } from '../utils/notificationPreferences'
+import { Button, FormField, FormLabel, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 const STATUS_FILTERS = [
   ['all', 'All contracts'],
@@ -129,69 +134,69 @@ export default function ContractQueue() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Contract Queue</h1>
-          <p className="page-sub">Track issued contracts, staff signatures, and final signed PDFs.</p>
+          <h1>Contract Queue</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Track issued contracts, staff signatures, and final signed PDFs.</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button className="btn btn-outline" onClick={() => navigate('/contract-templates')}>Manage templates</button>
-          <button className="btn btn-outline" onClick={load} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</button>
+          <Button variant="secondary" onClick={() => navigate('/contract-templates')}>Manage templates</Button>
+          <Button variant="secondary" onClick={load} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</Button>
         </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
-        <div className="stat-card">
-          <div className="stat-val">{contracts.length}</div>
-          <div className="stat-lbl">Visible contracts</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{contracts.length}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Visible contracts</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--amber)' }}>{awaitingCount}</div>
-          <div className="stat-lbl">Awaiting staff signature</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-amber-500)' }}>{awaitingCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Awaiting staff signature</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--green)' }}>{completedCount}</div>
-          <div className="stat-lbl">Completed</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-green-500)' }}>{completedCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Completed</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--red)' }}>{voidedCount}</div>
-          <div className="stat-lbl">Voided</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-red-500)' }}>{voidedCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Voided</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-val" style={{ color:'var(--amber)' }}>{overdueCount}</div>
-          <div className="stat-lbl">Overdue 3+ days</div>
+        <div style={{ ...DS_CARD, padding:20 }}>
+          <div style={{ fontSize:24, fontWeight:600, color:'var(--color-amber-500)' }}>{overdueCount}</div>
+          <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Overdue 3+ days</div>
         </div>
       </div>
 
-      <div className="card card-pad" style={{ marginBottom:18, display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
-        <div>
-          <label className="lbl">Status</label>
-          <select className="inp" value={filter} onChange={(e) => setFilter(e.target.value)}>
+      <div style={{ ...DS_CARD, padding:20, marginBottom:18, display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+        <FormField>
+          <FormLabel>Status</FormLabel>
+          <FormSelect value={filter} onChange={(e) => setFilter(e.target.value)}>
             {STATUS_FILTERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="lbl">Department</label>
-          <select className="inp" value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+          </FormSelect>
+        </FormField>
+        <FormField>
+          <FormLabel>Department</FormLabel>
+          <FormSelect value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
             <option value="all">All visible departments</option>
             {departments.map((department) => <option key={department} value={department}>{department}</option>)}
-          </select>
-        </div>
+          </FormSelect>
+        </FormField>
       </div>
 
       {error ? (
-        <div className="card card-pad" style={{ color:'var(--red)' }}>{error}</div>
+        <div style={{ ...DS_CARD, padding:20, color:'var(--color-red-500)' }}>{error}</div>
       ) : null}
       {message ? (
-        <div className="card card-pad" style={{ color:'var(--green)', marginBottom:18 }}>{message}</div>
+        <div style={{ ...DS_CARD, padding:20, color:'var(--color-green-500)', marginBottom:18 }}>{message}</div>
       ) : null}
 
       {loading ? (
-        <div className="card card-pad">Loading contract queue...</div>
+        <div style={{ ...DS_CARD, padding:20 }}>Loading contract queue...</div>
       ) : filteredContracts.length ? (
-        <div className="card" style={{ overflow:'hidden' }}>
-          <table className="tbl">
+        <div style={{ ...DS_CARD, overflow:'hidden' }}>
+          <table className="ds-table">
             <thead>
               <tr>
                 <th>Staff member</th>
@@ -210,30 +215,30 @@ export default function ContractQueue() {
                 return (
                   <tr key={contract.id}>
                     <td>
-                      <div className="t-main">{contract.staff_name || contract.staff_email || 'Unknown staff'}</div>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)', marginTop:4 }}>{contract.staff_email || 'No email recorded'}</div>
+                      <div>{contract.staff_name || contract.staff_email || 'Unknown staff'}</div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-text-tertiary)', marginTop:4 }}>{contract.staff_email || 'No email recorded'}</div>
                     </td>
                     <td>{contract.staff_department || 'Unassigned'}</td>
                     <td>
-                      <div style={{ fontWeight:500, color:'var(--text)' }}>{contract.template_name || contract.contract_type || 'Contract'}</div>
-                      <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>Manager: {contract.manager_signature?.name || contract.manager_name || 'Pending'}</div>
-                      {overdue ? <div style={{ fontSize:11.5, color:'var(--amber)', marginTop:6 }}>Overdue by {waitingDays} day{waitingDays === 1 ? '' : 's'}</div> : null}
+                      <div style={{ fontWeight:500, color:'var(--color-text-primary)' }}>{contract.template_name || contract.contract_type || 'Contract'}</div>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Manager: {contract.manager_signature?.name || contract.manager_name || 'Pending'}</div>
+                      {overdue ? <div style={{ fontSize:11.5, color:'var(--color-amber-500)', marginTop:6 }}>Overdue by {waitingDays} day{waitingDays === 1 ? '' : 's'}</div> : null}
                     </td>
                     <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{formatStamp(contract.issued_at || contract.created_at)}</td>
-                    <td><span className={`badge badge-${statusTone}`}>{statusLabel}</span></td>
+                    <td><StatusBadge variant={TONE_TO_VARIANT[statusTone] || 'info'}>{statusLabel}</StatusBadge></td>
                     <td>
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
                         {contract.final_document_url ? (
-                          <a className="btn btn-outline btn-sm" href={contract.final_document_url} target="_blank" rel="noreferrer">Open PDF</a>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => window.open(contract.final_document_url, '_blank', 'noreferrer')}>Open PDF</Button>
                         ) : null}
                         {contract.status === 'awaiting_staff_signature' ? (
-                          <button className="btn btn-outline btn-sm" onClick={() => resendReminder(contract)} disabled={busyContractId === contract.id}>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => resendReminder(contract)} disabled={busyContractId === contract.id}>
                             {busyContractId === contract.id ? 'Sending...' : 'Resend reminder'}
-                          </button>
+                          </Button>
                         ) : null}
-                        <button className="btn btn-outline btn-sm" onClick={() => navigate(`/my-staff/${encodeURIComponent(contract.staff_email)}?tab=contracts`)}>
+                        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => navigate(`/my-staff/${encodeURIComponent(contract.staff_email)}?tab=contracts`)}>
                           Open staff contract
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -243,9 +248,9 @@ export default function ContractQueue() {
           </table>
         </div>
       ) : (
-        <div className="card card-pad" style={{ maxWidth:620 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:24, color:'var(--text)' }}>No contracts in this view</div>
-          <div style={{ marginTop:8, fontSize:14, color:'var(--sub)', lineHeight:1.7 }}>
+        <div style={{ ...DS_CARD, padding:20, maxWidth:620 }}>
+          <div style={{ fontSize:24, color:'var(--color-text-primary)' }}>No contracts in this view</div>
+          <div style={{ marginTop:8, fontSize:14, color:'var(--color-text-secondary)', lineHeight:1.7 }}>
             Issued staff contracts will appear here once they have been sent from a staff profile. Use the contract queue to monitor which contracts still need a staff signature.
           </div>
         </div>

@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { normalizeEmail } from '../utils/hrProfileSync'
 import { StatCard } from '../components/ui'
+import { Button, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
 const STAFF_REQUIRED_FIELDS = [
@@ -36,11 +41,11 @@ function daysSince(dateString) {
 
 function SafeguardPanel({ title, subtitle, action, children }) {
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+    <div style={{ ...DS_CARD, overflow: 'hidden' }}>
+      <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>{title}</div>
-          {subtitle ? <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div> : null}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>{title}</div>
+          {subtitle ? <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div> : null}
         </div>
         {action || null}
       </div>
@@ -51,7 +56,7 @@ function SafeguardPanel({ title, subtitle, action, children }) {
 
 function IssueList({ items, emptyText, onOpen }) {
   if (!items.length) {
-    return <div style={{ padding: '26px 18px', color: 'var(--faint)', fontSize: 13, textAlign: 'center' }}>{emptyText}</div>
+    return <div style={{ padding: '26px 18px', color: 'var(--color-text-tertiary)', fontSize: 13, textAlign: 'center' }}>{emptyText}</div>
   }
 
   return (
@@ -61,7 +66,7 @@ function IssueList({ items, emptyText, onOpen }) {
           key={item.id || `${item.kind}-${index}`}
           style={{
             padding: '16px 18px',
-            borderTop: index === 0 ? 'none' : '1px solid var(--border)',
+            borderTop: index === 0 ? 'none' : '1px solid var(--color-border)',
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
@@ -71,21 +76,21 @@ function IssueList({ items, emptyText, onOpen }) {
         >
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{item.title}</div>
-              {item.badge ? <span className={`badge badge-${item.badgeTone || 'grey'}`}>{item.badge}</span> : null}
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.title}</div>
+              {item.badge ? <StatusBadge variant={TONE_TO_VARIANT[item.badgeTone || 'grey'] || 'info'}>{item.badge}</StatusBadge> : null}
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>{item.detail}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>{item.detail}</div>
             {item.meta?.length ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                 {item.meta.map((meta) => (
-                  <span key={meta} className="badge badge-grey">{meta}</span>
+                  <StatusBadge key={meta} variant="info">{meta}</StatusBadge>
                 ))}
               </div>
             ) : null}
           </div>
-          <button className="btn btn-outline btn-sm" onClick={() => onOpen?.(item)}>
+          <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => onOpen?.(item)}>
             Open
-          </button>
+          </Button>
         </div>
       ))}
     </div>
@@ -334,30 +339,30 @@ export default function AdminSafeguards() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Admin Safeguards</h1>
-          <p className="page-sub">Live checks for staff data integrity, onboarding drift, scheduling gaps, and client payment hygiene.</p>
+          <h1>Admin Safeguards</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live checks for staff data integrity, onboarding drift, scheduling gaps, and client payment hygiene.</p>
         </div>
-        <button className="btn btn-outline" onClick={load} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Button variant="secondary" onClick={load} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
           {refreshing ? 'Refreshing...' : 'Refresh checks'}
-        </button>
+        </Button>
       </div>
 
       <div className="admin-safeguards-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatCard icon={AlertTriangle} label="Open checks" value={totalIssues} hint="Live records needing review across the portal." tone="var(--red)" />
-        <StatCard icon={Users} label="Staff issues" value={sections[0].items.length} hint="Identity, manager, HR profile, or permissions issues." tone="var(--accent)" />
-        <StatCard icon={UserCog} label="Onboarding issues" value={sections[1].items.length} hint="Draft or submitted records lingering too long." tone="var(--amber)" />
-        <StatCard icon={CreditCard} label="Client/payment issues" value={sections[3].items.length} hint="Active client records missing payment linkage or recent upkeep." tone="var(--blue)" />
+        <StatCard icon={AlertTriangle} label="Open checks" value={totalIssues} hint="Live records needing review across the portal." tone="var(--color-red-500)" />
+        <StatCard icon={Users} label="Staff issues" value={sections[0].items.length} hint="Identity, manager, HR profile, or permissions issues." tone="var(--color-primary)" />
+        <StatCard icon={UserCog} label="Onboarding issues" value={sections[1].items.length} hint="Draft or submitted records lingering too long." tone="var(--color-amber-500)" />
+        <StatCard icon={CreditCard} label="Client/payment issues" value={sections[3].items.length} hint="Active client records missing payment linkage or recent upkeep." tone="var(--color-blue-500)" />
       </div>
 
-      <div className="card card-pad" style={{ marginBottom: 24 }}>
+      <div style={{ ...DS_CARD, padding: 20, marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)' }}>Focus area</div>
-            <div style={{ fontSize: 13, color: 'var(--sub)', marginTop: 6 }}>Filter the safeguards list by team area so it is easier to work through issues in batches.</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Focus area</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>Filter the safeguards list by team area so it is easier to work through issues in batches.</div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[
@@ -381,7 +386,7 @@ export default function AdminSafeguards() {
             key={section.key}
             title={section.title}
             subtitle={section.subtitle}
-            action={<span className={`badge badge-${section.items.length ? 'amber' : 'green'}`}>{section.items.length ? `${section.items.length} to review` : 'Clear'}</span>}
+            action={<StatusBadge variant={TONE_TO_VARIANT[section.items.length ? 'amber' : 'green'] || 'info'}>{section.items.length ? `${section.items.length} to review` : 'Clear'}</StatusBadge>}
           >
             <IssueList
               items={loading ? [] : section.items}

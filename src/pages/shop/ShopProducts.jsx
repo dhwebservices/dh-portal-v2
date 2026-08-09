@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { fetchShopCategories, fetchShopProducts, saveShopProduct, deleteShopProduct, buildVariantLabel, uploadShopProductImage, updateShopProductImage } from '../../utils/shop'
+import { Button, FormInput, FormSelect, Alert } from '../../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -164,60 +167,60 @@ export default function ShopProducts() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 400, color: 'var(--text)' }}>Shop products</div>
-          <div style={{ fontSize: 14, color: 'var(--sub)', marginTop: 6 }}>Manage public catalogue items, pricing, variants, and availability.</div>
+          <h1>Shop products</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Manage public catalogue items, pricing, variants, and availability.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products…" style={inputStyle} />
-          <button className="btn-primary" onClick={openCreate}>New product</button>
+          <FormInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products…" style={{ width: '100%' }} />
+          <Button variant="primary" onClick={openCreate}>New product</Button>
         </div>
       </div>
 
-      {error ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(180,35,24,0.24)', color: '#b42318' }}>{error}</div> : null}
-      {notice ? <div className="card card-pad" style={{ marginBottom: 16, borderColor: 'rgba(17,140,79,0.24)', color: '#118c4f' }}>{notice}</div> : null}
+      {error ? <div style={{ marginBottom: 16 }}><Alert variant="warning">{error}</Alert></div> : null}
+      {notice ? <div style={{ marginBottom: 16 }}><Alert variant="info">{notice}</Alert></div> : null}
 
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)' }}>
+      <div style={{ ...DS_CARD, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
           Catalogue
         </div>
         <div style={{ display: 'grid' }}>
           {(loading ? [] : filtered).map((product) => (
-            <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '96px 1.8fr 1fr 1fr 0.8fr 0.9fr', gap: 12, padding: '16px 18px', borderTop: '1px solid var(--border)', alignItems: 'start' }}>
-              <div style={{ width: 96, height: 96, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
+            <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '96px 1.8fr 1fr 1fr 0.8fr 0.9fr', gap: 12, padding: '16px 18px', borderTop: '1px solid var(--color-border)', alignItems: 'start' }}>
+              <div style={{ width: 96, height: 96, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--color-border)' }}>
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--faint)' }}>{product.brand}</div>
+                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--color-text-tertiary)' }}>{product.brand}</div>
                   )}
               </div>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{product.name}</div>
-                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--sub)' }}>{product.brand} · {product.category?.name || 'Uncategorised'} · /shop/product/{product.slug}</div>
-                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--faint)' }}>{product.variants?.length || 0} variants</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)' }}>{product.name}</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--color-text-secondary)' }}>{product.brand} · {product.category?.name || 'Uncategorised'} · /shop/product/{product.slug}</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--color-text-tertiary)' }}>{product.variants?.length || 0} variants</div>
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text)' }}>
+              <div style={{ fontSize: 14, color: 'var(--color-text-primary)' }}>
                 <div style={statusPill(product.status)}>{product.status}</div>
-                {product.featured ? <div style={{ marginTop: 8, fontSize: 12, color: 'var(--accent)' }}>Featured</div> : null}
+                {product.featured ? <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-primary)' }}>Featured</div> : null}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--sub)' }}>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
                 {(product.variants || []).slice(0, 2).map((variant) => (
                   <div key={variant.id || `${variant.sku}-${variant.model}`} style={{ marginBottom: 6 }}>
                     {buildVariantLabel(variant) || variant.sku || 'Variant'} · £{Number(variant.price || 0).toFixed(2)}
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--sub)' }}>{product.updated_at ? new Date(product.updated_at).toLocaleDateString('en-GB') : '—'}</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{product.updated_at ? new Date(product.updated_at).toLocaleDateString('en-GB') : '—'}</div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button className="btn-outline btn-sm" onClick={() => openEdit(product)}>Edit</button>
-                <button className="btn btn-sm" style={{ color: '#b42318' }} onClick={() => handleDelete(product.id)}>Delete</button>
+                <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => openEdit(product)}>Edit</Button>
+                <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)' }} onClick={() => handleDelete(product.id)}>Delete</Button>
               </div>
             </div>
           ))}
           {!loading && !filtered.length ? (
-            <div style={{ padding: 28, color: 'var(--sub)', fontSize: 14 }}>No products found.</div>
+            <div style={{ padding: 28, color: 'var(--color-text-secondary)', fontSize: 14 }}>No products found.</div>
           ) : null}
         </div>
       </div>
@@ -229,8 +232,8 @@ export default function ShopProducts() {
           width={1120}
           footer={
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-              <button className="btn" onClick={() => setEditorOpen(false)}>Close</button>
-              <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save product'}</button>
+              <Button variant="secondary" onClick={() => setEditorOpen(false)}>Close</Button>
+              <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save product'}</Button>
             </div>
           }
         >
@@ -238,30 +241,30 @@ export default function ShopProducts() {
             <div style={grid2}>
               <label style={fieldStyle}>
                 <span>Name</span>
-                <input value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} style={inputStyle} required />
+                <FormInput value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} style={{ width: '100%' }} required />
               </label>
               <label style={fieldStyle}>
                 <span>Slug</span>
-                <input value={form.slug} onChange={(e) => setForm((current) => ({ ...current, slug: e.target.value }))} style={inputStyle} placeholder="auto-generated if left blank" />
+                <FormInput value={form.slug} onChange={(e) => setForm((current) => ({ ...current, slug: e.target.value }))} style={{ width: '100%' }} placeholder="auto-generated if left blank" />
               </label>
               <label style={fieldStyle}>
                 <span>Brand</span>
-                <input value={form.brand} onChange={(e) => setForm((current) => ({ ...current, brand: e.target.value }))} style={inputStyle} required />
+                <FormInput value={form.brand} onChange={(e) => setForm((current) => ({ ...current, brand: e.target.value }))} style={{ width: '100%' }} required />
               </label>
               <label style={fieldStyle}>
                 <span>Category</span>
-                <select value={form.category_id} onChange={(e) => setForm((current) => ({ ...current, category_id: e.target.value }))} style={inputStyle}>
+                <FormSelect value={form.category_id} onChange={(e) => setForm((current) => ({ ...current, category_id: e.target.value }))} style={{ width: '100%' }}>
                   <option value="">No category</option>
                   {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                </select>
+                </FormSelect>
               </label>
               <label style={fieldStyle}>
                 <span>Status</span>
-                <select value={form.status} onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))} style={inputStyle}>
+                <FormSelect value={form.status} onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))} style={{ width: '100%' }}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="archived">Archived</option>
-                </select>
+                </FormSelect>
               </label>
               <label style={{ ...fieldStyle, justifyContent: 'flex-end' }}>
                 <span>Featured product</span>
@@ -270,13 +273,13 @@ export default function ShopProducts() {
             </div>
 
             <div style={{ display: 'grid', gap: 14 }}>
-              <div style={{ fontSize: 13, color: 'var(--sub)' }}>Product image</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Product image</div>
               <div style={{ display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: 18, alignItems: 'start' }}>
-                <div style={{ width: 180, height: 180, borderRadius: 22, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--border)' }}>
+                <div style={{ width: 180, height: 180, borderRadius: 22, overflow: 'hidden', background: 'linear-gradient(180deg, #f5f7fb, #eef2f7)', border: '1px solid var(--color-border)' }}>
                   {form.image_url ? (
                     <img src={form.image_url} alt={form.name || 'Product preview'} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 13, color: 'var(--faint)' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 13, color: 'var(--color-text-tertiary)' }}>
                       No image
                     </div>
                   )}
@@ -284,25 +287,26 @@ export default function ShopProducts() {
                 <div style={{ display: 'grid', gap: 12 }}>
                   <label style={{ ...fieldStyle, gap: 10 }}>
                     <span>Attach image</span>
-                    <input
+                    <FormInput
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
-                      style={inputStyle}
+                      style={{ width: '100%' }}
                     />
                   </label>
-                  <div style={{ fontSize: 12, color: 'var(--faint)', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', lineHeight: 1.6 }}>
                     Upload a clean product image. The portal stores the image and links it to the public catalogue automatically.
                   </div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
+                    <Button
                       type="button"
-                      className="btn-outline btn-sm"
+                      variant="secondary"
+                      style={{ height: 28, fontSize: 12, padding: '0 8px' }}
                       onClick={() => setForm((current) => ({ ...current, image_url: '' }))}
                     >
                       Remove image
-                    </button>
-                    {uploadingImage ? <span style={{ fontSize: 12, color: 'var(--sub)' }}>Uploading image…</span> : null}
+                    </Button>
+                    {uploadingImage ? <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Uploading image…</span> : null}
                   </div>
                 </div>
               </div>
@@ -310,20 +314,21 @@ export default function ShopProducts() {
 
             <label style={fieldStyle}>
               <span>Description</span>
-              <textarea value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} style={{ ...inputStyle, minHeight: 120, resize: 'vertical' }} />
+              <textarea className="ds-form-input" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} style={{ width: '100%', minHeight: 120, resize: 'vertical', padding: '8px 12px' }} />
             </label>
 
             <label style={fieldStyle}>
               <span>Procurement notes</span>
-              <textarea value={form.procurement_notes} onChange={(e) => setForm((current) => ({ ...current, procurement_notes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+              <textarea className="ds-form-input" value={form.procurement_notes} onChange={(e) => setForm((current) => ({ ...current, procurement_notes: e.target.value }))} style={{ width: '100%', minHeight: 80, resize: 'vertical', padding: '8px 12px' }} />
             </label>
 
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 400 }}>Variants</div>
-                <button
+                <div style={{ fontSize: 22, fontWeight: 400 }}>Variants</div>
+                <Button
                   type="button"
-                  className="btn-outline btn-sm"
+                  variant="secondary"
+                  style={{ height: 28, fontSize: 12, padding: '0 8px' }}
                   onClick={() =>
                     setForm((current) => ({
                       ...current,
@@ -335,29 +340,29 @@ export default function ShopProducts() {
                   }
                 >
                   Add variant
-                </button>
+                </Button>
               </div>
               {form.variants.map((variant, index) => (
-                <div key={`${variant.id || 'new'}-${index}`} className="card card-pad" style={{ borderStyle: 'dashed' }}>
+                <div key={`${variant.id || 'new'}-${index}`} style={{ ...DS_CARD, padding: 20, borderStyle: 'dashed' }}>
                   <div style={{ ...grid4, marginBottom: 12 }}>
-                    <label style={fieldStyle}><span>Model</span><input value={variant.model} onChange={(e) => updateVariant(index, 'model', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Colour</span><input value={variant.colour} onChange={(e) => updateVariant(index, 'colour', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Storage</span><input value={variant.storage} onChange={(e) => updateVariant(index, 'storage', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Size</span><input value={variant.size} onChange={(e) => updateVariant(index, 'size', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>SKU</span><input value={variant.sku} onChange={(e) => updateVariant(index, 'sku', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Price</span><input value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Compare at</span><input value={variant.compare_at_price} onChange={(e) => updateVariant(index, 'compare_at_price', e.target.value)} style={inputStyle} /></label>
-                    <label style={fieldStyle}><span>Lead days</span><input value={variant.lead_time_days} onChange={(e) => updateVariant(index, 'lead_time_days', e.target.value)} style={inputStyle} /></label>
+                    <label style={fieldStyle}><span>Model</span><FormInput value={variant.model} onChange={(e) => updateVariant(index, 'model', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Colour</span><FormInput value={variant.colour} onChange={(e) => updateVariant(index, 'colour', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Storage</span><FormInput value={variant.storage} onChange={(e) => updateVariant(index, 'storage', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Size</span><FormInput value={variant.size} onChange={(e) => updateVariant(index, 'size', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>SKU</span><FormInput value={variant.sku} onChange={(e) => updateVariant(index, 'sku', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Price</span><FormInput value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Compare at</span><FormInput value={variant.compare_at_price} onChange={(e) => updateVariant(index, 'compare_at_price', e.target.value)} style={{ width: '100%' }} /></label>
+                    <label style={fieldStyle}><span>Lead days</span><FormInput value={variant.lead_time_days} onChange={(e) => updateVariant(index, 'lead_time_days', e.target.value)} style={{ width: '100%' }} /></label>
                   </div>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                       <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={variant.is_available} onChange={(e) => updateVariant(index, 'is_available', e.target.checked)} />Available</label>
                       <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}><input type="checkbox" checked={variant.procurement_required} onChange={(e) => updateVariant(index, 'procurement_required', e.target.checked)} />Requires procurement</label>
                     </div>
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn-sm"
-                      style={{ color: '#b42318' }}
+                      variant="secondary"
+                      style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)' }}
                       onClick={() =>
                         setForm((current) => ({
                           ...current,
@@ -366,7 +371,7 @@ export default function ShopProducts() {
                       }
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -378,21 +383,11 @@ export default function ShopProducts() {
   )
 }
 
-const inputStyle = {
-  width: '100%',
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  padding: '10px 12px',
-  background: 'var(--card)',
-  color: 'var(--text)',
-  fontSize: 14,
-}
-
 const fieldStyle = {
   display: 'grid',
   gap: 8,
   fontSize: 13,
-  color: 'var(--sub)',
+  color: 'var(--color-text-secondary)',
 }
 
 const grid2 = {

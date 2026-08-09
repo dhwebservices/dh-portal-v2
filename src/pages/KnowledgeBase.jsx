@@ -12,6 +12,9 @@ import {
   slugifyKnowledgeTitle,
 } from '../utils/knowledgeBase'
 import { StatCard } from '../components/ui'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 
 const EMPTY_FORM = {
   title: '',
@@ -129,52 +132,52 @@ export default function KnowledgeBase() {
   }), [articles])
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Knowledge Base</h1>
-          <p className="page-sub">Reusable answers, onboarding notes, billing guidance, and support playbooks in one shared library.</p>
+          <h1>Knowledge Base</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Reusable answers, onboarding notes, billing guidance, and support playbooks in one shared library.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-outline" onClick={() => load()}>Refresh</button>
-          <button className="btn btn-primary" onClick={openCreate}>New article</button>
+          <Button variant="secondary" onClick={() => load()}>Refresh</Button>
+          <Button variant="primary" onClick={openCreate}>New article</Button>
         </div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 20 }}>
-        <StatCard icon={BookOpen} label="Total articles" value={articles.length} hint="Published and draft articles stored in the portal." tone="var(--blue)" />
-        <StatCard icon={Sparkles} label="Published" value={stats.published} hint="Articles currently ready for staff or client use." tone="var(--green)" />
-        <StatCard icon={FileText} label="Client-ready" value={stats.clientReady} hint="Articles tagged for client-facing self-service content." tone="var(--amber)" />
-        <StatCard icon={BookOpen} label="Internal only" value={stats.internalOnly} hint="Staff-only process and support guidance." tone="var(--red)" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 20 }}>
+        <StatCard icon={BookOpen} label="Total articles" value={articles.length} hint="Published and draft articles stored in the portal." tone="var(--color-blue-500)" />
+        <StatCard icon={Sparkles} label="Published" value={stats.published} hint="Articles currently ready for staff or client use." tone="var(--color-green-500)" />
+        <StatCard icon={FileText} label="Client-ready" value={stats.clientReady} hint="Articles tagged for client-facing self-service content." tone="var(--color-amber-500)" />
+        <StatCard icon={BookOpen} label="Internal only" value={stats.internalOnly} hint="Staff-only process and support guidance." tone="var(--color-red-500)" />
       </div>
 
-      <div className="card card-pad" style={{ marginBottom: 20 }}>
-        <div className="legacy-toolbar" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="search-wrap" style={{ flex: 1, minWidth: 220 }}>
-            <Search size={13} className="search-icon" />
-            <input className="inp" style={{ paddingLeft: 34 }} placeholder="Search knowledge articles..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div style={{ ...DS_CARD, padding: 20, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+            <FormInput style={{ paddingLeft: 34, width: '100%' }} placeholder="Search knowledge articles..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select className="inp" style={{ width: 'auto', minWidth: 150 }} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <FormSelect style={{ width: 'auto', minWidth: 150 }} value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="all">All categories</option>
             {KNOWLEDGE_CATEGORY_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-          <select className="inp" style={{ width: 'auto', minWidth: 150 }} value={audience} onChange={(e) => setAudience(e.target.value)}>
+          </FormSelect>
+          <FormSelect style={{ width: 'auto', minWidth: 150 }} value={audience} onChange={(e) => setAudience(e.target.value)}>
             <option value="all">All audiences</option>
             {KNOWLEDGE_AUDIENCE_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
+          </FormSelect>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(320px, 0.8fr)', gap: 16 }}>
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div style={{ ...DS_CARD, overflow: 'hidden' }}>
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
-            <div style={{ display: 'grid', gap: 1, background: 'var(--border)' }}>
+            <div style={{ display: 'grid', gap: 1, background: 'var(--color-border)' }}>
               {filtered.map((article) => (
                 <button
                   key={article.id}
                   onClick={() => setSelected(article)}
                   style={{
-                    background: selected?.id === article.id ? 'var(--accent-soft)' : 'var(--card)',
+                    background: selected?.id === article.id ? 'var(--color-blue-50)' : 'var(--color-bg-surface)',
                     border: 'none',
                     textAlign: 'left',
                     padding: '16px 18px',
@@ -184,55 +187,55 @@ export default function KnowledgeBase() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{article.title || 'Untitled article'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{article.title || 'Untitled article'}</div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span className={`badge badge-${article.published !== false ? 'green' : 'grey'}`}>{article.published !== false ? 'published' : 'draft'}</span>
-                      <span className="badge badge-blue">{article.audience}</span>
+                      <StatusBadge variant={article.published !== false ? 'active' : 'info'}>{article.published !== false ? 'published' : 'draft'}</StatusBadge>
+                      <StatusBadge variant="info">{article.audience}</StatusBadge>
                     </div>
                   </div>
-                  <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>{article.summary || 'No summary added yet.'}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>{article.summary || 'No summary added yet.'}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span className="badge badge-grey">{article.category}</span>
-                    {(article.tags || []).slice(0, 3).map((tag) => <span key={tag} className="badge badge-grey">{tag}</span>)}
+                    <StatusBadge variant="info">{article.category}</StatusBadge>
+                    {(article.tags || []).slice(0, 3).map((tag) => <StatusBadge key={tag} variant="info">{tag}</StatusBadge>)}
                   </div>
                 </button>
               ))}
-              {filtered.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--faint)', background: 'var(--card)' }}>No knowledge articles match this view.</div> : null}
+              {filtered.length === 0 ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-surface)' }}>No knowledge articles match this view.</div> : null}
             </div>
           )}
         </div>
 
-        <div className="card card-pad" style={{ display: 'grid', gap: 16 }}>
+        <div style={{ ...DS_CARD, padding: 20, display: 'grid', gap: 16 }}>
           {selected ? (
             <>
               <div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                   <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 8 }}>{selected.category} · {selected.audience}</div>
-                    <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)' }}>{selected.title}</div>
-                    <div style={{ fontSize: 13, color: 'var(--sub)', marginTop: 8 }}>{selected.summary}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 8 }}>{selected.category} · {selected.audience}</div>
+                    <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--color-text-primary)' }}>{selected.title}</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 8 }}>{selected.summary}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteArticle(selected)}>Delete</button>
+                    <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={() => openEdit(selected)}>Edit</Button>
+                    <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px', color: 'var(--color-red-500)' }} onClick={() => deleteArticle(selected)}>Delete</Button>
                   </div>
                 </div>
               </div>
 
-              <div style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--bg2)', border: '1px solid var(--border)', whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text)', fontSize: 13.5 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--color-gray-50)', border: '1px solid var(--color-border)', whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--color-text-primary)', fontSize: 13.5 }}>
                 {selected.body || 'No article body yet.'}
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {(selected.tags || []).map((tag) => <span key={tag} className="badge badge-grey">{tag}</span>)}
+                {(selected.tags || []).map((tag) => <StatusBadge key={tag} variant="info">{tag}</StatusBadge>)}
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--faint)' }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
                 Updated {new Date(selected.updated_at).toLocaleString('en-GB')} by {selected.author_name || selected.author_email || 'Unknown author'}
               </div>
             </>
           ) : (
-            <div style={{ padding: '32px 10px', textAlign: 'center', color: 'var(--faint)' }}>
+            <div style={{ padding: '32px 10px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>
               Pick an article to read it here, or create a new one to start building the support library.
             </div>
           )}
@@ -246,37 +249,37 @@ export default function KnowledgeBase() {
           width={820}
           footer={(
             <>
-              <button className="btn btn-outline" onClick={closeEditor}>Cancel</button>
-              <button className="btn btn-primary" onClick={saveArticle} disabled={saving || !form.title.trim() || !form.body.trim()}>{saving ? 'Saving...' : editing ? 'Save article' : 'Create article'}</button>
+              <Button variant="secondary" onClick={closeEditor}>Cancel</Button>
+              <Button variant="primary" onClick={saveArticle} disabled={saving || !form.title.trim() || !form.body.trim()}>{saving ? 'Saving...' : editing ? 'Save article' : 'Create article'}</Button>
             </>
           )}
         >
           <div style={{ display: 'grid', gap: 12 }}>
-            <div><label className="lbl">Title</label><input className="inp" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="How to handle a payment failure" /></div>
-            <div><label className="lbl">Summary</label><input className="inp" value={form.summary} onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))} placeholder="Short summary shown in search and list views." /></div>
+            <FormField><FormLabel>Title</FormLabel><FormInput value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="How to handle a payment failure" /></FormField>
+            <FormField><FormLabel>Summary</FormLabel><FormInput value={form.summary} onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))} placeholder="Short summary shown in search and list views." /></FormField>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-              <div>
-                <label className="lbl">Category</label>
-                <select className="inp" value={form.category} onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}>
+              <FormField>
+                <FormLabel>Category</FormLabel>
+                <FormSelect value={form.category} onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}>
                   {KNOWLEDGE_CATEGORY_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="lbl">Audience</label>
-                <select className="inp" value={form.audience} onChange={(e) => setForm((prev) => ({ ...prev, audience: e.target.value }))}>
+                </FormSelect>
+              </FormField>
+              <FormField>
+                <FormLabel>Audience</FormLabel>
+                <FormSelect value={form.audience} onChange={(e) => setForm((prev) => ({ ...prev, audience: e.target.value }))}>
                   {KNOWLEDGE_AUDIENCE_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="lbl">Status</label>
-                <select className="inp" value={form.published ? 'published' : 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, published: e.target.value === 'published' }))}>
+                </FormSelect>
+              </FormField>
+              <FormField>
+                <FormLabel>Status</FormLabel>
+                <FormSelect value={form.published ? 'published' : 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, published: e.target.value === 'published' }))}>
                   <option value="published">Published</option>
                   <option value="draft">Draft</option>
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             </div>
-            <div><label className="lbl">Tags</label><input className="inp" value={form.tags} onChange={(e) => setForm((prev) => ({ ...prev, tags: e.target.value }))} placeholder="billing, failed payment, mandate" /></div>
-            <div><label className="lbl">Body</label><textarea className="inp" rows={14} value={form.body} onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))} style={{ resize: 'vertical' }} placeholder="Write the support answer, triage steps, escalation notes, or client guidance here." /></div>
+            <FormField><FormLabel>Tags</FormLabel><FormInput value={form.tags} onChange={(e) => setForm((prev) => ({ ...prev, tags: e.target.value }))} placeholder="billing, failed payment, mandate" /></FormField>
+            <FormField><FormLabel>Body</FormLabel><textarea className="ds-form-input" rows={14} value={form.body} onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))} style={{ resize: 'vertical', padding: '8px 12px' }} placeholder="Write the support answer, triage steps, escalation notes, or client guidance here." /></FormField>
           </div>
         </Modal>
       ) : null}

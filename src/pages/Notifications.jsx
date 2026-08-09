@@ -4,6 +4,10 @@ import { Bell, CheckCheck, CircleAlert, Clock3, Filter, Info, CheckCircle2, Tria
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import SystemBannerCard from '../components/SystemBannerCard'
+import { Button, StatusBadge } from '../components/ds'
+
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
 
 const FILTERS = [
   ['all', 'All'],
@@ -68,26 +72,26 @@ function NotificationRow({ notification, onOpen, onRead }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{notification.title || 'Notification'}</div>
-          <span className={`badge badge-${meta.tone}`}>{meta.label}</span>
-          <span className="badge badge-grey">{category}</span>
-          {!notification.read ? <span className="badge badge-blue">Unread</span> : null}
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{notification.title || 'Notification'}</div>
+          <StatusBadge variant={TONE_TO_VARIANT[meta.tone] || 'info'}>{meta.label}</StatusBadge>
+          <StatusBadge variant="info">{category}</StatusBadge>
+          {!notification.read ? <StatusBadge variant="info">Unread</StatusBadge> : null}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--sub)', lineHeight: 1.65, marginBottom: 8 }}>{notification.message}</div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.65, marginBottom: 8 }}>{notification.message}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--faint)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
             <Clock3 size={12} />
             {formatWhen(notification.created_at)}
           </span>
           {notification.link ? (
-            <button className="btn btn-ghost btn-sm" onClick={onOpen}>
+            <Button variant="ghost" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={onOpen}>
               Open item
-            </button>
+            </Button>
           ) : null}
           {!notification.read ? (
-            <button className="btn btn-outline btn-sm" onClick={onRead}>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12, padding: '0 8px' }} onClick={onRead}>
               Mark read
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -168,54 +172,47 @@ export default function Notifications() {
   }
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Notifications</h1>
-          <p className="page-sub">A full inbox for alerts, approvals, and internal updates.</p>
+          <h1>Notifications</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>A full inbox for alerts, approvals, and internal updates.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-outline" onClick={load}>
+          <Button variant="secondary" onClick={load}>
             <Filter size={14} /> Refresh
-          </button>
-          <button className="btn btn-primary" onClick={markAllRead} disabled={!unreadCount}>
+          </Button>
+          <Button variant="primary" onClick={markAllRead} disabled={!unreadCount}>
             <CheckCheck size={14} /> Mark all read
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="metric-grid" style={{ marginBottom: 24 }}>
-        <div className="metric-tile">
-          <div className="metric-dot" style={{ background: 'var(--blue-bg)' }}>
-            <Bell size={18} color="var(--blue)" />
-          </div>
-          <div className="metric-value">{notifications.length}</div>
-          <div className="metric-label">Total notifications</div>
-          <div className="metric-hint">All portal alerts, approvals, and updates in the inbox.</div>
-        </div>
-        <div className="metric-tile">
-          <div className="metric-dot" style={{ background: 'var(--accent-soft)' }}>
-            <Info size={18} color="var(--accent)" />
-          </div>
-          <div className="metric-value">{unreadCount}</div>
-          <div className="metric-label">Unread</div>
-          <div className="metric-hint">Items that still need to be opened or acknowledged.</div>
-        </div>
-        <div className="metric-tile">
-          <div className="metric-dot" style={{ background: 'var(--red-bg)' }}>
-            <CircleAlert size={18} color="var(--red)" />
-          </div>
-          <div className="metric-value">{urgentCount}</div>
-          <div className="metric-label">Urgent unread</div>
-          <div className="metric-hint">High-priority alerts that should be reviewed first.</div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16, marginBottom: 24 }}>
+        {[
+          { icon: Bell, value: notifications.length, label: 'Total notifications', hint: 'All portal alerts, approvals, and updates in the inbox.' },
+          { icon: Info, value: unreadCount, label: 'Unread', hint: 'Items that still need to be opened or acknowledged.' },
+          { icon: CircleAlert, value: urgentCount, label: 'Urgent unread', hint: 'High-priority alerts that should be reviewed first.' },
+        ].map((tile) => {
+          const TileIcon = tile.icon
+          return (
+            <div key={tile.label} style={{ ...DS_CARD, padding: 20 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--color-gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <TileIcon size={18} color="var(--color-text-tertiary)" />
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{tile.value}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{tile.label}</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 6, lineHeight: 1.5 }}>{tile.hint}</div>
+            </div>
+          )
+        })}
       </div>
 
-      <div className="tabs" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {FILTERS.map(([key, label]) => (
-          <button key={key} className={`tab${filter === key ? ' on' : ''}`} onClick={() => setFilter(key)}>
+          <Button key={key} variant={filter === key ? 'primary' : 'secondary'} style={{ height: 30, fontSize: 12, padding: '0 10px' }} onClick={() => setFilter(key)}>
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -224,13 +221,13 @@ export default function Notifications() {
       ) : filtered.length || pinnedAlerts.length ? (
         <div className="stack-list">
           {pinnedAlerts.length ? (
-            <div className="surface-card surface-card-body" style={{ borderColor:'var(--accent-border)', background:'linear-gradient(180deg, var(--card), var(--accent-soft))' }}>
+            <div style={{ ...DS_CARD, padding: 20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:12 }}>
                 <div>
-                  <div className="section-kicker">Pinned alerts</div>
-                  <div className="section-note">Pinned staff notices stay visible here until the banner expires or is disabled.</div>
+                  <div style={{ fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>Pinned alerts</div>
+                  <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>Pinned staff notices stay visible here until the banner expires or is disabled.</div>
                 </div>
-                <span className="badge badge-blue">{pinnedAlerts.length} active</span>
+                <StatusBadge variant="info">{pinnedAlerts.length} active</StatusBadge>
               </div>
               <div style={{ display:'grid', gap:10 }}>
                 {pinnedAlerts.map((banner) => (
@@ -260,9 +257,9 @@ export default function Notifications() {
           ))}
         </div>
       ) : (
-        <div className="surface-card surface-card-body" style={{ textAlign: 'center', padding: '42px 20px' }}>
-          <div style={{ fontSize: 14, color: 'var(--sub)', marginBottom: 8 }}>No notifications in this view</div>
-          <div style={{ fontSize: 12, color: 'var(--faint)' }}>Try switching the filter or wait for the next portal event.</div>
+        <div style={{ ...DS_CARD, textAlign: 'center', padding: '42px 20px' }}>
+          <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 8 }}>No notifications in this view</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Try switching the filter or wait for the next portal event.</div>
         </div>
       )}
     </div>

@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Clock3, ShieldCheck, UserCheck, Users } from 'lucide-react'
 import { supabase } from '../utils/supabase'
 import { SectionPanel, ListRow, EmptyState } from '../components/ui'
+import { StatusBadge } from '../components/ds'
+
+const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
+
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
 
 const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 
@@ -55,13 +60,13 @@ function formatDayLabel(dateString) {
 
 function ManagerStat({ icon: Icon, label, value, hint, accent }) {
   return (
-    <div className="stat-card" style={{ minHeight: 144 }}>
+    <div style={{ ...DS_CARD, padding: 20, minHeight: 144 }}>
       <div style={{ width: 40, height: 40, borderRadius: 12, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
         <Icon size={18} color={accent} />
       </div>
-      <div className="stat-val">{value}</div>
-      <div className="stat-lbl">{label}</div>
-      <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
     </div>
   )
 }
@@ -189,11 +194,11 @@ export default function ManagerBoard() {
   }, [])
 
   return (
-    <div className="fade-in">
-      <div className="page-hd" style={{ marginBottom: 18 }}>
+    <div className="ds-content">
+      <div className="ds-page-header" style={{ marginBottom: 18 }}>
         <div>
-          <h1 className="page-title">Manager Board</h1>
-          <p className="page-sub">A live control centre for overdue work, approvals, onboarding pressure, and team load.</p>
+          <h1>Manager Board</h1>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>A live control centre for overdue work, approvals, onboarding pressure, and team load.</p>
         </div>
       </div>
 
@@ -202,10 +207,10 @@ export default function ManagerBoard() {
       ) : (
         <div style={{ display: 'grid', gap: 18 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
-            <ManagerStat icon={Clock3} label="Overdue outreach" value={state.stats.overdueOutreach} hint="Leads that need chasing now" accent="var(--red)" />
-            <ManagerStat icon={ShieldCheck} label="Aging leave approvals" value={state.stats.agingLeave} hint="Requests pending for 2+ days" accent="var(--amber)" />
-            <ManagerStat icon={UserCheck} label="Stale onboarding" value={state.stats.staleOnboarding} hint="Submissions waiting 2+ days" accent="var(--blue)" />
-            <ManagerStat icon={Users} label="Expiring RTW docs" value={state.stats.expiringDocs} hint="Right-to-work expiring in 30 days" accent="var(--green)" />
+            <ManagerStat icon={Clock3} label="Overdue outreach" value={state.stats.overdueOutreach} hint="Leads that need chasing now" accent="var(--color-red-500)" />
+            <ManagerStat icon={ShieldCheck} label="Aging leave approvals" value={state.stats.agingLeave} hint="Requests pending for 2+ days" accent="var(--color-amber-500)" />
+            <ManagerStat icon={UserCheck} label="Stale onboarding" value={state.stats.staleOnboarding} hint="Submissions waiting 2+ days" accent="var(--color-blue-500)" />
+            <ManagerStat icon={Users} label="Expiring RTW docs" value={state.stats.expiringDocs} hint="Right-to-work expiring in 30 days" accent="var(--color-green-500)" />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(300px,0.9fr)', gap: 18 }}>
@@ -228,14 +233,14 @@ export default function ManagerBoard() {
               {state.teamLoad.length ? (
                 <div style={{ display: 'grid', gap: 10, padding: 18 }}>
                   {state.teamLoad.map((row) => (
-                    <div key={row.owner} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg2)' }}>
+                    <div key={row.owner} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{row.owner}</div>
-                        <span className={`badge badge-${row.overdue > 0 ? 'red' : row.dueSoon > 0 ? 'amber' : 'blue'}`}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.owner}</div>
+                        <StatusBadge variant={TONE_TO_VARIANT[row.overdue > 0 ? 'red' : row.dueSoon > 0 ? 'amber' : 'blue'] || 'info'}>
                           {row.overdue > 0 ? `${row.overdue} overdue` : `${row.total} active`}
-                        </span>
+                        </StatusBadge>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--sub)' }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--color-text-secondary)' }}>
                         <span>{row.total} follow-ups</span>
                         <span>·</span>
                         <span>{row.dueSoon} due soon</span>
