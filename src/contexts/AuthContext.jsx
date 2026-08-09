@@ -713,7 +713,7 @@ export function AuthProvider({ children }) {
       if (isDirector) return !isExplicitlyDenied
       if (isDepartmentManager) return !isExplicitlyDenied
     }
-    if (key === 'recruiting_dashboard' || key === 'recruiting_jobs' || key === 'recruiting_applications' || key === 'recruiting_board') {
+    if (key === 'recruiting_jobs' || key === 'recruiting_applications' || key === 'recruiting_board') {
       if (isDirector) return !isExplicitlyDenied
       if (isDepartmentManager) return !isExplicitlyDenied
     }

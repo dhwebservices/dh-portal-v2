@@ -1,4 +1,4 @@
-// Single source of truth for the full 54-key permission catalog and role
+// Single source of truth for the full 55-key permission catalog and role
 // presets, shared between the web StaffProfile.jsx Permissions tab and the
 // mobile EditPermissions screen. Previously each surface hand-copied its own
 // version of this data, which is exactly the kind of drift that quietly
@@ -36,7 +36,6 @@ export const ALL_PAGES = [
   {key:'contract_templates', label:'Contract Templates', group:'People', category:'Records', desc:'HR contract template library'},
   {key:'contract_queue', label:'Contract Queue', group:'People', category:'Records', desc:'Issued contracts and signing progress'},
   {key:'org_chart',     label:'Org Chart',          group:'People', category:'Structure', desc:'Live reporting lines'},
-  {key:'recruiting_dashboard', label:'Recruiting Dashboard', group:'Recruiting', category:'Pipeline', desc:'Hiring overview and live applicant activity'},
   {key:'recruiting_jobs', label:'Recruiting Jobs', group:'Recruiting', category:'Pipeline', desc:'Manage published roles and drafts'},
   {key:'recruiting_applications', label:'Recruiting Applications', group:'Recruiting', category:'Pipeline', desc:'Full applicant inbox and review surface'},
   {key:'recruiting_board', label:'Recruiting Board', group:'Recruiting', category:'Pipeline', desc:'Kanban hiring pipeline'},
@@ -47,11 +46,8 @@ export const ALL_PAGES = [
   {key:'domains',       label:'Domain Checker',     group:'Websites'},
   {key:'website_editor',label:'Web Manager',        group:'Websites'},
   {key:'shop_orders_view', label:'Shop Orders', group:'Websites', category:'Commerce', desc:'View and manage store orders'},
-  {key:'shop_orders_edit', label:'Edit Shop Orders', group:'Websites', category:'Commerce', desc:'Change order, procurement, and fulfilment statuses'},
   {key:'shop_products_view', label:'Shop Products', group:'Websites', category:'Commerce', desc:'View the product catalogue and variants'},
-  {key:'shop_products_edit', label:'Edit Shop Products', group:'Websites', category:'Commerce', desc:'Create, edit, and archive public shop products'},
   {key:'shop_customers_view', label:'Shop Customers', group:'Websites', category:'Commerce', desc:'View customer accounts and order history'},
-  {key:'shop_customers_edit', label:'Edit Shop Customers', group:'Websites', category:'Commerce', desc:'Create manual orders and manage customer details'},
   {key:'support',       label:'Support',            group:'Support'},
   {key:'reports',       label:'Reports',            group:'Reports'},
   {key:'manager_board', label:'Manager Board',      group:'Reports', category:'Control', desc:'Department and workload queue'},
@@ -73,7 +69,7 @@ export const PERMISSION_GROUPS = ['Home', 'Outreach', 'My Work', 'Rotas', 'Peopl
 export const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
   DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_dashboard','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_orders_edit','shop_products_view','shop_products_edit','shop_customers_view','shop_customers_edit','pdf_shared_view','pdf_shared_edit','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_products_view','shop_customers_view','pdf_shared_view','pdf_shared_edit','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies','pdf_workspace'].includes(p.key)).map(p => [p.key, true])),
 }
 
