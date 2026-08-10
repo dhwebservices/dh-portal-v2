@@ -28,7 +28,7 @@ import {
 } from '../../utils/accountSecurity'
 import { ROLE_DEFAULTS } from '../../utils/permissionCatalog'
 
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 // System mailboxes that legitimately have no Entra user behind them.
 const SYSTEM_MAILBOX_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@', 'contact@', 'jobs@', 'mgmt@']

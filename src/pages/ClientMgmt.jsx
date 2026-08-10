@@ -22,7 +22,7 @@ import {
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 
 const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 const STAGES =[{key:'accepted',label:'Order Accepted'},{key:'building',label:'Being Built'},{key:'nearly_there',label:'Nearly There'},{key:'ready',label:'Ready to Launch'}]
 const EMPTY_INV = { invoice_number:'', description:'', amount:'', due_date:'', status:'unpaid' }

@@ -1667,7 +1667,7 @@ export default function HROnboarding() {
 
   const wizardCard = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)', padding: 24 }
   const wizardFieldGrid = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 'var(--space-md)' }
-  const toneToVariant = { green: 'active', amber: 'warning', red: 'error', grey: 'info' }
+  const toneToVariant = { green: 'active', amber: 'warning', red: 'error', grey: 'neutral' }
 
   return (
     <div className="fade-in">

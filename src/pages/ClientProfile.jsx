@@ -17,6 +17,10 @@ import {
   ONBOARDING_SECTION_ORDER,
   resolveClientOnboardingState,
 } from '../utils/clientOnboarding'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 const PLANS    = ['Starter','Growth','Pro','Enterprise']
 const STATUSES = ['active','inactive','pending']
@@ -556,58 +560,58 @@ export default function ClientProfile() {
   const colour = ['#0071E3','#30A46C','#E54D2E','#8E4EC6','#C2500D','#0197C8','#D6409F'][(client.email||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%7]
 
   return (
-    <div className="fade-in">
+    <div className="ds-content">
       {/* Back */}
-      <button onClick={() => navigate('/clients')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--border)', borderRadius:100, padding:'6px 14px', cursor:'pointer', color:'var(--sub)', fontSize:13, marginBottom:24, transition:'all 0.15s' }}
-        onMouseOver={e => e.currentTarget.style.borderColor='var(--text)'}
-        onMouseOut={e => e.currentTarget.style.borderColor='var(--border)'}>
+      <button onClick={() => navigate('/clients')} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px solid var(--color-border)', borderRadius:100, padding:'6px 14px', cursor:'pointer', color:'var(--color-text-secondary)', fontSize:13, marginBottom:24, transition:'all 0.15s' }}
+        onMouseOver={e => e.currentTarget.style.borderColor='var(--color-text-primary)'}
+        onMouseOut={e => e.currentTarget.style.borderColor='var(--color-border)'}>
         ← Clients
       </button>
 
       {/* Hero */}
-      <div className="client-profile-hero" style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--card)', borderRadius:16, border:'1px solid var(--border)', marginBottom:24 }}>
-        <div style={{ width:64, height:64, borderRadius:14, background:colour+'18', border:`2px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:700, fontFamily:'var(--font-display)', color:colour, flexShrink:0 }}>
+      <div className="client-profile-hero" style={{ display:'flex', alignItems:'center', gap:20, padding:'24px 28px', background:'var(--color-bg-surface)', borderRadius:16, border:'1px solid var(--color-border)', marginBottom:24 }}>
+        <div style={{ width:64, height:64, borderRadius:14, background:colour+'18', border:`2px solid ${colour}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, fontWeight:700, color:colour, flexShrink:0 }}>
           {(client.name||'?')[0].toUpperCase()}
         </div>
         <div className="client-profile-hero-meta" style={{ flex:1 }}>
-          <h1 style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1, color:'var(--text)' }}>{client.name}</h1>
+          <h1 style={{ fontSize:28, fontWeight:400, letterSpacing:'-0.02em', lineHeight:1, color:'var(--color-text-primary)' }}>{client.name}</h1>
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
-            {client.contact && <span style={{ fontSize:13, color:'var(--sub)' }}>{client.contact}</span>}
-            <span style={{ color:'var(--border2)' }}>·</span>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--faint)' }}>{client.email}</span>
+            {client.contact && <span style={{ fontSize:13, color:'var(--color-text-secondary)' }}>{client.contact}</span>}
+            <span style={{ color:'var(--color-border)' }}>·</span>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--color-text-tertiary)' }}>{client.email}</span>
           </div>
           <div style={{ display:'flex', gap:8, marginTop:10 }}>
-            <span className="badge badge-blue">{client.plan}</span>
-            <span className={`badge badge-${client.status==='active'?'green':client.status==='pending'?'amber':'grey'}`}>{client.status}</span>
-            {client.value && <span className="badge badge-grey">£{Number(client.value).toLocaleString()}</span>}
-            <span className={`badge badge-${client.invoice_paid?'green':'amber'}`}>{client.invoice_paid?'Invoice Paid':'Invoice Unpaid'}</span>
+            <StatusBadge variant="info">{client.plan}</StatusBadge>
+            <StatusBadge variant={client.status==='active'?'active':client.status==='pending'?'warning':'info'}>{client.status}</StatusBadge>
+            {client.value && <StatusBadge variant="info">£{Number(client.value).toLocaleString()}</StatusBadge>}
+            <StatusBadge variant={client.invoice_paid?'active':'warning'}>{client.invoice_paid?'Invoice Paid':'Invoice Unpaid'}</StatusBadge>
           </div>
         </div>
         <div className="client-profile-hero-actions" style={{ display:'flex', gap:8, flexShrink:0 }}>
-          {saved && <span style={{ fontSize:13, color:'var(--green)', alignSelf:'center' }}>✓ Saved</span>}
-          <button className="btn btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save Changes'}</button>
+          {saved && <span style={{ fontSize:13, color:'var(--color-green-500)', alignSelf:'center' }}>✓ Saved</span>}
+          <Button variant="primary" onClick={save} disabled={saving}>{saving?'Saving...':'Save Changes'}</Button>
         </div>
       </div>
 
-      <div className="card card-pad" style={{ marginBottom:18, display:'grid', gridTemplateColumns:'minmax(220px, 1fr) minmax(220px, 1fr)', gap:12, alignItems:'end' }}>
-        <div>
-          <div className="lbl" style={{ marginBottom:6 }}>Commission owner</div>
-          <select className="inp" value={commissionOwnerEmail || ''} onChange={(event) => setCommissionOwnerEmail(event.target.value)}>
+      <div style={{ ...DS_CARD, padding:20, marginBottom:18, display:'grid', gridTemplateColumns:'minmax(220px, 1fr) minmax(220px, 1fr)', gap:12, alignItems:'end' }}>
+        <FormField>
+          <FormLabel>Commission owner</FormLabel>
+          <FormSelect value={commissionOwnerEmail || ''} onChange={(event) => setCommissionOwnerEmail(event.target.value)}>
             <option value="">No commission owner</option>
             {staffProfiles.map((member) => (
               <option key={member.user_email} value={member.user_email}>{member.full_name || member.user_email}</option>
             ))}
-          </select>
-        </div>
-        <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+          </FormSelect>
+        </FormField>
+        <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.6 }}>
           Paid invoices and paid manual payments create commission for this staff member when their commission setting is enabled.
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="tabs">
+      <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
         {[['overview','Overview'],['onboarding','Onboarding'],['payments','Payments'],['invoices','Invoices'],['tickets','Tickets'],['activity','Activity']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+          <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
 
@@ -616,19 +620,19 @@ export default function ClientProfile() {
         <div className="client-profile-overview-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap:20 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
             <div className="client-profile-summary-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:12 }}>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--accent)' }}>£{totalCollected.toLocaleString()}</div><div className="stat-lbl">Collected</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--green)' }}>{activeSubs.length}</div><div className="stat-lbl">Active Subs</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--amber)' }}>{unpaidInvoices.length}</div><div className="stat-lbl">Unpaid Invoices</div></div>
-              <div className="stat-card"><div className="stat-val" style={{ color:'var(--sub)' }}>{openTickets.length}</div><div className="stat-lbl">Open Tickets</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-primary)' }}>£{totalCollected.toLocaleString()}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Collected</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-green-500)' }}>{activeSubs.length}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Active Subs</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-amber-500)' }}>{unpaidInvoices.length}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Unpaid Invoices</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-secondary)' }}>{openTickets.length}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Open Tickets</div></div>
             </div>
 
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:14 }}>Account Snapshot</div>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:14 }}>Account Snapshot</div>
               <div className="client-profile-detail-list" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:8 }}>Payments</div>
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>{accountHealth}</div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Payments</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>{accountHealth}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {gcStatus?.mandate_id
                       ? `Mandate ${gcStatus.mandate_id}`
                       : gcStatus?.billing_request_id
@@ -636,75 +640,75 @@ export default function ClientProfile() {
                         : 'Client has not set up Direct Debit yet'}
                   </div>
                 </div>
-                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:8 }}>Latest activity</div>
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>{latestActivity?.event_type?.replace(/_/g, ' ') || 'No recent activity'}</div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Latest activity</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>{latestActivity?.event_type?.replace(/_/g, ' ') || 'No recent activity'}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {latestActivity ? new Date(latestActivity.created_at).toLocaleString('en-GB') : 'Activity will appear here once recorded'}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:14 }}>Client Details</div>
-              <div className="fg">
-                <div><label className="lbl">Business Name</label><input className="inp" value={form.name||''} onChange={e=>pf('name',e.target.value)}/></div>
-                <div><label className="lbl">Contact Person</label><input className="inp" value={form.contact||''} onChange={e=>pf('contact',e.target.value)}/></div>
-                <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email||''} onChange={e=>pf('email',e.target.value)}/></div>
-                <div><label className="lbl">Phone</label><input className="inp" value={form.phone||''} onChange={e=>pf('phone',e.target.value)}/></div>
-                <div><label className="lbl">Plan</label>
-                  <select className="inp" value={form.plan||''} onChange={e=>pf('plan',e.target.value)}>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:14 }}>Client Details</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+                <FormField><FormLabel>Business Name</FormLabel><FormInput value={form.name||''} onChange={e=>pf('name',e.target.value)}/></FormField>
+                <FormField><FormLabel>Contact Person</FormLabel><FormInput value={form.contact||''} onChange={e=>pf('contact',e.target.value)}/></FormField>
+                <FormField><FormLabel>Email</FormLabel><FormInput type="email" value={form.email||''} onChange={e=>pf('email',e.target.value)}/></FormField>
+                <FormField><FormLabel>Phone</FormLabel><FormInput value={form.phone||''} onChange={e=>pf('phone',e.target.value)}/></FormField>
+                <FormField><FormLabel>Plan</FormLabel>
+                  <FormSelect value={form.plan||''} onChange={e=>pf('plan',e.target.value)}>
                     {PLANS.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div><label className="lbl">Status</label>
-                  <select className="inp" value={form.status||''} onChange={e=>pf('status',e.target.value)}>
+                  </FormSelect>
+                </FormField>
+                <FormField><FormLabel>Status</FormLabel>
+                  <FormSelect value={form.status||''} onChange={e=>pf('status',e.target.value)}>
                     {STATUSES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div><label className="lbl">Value (£)</label><input className="inp" type="number" value={form.value||''} onChange={e=>pf('value',e.target.value)}/></div>
-                <div><label className="lbl">Website URL</label><input className="inp" value={form.website_url||''} onChange={e=>pf('website_url',e.target.value)} placeholder="https://"/></div>
-                <div className="fc"><label className="lbl">Notes</label><textarea className="inp" rows={3} value={form.notes||''} onChange={e=>pf('notes',e.target.value)} style={{ resize:'vertical' }}/></div>
+                  </FormSelect>
+                </FormField>
+                <FormField><FormLabel>Value (£)</FormLabel><FormInput type="number" value={form.value||''} onChange={e=>pf('value',e.target.value)}/></FormField>
+                <FormField><FormLabel>Website URL</FormLabel><FormInput value={form.website_url||''} onChange={e=>pf('website_url',e.target.value)} placeholder="https://"/></FormField>
+                <FormField className="staff-onboarding-fc"><FormLabel>Notes</FormLabel><textarea className="ds-form-input" rows={3} value={form.notes||''} onChange={e=>pf('notes',e.target.value)} style={{ resize:'vertical' }}/></FormField>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, marginTop:14 }}>
-                <input type="checkbox" checked={!!form.invoice_paid} onChange={e=>pf('invoice_paid',e.target.checked)} style={{ accentColor:'var(--accent)', width:16, height:16 }}/>
+                <input type="checkbox" checked={!!form.invoice_paid} onChange={e=>pf('invoice_paid',e.target.checked)} style={{ accentColor:'var(--color-primary)', width:16, height:16 }}/>
                 Invoice Paid
               </label>
             </div>
           </div>
 
           <div className="client-profile-side-stack" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:12 }}>Quick Actions</div>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:12 }}>Quick Actions</div>
               <div className="client-profile-actions-grid" style={{ display:'grid', gap:8 }}>
-                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => { setTab('invoices'); setInvModal(true) }}>+ Create Invoice</button>
-                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => setTab('payments')}>Manage Payments</button>
-                <button className="btn btn-outline" style={{ justifyContent:'flex-start' }} onClick={() => setTab('tickets')}>Review Support</button>
-                {client.website_url && <a href={client.website_url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ justifyContent:'flex-start' }}>View Website</a>}
+                <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={() => { setTab('invoices'); setInvModal(true) }}>+ Create Invoice</Button>
+                <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={() => setTab('payments')}>Manage Payments</Button>
+                <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={() => setTab('tickets')}>Review Support</Button>
+                {client.website_url && <Button variant="secondary" style={{ justifyContent:'flex-start' }} onClick={() => window.open(client.website_url,'_blank','noreferrer')}>View Website</Button>}
               </div>
             </div>
 
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:12 }}>Recent client signal</div>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:12 }}>Recent client signal</div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:6 }}>Latest invoice</div>
-                  <div style={{ fontSize:14, fontWeight:500, color:'var(--text)' }}>{latestInvoice?.description || 'No invoices yet'}</div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:6 }}>Latest invoice</div>
+                  <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)' }}>{latestInvoice?.description || 'No invoices yet'}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {latestInvoice ? `£${Number(latestInvoice.amount || 0).toLocaleString()} · ${latestInvoice.status}` : 'Create the first invoice from this profile'}
                   </div>
                 </div>
-                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:6 }}>Latest support ticket</div>
-                  <div style={{ fontSize:14, fontWeight:500, color:'var(--text)' }}>{latestTicket?.subject || 'No support tickets'}</div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:6 }}>Latest support ticket</div>
+                  <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)' }}>{latestTicket?.subject || 'No support tickets'}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {latestTicket ? `${latestTicket.status} · ${new Date(latestTicket.created_at).toLocaleDateString('en-GB')}` : 'Support history will appear here'}
                   </div>
                 </div>
-                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:6 }}>Recent invoices</div>
-                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.7 }}>
+                <div className="client-profile-list-row" style={{ padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:6 }}>Recent invoices</div>
+                  <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.7 }}>
                     {recentInvoices.length
                       ? recentInvoices.map(inv => `${inv.invoice_number || 'Invoice'} · £${Number(inv.amount || 0).toLocaleString()}`).join(' / ')
                       : 'No invoice trail yet'}
@@ -713,19 +717,19 @@ export default function ClientProfile() {
               </div>
             </div>
 
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:12 }}>Recent activity</div>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:12 }}>Recent activity</div>
               {recentActivity.length === 0 ? (
-                <p style={{ fontSize:13, color:'var(--faint)', lineHeight:1.7 }}>No client activity has been recorded yet.</p>
+                <p style={{ fontSize:13, color:'var(--color-text-tertiary)', lineHeight:1.7 }}>No client activity has been recorded yet.</p>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {recentActivity.map(item => (
-                    <div key={item.id} className="client-profile-list-row" style={{ paddingBottom:10, borderBottom:'1px solid var(--border)' }}>
+                    <div key={item.id} className="client-profile-list-row" style={{ paddingBottom:10, borderBottom:'1px solid var(--color-border)' }}>
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-                        <div style={{ fontSize:13, fontWeight:500, color:'var(--text)', textTransform:'capitalize' }}>{item.event_type?.replace(/_/g, ' ')}</div>
-                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)' }}>{new Date(item.created_at).toLocaleDateString('en-GB')}</div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'var(--color-text-primary)', textTransform:'capitalize' }}>{item.event_type?.replace(/_/g, ' ')}</div>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)' }}>{new Date(item.created_at).toLocaleDateString('en-GB')}</div>
                       </div>
-                      <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:4, lineHeight:1.6 }}>{item.description || 'No description'}</div>
+                      <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:4, lineHeight:1.6 }}>{item.description || 'No description'}</div>
                     </div>
                   ))}
                 </div>
@@ -738,87 +742,87 @@ export default function ClientProfile() {
       {tab === 'onboarding' && (
         <div className="client-profile-overview-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap:20 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-            <div className="card card-pad">
+            <div style={{ ...DS_CARD, padding:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'flex-start', flexWrap:'wrap', marginBottom:18 }}>
                 <div>
-                  <div className="lbl" style={{ marginBottom:8 }}>Client onboarding sync</div>
-                  <div style={{ fontSize:14, color:'var(--sub)', lineHeight:1.7, maxWidth:620 }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Client onboarding sync</div>
+                  <div style={{ fontSize:14, color:'var(--color-text-secondary)', lineHeight:1.7, maxWidth:620 }}>
                     This tab reads the same shared onboarding records the client portal writes into <span style={{ fontFamily:'var(--font-mono)' }}>portal_settings</span>, so staff can review progress without a separate sync process.
                   </div>
                   {onboardingSource.resolvedEmail && client?.email && onboardingSource.resolvedEmail !== client.email ? (
-                    <div style={{ fontSize:12.5, color:'var(--faint)', marginTop:8, lineHeight:1.6 }}>
+                    <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)', marginTop:8, lineHeight:1.6 }}>
                       Synced from client portal email <span style={{ fontFamily:'var(--font-mono)' }}>{onboardingSource.resolvedEmail}</span>.
                     </div>
                   ) : null}
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                   {onboardingSummary ? (
-                    <span className={`badge badge-${getOnboardingStatusTone(onboardingSummary.status)}`}>
+                    <StatusBadge variant={TONE_TO_VARIANT[getOnboardingStatusTone(onboardingSummary.status)] || 'info'}>
                       {getOnboardingStatusLabel(onboardingSummary.status)}
-                    </span>
+                    </StatusBadge>
                   ) : (
-                    <span className="badge badge-grey">Not started</span>
+                    <StatusBadge variant="info">Not started</StatusBadge>
                   )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => loadOnboarding(client)} disabled={onboardingLoading}>
+                  <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => loadOnboarding(client)} disabled={onboardingLoading}>
                     {onboardingLoading ? 'Refreshing...' : 'Refresh'}
-                  </button>
+                  </Button>
                   {onboardingSummary?.status === 'submitted' && !onboardingSummary?.approved_at && (
-                    <button className="btn btn-primary btn-sm" onClick={approveOnboarding} disabled={onboardingSaving}>
+                    <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={approveOnboarding} disabled={onboardingSaving}>
                       {onboardingSaving ? 'Approving...' : 'Mark reviewed'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
 
               <div className="client-profile-summary-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:12 }}>
-                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:8 }}>Completion</div>
-                  <div style={{ fontSize:22, fontWeight:600, color:'var(--text)' }}>{onboardingSummary?.progress?.percent || 0}%</div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Completion</div>
+                  <div style={{ fontSize:22, fontWeight:600, color:'var(--color-text-primary)' }}>{onboardingSummary?.progress?.percent || 0}%</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {(onboardingSummary?.progress?.completeCount || 0)}/{onboardingSummary?.progress?.total || ONBOARDING_SECTION_ORDER.length} sections submitted
                   </div>
                 </div>
-                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:8 }}>Submitted</div>
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Submitted</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>
                     {onboardingSummary?.submitted_at ? new Date(onboardingSummary.submitted_at).toLocaleString('en-GB') : 'Not submitted yet'}
                   </div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     Source: {onboardingSummary?.source || 'client_portal'}
                   </div>
                 </div>
-                <div style={{ padding:'14px 16px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
-                  <div className="lbl" style={{ marginBottom:8 }}>Reviewed by staff</div>
-                  <div style={{ fontSize:16, fontWeight:600, color:'var(--text)' }}>
+                <div style={{ padding:'14px 16px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
+                  <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Reviewed by staff</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>
                     {onboardingSummary?.approved_by || 'Pending'}
                   </div>
-                  <div style={{ fontSize:12, color:'var(--faint)', marginTop:6 }}>
+                  <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:6 }}>
                     {onboardingSummary?.approved_at ? new Date(onboardingSummary.approved_at).toLocaleString('en-GB') : 'No review recorded yet'}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="card" style={{ overflow:'hidden' }}>
-              <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)', background:'var(--bg2)' }}>
-                <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Section detail</div>
+            <div style={{ ...DS_CARD, overflow:'hidden' }}>
+              <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--color-border)', background:'var(--color-gray-50)' }}>
+                <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>Section detail</div>
               </div>
               {getOrderedOnboardingSections(onboardingSections).map((section, index) => (
-                <div key={section.key} style={{ padding:'16px 18px', borderTop:index === 0 ? 'none' : '1px solid var(--border)', display:'grid', gap:10 }}>
+                <div key={section.key} style={{ padding:'16px 18px', borderTop:index === 0 ? 'none' : '1px solid var(--color-border)', display:'grid', gap:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{section.label}</div>
-                    <span className={`badge badge-${getOnboardingStatusTone(section.status)}`}>{getOnboardingStatusLabel(section.status)}</span>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>{section.label}</div>
+                    <StatusBadge variant={TONE_TO_VARIANT[getOnboardingStatusTone(section.status)] || 'info'}>{getOnboardingStatusLabel(section.status)}</StatusBadge>
                   </div>
-                  <div style={{ fontSize:12.5, color:'var(--faint)' }}>
+                  <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)' }}>
                     {section.updated_at ? `Last updated ${new Date(section.updated_at).toLocaleString('en-GB')}` : 'No update yet'}
                   </div>
                   <div style={{ display:'grid', gap:8 }}>
                     {Object.entries(section.data || {}).map(([field, value]) => (
-                      <div key={field} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--card)' }}>
-                        <div style={{ fontSize:11, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>
+                      <div key={field} style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-bg-surface)' }}>
+                        <div style={{ fontSize:11, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>
                           {field.replace(/_/g, ' ')}
                         </div>
-                        <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                        <div style={{ fontSize:13, color:'var(--color-text-primary)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
                           {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value || '').trim() || '—')}
                         </div>
                       </div>
@@ -830,23 +834,23 @@ export default function ClientProfile() {
           </div>
 
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:12 }}>Operational note</div>
-              <p style={{ fontSize:13.5, color:'var(--sub)', lineHeight:1.7 }}>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:12 }}>Operational note</div>
+              <p style={{ fontSize:13.5, color:'var(--color-text-secondary)', lineHeight:1.7 }}>
                 The client portal writes onboarding to shared keys, and the client pipeline already supports onboarding lifecycle stages. This tab is the staff-side review surface for that same data.
               </p>
             </div>
 
-            <div className="card card-pad">
-              <div className="lbl" style={{ marginBottom:12 }}>Recommended next action</div>
-              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:8 }}>
+            <div style={{ ...DS_CARD, padding:20 }}>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:12 }}>Recommended next action</div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>
                 {onboardingSummary?.status === 'submitted'
                   ? 'Review the submitted content and move the project into internal planning.'
                   : onboardingSummary?.status === 'in_progress'
                     ? 'Wait for the client to finish the remaining onboarding sections.'
                     : 'Ask the client to start the onboarding flow from their portal.'}
               </div>
-              <div style={{ fontSize:12.5, color:'var(--faint)', lineHeight:1.6 }}>
+              <div style={{ fontSize:12.5, color:'var(--color-text-tertiary)', lineHeight:1.6 }}>
                 This gives staff a clear place to check whether the brief is complete before build work starts.
               </div>
             </div>
@@ -863,22 +867,22 @@ export default function ClientProfile() {
       {tab === 'invoices' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-            <button className="btn btn-primary" onClick={() => setInvModal(true)}>+ Create Invoice</button>
+            <Button variant="primary" onClick={() => setInvModal(true)}>+ Create Invoice</Button>
           </div>
-          <div className="card" style={{ overflow:'hidden' }}>
-            {invoices.length === 0 ? <div className="empty"><p>No invoices yet</p></div> : (
+          <div style={{ ...DS_CARD, overflow:'hidden' }}>
+            {invoices.length === 0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No invoices yet</div> : (
               <div className="tbl-wrap">
-                <table className="tbl">
+                <table className="ds-table">
                   <thead><tr><th>Invoice #</th><th>Description</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {invoices.map(inv => (
                       <tr key={inv.id}>
-                        <td className="t-main" style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
+                        <td style={{ fontFamily:'var(--font-mono)' }}>{inv.invoice_number}</td>
                         <td>{inv.description}</td>
                         <td>£{Number(inv.amount||0).toLocaleString()}</td>
                         <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{inv.due_date || '—'}</td>
-                        <td><span className={`badge badge-${inv.status==='paid'?'green':'amber'}`}>{inv.status}</span></td>
-                        <td>{inv.status==='unpaid' && <button className="btn btn-ghost btn-sm" onClick={() => markPaid(inv.id)}>Mark Paid</button>}</td>
+                        <td><StatusBadge variant={inv.status==='paid'?'active':'warning'}>{inv.status}</StatusBadge></td>
+                        <td>{inv.status==='unpaid' && <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => markPaid(inv.id)}>Mark Paid</Button>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -891,17 +895,17 @@ export default function ClientProfile() {
 
       {/* Tickets tab */}
       {tab === 'tickets' && (
-        <div className="card" style={{ overflow:'hidden' }}>
-          {tickets.length === 0 ? <div className="empty"><p>No support tickets from this client</p></div> : (
+        <div style={{ ...DS_CARD, overflow:'hidden' }}>
+          {tickets.length === 0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No support tickets from this client</div> : (
             <div className="tbl-wrap">
-              <table className="tbl">
+              <table className="ds-table">
                 <thead><tr><th>Subject</th><th>Date</th><th>Status</th></tr></thead>
                 <tbody>
                   {tickets.map(t => (
                     <tr key={t.id}>
-                      <td className="t-main">{t.subject}</td>
+                      <td>{t.subject}</td>
                       <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
-                      <td><span className={`badge badge-${t.status==='open'?'amber':'green'}`}>{t.status}</span></td>
+                      <td><StatusBadge variant={t.status==='open'?'warning':'active'}>{t.status}</StatusBadge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -913,15 +917,15 @@ export default function ClientProfile() {
 
       {/* Activity tab */}
       {tab === 'activity' && (
-        <div className="card" style={{ overflow:'hidden' }}>
-          {activity.length === 0 ? <div className="empty"><p>No activity recorded</p></div> : (
+        <div style={{ ...DS_CARD, overflow:'hidden' }}>
+          {activity.length === 0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No activity recorded</div> : (
             <div className="tbl-wrap">
-              <table className="tbl">
+              <table className="ds-table">
                 <thead><tr><th>Event</th><th>Description</th><th>Date</th></tr></thead>
                 <tbody>
                   {activity.map(a => (
                     <tr key={a.id}>
-                      <td><span className="badge badge-blue">{a.event_type?.replace(/_/g,' ')}</span></td>
+                      <td><StatusBadge variant="info">{a.event_type?.replace(/_/g,' ')}</StatusBadge></td>
                       <td>{a.description}</td>
                       <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{new Date(a.created_at).toLocaleDateString('en-GB')}</td>
                     </tr>
@@ -938,24 +942,24 @@ export default function ClientProfile() {
       {/* Invoice modal */}
       {invModal && (
         <Modal title="Create Invoice" onClose={() => setInvModal(false)}
-          footer={<><button className="btn btn-outline" onClick={() => setInvModal(false)}>Cancel</button><button className="btn btn-primary" onClick={createInvoice} disabled={saving}>{saving?'Creating...':'Create & Email'}</button></>}>
+          footer={<><Button variant="secondary" onClick={() => setInvModal(false)}>Cancel</Button><Button variant="primary" onClick={createInvoice} disabled={saving}>{saving?'Creating...':'Create & Email'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="fg">
-              <div><label className="lbl">Invoice #</label><input className="inp" value={invForm.invoice_number} onChange={e=>setInvForm(p=>({...p,invoice_number:e.target.value}))} placeholder="INV-001"/></div>
-              <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={invForm.amount} onChange={e=>setInvForm(p=>({...p,amount:e.target.value}))}/></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Invoice #</FormLabel><FormInput value={invForm.invoice_number} onChange={e=>setInvForm(p=>({...p,invoice_number:e.target.value}))} placeholder="INV-001"/></FormField>
+              <FormField><FormLabel>Amount (£)</FormLabel><FormInput type="number" value={invForm.amount} onChange={e=>setInvForm(p=>({...p,amount:e.target.value}))}/></FormField>
             </div>
-            <div><label className="lbl">Description</label><input className="inp" value={invForm.description} onChange={e=>setInvForm(p=>({...p,description:e.target.value}))} placeholder="Web Design — March 2026"/></div>
-            <div><label className="lbl">Due Date</label><input className="inp" type="date" value={invForm.due_date} onChange={e=>setInvForm(p=>({...p,due_date:e.target.value}))}/></div>
+            <FormField><FormLabel>Description</FormLabel><FormInput value={invForm.description} onChange={e=>setInvForm(p=>({...p,description:e.target.value}))} placeholder="Web Design — March 2026"/></FormField>
+            <FormField><FormLabel>Due Date</FormLabel><FormInput type="date" value={invForm.due_date} onChange={e=>setInvForm(p=>({...p,due_date:e.target.value}))}/></FormField>
             <div>
-              <label className="lbl" style={{ marginBottom:8 }}>Payment Type</label>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Payment Type</div>
               <div style={{ display:'flex', gap:8 }}>
                 {[['one_off','One-off'],['monthly','Monthly DD']].map(([v,l]) => (
-                  <button key={v} onClick={() => setInvForm(p=>({...p,payment_type:v}))} style={{ flex:1, padding:'10px', borderRadius:8, border:`2px solid ${invForm.payment_type===v?'var(--accent)':'var(--border)'}`, background:invForm.payment_type===v?'var(--accent-soft)':'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color:invForm.payment_type===v?'var(--accent)':'var(--sub)' }}>{l}</button>
+                  <button key={v} onClick={() => setInvForm(p=>({...p,payment_type:v}))} style={{ flex:1, padding:'10px', borderRadius:8, border:`2px solid ${invForm.payment_type===v?'var(--color-primary)':'var(--color-border)'}`, background:invForm.payment_type===v?'var(--color-blue-50)':'transparent', cursor:'pointer', fontSize:13, fontWeight:500, color:invForm.payment_type===v?'var(--color-primary)':'var(--color-text-secondary)' }}>{l}</button>
                 ))}
               </div>
             </div>
             {gcStatus?.status === 'active' && invForm.payment_type === 'one_off' && invForm.amount && (
-              <div style={{ padding:'10px 14px', background:'var(--green-bg)', border:'1px solid var(--green)', borderRadius:7, fontSize:13, color:'var(--green)' }}>
+              <div style={{ padding:'10px 14px', background:'var(--color-green-50)', border:'1px solid var(--color-green-500)', borderRadius:7, fontSize:13, color:'var(--color-green-500)' }}>
                 ✓ Direct Debit active — £{invForm.amount} will be collected automatically via GoCardless
               </div>
             )}
@@ -966,12 +970,12 @@ export default function ClientProfile() {
       {/* One-off payment modal */}
       {payModal === 'one_off' && (
         <Modal title="Collect One-off Payment" onClose={() => setPayModal(null)}
-          footer={<><button className="btn btn-outline" onClick={() => setPayModal(null)}>Cancel</button><button className="btn btn-primary" onClick={doPayment} disabled={saving||!payForm.amount}>{saving?'Processing...':'Collect Payment'}</button></>}>
+          footer={<><Button variant="secondary" onClick={() => setPayModal(null)}>Cancel</Button><Button variant="primary" onClick={doPayment} disabled={saving||!payForm.amount}>{saving?'Processing...':'Collect Payment'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
-            <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="449"/></div>
-            <div><label className="lbl">Description</label><input className="inp" value={payForm.description} onChange={e=>setPayForm(p=>({...p,description:e.target.value}))} placeholder="Website build — March 2026"/></div>
-            <div style={{ padding:'10px 14px', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:7, fontSize:13, color:'var(--accent)' }}>
+            {gcError && <div style={{ padding:'10px 14px', background:'var(--color-red-50)', border:'1px solid var(--color-red-500)', borderRadius:7, fontSize:13, color:'var(--color-red-500)' }}>{gcError}</div>}
+            <FormField><FormLabel>Amount (£)</FormLabel><FormInput type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="449"/></FormField>
+            <FormField><FormLabel>Description</FormLabel><FormInput value={payForm.description} onChange={e=>setPayForm(p=>({...p,description:e.target.value}))} placeholder="Website build — March 2026"/></FormField>
+            <div style={{ padding:'10px 14px', background:'var(--color-blue-50)', border:'1px solid var(--color-border)', borderRadius:7, fontSize:13, color:'var(--color-primary)' }}>
               This will immediately charge the client's bank account via GoCardless Direct Debit. Funds arrive in 3–5 working days.
             </div>
           </div>
@@ -981,21 +985,21 @@ export default function ClientProfile() {
       {/* Subscription modal */}
       {payModal === 'subscription' && (
         <Modal title="Set Up Monthly Subscription" onClose={() => setPayModal(null)}
-          footer={<><button className="btn btn-outline" onClick={() => setPayModal(null)}>Cancel</button><button className="btn btn-primary" onClick={doSubscription} disabled={saving||!payForm.amount}>{saving?'Setting up...':'Create Subscription'}</button></>}>
+          footer={<><Button variant="secondary" onClick={() => setPayModal(null)}>Cancel</Button><Button variant="primary" onClick={doSubscription} disabled={saving||!payForm.amount}>{saving?'Setting up...':'Create Subscription'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
-            <div><label className="lbl">Monthly Amount (£)</label><input className="inp" type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="35"/></div>
-            <div><label className="lbl">Subscription Name</label><input className="inp" value={payForm.name} onChange={e=>setPayForm(p=>({...p,name:e.target.value}))} placeholder="Hosting Pro Plan"/></div>
-            <div><label className="lbl">Collection Day (1–28)</label><input className="inp" type="number" min="1" max="28" value={payForm.day_of_month} onChange={e=>setPayForm(p=>({...p,day_of_month:Number(e.target.value)}))}/></div>
-            <div style={{ padding:'10px 14px', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:7, fontSize:13, color:'var(--accent)' }}>
+            {gcError && <div style={{ padding:'10px 14px', background:'var(--color-red-50)', border:'1px solid var(--color-red-500)', borderRadius:7, fontSize:13, color:'var(--color-red-500)' }}>{gcError}</div>}
+            <FormField><FormLabel>Monthly Amount (£)</FormLabel><FormInput type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="35"/></FormField>
+            <FormField><FormLabel>Subscription Name</FormLabel><FormInput value={payForm.name} onChange={e=>setPayForm(p=>({...p,name:e.target.value}))} placeholder="Hosting Pro Plan"/></FormField>
+            <FormField><FormLabel>Collection Day (1–28)</FormLabel><FormInput type="number" min="1" max="28" value={payForm.day_of_month} onChange={e=>setPayForm(p=>({...p,day_of_month:Number(e.target.value)}))}/></FormField>
+            <div style={{ padding:'10px 14px', background:'var(--color-blue-50)', border:'1px solid var(--color-border)', borderRadius:7, fontSize:13, color:'var(--color-primary)' }}>
               Client will be charged £{payForm.amount||'X'}/month on day {payForm.day_of_month} of each month via Direct Debit.
             </div>
             {/* Quick plan buttons */}
             <div>
-              <div className="lbl" style={{ marginBottom:8 }}>Template Presets</div>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Template Presets</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                 {GO_CARDLESS_TEMPLATES.map(template => (
-                  <button key={template.id} onClick={() => setPayForm(p=>({...p,amount:template.amount,name:template.name}))} style={{ padding:'6px 12px', borderRadius:7, border:`1px solid ${payForm.name===template.name?'var(--accent)':'var(--border)'}`, background:payForm.name===template.name?'var(--accent-soft)':'transparent', cursor:'pointer', fontSize:12, color:'var(--text)' }}>
+                  <button key={template.id} onClick={() => setPayForm(p=>({...p,amount:template.amount,name:template.name}))} style={{ padding:'6px 12px', borderRadius:7, border:`1px solid ${payForm.name===template.name?'var(--color-primary)':'var(--color-border)'}`, background:payForm.name===template.name?'var(--color-blue-50)':'transparent', cursor:'pointer', fontSize:12, color:'var(--color-text-primary)' }}>
                     {template.name} — £{template.amount}/mo
                   </button>
                 ))}
@@ -1007,32 +1011,32 @@ export default function ClientProfile() {
 
       {payModal === 'manual' && (
         <Modal title="Record Manual Payment" onClose={() => setPayModal(null)}
-          footer={<><button className="btn btn-outline" onClick={() => setPayModal(null)}>Cancel</button><button className="btn btn-primary" onClick={doManualPayment} disabled={saving||!payForm.amount}>{saving?'Saving...':'Record Payment'}</button></>}>
+          footer={<><Button variant="secondary" onClick={() => setPayModal(null)}>Cancel</Button><Button variant="primary" onClick={doManualPayment} disabled={saving||!payForm.amount}>{saving?'Saving...':'Record Payment'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
-            <div className="fg">
-              <div><label className="lbl">Amount (£)</label><input className="inp" type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="449"/></div>
-              <div><label className="lbl">Status</label>
-                <select className="inp" value={payForm.manual_status} onChange={e=>setPayForm(p=>({...p,manual_status:e.target.value}))}>
+            {gcError && <div style={{ padding:'10px 14px', background:'var(--color-red-50)', border:'1px solid var(--color-red-500)', borderRadius:7, fontSize:13, color:'var(--color-red-500)' }}>{gcError}</div>}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+              <FormField><FormLabel>Amount (£)</FormLabel><FormInput type="number" value={payForm.amount} onChange={e=>setPayForm(p=>({...p,amount:e.target.value}))} placeholder="449"/></FormField>
+              <FormField><FormLabel>Status</FormLabel>
+                <FormSelect value={payForm.manual_status} onChange={e=>setPayForm(p=>({...p,manual_status:e.target.value}))}>
                   <option value="paid">Paid</option>
                   <option value="pending">Pending</option>
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             </div>
-            <div><label className="lbl">Assign To</label>
-              <select className="inp" value={payForm.manual_type} onChange={e=>setPayForm(p=>({...p,manual_type:e.target.value}))}>
+            <FormField><FormLabel>Assign To</FormLabel>
+              <FormSelect value={payForm.manual_type} onChange={e=>setPayForm(p=>({...p,manual_type:e.target.value}))}>
                 {MANUAL_PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </div>
-            <div><label className="lbl">Commission Owner</label>
-              <select className="inp" value={commissionOwnerEmail || ''} onChange={event => setCommissionOwnerEmail(event.target.value)}>
+              </FormSelect>
+            </FormField>
+            <FormField><FormLabel>Commission Owner</FormLabel>
+              <FormSelect value={commissionOwnerEmail || ''} onChange={event => setCommissionOwnerEmail(event.target.value)}>
                 <option value="">No commission owner</option>
                 {staffProfiles.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name || member.user_email}</option>)}
-              </select>
-            </div>
-            <div><label className="lbl">Description</label><input className="inp" value={payForm.description} onChange={e=>setPayForm(p=>({...p,description:e.target.value}))} placeholder="Bank transfer for Growth package"/></div>
+              </FormSelect>
+            </FormField>
+            <FormField><FormLabel>Description</FormLabel><FormInput value={payForm.description} onChange={e=>setPayForm(p=>({...p,description:e.target.value}))} placeholder="Bank transfer for Growth package"/></FormField>
             <div>
-              <div className="lbl" style={{ marginBottom:8 }}>Quick Assign</div>
+              <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Quick Assign</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                 {[
                   { name:'Starter', amount:499, type:'manual:starter' },
@@ -1040,7 +1044,7 @@ export default function ClientProfile() {
                   { name:'Pro', amount:1499, type:'manual:pro' },
                   { name:'Enterprise & HR Build', amount:2499, type:'manual:enterprise' },
                 ].map(template => (
-                  <button key={template.type} onClick={() => setPayForm(p=>({...p,amount:String(template.amount),manual_type:template.type,description:`Manual payment for ${template.name}`}))} style={{ padding:'6px 12px', borderRadius:7, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--text)' }}>
+                  <button key={template.type} onClick={() => setPayForm(p=>({...p,amount:String(template.amount),manual_type:template.type,description:`Manual payment for ${template.name}`}))} style={{ padding:'6px 12px', borderRadius:7, border:'1px solid var(--color-border)', background:'transparent', cursor:'pointer', fontSize:12, color:'var(--color-text-primary)' }}>
                     {template.name}
                   </button>
                 ))}
@@ -1052,18 +1056,18 @@ export default function ClientProfile() {
 
       {linkGcModal && (
         <Modal title="Link Existing GoCardless Customer" onClose={() => setLinkGcModal(false)}
-          footer={<><button className="btn btn-outline" onClick={() => setLinkGcModal(false)}>Cancel</button><button className="btn btn-primary" onClick={linkExistingMandate} disabled={saving || !linkGcForm.customer_id}>{saving?'Saving...':'Link Direct Debit'}</button></>}>
+          footer={<><Button variant="secondary" onClick={() => setLinkGcModal(false)}>Cancel</Button><Button variant="primary" onClick={linkExistingMandate} disabled={saving || !linkGcForm.customer_id}>{saving?'Saving...':'Link Direct Debit'}</Button></>}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {gcError && <div style={{ padding:'10px 14px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:7, fontSize:13, color:'var(--red)' }}>{gcError}</div>}
-            <div><label className="lbl">GoCardless Customer ID</label><input className="inp" value={linkGcForm.customer_id} onChange={e=>setLinkGcForm(p=>({...p,customer_id:e.target.value}))} placeholder="CU..." autoFocus/></div>
-            <div><label className="lbl">Mandate ID (optional)</label><input className="inp" value={linkGcForm.mandate_id} onChange={e=>setLinkGcForm(p=>({...p,mandate_id:e.target.value}))} placeholder="MD..."/></div>
-            <div><label className="lbl">Status</label>
-              <select className="inp" value={linkGcForm.status} onChange={e=>setLinkGcForm(p=>({...p,status:e.target.value}))}>
+            {gcError && <div style={{ padding:'10px 14px', background:'var(--color-red-50)', border:'1px solid var(--color-red-500)', borderRadius:7, fontSize:13, color:'var(--color-red-500)' }}>{gcError}</div>}
+            <FormField><FormLabel>GoCardless Customer ID</FormLabel><FormInput value={linkGcForm.customer_id} onChange={e=>setLinkGcForm(p=>({...p,customer_id:e.target.value}))} placeholder="CU..." autoFocus/></FormField>
+            <FormField><FormLabel>Mandate ID (optional)</FormLabel><FormInput value={linkGcForm.mandate_id} onChange={e=>setLinkGcForm(p=>({...p,mandate_id:e.target.value}))} placeholder="MD..."/></FormField>
+            <FormField><FormLabel>Status</FormLabel>
+              <FormSelect value={linkGcForm.status} onChange={e=>setLinkGcForm(p=>({...p,status:e.target.value}))}>
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
-              </select>
-            </div>
-            <div style={{ padding:'10px 14px', background:'var(--bg2)', borderRadius:7, fontSize:13, color:'var(--sub)' }}>
+              </FormSelect>
+            </FormField>
+            <div style={{ padding:'10px 14px', background:'var(--color-gray-50)', borderRadius:7, fontSize:13, color:'var(--color-text-secondary)' }}>
               Use this if the customer or mandate already exists in GoCardless but the portal failed to link it. If you only know the customer ID, leave mandate blank and the portal will try to refresh it.
             </div>
           </div>

@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import SubNav from '../components/SubNav'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 import { logAction } from '../utils/audit'
 import { logClientActivity, upsertClientAccount } from '../utils/clientAccounts'
 import { sendManagedNotification } from '../utils/notificationPreferences'
@@ -39,6 +40,9 @@ const EMPTY = {
   creator_department: '',
 }
 const FOLLOW_UP_DONE_OUTCOMES = ['no_answer', 'follow_up_later', 'interested', 'send_info', 'booked_call', 'proposal_requested', 'not_interested', 'converted']
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 const statusColor = {
   new: 'grey',
@@ -340,15 +344,15 @@ function buildLeadTimeline(row, emails, appointments, clientRecord) {
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 }
 
-function StatCard({ label, value, hint, tone = 'var(--accent)' }) {
+function StatCard({ label, value, hint, tone = 'var(--color-primary)' }) {
   return (
-    <div className="metric-tile">
+    <div style={{ ...DS_CARD, padding: 20 }}>
       <div className="metric-dot" style={{ background: `${tone}18` }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: tone, display: 'inline-block' }} />
       </div>
-      <div className="metric-value">{value}</div>
-      <div className="metric-label">{label}</div>
-      <div className="metric-hint">{hint}</div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
     </div>
   )
 }
@@ -1166,13 +1170,13 @@ export default function Outreach() {
   })
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
+    <div className="ds-content">
+      <div className="ds-page-header">
         <div>
-          <h1 className="page-title">Outreach</h1>
-          <p className="page-sub">Outreach queue, recent contact history, and follow-up actions in one place.</p>
+          <h1>Outreach</h1>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Outreach queue, recent contact history, and follow-up actions in one place.</p>
         </div>
-        {tab === 'contacts' && <button className="btn btn-primary" onClick={openAdd}>+ Add Contact</button>}
+        {tab === 'contacts' && <Button variant="primary" onClick={openAdd}>+ Add Contact</Button>}
       </div>
 
       <SubNav items={[
@@ -1182,13 +1186,13 @@ export default function Outreach() {
         can('proposals') && { label: 'Proposal Builder', onClick: () => navigate('/proposals') },
       ]} />
 
-      <div className="metric-grid outreach-mobile-hero" style={{ marginBottom: 22 }}>
-        <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--accent)" />
-        <StatCard label="Follow-up queue" value={stats.queue} hint="Leads that still need another touch" tone="var(--amber)" />
-        <StatCard label="Overdue" value={stats.overdue} hint="Follow-ups that are now late" tone="var(--red)" />
-        <StatCard label="Done today" value={stats.completedToday} hint="Follow-ups cleared by the team today" tone="var(--green)" />
-        <StatCard label="Hot leads" value={stats.hot} hint="Interested contacts worth prioritising" tone="var(--green)" />
-        <StatCard label="Converted" value={stats.converted} hint="Handed over into live client work" tone="var(--blue)" />
+      <div className="outreach-mobile-hero" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 14, marginBottom: 22 }}>
+        <StatCard label="Total leads" value={stats.total} hint="All outreach records in the portal" tone="var(--color-primary)" />
+        <StatCard label="Follow-up queue" value={stats.queue} hint="Leads that still need another touch" tone="var(--color-amber-500)" />
+        <StatCard label="Overdue" value={stats.overdue} hint="Follow-ups that are now late" tone="var(--color-red-500)" />
+        <StatCard label="Done today" value={stats.completedToday} hint="Follow-ups cleared by the team today" tone="var(--color-green-500)" />
+        <StatCard label="Hot leads" value={stats.hot} hint="Interested contacts worth prioritising" tone="var(--color-green-500)" />
+        <StatCard label="Converted" value={stats.converted} hint="Handed over into live client work" tone="var(--color-blue-500)" />
       </div>
 
       <div className="insight-grid" style={{ marginBottom: 22 }}>
@@ -1198,7 +1202,7 @@ export default function Outreach() {
               <div className="section-kicker">Follow-up queue</div>
               <div className="section-title">Who should outreach chase next?</div>
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => setFilter('follow_up_queue')}>Open queue view</button>
+            <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setFilter('follow_up_queue')}>Open queue view</Button>
           </div>
 
           {followUpQueue.length ? (
@@ -1210,7 +1214,7 @@ export default function Outreach() {
                   key={row.id}
                   style={{
                     padding: '14px 18px',
-                    borderBottom: index < Math.min(followUpQueue.length, 6) - 1 ? '1px solid var(--border)' : 'none',
+                    borderBottom: index < Math.min(followUpQueue.length, 6) - 1 ? '1px solid var(--color-border)' : 'none',
                     display: 'flex',
                     justifyContent: 'space-between',
                     gap: 14,
@@ -1220,30 +1224,30 @@ export default function Outreach() {
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.business_name || 'Unnamed lead'}</span>
-                      <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
-                      {row.overdue ? <span className="badge badge-red">Overdue</span> : null}
-                      {row.assigned_to_name ? <span className="badge badge-grey">{row.assigned_to_name}</span> : null}
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.business_name || 'Unnamed lead'}</span>
+                      <StatusBadge variant={TONE_TO_VARIANT[temperature.tone] || 'info'}>{temperature.label}</StatusBadge>
+                      {row.overdue ? <StatusBadge variant="error">Overdue</StatusBadge> : null}
+                      {row.assigned_to_name ? <StatusBadge variant="info">{row.assigned_to_name}</StatusBadge> : null}
                     </div>
-                    <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
                       {row.contact_name || 'No contact name'} · {getLastContactMethod(row, emails)} · {age === null ? 'No activity date' : `${age} day${age === 1 ? '' : 's'} since touch`}
                     </div>
-                    <div style={{ fontSize: 12.5, color: 'var(--text)', marginTop: 8 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--color-text-primary)', marginTop: 8 }}>
                       Next action: <strong>{getNextAction(row)}</strong>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(row)}>Open</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(row)}>Follow-up done</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(row)}>Book call</button>
-                    {row.status !== 'interested' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'interested')}>Mark hot</button> : null}
-                    {row.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(row, 'follow_up')}>Set follow-up</button> : null}
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(row)}>Open</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openFollowUpDone(row)}>Follow-up done</Button>
+                    <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openBookingModal(row)}>Book call</Button>
+                    {row.status !== 'interested' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickStatus(row, 'interested')}>Mark hot</Button> : null}
+                    {row.status !== 'follow_up' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickStatus(row, 'follow_up')}>Set follow-up</Button> : null}
                   </div>
                 </div>
               )
             })
           ) : (
-            <div style={{ padding: '34px 18px', textAlign: 'center', color: 'var(--faint)' }}>No leads currently need a follow-up.</div>
+            <div style={{ padding: '34px 18px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>No leads currently need a follow-up.</div>
           )}
         </div>
 
@@ -1262,32 +1266,32 @@ export default function Outreach() {
             ].map(([title, text, tone]) => (
               <div key={title} className="insight-pill">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span className={`badge badge-${tone}`}>{title}</span>
+                  <StatusBadge variant={TONE_TO_VARIANT[tone] || 'info'}>{title}</StatusBadge>
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.5 }}>{text}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{text}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="tabs">
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {[['contacts', 'Contacts'], ['emails', 'Emails Sent']].map(([k, l]) => (
-          <button key={k} onClick={() => { setTab(k); setSearch('') }} className={'tab' + (tab === k ? ' on' : '')}>
+          <Button key={k} onClick={() => { setTab(k); setSearch('') }} variant={tab === k ? 'primary' : 'secondary'} style={{ height: 30, fontSize: 12, padding: '0 10px' }}>
             {l}
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="toolbar-row legacy-toolbar">
         <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-          <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--faint)', pointerEvents: 'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input className="inp" style={{ paddingLeft: 34 }} placeholder={tab === 'contacts' ? 'Search leads, people, notes...' : 'Search emails...'} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <FormInput style={{ paddingLeft: 34, width: '100%' }} placeholder={tab === 'contacts' ? 'Search leads, people, notes...' : 'Search emails...'} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {tab === 'contacts' && (
           <div className="toolbar-chips legacy-toolbar-actions">
             {FILTERS.map((value) => (
-              <button
+              <Button
                 key={value}
                 onClick={() => {
                   setFilter(value)
@@ -1297,13 +1301,14 @@ export default function Outreach() {
                     return next
                   }, { replace: true })
                 }}
-                className={'pill' + (filter === value ? ' on' : '')}
+                variant={filter === value ? 'primary' : 'secondary'}
+                style={{ height: 30, fontSize: 12, padding: '0 10px' }}
               >
                 {labelize(value)}
-              </button>
+              </Button>
             ))}
             {STATUSES.map((value) => (
-              <button
+              <Button
                 key={value}
                 onClick={() => {
                   setFilter(value)
@@ -1313,10 +1318,11 @@ export default function Outreach() {
                     return next
                   }, { replace: true })
                 }}
-                className={'pill' + (filter === value ? ' on' : '')}
+                variant={filter === value ? 'primary' : 'secondary'}
+                style={{ height: 30, fontSize: 12, padding: '0 10px' }}
               >
                 {labelize(value)}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -1327,7 +1333,7 @@ export default function Outreach() {
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <>
               <div className="tbl-wrap desktop-only">
-                <table className="tbl" style={{ minWidth: 1320 }}>
+                <table className="ds-table" style={{ minWidth: 1320 }}>
                   <thead>
                     <tr>
                       <th>Lead</th>
@@ -1348,40 +1354,39 @@ export default function Outreach() {
                       const overdue = isOverdue(r)
                       return (
                         <tr key={r.id}>
-                          <td className="t-main">
+                          <td>
                             <div style={{ fontWeight: 600 }}>{r.business_name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{r.contact_name || 'No contact'}{r.email ? ` · ${r.email}` : ''}</div>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{r.contact_name || 'No contact'}{r.email ? ` · ${r.email}` : ''}</div>
                           </td>
                           <td>
-                            <select
-                              className="inp"
-                              style={{ padding: '4px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', width: 132, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', cursor: 'pointer' }}
+                            <FormSelect
+                              style={{ padding: '4px 8px', fontSize: 11, fontFamily: 'var(--font-mono)', width: 132, height: 'auto', borderRadius: 6, border: '1px solid var(--color-border)', background: 'var(--color-gray-50)', cursor: 'pointer' }}
                               value={r.status || 'new'}
                               onChange={(e) => quickStatus(r, e.target.value)}
                             >
                               {STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
-                            </select>
+                            </FormSelect>
                           </td>
                           <td>
                             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                              <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
-                              {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
-                              {r.assigned_to_name ? <span className="badge badge-grey">{r.assigned_to_name}</span> : null}
+                              <StatusBadge variant={TONE_TO_VARIANT[temperature.tone] || 'info'}>{temperature.label}</StatusBadge>
+                              {r.outcome && r.outcome !== 'none' ? <StatusBadge variant="info">{labelize(r.outcome)}</StatusBadge> : null}
+                              {r.assigned_to_name ? <StatusBadge variant="info">{r.assigned_to_name}</StatusBadge> : null}
                             </div>
                           </td>
                           <td style={{ minWidth: 160 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{nextAction}</div>
-                            <div style={{ fontSize: 11, color: overdue ? 'var(--red)' : 'var(--faint)', marginTop: 4 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{nextAction}</div>
+                            <div style={{ fontSize: 11, color: overdue ? 'var(--color-red-500)' : 'var(--color-text-tertiary)', marginTop: 4 }}>
                               {r.follow_up_date
                                 ? `Follow up ${new Date(`${r.follow_up_date}T12:00:00`).toLocaleDateString('en-GB', { day:'numeric', month:'short' })}`
                                 : overdue ? 'Overdue follow-up' : `${getLastContactMethod(r, emails)}${age !== null ? ` · ${age}d ago` : ''}`}
                             </div>
                           </td>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>{formatDateTime(touched)}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{formatDateTime(touched)}</td>
                           <td>
                             {r.added_by ? (
-                              <span style={{ fontSize: 12, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, color: 'var(--accent)' }}>
+                              <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--color-blue-50)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, color: 'var(--color-primary)' }}>
                                   {r.added_by.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
                                 </span>
                                 {r.added_by}
@@ -1390,23 +1395,23 @@ export default function Outreach() {
                           </td>
                           <td>
                             <div className="table-action-row">
-                              {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
-                              {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
-                              <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
-                              <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(r)}>Done</button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                              <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
-                              <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
-                              {r.status !== 'follow_up' ? <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button> : null}
-                              {r.status !== 'converted' ? <button className="btn btn-outline btn-sm" onClick={() => convertToClient(r)}>Convert</button> : null}
-                              <button className="btn btn-danger btn-sm" onClick={() => del(r.id, r.business_name)}>Del</button>
+                              {r.phone ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => { window.location.href = `tel:${r.phone}` }}>Call</Button> : null}
+                              {r.email ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => { window.location.href = `mailto:${r.email}` }}>Email</Button> : null}
+                              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openQuickNote(r)}>Note</Button>
+                              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openFollowUpDone(r)}>Done</Button>
+                              <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(r)}>Edit</Button>
+                              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openProposalBuilder(r)}>Proposal</Button>
+                              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openBookingModal(r)}>Book call</Button>
+                              {r.status !== 'follow_up' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickStatus(r, 'follow_up')}>Follow-up</Button> : null}
+                              {r.status !== 'converted' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => convertToClient(r)}>Convert</Button> : null}
+                              <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => del(r.id, r.business_name)}>Del</Button>
                             </div>
                           </td>
                         </tr>
                       )
                     })}
                     {filtered.length === 0 && (
-                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--faint)' }}>No outreach records match that view.</td></tr>
+                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-tertiary)' }}>No outreach records match that view.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1424,62 +1429,62 @@ export default function Outreach() {
                       <div key={`mobile-${r.id}`} className="soft-list-row outreach-mobile-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.business_name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>{r.contact_name || 'No contact'}{r.email ? ` · ${r.email}` : ''}</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.business_name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>{r.contact_name || 'No contact'}{r.email ? ` · ${r.email}` : ''}</div>
                           </div>
-                          <span className={`badge badge-${temperature.tone}`}>{temperature.label}</span>
+                          <StatusBadge variant={TONE_TO_VARIANT[temperature.tone] || 'info'}>{temperature.label}</StatusBadge>
                         </div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
-                          <span className={`badge badge-${statusColor[r.status || 'new'] || 'grey'}`}>{labelize(r.status || 'new')}</span>
-                          {r.outcome && r.outcome !== 'none' ? <span className="badge badge-blue">{labelize(r.outcome)}</span> : null}
-                          {r.assigned_to_name ? <span className="badge badge-grey">{r.assigned_to_name}</span> : null}
-                          {overdue ? <span className="badge badge-red">Overdue</span> : null}
+                          <StatusBadge variant={TONE_TO_VARIANT[statusColor[r.status || 'new']] || 'info'}>{labelize(r.status || 'new')}</StatusBadge>
+                          {r.outcome && r.outcome !== 'none' ? <StatusBadge variant="info">{labelize(r.outcome)}</StatusBadge> : null}
+                          {r.assigned_to_name ? <StatusBadge variant="info">{r.assigned_to_name}</StatusBadge> : null}
+                          {overdue ? <StatusBadge variant="error">Overdue</StatusBadge> : null}
                         </div>
-                        <div style={{ fontSize: 12.5, color: 'var(--sub)', lineHeight: 1.6, marginBottom: 12 }}>
+                        <div style={{ fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
                           {getNextAction(r)} · {getLastContactMethod(r, emails)}{age !== null ? ` · ${age}d ago` : ''}
                         </div>
                         <div style={{ display:'grid', gap:8, marginBottom:12 }}>
-                          <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Last touch</div>
-                          <div style={{ fontSize:12.5, color:'var(--text)' }}>{formatDateTime(touched)}</div>
+                          <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>Last touch</div>
+                          <div style={{ fontSize:12.5, color:'var(--color-text-primary)' }}>{formatDateTime(touched)}</div>
                           {r.follow_up_date ? (
                             <>
-                              <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Next follow-up</div>
-                              <div style={{ fontSize:12.5, color: overdue ? 'var(--red)' : 'var(--text)' }}>{new Date(`${r.follow_up_date}T12:00:00`).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}</div>
+                              <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>Next follow-up</div>
+                              <div style={{ fontSize:12.5, color: overdue ? 'var(--color-red-500)' : 'var(--color-text-primary)' }}>{new Date(`${r.follow_up_date}T12:00:00`).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}</div>
                             </>
                           ) : null}
                           {r.plainNotes ? (
                             <>
-                              <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Latest note</div>
-                              <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.55 }}>{r.plainNotes}</div>
+                              <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>Latest note</div>
+                              <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.55 }}>{r.plainNotes}</div>
                             </>
                           ) : null}
                         </div>
                         {timelineItems.length ? (
                           <div style={{ display:'grid', gap:8, marginBottom:12 }}>
-                            <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>Recent timeline</div>
+                            <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>Recent timeline</div>
                             {timelineItems.map((item) => (
-                              <div key={item.id} style={{ padding:'9px 10px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)' }}>
+                              <div key={item.id} style={{ padding:'9px 10px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)' }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:4 }}>
-                                  <span className={`badge badge-${item.tone}`}>{item.title}</span>
-                                  <span style={{ fontSize:10.5, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
+                                  <StatusBadge variant={TONE_TO_VARIANT[item.tone] || 'info'}>{item.title}</StatusBadge>
+                                  <span style={{ fontSize:10.5, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
                                 </div>
-                                <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.5 }}>{item.body}</div>
-                                {item.meta ? <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:4 }}>{item.meta}</div> : null}
+                                <div style={{ fontSize:12.5, color:'var(--color-text-primary)', lineHeight:1.5 }}>{item.body}</div>
+                                {item.meta ? <div style={{ fontSize:11.5, color:'var(--color-text-secondary)', marginTop:4 }}>{item.meta}</div> : null}
                               </div>
                             ))}
                           </div>
                         ) : null}
                         <div className="outreach-mobile-actions">
-                          {r.phone ? <a className="btn btn-outline btn-sm" href={`tel:${r.phone}`}>Call</a> : null}
-                          {r.email ? <a className="btn btn-outline btn-sm" href={`mailto:${r.email}`}>Email</a> : null}
-                          <button className="btn btn-outline btn-sm" onClick={() => openQuickNote(r)}>Note</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => openFollowUpDone(r)}>Done</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(r)}>Proposal</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => openBookingModal(r)}>Book call</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'follow_up')}>Follow-up</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => quickStatus(r, 'interested')}>Hot</button>
-                          <button className="btn btn-outline btn-sm" onClick={() => convertToClient(r)}>Convert</button>
+                          {r.phone ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => { window.location.href = `tel:${r.phone}` }}>Call</Button> : null}
+                          {r.email ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => { window.location.href = `mailto:${r.email}` }}>Email</Button> : null}
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openQuickNote(r)}>Note</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openFollowUpDone(r)}>Done</Button>
+                          <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openEdit(r)}>Edit</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openProposalBuilder(r)}>Proposal</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openBookingModal(r)}>Book call</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickStatus(r, 'follow_up')}>Follow-up</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickStatus(r, 'interested')}>Hot</Button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => convertToClient(r)}>Convert</Button>
                         </div>
                       </div>
                     )
@@ -1495,7 +1500,7 @@ export default function Outreach() {
         <div className="desk-table-shell">
           {loading ? <div className="spin-wrap"><div className="spin" /></div> : (
             <div className="tbl-wrap desktop-only">
-              <table className="tbl" style={{ minWidth: 960 }}>
+              <table className="ds-table" style={{ minWidth: 960 }}>
                 <thead>
                   <tr>
                     <th>Sent To</th><th>Subject</th><th>From</th><th>Sent By</th><th>Date</th><th></th>
@@ -1504,31 +1509,31 @@ export default function Outreach() {
                 <tbody>
                   {filteredEmails.map((e) => (
                     <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => setViewEmail(e)}>
-                      <td className="t-main" style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{Array.isArray(e.sent_to) ? e.sent_to[0] : e.sent_to}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{Array.isArray(e.sent_to) ? e.sent_to[0] : e.sent_to}</td>
                       <td style={{ maxWidth: 280 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 500 }}>{e.subject}</div>
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)' }}>{e.from_address}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-tertiary)' }}>{e.from_address}</td>
                       <td>
                         {e.sent_by ? (
-                          <span style={{ fontSize: 12, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, color: 'var(--accent)' }}>
+                          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--color-blue-50)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, color: 'var(--color-primary)' }}>
                               {(e.sent_by || '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
                             </span>
                             {e.sent_by}
                           </span>
                         ) : '—'}
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
                         {e.sent_at ? new Date(e.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                       <td>
-                        <button className="btn btn-ghost btn-sm" onClick={(ev) => { ev.stopPropagation(); setViewEmail(e) }}>View</button>
+                        <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={(ev) => { ev.stopPropagation(); setViewEmail(e) }}>View</Button>
                       </td>
                     </tr>
                   ))}
                   {filteredEmails.length === 0 && (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--faint)' }}>No emails logged yet</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-tertiary)' }}>No emails logged yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1544,17 +1549,17 @@ export default function Outreach() {
                     className="soft-list-row outreach-mobile-card"
                     style={{ textAlign:'left', width:'100%' }}
                   >
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:6, lineHeight:1.4 }}>{e.subject}</div>
-                    <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6, marginBottom:10 }}>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)', marginBottom:6, lineHeight:1.4 }}>{e.subject}</div>
+                    <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', lineHeight:1.6, marginBottom:10 }}>
                       {Array.isArray(e.sent_to) ? e.sent_to[0] : e.sent_to}
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      <span className="badge badge-blue">{e.sent_by || 'Portal'}</span>
-                      <span className="badge badge-grey">{e.sent_at ? new Date(e.sent_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : 'No date'}</span>
+                      <StatusBadge variant="info">{e.sent_by || 'Portal'}</StatusBadge>
+                      <StatusBadge variant="info">{e.sent_at ? new Date(e.sent_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : 'No date'}</StatusBadge>
                     </div>
                   </button>
                 ))}
-                {!filteredEmails.length ? <div style={{ textAlign:'center', padding:24, color:'var(--faint)' }}>No emails logged yet</div> : null}
+                {!filteredEmails.length ? <div style={{ textAlign:'center', padding:24, color:'var(--color-text-tertiary)' }}>No emails logged yet</div> : null}
               </div>
             </div>
           ) : null}
@@ -1564,24 +1569,24 @@ export default function Outreach() {
       {viewEmail && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
           <div onClick={() => setViewEmail(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'relative', width: 560, maxWidth: '95vw', height: '100vh', background: 'var(--card)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.15)', overflowY: 'auto' }}>
-            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', width: 560, maxWidth: '95vw', height: '100vh', background: 'var(--color-bg-surface)', borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.15)', overflowY: 'auto' }}>
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8, lineHeight: 1.3 }}>{viewEmail.subject}</div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8, lineHeight: 1.3 }}>{viewEmail.subject}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {[['To', Array.isArray(viewEmail.sent_to) ? viewEmail.sent_to.join(', ') : viewEmail.sent_to], ['From', viewEmail.from_address], ['Sent by', viewEmail.sent_by], ['Date', viewEmail.sent_at ? new Date(viewEmail.sent_at).toLocaleString('en-GB') : '—']].map(([l, v]) => (
                     <div key={l} style={{ display: 'flex', gap: 8, fontSize: 12 }}>
-                      <span style={{ color: 'var(--faint)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', width: 50, flexShrink: 0, paddingTop: 1 }}>{l}</span>
-                      <span style={{ color: 'var(--sub)' }}>{v}</span>
+                      <span style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', width: 50, flexShrink: 0, paddingTop: 1 }}>{l}</span>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>{v}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <button onClick={() => setViewEmail(null)} style={{ background: 'none', border: 'none', color: 'var(--faint)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
+              <button onClick={() => setViewEmail(null)} style={{ background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
             </div>
             <div style={{ flex: 1, padding: '20px 24px' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Message</div>
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: 'var(--bg2)', borderRadius: 10, padding: '16px 20px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Message</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: 'var(--color-gray-50)', borderRadius: 10, padding: '16px 20px' }}>
                 {viewEmail.body}
               </div>
             </div>
@@ -1594,47 +1599,47 @@ export default function Outreach() {
           title={editing ? 'Edit Contact' : 'Add Contact'}
           onClose={close}
           width={editing ? 980 : undefined}
-          footer={<><button className="btn btn-outline" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}
+          footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button></>}
         >
           <div style={{ display: 'grid', gridTemplateColumns: editing ? 'minmax(0,1.15fr) minmax(280px,0.85fr)' : '1fr', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="fg">
-              <div><label className="lbl">Business Name</label><input className="inp" value={form.business_name} onChange={(e) => sf('business_name', e.target.value)} placeholder="Acme Ltd" /></div>
-              <div><label className="lbl">Contact Name</label><input className="inp" value={form.contact_name} onChange={(e) => sf('contact_name', e.target.value)} placeholder="John Smith" /></div>
-              <div><label className="lbl">Email</label><input className="inp" type="email" value={form.email} onChange={(e) => sf('email', e.target.value)} /></div>
-              <div><label className="lbl">Phone</label><input className="inp" value={form.phone} onChange={(e) => sf('phone', e.target.value)} /></div>
-              <div><label className="lbl">Website</label><input className="inp" value={form.website} onChange={(e) => sf('website', e.target.value)} placeholder="https://" /></div>
-              <div>
-                <label className="lbl">Department</label>
-                <input className="inp" value={form.creator_department || org?.department || 'No department assigned'} readOnly />
-              </div>
-              <div><label className="lbl">Status</label>
-                <select className="inp" value={form.status} onChange={(e) => sf('status', e.target.value)}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+              <FormField><FormLabel>Business Name</FormLabel><FormInput value={form.business_name} onChange={(e) => sf('business_name', e.target.value)} placeholder="Acme Ltd" /></FormField>
+              <FormField><FormLabel>Contact Name</FormLabel><FormInput value={form.contact_name} onChange={(e) => sf('contact_name', e.target.value)} placeholder="John Smith" /></FormField>
+              <FormField><FormLabel>Email</FormLabel><FormInput type="email" value={form.email} onChange={(e) => sf('email', e.target.value)} /></FormField>
+              <FormField><FormLabel>Phone</FormLabel><FormInput value={form.phone} onChange={(e) => sf('phone', e.target.value)} /></FormField>
+              <FormField><FormLabel>Website</FormLabel><FormInput value={form.website} onChange={(e) => sf('website', e.target.value)} placeholder="https://" /></FormField>
+              <FormField>
+                <FormLabel>Department</FormLabel>
+                <FormInput value={form.creator_department || org?.department || 'No department assigned'} readOnly />
+              </FormField>
+              <FormField><FormLabel>Status</FormLabel>
+                <FormSelect value={form.status} onChange={(e) => sf('status', e.target.value)}>
                   {STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
-                </select>
-              </div>
-              <div><label className="lbl">Call outcome</label>
-                <select className="inp" value={form.outcome} onChange={(e) => sf('outcome', e.target.value)}>
+                </FormSelect>
+              </FormField>
+              <FormField><FormLabel>Call outcome</FormLabel>
+                <FormSelect value={form.outcome} onChange={(e) => sf('outcome', e.target.value)}>
                   {CALL_OUTCOMES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                </select>
-              </div>
-              <div><label className="lbl">Next follow-up date</label><input className="inp" type="date" value={form.follow_up_date} onChange={(e) => sf('follow_up_date', e.target.value)} /></div>
+                </FormSelect>
+              </FormField>
+              <FormField><FormLabel>Next follow-up date</FormLabel><FormInput type="date" value={form.follow_up_date} onChange={(e) => sf('follow_up_date', e.target.value)} /></FormField>
               {isAdmin ? (
-                <div><label className="lbl">Assign follow-up to</label>
-                  <select className="inp" value={form.assigned_to_email || ''} onChange={(e) => sf('assigned_to_email', e.target.value)}>
+                <FormField><FormLabel>Assign follow-up to</FormLabel>
+                  <FormSelect value={form.assigned_to_email || ''} onChange={(e) => sf('assigned_to_email', e.target.value)}>
                     <option value="">Unassigned</option>
                     {staffDirectory.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
-                  </select>
-                </div>
+                  </FormSelect>
+                </FormField>
               ) : null}
             </div>
               {!editing && (
-                <div style={{ padding: '8px 12px', background: 'var(--bg2)', borderRadius: 7, fontSize: 13, color: 'var(--sub)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: 'var(--faint)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Added by</span>
-                  <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user?.name}</span>
+                <div style={{ padding: '8px 12px', background: 'var(--color-gray-50)', borderRadius: 7, fontSize: 13, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Added by</span>
+                  <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{user?.name}</span>
                 </div>
               )}
-              <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} style={{ resize: 'vertical' }} placeholder="What happened on the call? What should happen next?" /></div>
+              <FormField><FormLabel>Notes</FormLabel><textarea className="ds-form-input" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} style={{ resize: 'vertical' }} placeholder="What happened on the call? What should happen next?" /></FormField>
               {editing ? (
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {[
@@ -1643,52 +1648,52 @@ export default function Outreach() {
                     ['send_info', 'Send info'],
                     ['booked_call', 'Booked call'],
                   ].map(([key, label]) => (
-                    <button key={key} type="button" className="btn btn-outline btn-sm" onClick={() => quickOutcome(editing, key)}>{label}</button>
+                    <Button key={key} type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickOutcome(editing, key)}>{label}</Button>
                   ))}
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 1)}>Tomorrow</button>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => quickFollowUpDate(editing, 3)}>+3 days</button>
+                  <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickFollowUpDate(editing, 1)}>Tomorrow</Button>
+                  <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => quickFollowUpDate(editing, 3)}>+3 days</Button>
                 </div>
               ) : null}
             </div>
             {editing ? (
               <div style={{ display:'grid', gap:12 }}>
-                <div className="card" style={{ padding:'14px 16px' }}>
-                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Lead actions</div>
+                <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Lead actions</div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openProposalBuilder(editing)}>Send proposal</button>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openBookingModal(editing)}>Book appointment</button>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => convertToClient(editing)}>Convert to client</button>
+                    <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openProposalBuilder(editing)}>Send proposal</Button>
+                    <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => openBookingModal(editing)}>Book appointment</Button>
+                    <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => convertToClient(editing)}>Convert to client</Button>
                   </div>
                   {isAdmin ? (
                     <div style={{ marginTop:12 }}>
-                      <div className="lbl" style={{ marginBottom:8 }}>Assignment</div>
-                      <select className="inp" value={editing.assigned_to_email || ''} onChange={(e) => assignLead(editing, e.target.value)} style={{ maxWidth:280 }}>
+                      <div className="ds-form-label" style={{ display:'block', marginBottom:8 }}>Assignment</div>
+                      <FormSelect value={editing.assigned_to_email || ''} onChange={(e) => assignLead(editing, e.target.value)} style={{ maxWidth:280 }}>
                         <option value="">Unassigned</option>
                         {staffDirectory.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
-                      </select>
+                      </FormSelect>
                     </div>
                   ) : null}
                   {getClientMatch(editing) ? (
-                    <div style={{ fontSize:12.5, color:'var(--sub)', marginTop:10 }}>
-                      Already linked to client record <strong style={{ color:'var(--text)' }}>{getClientMatch(editing)?.name}</strong>.
+                    <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginTop:10 }}>
+                      Already linked to client record <strong style={{ color:'var(--color-text-primary)' }}>{getClientMatch(editing)?.name}</strong>.
                     </div>
                   ) : null}
                 </div>
-                <div className="card" style={{ padding:'14px 16px' }}>
-                  <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Lead timeline</div>
+                <div style={{ ...DS_CARD, padding:'14px 16px' }}>
+                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Lead timeline</div>
                   <div style={{ display:'grid', gap:10, maxHeight:360, overflowY:'auto' }}>
                     {buildLeadTimeline(editing, emails, appointments, getClientMatch(editing)).slice(0, 12).map((item) => (
-                      <div key={item.id} style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)' }}>
+                      <div key={item.id} style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
-                          <span className={`badge badge-${item.tone}`}>{item.title}</span>
-                          <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
+                          <StatusBadge variant={TONE_TO_VARIANT[item.tone] || 'info'}>{item.title}</StatusBadge>
+                          <span style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{formatDateTime(item.at)}</span>
                         </div>
-                        <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.55 }}>{item.body}</div>
-                        {item.meta ? <div style={{ fontSize:11.5, color:'var(--sub)', marginTop:5 }}>{item.meta}</div> : null}
+                        <div style={{ fontSize:12.5, color:'var(--color-text-primary)', lineHeight:1.55 }}>{item.body}</div>
+                        {item.meta ? <div style={{ fontSize:11.5, color:'var(--color-text-secondary)', marginTop:5 }}>{item.meta}</div> : null}
                       </div>
                     ))}
                     {!buildLeadTimeline(editing, emails, appointments, getClientMatch(editing)).length ? (
-                      <div style={{ color:'var(--faint)', fontSize:12.5 }}>No timeline items yet.</div>
+                      <div style={{ color:'var(--color-text-tertiary)', fontSize:12.5 }}>No timeline items yet.</div>
                     ) : null}
                   </div>
                 </div>
@@ -1702,26 +1707,26 @@ export default function Outreach() {
         <Modal
           title={`Book call for ${bookingLead.business_name || bookingLead.contact_name || 'lead'}`}
           onClose={() => setBookingLead(null)}
-          footer={<><button className="btn btn-outline" onClick={() => setBookingLead(null)}>Cancel</button><button className="btn btn-primary" onClick={saveAppointment}>Save booking</button></>}
+          footer={<><Button variant="secondary" onClick={() => setBookingLead(null)}>Cancel</Button><Button variant="primary" onClick={saveAppointment}>Save booking</Button></>}
         >
           <div style={{ display:'grid', gap:12 }}>
-            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)', fontSize:13, color:'var(--color-text-secondary)' }}>
               {bookingLead.contact_name || 'No contact name'}{bookingLead.email ? ` · ${bookingLead.email}` : ''}{bookingLead.phone ? ` · ${bookingLead.phone}` : ''}
             </div>
-            <div className="fg">
-              <div><label className="lbl">Staff member</label>
-                <select className="inp" value={bookingForm.staff_email} onChange={(e) => sbf('staff_email', e.target.value)}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+              <FormField><FormLabel>Staff member</FormLabel>
+                <FormSelect value={bookingForm.staff_email} onChange={(e) => sbf('staff_email', e.target.value)}>
                   <option value="">Select staff</option>
                   {bookableStaff.map((member) => <option key={member.user_email} value={member.user_email}>{member.full_name}</option>)}
-                </select>
-              </div>
-              <div><label className="lbl">Date</label><input className="inp" type="date" value={bookingForm.date} onChange={(e) => sbf('date', e.target.value)} /></div>
-              <div><label className="lbl">Start time</label><input className="inp" type="time" step="1800" value={bookingForm.start_time} onChange={(e) => sbf('start_time', e.target.value)} /></div>
-              <div><label className="lbl">Duration</label>
-                <select className="inp" value={bookingForm.duration} onChange={(e) => sbf('duration', Number(e.target.value))}>
+                </FormSelect>
+              </FormField>
+              <FormField><FormLabel>Date</FormLabel><FormInput type="date" value={bookingForm.date} onChange={(e) => sbf('date', e.target.value)} /></FormField>
+              <FormField><FormLabel>Start time</FormLabel><FormInput type="time" step="1800" value={bookingForm.start_time} onChange={(e) => sbf('start_time', e.target.value)} /></FormField>
+              <FormField><FormLabel>Duration</FormLabel>
+                <FormSelect value={bookingForm.duration} onChange={(e) => sbf('duration', Number(e.target.value))}>
                   {[30, 45, 60].map((mins) => <option key={mins} value={mins}>{mins} mins</option>)}
-                </select>
-              </div>
+                </FormSelect>
+              </FormField>
             </div>
           </div>
         </Modal>
@@ -1731,23 +1736,23 @@ export default function Outreach() {
         <Modal
           title={`Log note for ${quickNoteLead.business_name || quickNoteLead.contact_name || 'lead'}`}
           onClose={() => { setQuickNoteLead(null); setQuickNote('') }}
-          footer={<><button className="btn btn-outline" onClick={() => { setQuickNoteLead(null); setQuickNote('') }}>Cancel</button><button className="btn btn-primary" onClick={saveQuickNote}>Save note</button></>}
+          footer={<><Button variant="secondary" onClick={() => { setQuickNoteLead(null); setQuickNote('') }}>Cancel</Button><Button variant="primary" onClick={saveQuickNote}>Save note</Button></>}
         >
           <div style={{ display:'grid', gap:12 }}>
-            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)', fontSize:13, color:'var(--color-text-secondary)' }}>
               {quickNoteLead.contact_name || 'No contact name'}{quickNoteLead.email ? ` · ${quickNoteLead.email}` : ''}{quickNoteLead.phone ? ` · ${quickNoteLead.phone}` : ''}
             </div>
-            <div>
-              <label className="lbl">Quick note</label>
+            <FormField>
+              <FormLabel>Quick note</FormLabel>
               <textarea
-                className="inp"
+                className="ds-form-input"
                 rows={5}
                 value={quickNote}
                 onChange={(e) => setQuickNote(e.target.value)}
                 style={{ resize:'vertical' }}
                 placeholder="Log the latest call, voicemail, objection, or next step..."
               />
-            </div>
+            </FormField>
           </div>
         </Modal>
       ) : null}
@@ -1759,33 +1764,33 @@ export default function Outreach() {
             setFollowUpDoneLead(null)
             setFollowUpDoneForm({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
           }}
-          footer={<><button className="btn btn-outline" onClick={() => {
+          footer={<><Button variant="secondary" onClick={() => {
             setFollowUpDoneLead(null)
             setFollowUpDoneForm({ outcome: 'follow_up_later', note: '', next_follow_up_date: '', clear_queue: true })
-          }}>Cancel</button><button className="btn btn-primary" onClick={completeFollowUp}>Save follow-up</button></>}
+          }}>Cancel</Button><Button variant="primary" onClick={completeFollowUp}>Save follow-up</Button></>}
         >
           <div style={{ display:'grid', gap:12 }}>
-            <div style={{ padding:'10px 12px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', fontSize:13, color:'var(--sub)' }}>
+            <div style={{ padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)', fontSize:13, color:'var(--color-text-secondary)' }}>
               {followUpDoneLead.contact_name || 'No contact name'}{followUpDoneLead.email ? ` · ${followUpDoneLead.email}` : ''}{followUpDoneLead.phone ? ` · ${followUpDoneLead.phone}` : ''}
             </div>
-            <div>
-              <label className="lbl">Outcome</label>
-              <select className="inp" value={followUpDoneForm.outcome} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, outcome: e.target.value }))}>
+            <FormField>
+              <FormLabel>Outcome</FormLabel>
+              <FormSelect value={followUpDoneForm.outcome} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, outcome: e.target.value }))}>
                 {CALL_OUTCOMES.filter(([key]) => FOLLOW_UP_DONE_OUTCOMES.includes(key)).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="lbl">Quick note</label>
+              </FormSelect>
+            </FormField>
+            <FormField>
+              <FormLabel>Quick note</FormLabel>
               <textarea
-                className="inp"
+                className="ds-form-input"
                 rows={4}
                 value={followUpDoneForm.note}
                 onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, note: e.target.value }))}
                 style={{ resize:'vertical' }}
                 placeholder="What happened on the follow-up?"
               />
-            </div>
-            <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${followUpDoneForm.clear_queue ? 'var(--green)' : 'var(--border)'}`, background:followUpDoneForm.clear_queue ? 'var(--green-bg)' : 'transparent' }}>
+            </FormField>
+            <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'12px 14px', borderRadius:8, border:`1px solid ${followUpDoneForm.clear_queue ? 'var(--color-green-500)' : 'var(--color-border)'}`, background:followUpDoneForm.clear_queue ? 'var(--color-green-50)' : 'transparent' }}>
               <input
                 type="checkbox"
                 checked={followUpDoneForm.clear_queue}
@@ -1794,18 +1799,18 @@ export default function Outreach() {
                   clear_queue: e.target.checked,
                   next_follow_up_date: e.target.checked ? '' : current.next_follow_up_date,
                 }))}
-                style={{ width:18, height:18, accentColor:'var(--green)', flexShrink:0, marginTop:1 }}
+                style={{ width:18, height:18, accentColor:'var(--color-green-500)', flexShrink:0, marginTop:1 }}
               />
-              <span style={{ fontSize:13, lineHeight:1.6, color:'var(--text)' }}>
+              <span style={{ fontSize:13, lineHeight:1.6, color:'var(--color-text-primary)' }}>
                 Clear this lead from the active follow-up queue
               </span>
             </label>
             {!followUpDoneForm.clear_queue ? (
-              <div>
-                <label className="lbl">Next follow-up date</label>
-                <input className="inp" type="date" value={followUpDoneForm.next_follow_up_date} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, next_follow_up_date: e.target.value }))} />
-                <div style={{ fontSize:12, color:'var(--sub)', marginTop:6 }}>Leave this lead in the queue and set the next chase date.</div>
-              </div>
+              <FormField>
+                <FormLabel>Next follow-up date</FormLabel>
+                <FormInput type="date" value={followUpDoneForm.next_follow_up_date} onChange={(e) => setFollowUpDoneForm((current) => ({ ...current, next_follow_up_date: e.target.value }))} />
+                <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:6 }}>Leave this lead in the queue and set the next chase date.</div>
+              </FormField>
             ) : null}
           </div>
         </Modal>

@@ -8,7 +8,7 @@ import { Button, StatusBadge } from '../components/ds'
 
 const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 
-const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey:'info' }
+const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey: 'neutral' }
 
 const SYSTEM_EMAIL_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
 const STAFF_REQUIRED_FIELDS = [

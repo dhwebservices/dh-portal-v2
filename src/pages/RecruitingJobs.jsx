@@ -6,7 +6,7 @@ import SubNav from '../components/SubNav'
 import { Button, StatusBadge } from '../components/ds'
 import { buildRequisitionPatch, deleteJobPost, getRequisitionStatusTone, listJobPosts, saveJobPost } from '../utils/recruiting'
 
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 export default function RecruitingJobs() {
   const navigate = useNavigate()

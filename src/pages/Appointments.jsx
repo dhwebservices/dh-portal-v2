@@ -14,6 +14,10 @@ import {
   fetchMicrosoftCalendars,
   fetchMicrosoftCalendarView,
 } from '../utils/microsoftCalendar'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+
+const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
+
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 const HOURS = Array.from({ length: 32 }, (_, i) => {
   const h = Math.floor(i / 2) + 9
@@ -644,12 +648,12 @@ export default function Appointments() {
   }, [isAdmin, user?.email, visibleStaff])
 
   return (
-    <div className="fade-in">
-      <div className="page-hd">
-        <div><h1 className="page-title">Appointment Manager</h1><p className="page-sub">Manage staff availability and client bookings</p></div>
+    <div className="ds-content">
+      <div className="ds-page-header">
+        <div><h1>Appointment Manager</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Manage staff availability and client bookings</p></div>
       </div>
 
-      <div className="dashboard-stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:20 }}>
         {[
           ['Bookable staff', weeklySummary.staff, 'Shown in this view'],
           ['Available today', weeklySummary.availableToday, formatDate(today)],
@@ -658,18 +662,18 @@ export default function Appointments() {
           ['Meetings today', weeklySummary.meetingsToday, 'Internal calendar items'],
           ['MS events', weeklySummary.microsoftWeekEvents, selectedMicrosoftCalendarMeta?.name || 'Current Microsoft calendar'],
         ].map(([label, value, hint]) => (
-          <div key={label} className="stat-card">
-            <div className="stat-val">{value}</div>
-            <div className="stat-lbl">{label}</div>
-            <div style={{ fontSize:12, color:'var(--sub)', marginTop:6, lineHeight:1.5 }}>{hint}</div>
+          <div key={label} style={{ ...DS_CARD, padding:20 }}>
+            <div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{value}</div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{label}</div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.5 }}>{hint}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="tabs" style={{ marginBottom:24 }}>
+      <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
         {[['calendar','Calendar'],['bookings','All Bookings'],['meetings','Meetings'],['links','Booking Links']].map(([k,l]) => (
-          <button key={k} onClick={() => setTab(k)} className={'tab'+(tab===k?' on':'')}>{l}</button>
+          <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
 
@@ -688,46 +692,46 @@ export default function Appointments() {
         <>
           {/* Week navigator */}
           <div className="legacy-toolbar" style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
-            <button className="btn btn-ghost btn-sm" onClick={prevWeek}>← Prev</button>
-            <span style={{ fontSize:14, fontWeight:500, color:'var(--text)', minWidth:280, textAlign:'center' }}>{weekLabel}</span>
-            <button className="btn btn-ghost btn-sm" onClick={nextWeek}>Next →</button>
-            <button className="btn btn-outline btn-sm" onClick={() => setAnchor(today)} style={{ marginLeft:8 }}>Today</button>
+            <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={prevWeek}>← Prev</Button>
+            <span style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', minWidth:280, textAlign:'center' }}>{weekLabel}</span>
+            <Button variant="ghost" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={nextWeek}>Next →</Button>
+            <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', marginLeft:8 }} onClick={() => setAnchor(today)}>Today</Button>
             <div style={{ minWidth:220, marginLeft:'auto' }}>
-              <select className="inp" value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
+              <FormSelect value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
                 <option value="all">All bookable staff</option>
                 {bookableStaff.map((staffMember) => (
                   <option key={staffMember.user_email} value={staffMember.user_email}>
                     {staffMember.full_name}
                   </option>
                 ))}
-              </select>
+              </FormSelect>
             </div>
           </div>
 
-          <div className="card card-pad" style={{ marginBottom:18 }}>
+          <div style={{ ...DS_CARD, padding:20, marginBottom:18 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:12, flexWrap:'wrap' }}>
               <div>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Today overview</div>
-                <div style={{ fontSize:14, color:'var(--sub)', marginTop:4 }}>Quick view of who is available and how many calls are already booked.</div>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)' }}>Today overview</div>
+                <div style={{ fontSize:14, color:'var(--color-text-secondary)', marginTop:4 }}>Quick view of who is available and how many calls are already booked.</div>
               </div>
-              <span className="badge badge-grey">{formatDate(today)}</span>
+              <StatusBadge variant="info">{formatDate(today)}</StatusBadge>
             </div>
             <div className="compact-card-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
               {todayOverview.map((staffMember) => (
-                <div key={staffMember.user_email} style={{ padding:'14px 15px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)' }}>
+                <div key={staffMember.user_email} style={{ padding:'14px 15px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:8 }}>
                     <div>
-                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{staffMember.full_name}</div>
-                      <div style={{ fontSize:11, color:'var(--faint)', marginTop:2 }}>{staffMember.role || 'Bookable staff'}</div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>{staffMember.full_name}</div>
+                      <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:2 }}>{staffMember.role || 'Bookable staff'}</div>
                     </div>
-                    <span className={`badge badge-${staffMember.available ? (staffMember.bookings ? 'blue' : 'green') : 'red'}`}>
+                    <StatusBadge variant={staffMember.available ? (staffMember.bookings ? 'info' : 'active') : 'error'}>
                       {staffMember.available ? (staffMember.bookings ? 'Booked' : 'Free') : 'Off'}
-                    </span>
+                    </StatusBadge>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <span className="badge badge-grey">{staffMember.window}</span>
-                    <span className="badge badge-grey">{staffMember.bookings} booking{staffMember.bookings === 1 ? '' : 's'}</span>
-                    <span className="badge badge-grey">{staffMember.meetings} meeting{staffMember.meetings === 1 ? '' : 's'}</span>
+                    <StatusBadge variant="info">{staffMember.window}</StatusBadge>
+                    <StatusBadge variant="info">{staffMember.bookings} booking{staffMember.bookings === 1 ? '' : 's'}</StatusBadge>
+                    <StatusBadge variant="info">{staffMember.meetings} meeting{staffMember.meetings === 1 ? '' : 's'}</StatusBadge>
                   </div>
                 </div>
               ))}
@@ -739,19 +743,19 @@ export default function Appointments() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr>
-                    <th style={{ width:60, padding:'8px 12px', borderBottom:'2px solid var(--border)', color:'var(--faint)', fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textAlign:'left' }}>TIME</th>
+                    <th style={{ width:60, padding:'8px 12px', borderBottom:'2px solid var(--color-border)', color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.08em', textAlign:'left' }}>TIME</th>
                     {visibleStaff.map(s => (
-                      <th key={s.user_email} style={{ padding:'8px 12px', borderBottom:'2px solid var(--border)', borderLeft:'1px solid var(--border)', minWidth:140 }}>
-                        <div style={{ fontWeight:600, color:'var(--text)', fontSize:12, marginBottom:2 }}>{s.full_name?.split(' ')[0]}</div>
-                        <div style={{ fontSize:10, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{s.role}</div>
+                      <th key={s.user_email} style={{ padding:'8px 12px', borderBottom:'2px solid var(--color-border)', borderLeft:'1px solid var(--color-border)', minWidth:140 }}>
+                        <div style={{ fontWeight:600, color:'var(--color-text-primary)', fontSize:12, marginBottom:2 }}>{s.full_name?.split(' ')[0]}</div>
+                        <div style={{ fontSize:10, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{s.role}</div>
                       </th>
                     ))}
                   </tr>
                   {/* Day headers */}
-                  <tr style={{ background:'var(--bg2)' }}>
-                    <td style={{ padding:'6px 12px', borderBottom:'1px solid var(--border)', fontSize:10, color:'var(--faint)' }}>STAFF →</td>
+                  <tr style={{ background:'var(--color-gray-50)' }}>
+                    <td style={{ padding:'6px 12px', borderBottom:'1px solid var(--color-border)', fontSize:10, color:'var(--color-text-tertiary)' }}>STAFF →</td>
                     {visibleStaff.map(s => (
-                      <td key={s.user_email} style={{ padding:'6px 12px', borderBottom:'1px solid var(--border)', borderLeft:'1px solid var(--border)' }}>
+                      <td key={s.user_email} style={{ padding:'6px 12px', borderBottom:'1px solid var(--color-border)', borderLeft:'1px solid var(--color-border)' }}>
                         <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                           {days.map(d => {
                             const avail = getAvail(s.user_email, d)
@@ -761,7 +765,7 @@ export default function Appointments() {
                             const isPast = d < today
                             return (
                               <button key={d} onClick={() => !isPast && setSlotModal({ date:d, staffEmail:s.user_email, staffName:s.full_name })}
-                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--accent)':'var(--border)'), background: isPast ? 'var(--bg3)' : dayMeetings.length > 0 ? '#fef3c7' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--faint)': dayMeetings.length > 0 ? '#b45309' : isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
+                                style={{ width:22, height:22, borderRadius:5, border:'1px solid ' + (d===today?'var(--color-primary)':'var(--color-border)'), background: isPast ? 'var(--color-gray-100)' : dayMeetings.length > 0 ? '#fef3c7' : isOn ? (dayAppts.length > 0 ? '#dbeafe' : '#dcfce7') : '#fee2e2', cursor: isPast?'default':'pointer', fontSize:9, fontWeight:600, color: isPast?'var(--color-text-tertiary)': dayMeetings.length > 0 ? '#b45309' : isOn?(dayAppts.length>0?'#1d4ed8':'#166534'):'#991b1b', transition:'all 0.1s' }}
                                 title={formatDate(d) + (dayAppts.length > 0 ? ' · ' + dayAppts.length + ' booked' : '') + (dayMeetings.length > 0 ? ' · ' + dayMeetings.length + ' meeting' + (dayMeetings.length === 1 ? '' : 's') : '')}>
                                 {new Date(d+'T12:00').getDate()}
                               </button>
@@ -774,8 +778,8 @@ export default function Appointments() {
                 </thead>
                 <tbody>
                   {HOURS.map((time, ti) => (
-                    <tr key={time} style={{ background: ti%2===0 ? 'transparent' : 'var(--bg2)' }}>
-                      <td style={{ padding:'4px 12px', borderBottom:'1px solid var(--border-light)', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', verticalAlign:'middle', whiteSpace:'nowrap' }}>{time}</td>
+                    <tr key={time} style={{ background: ti%2===0 ? 'transparent' : 'var(--color-gray-50)' }}>
+                      <td style={{ padding:'4px 12px', borderBottom:'1px solid var(--border-light)', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--color-text-tertiary)', verticalAlign:'middle', whiteSpace:'nowrap' }}>{time}</td>
                       {visibleStaff.map(s => {
                         // Show all 7 days compressed in weekly view
                         // Find if any day this week has a booking at this time for this staff
@@ -793,7 +797,7 @@ export default function Appointments() {
                         const isOn = todayInfo?.isOn
 
                         return (
-                          <td key={s.user_email} style={{ padding:'2px 6px', borderBottom:'1px solid var(--border-light)', borderLeft:'1px solid var(--border)', verticalAlign:'middle', height:28 }}>
+                          <td key={s.user_email} style={{ padding:'2px 6px', borderBottom:'1px solid var(--border-light)', borderLeft:'1px solid var(--color-border)', verticalAlign:'middle', height:28 }}>
                             {appt ? (
                               <button onClick={() => setDetailAppt(appt)} style={{ width:'100%', padding:'2px 6px', borderRadius:4, border:'none', background:'#3b82f6', color:'#fff', fontSize:10, fontWeight:500, cursor:'pointer', textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                 {appt.client_name}
@@ -803,7 +807,7 @@ export default function Appointments() {
                                 {meeting.title}
                               </button>
                             ) : !isOn ? (
-                              <div style={{ width:'100%', height:20, borderRadius:4, background:'var(--bg3)', opacity:0.5 }}/>
+                              <div style={{ width:'100%', height:20, borderRadius:4, background:'var(--color-gray-100)', opacity:0.5 }}/>
                             ) : null}
                           </td>
                         )
@@ -816,7 +820,7 @@ export default function Appointments() {
           )}
 
           {/* Legend */}
-          <div style={{ display:'flex', gap:16, marginTop:16, fontSize:11, color:'var(--faint)' }}>
+          <div style={{ display:'flex', gap:16, marginTop:16, fontSize:11, color:'var(--color-text-tertiary)' }}>
             {[['#dcfce7','#166534','Available'],['#dbeafe','#1d4ed8','Has bookings'],['#fee2e2','#991b1b','Unavailable'],['#fff7ed','#c2410c','Microsoft calendar shown above']].map(([bg,c,l]) => (
               <div key={l} style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <div style={{ width:12, height:12, borderRadius:3, background:bg, border:'1px solid ' + c }}/>
@@ -883,20 +887,20 @@ export default function Appointments() {
 
 function BookingLinksPanel({ staff, feedback, onCopy, isAdmin }) {
   return (
-    <div className="card card-pad" style={{ display:'grid', gap:18 }}>
+    <div style={{ ...DS_CARD, padding:20, display:'grid', gap:18 }}>
       <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Shareable booking links</div>
-          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)' }}>Shareable booking links</div>
+          <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6 }}>
             {isAdmin
               ? 'Copy a direct booking page for any bookable staff member.'
               : 'Share your direct booking page so clients can book time with you without portal access.'}
           </div>
-          <div style={{ fontSize:12, color:'var(--faint)', marginTop:8 }}>
+          <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:8 }}>
             Staff can block individual days and 30-minute time slots from the main Calendar tab by clicking a day badge for their row.
           </div>
         </div>
-        <span className="badge badge-grey">{staff.length} active link{staff.length === 1 ? '' : 's'}</span>
+        <StatusBadge variant="info">{staff.length} active link{staff.length === 1 ? '' : 's'}</StatusBadge>
       </div>
 
       {feedback ? (
@@ -910,24 +914,24 @@ function BookingLinksPanel({ staff, feedback, onCopy, isAdmin }) {
           {staff.map((staffMember) => {
             const url = buildBookingLink(staffMember.full_name, staffMember.user_email)
             return (
-              <div key={staffMember.user_email} style={{ display:'grid', gap:12, padding:'16px 18px', border:'1px solid var(--border)', borderRadius:16, background:'var(--bg2)' }}>
+              <div key={staffMember.user_email} style={{ display:'grid', gap:12, padding:'16px 18px', border:'1px solid var(--color-border)', borderRadius:16, background:'var(--color-gray-50)' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
                   <div>
-                    <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>{staffMember.full_name}</div>
-                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>{staffMember.role || 'Bookable staff'}</div>
+                    <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>{staffMember.full_name}</div>
+                    <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>{staffMember.role || 'Bookable staff'}</div>
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => onCopy(staffMember)}>Copy link</button>
+                  <Button variant="primary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => onCopy(staffMember)}>Copy link</Button>
                 </div>
                 <div style={{ display:'grid', gap:6 }}>
-                  <div style={{ fontSize:10, fontFamily:'var(--font-mono)', letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--faint)' }}>Booking URL</div>
-                  <a href={url} target="_blank" rel="noreferrer" style={{ fontSize:13, color:'var(--accent)', wordBreak:'break-all' }}>{url}</a>
+                  <div style={{ fontSize:10, fontFamily:'var(--font-mono)', letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--color-text-tertiary)' }}>Booking URL</div>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ fontSize:13, color:'var(--color-primary)', wordBreak:'break-all' }}>{url}</a>
                 </div>
               </div>
             )
           })}
         </div>
       ) : (
-        <div style={{ padding:'18px 16px', border:'1px dashed var(--border)', borderRadius:14, color:'var(--faint)', fontSize:13 }}>
+        <div style={{ padding:'18px 16px', border:'1px dashed var(--color-border)', borderRadius:14, color:'var(--color-text-tertiary)', fontSize:13 }}>
           No bookable staff are available for share links yet. Mark staff as bookable in their profile or permissions first.
         </div>
       )}
@@ -957,54 +961,54 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
     <div>
       <div className="legacy-toolbar-actions" style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap' }}>
         {[['upcoming','Upcoming'],['past','Past'],['all','All']].map(([k,l]) => (
-          <button key={k} onClick={() => setFilter(k)} className={'pill'+(filter===k?' on':'')}>{l}</button>
+          <Button key={k} onClick={() => setFilter(k)} variant={filter===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
         <div style={{ minWidth:220 }}>
-          <select className="inp" value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
+          <FormSelect value={staffFilter} onChange={e => setStaffFilter(e.target.value)}>
             <option value="all">All staff</option>
             {staffOptions.map((name) => (
               <option key={name} value={name}>{name}</option>
             ))}
-          </select>
+          </FormSelect>
         </div>
         <div style={{ minWidth:180 }}>
-          <select className="inp" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <FormSelect value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="confirmed">Confirmed</option>
             <option value="cancelled">Cancelled</option>
             <option value="all">All statuses</option>
-          </select>
+          </FormSelect>
         </div>
         <div style={{ minWidth:220, flex:1 }}>
-          <input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search client, business, email..." />
+          <FormInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Search client, business, email..." />
         </div>
       </div>
-      <div className="card" style={{ overflow:'hidden' }}>
+      <div style={{ ...DS_CARD, overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : (
           <>
             <div className="tbl-wrap hide-mob">
-              <table className="tbl">
+              <table className="ds-table">
                 <thead><tr><th>Client</th><th>Business</th><th>Date</th><th>Time</th><th>Duration</th><th>Staff</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {filtered.map(a => (
                     <tr key={a.id}>
-                      <td className="t-main">
+                      <td>
                         <div style={{ fontWeight:500 }}>{a.client_name}</div>
-                        <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
+                        <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
                       </td>
                       <td style={{ fontSize:13 }}>{a.client_business || '—'}</td>
                       <td style={{ fontFamily:'var(--font-mono)', fontSize:11, whiteSpace:'nowrap' }}>{formatDate(a.date)}</td>
                       <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{a.start_time} – {a.end_time}</td>
                       <td style={{ fontSize:12 }}>{a.duration} min</td>
                       <td style={{ fontSize:12 }}>{a.staff_name?.split(' ')[0]}</td>
-                      <td><span className={'badge badge-'+(a.status==='confirmed'?'green':a.status==='cancelled'?'red':'amber')}>{a.status}</span></td>
+                      <td><StatusBadge variant={a.status==='confirmed'?'active':a.status==='cancelled'?'error':'warning'}>{a.status}</StatusBadge></td>
                       <td>
                         {a.status === 'confirmed' && (
-                          <button className="btn btn-danger btn-sm" onClick={() => onCancel(a)} disabled={saving}>Cancel</button>
+                          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => onCancel(a)} disabled={saving}>Cancel</Button>
                         )}
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No appointments found</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No appointments found</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -1012,29 +1016,29 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
               {filtered.length ? (
                 <div style={{ display:'grid', gap:10, padding:12 }}>
                   {filtered.map((a) => (
-                    <div key={a.id} className="card" style={{ padding:14, display:'grid', gap:10 }}>
+                    <div key={a.id} style={{ ...DS_CARD, padding:14, display:'grid', gap:10 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start' }}>
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{a.client_name}</div>
-                          <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
+                          <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
                         </div>
-                        <span className={'badge badge-'+(a.status==='confirmed'?'green':a.status==='cancelled'?'red':'amber')}>{a.status}</span>
+                        <StatusBadge variant={a.status==='confirmed'?'active':a.status==='cancelled'?'error':'warning'}>{a.status}</StatusBadge>
                       </div>
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <span className="badge badge-grey">{formatDate(a.date)}</span>
-                        <span className="badge badge-grey">{a.start_time} - {a.end_time}</span>
-                        <span className="badge badge-grey">{a.duration} min</span>
+                        <StatusBadge variant="info">{formatDate(a.date)}</StatusBadge>
+                        <StatusBadge variant="info">{a.start_time} - {a.end_time}</StatusBadge>
+                        <StatusBadge variant="info">{a.duration} min</StatusBadge>
                       </div>
-                      <div style={{ fontSize:12, color:'var(--sub)' }}>
+                      <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
                         {a.client_business || 'No business name'} · {a.staff_name}
                       </div>
                       {a.status === 'confirmed' ? (
-                        <button className="btn btn-danger btn-sm" onClick={() => onCancel(a)} disabled={saving}>Cancel</button>
+                        <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => onCancel(a)} disabled={saving}>Cancel</Button>
                       ) : null}
                     </div>
                   ))}
                 </div>
-              ) : <div style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No appointments found</div>}
+              ) : <div style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No appointments found</div>}
             </div>
           </>
         )}
@@ -1057,40 +1061,40 @@ function MicrosoftCalendarPanel({
   const isLoading = status === 'loading'
 
   return (
-    <div className="card card-pad" style={{ marginBottom:20, display:'grid', gap:14 }}>
+    <div style={{ ...DS_CARD, padding:20, marginBottom:20, display:'grid', gap:14 }}>
       <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', flexWrap:'wrap' }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Microsoft Calendar</div>
-          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)' }}>Microsoft Calendar</div>
+          <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6 }}>
             Shows the Outlook calendars your signed-in Microsoft account can access for the selected week.
           </div>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button className="btn btn-outline btn-sm" onClick={onReloadCalendars} disabled={isLoading}>
+          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={onReloadCalendars} disabled={isLoading}>
             {isLoading ? 'Connecting...' : 'Refresh calendars'}
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={onReloadEvents} disabled={isLoading || !selectedCalendar}>
+          </Button>
+          <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={onReloadEvents} disabled={isLoading || !selectedCalendar}>
             Refresh events
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="fg">
-        <div>
-          <label className="lbl">Microsoft calendar</label>
-          <select className="inp" value={selectedCalendar} onChange={(event) => setSelectedCalendar(event.target.value)} disabled={!hasCalendars || isLoading}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+        <FormField>
+          <FormLabel>Microsoft calendar</FormLabel>
+          <FormSelect value={selectedCalendar} onChange={(event) => setSelectedCalendar(event.target.value)} disabled={!hasCalendars || isLoading}>
             <option value="">{hasCalendars ? 'Choose calendar' : 'No Microsoft calendars found'}</option>
             {calendars.map((calendar) => (
               <option key={calendar.id} value={calendar.id}>
                 {calendar.name}{calendar.isDefaultCalendar ? ' (Default)' : ''}{calendar.ownerName ? ` · ${calendar.ownerName}` : ''}
               </option>
             ))}
-          </select>
-        </div>
+          </FormSelect>
+        </FormField>
         <div style={{ display:'flex', alignItems:'flex-end' }}>
-          <div style={{ padding:'12px 14px', borderRadius:12, border:'1px solid var(--border)', background:'var(--bg2)', width:'100%' }}>
-            <div style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Status</div>
-            <div style={{ marginTop:6, fontSize:14, color:'var(--text)', fontWeight:600 }}>
+          <div style={{ padding:'12px 14px', borderRadius:12, border:'1px solid var(--color-border)', background:'var(--color-gray-50)', width:'100%' }}>
+            <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Status</div>
+            <div style={{ marginTop:6, fontSize:14, color:'var(--color-text-primary)', fontWeight:600 }}>
               {status === 'ready' ? `${events.length} event${events.length === 1 ? '' : 's'} loaded` : status === 'loading' ? 'Loading Microsoft Calendar…' : status === 'error' ? 'Connection issue' : 'Waiting for Microsoft session'}
             </div>
           </div>
@@ -1110,20 +1114,20 @@ function MicrosoftCalendarPanel({
             href={event.webLink || '#'}
             target={event.webLink ? '_blank' : undefined}
             rel={event.webLink ? 'noreferrer' : undefined}
-            style={{ display:'grid', gap:4, padding:'14px 15px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', textDecoration:'none' }}
+            style={{ display:'grid', gap:4, padding:'14px 15px', border:'1px solid var(--color-border)', borderRadius:12, background:'var(--color-gray-50)', textDecoration:'none' }}
           >
             <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{event.title}</div>
-              <span className="badge badge-grey">{formatDate(event.date)}</span>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>{event.title}</div>
+              <StatusBadge variant="info">{formatDate(event.date)}</StatusBadge>
             </div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              <span className="badge badge-grey">{event.timeLabel}</span>
-              {event.location ? <span className="badge badge-grey">{event.location}</span> : null}
-              {event.organizer ? <span className="badge badge-grey">Organiser: {event.organizer}</span> : null}
+              <StatusBadge variant="info">{event.timeLabel}</StatusBadge>
+              {event.location ? <StatusBadge variant="info">{event.location}</StatusBadge> : null}
+              {event.organizer ? <StatusBadge variant="info">Organiser: {event.organizer}</StatusBadge> : null}
             </div>
           </a>
         )) : (
-          <div style={{ padding:'18px 16px', border:'1px dashed var(--border)', borderRadius:12, color:'var(--faint)', fontSize:13 }}>
+          <div style={{ padding:'18px 16px', border:'1px dashed var(--color-border)', borderRadius:12, color:'var(--color-text-tertiary)', fontSize:13 }}>
             {isLoading ? 'Loading Microsoft events for this week…' : 'No Microsoft Calendar events were found for this week.'}
           </div>
         )}
@@ -1139,64 +1143,64 @@ function MeetingsPanel({ staffDirectory, meetings, microsoftEvents, microsoftCal
 
   return (
     <div style={{ display:'grid', gridTemplateColumns:'minmax(320px,0.95fr) minmax(0,1.05fr)', gap:20 }}>
-      <div className="card card-pad" style={{ display:'grid', gap:14 }}>
+      <div style={{ ...DS_CARD, padding:20, display:'grid', gap:14 }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:600, color:'var(--text)' }}>Add meeting</div>
-          <div style={{ fontSize:13, color:'var(--sub)', marginTop:6 }}>Create an internal meeting and notify the assigned staff member by portal, email, and SMS.</div>
+          <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)' }}>Add meeting</div>
+          <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6 }}>Create an internal meeting and notify the assigned staff member by portal, email, and SMS.</div>
         </div>
-        <div><label className="lbl">Meeting title</label><input className="inp" value={form.title} onChange={(e) => sf('title', e.target.value)} placeholder="Weekly check-in" /></div>
-        <div className="fg">
-          <div>
-            <label className="lbl">Assigned staff member</label>
-            <select className="inp" value={form.staff_email} onChange={(e) => sf('staff_email', e.target.value)}>
+        <FormField><FormLabel>Meeting title</FormLabel><FormInput value={form.title} onChange={(e) => sf('title', e.target.value)} placeholder="Weekly check-in" /></FormField>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+          <FormField>
+            <FormLabel>Assigned staff member</FormLabel>
+            <FormSelect value={form.staff_email} onChange={(e) => sf('staff_email', e.target.value)}>
               <option value="">Choose staff member</option>
               {staffDirectory.map((person) => <option key={person.user_email} value={person.user_email}>{person.full_name}</option>)}
-            </select>
-          </div>
-          <div><label className="lbl">Meeting with</label><input className="inp" value={form.meeting_with_name} onChange={(e) => sf('meeting_with_name', e.target.value)} placeholder="Client / colleague / manager" /></div>
+            </FormSelect>
+          </FormField>
+          <FormField><FormLabel>Meeting with</FormLabel><FormInput value={form.meeting_with_name} onChange={(e) => sf('meeting_with_name', e.target.value)} placeholder="Client / colleague / manager" /></FormField>
         </div>
-        <div className="fg">
-          <div><label className="lbl">Date</label><input className="inp" type="date" value={form.date} onChange={(e) => sf('date', e.target.value)} /></div>
-          <div><label className="lbl">Type</label><select className="inp" value={form.meeting_type} onChange={(e) => sf('meeting_type', e.target.value)}><option value="internal">Internal</option><option value="client">Client</option><option value="review">Review</option><option value="manager">Manager</option></select></div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+          <FormField><FormLabel>Date</FormLabel><FormInput type="date" value={form.date} onChange={(e) => sf('date', e.target.value)} /></FormField>
+          <FormField><FormLabel>Type</FormLabel><FormSelect value={form.meeting_type} onChange={(e) => sf('meeting_type', e.target.value)}><option value="internal">Internal</option><option value="client">Client</option><option value="review">Review</option><option value="manager">Manager</option></FormSelect></FormField>
         </div>
-        <div className="fg">
-          <div><label className="lbl">Start time</label><input className="inp" type="time" value={form.start_time} onChange={(e) => sf('start_time', e.target.value)} /></div>
-          <div><label className="lbl">End time</label><input className="inp" type="time" value={form.end_time} onChange={(e) => sf('end_time', e.target.value)} /></div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16 }}>
+          <FormField><FormLabel>Start time</FormLabel><FormInput type="time" value={form.start_time} onChange={(e) => sf('start_time', e.target.value)} /></FormField>
+          <FormField><FormLabel>End time</FormLabel><FormInput type="time" value={form.end_time} onChange={(e) => sf('end_time', e.target.value)} /></FormField>
         </div>
-        <div><label className="lbl">Location</label><input className="inp" value={form.location} onChange={(e) => sf('location', e.target.value)} placeholder="Google Meet / Office / Phone" /></div>
-        <div><label className="lbl">Notes</label><textarea className="inp" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} placeholder="Agenda or context..." style={{ resize:'vertical' }} /></div>
-        {feedback ? <div style={{ padding:'10px 12px', border:'1px solid var(--green)', background:'var(--green-bg)', color:'var(--green)', borderRadius:8, fontSize:13 }}>{feedback}</div> : null}
-        <button className="btn btn-primary" onClick={onSave} disabled={saving}>{saving ? 'Saving meeting...' : 'Save meeting + notify'}</button>
+        <FormField><FormLabel>Location</FormLabel><FormInput value={form.location} onChange={(e) => sf('location', e.target.value)} placeholder="Google Meet / Office / Phone" /></FormField>
+        <FormField><FormLabel>Notes</FormLabel><textarea className="ds-form-input" rows={4} value={form.notes} onChange={(e) => sf('notes', e.target.value)} placeholder="Agenda or context..." style={{ resize:'vertical' }} /></FormField>
+        {feedback ? <div style={{ padding:'10px 12px', border:'1px solid var(--color-green-500)', background:'var(--color-green-50)', color:'var(--color-green-500)', borderRadius:8, fontSize:13 }}>{feedback}</div> : null}
+        <Button variant="primary" onClick={onSave} disabled={saving}>{saving ? 'Saving meeting...' : 'Save meeting + notify'}</Button>
       </div>
 
-      <div className="card" style={{ overflow:'hidden' }}>
-        <div style={{ padding:'18px 18px 0', fontSize:18, fontWeight:600, color:'var(--text)' }}>Upcoming meetings</div>
+      <div style={{ ...DS_CARD, overflow:'hidden' }}>
+        <div style={{ padding:'18px 18px 0', fontSize:18, fontWeight:600, color:'var(--color-text-primary)' }}>Upcoming meetings</div>
         <div className="tbl-wrap">
-          <table className="tbl">
+          <table className="ds-table">
             <thead><tr><th>Title</th><th>Assigned to</th><th>Date</th><th>Time</th><th>With</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {upcoming.map((meeting) => (
                 <tr key={meeting.id}>
-                  <td className="t-main">
+                  <td>
                     <div style={{ fontWeight:600 }}>{meeting.title}</div>
-                    <div style={{ fontSize:11, color:'var(--faint)' }}>{meeting.location || meeting.meeting_type || 'Meeting'}</div>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{meeting.location || meeting.meeting_type || 'Meeting'}</div>
                   </td>
                   <td>{meeting.staff_name}</td>
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{formatDate(meeting.date)}</td>
                   <td style={{ fontFamily:'var(--font-mono)', fontSize:11 }}>{meeting.start_time} - {meeting.end_time}</td>
                   <td>{meeting.meeting_with_name || '—'}</td>
-                  <td><span className={'badge badge-'+(meeting.status === 'scheduled' ? 'amber' : 'grey')}>{meeting.status}</span></td>
-                  <td>{meeting.status === 'scheduled' ? <button className="btn btn-danger btn-sm" onClick={() => onCancelMeeting(meeting)}>Cancel</button> : null}</td>
+                  <td><StatusBadge variant={meeting.status === 'scheduled' ? 'warning' : 'info'}>{meeting.status}</StatusBadge></td>
+                  <td>{meeting.status === 'scheduled' ? <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => onCancelMeeting(meeting)}>Cancel</Button> : null}</td>
                 </tr>
               ))}
-              {upcoming.length === 0 ? <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--faint)' }}>No meetings added yet</td></tr> : null}
+              {upcoming.length === 0 ? <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No meetings added yet</td></tr> : null}
             </tbody>
           </table>
         </div>
-        <div style={{ padding:'18px', borderTop:'1px solid var(--border)', display:'grid', gap:10 }}>
+        <div style={{ padding:'18px', borderTop:'1px solid var(--color-border)', display:'grid', gap:10 }}>
           <div>
-            <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>Microsoft Calendar events</div>
-            <div style={{ fontSize:12, color:'var(--sub)', marginTop:4 }}>
+            <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>Microsoft Calendar events</div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>
               {microsoftCalendarName ? `Showing ${microsoftCalendarName}.` : 'Showing the selected Microsoft calendar.'}
             </div>
           </div>
@@ -1206,17 +1210,17 @@ function MeetingsPanel({ staffDirectory, meetings, microsoftEvents, microsoftCal
               href={event.webLink || '#'}
               target={event.webLink ? '_blank' : undefined}
               rel={event.webLink ? 'noreferrer' : undefined}
-              style={{ display:'grid', gap:4, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:10, background:'var(--bg2)', textDecoration:'none' }}
+              style={{ display:'grid', gap:4, padding:'12px 14px', border:'1px solid var(--color-border)', borderRadius:10, background:'var(--color-gray-50)', textDecoration:'none' }}
             >
-              <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>{event.title}</div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--color-text-primary)' }}>{event.title}</div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                <span className="badge badge-grey">{formatDate(event.date)}</span>
-                <span className="badge badge-grey">{event.timeLabel}</span>
-                {event.location ? <span className="badge badge-grey">{event.location}</span> : null}
+                <StatusBadge variant="info">{formatDate(event.date)}</StatusBadge>
+                <StatusBadge variant="info">{event.timeLabel}</StatusBadge>
+                {event.location ? <StatusBadge variant="info">{event.location}</StatusBadge> : null}
               </div>
             </a>
           )) : (
-            <div style={{ padding:'14px', border:'1px dashed var(--border)', borderRadius:10, fontSize:13, color:'var(--faint)' }}>
+            <div style={{ padding:'14px', border:'1px dashed var(--color-border)', borderRadius:10, fontSize:13, color:'var(--color-text-tertiary)' }}>
               No Microsoft events are loaded for this week.
             </div>
           )}
@@ -1278,41 +1282,41 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onC
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
-      <div className="legacy-side-sheet" style={{ position:'relative', width:480, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
-        <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div className="legacy-side-sheet" style={{ position:'relative', width:480, maxWidth:'95vw', height:'100vh', background:'var(--color-bg-surface)', borderLeft:'1px solid var(--color-border)', display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
+        <div style={{ padding:'20px 24px 16px', borderBottom:'1px solid var(--color-border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>{staffName?.split(' ')[0]}</div>
-            <div style={{ fontSize:12, color:'var(--faint)' }}>{formatDate(date)}</div>
+            <div style={{ fontSize:17, fontWeight:600, color:'var(--color-text-primary)' }}>{staffName?.split(' ')[0]}</div>
+            <div style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>{formatDate(date)}</div>
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--color-text-tertiary)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
         </div>
 
         <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:20 }}>
           {/* Availability toggle */}
           {canEdit && (
             <div>
-              <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>Availability</div>
+              <div style={{ fontSize:12, fontWeight:600, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>Availability</div>
               <div style={{ display:'flex', gap:8 }}>
                 {[true, false].map(v => (
                   <button key={String(v)} onClick={() => setIsAvailable(v)}
-                    style={{ flex:1, padding:'10px', borderRadius:8, border:'1px solid '+(isAvailable===v?(v?'var(--green,#22c55e)':'var(--red)'):'var(--border)'), background:isAvailable===v?(v?'#dcfce7':'#fee2e2'):'transparent', color:isAvailable===v?(v?'#166534':'#991b1b'):'var(--sub)', cursor:'pointer', fontSize:13, fontWeight:isAvailable===v?600:400, transition:'all 0.15s' }}>
+                    style={{ flex:1, padding:'10px', borderRadius:8, border:'1px solid '+(isAvailable===v?(v?'var(--color-green-500)':'var(--color-red-500)'):'var(--color-border)'), background:isAvailable===v?(v?'#dcfce7':'#fee2e2'):'transparent', color:isAvailable===v?(v?'#166534':'#991b1b'):'var(--color-text-secondary)', cursor:'pointer', fontSize:13, fontWeight:isAvailable===v?600:400, transition:'all 0.15s' }}>
                     {v ? '✓ Available for bookings' : '✗ Unavailable this day'}
                   </button>
                 ))}
               </div>
-              <div className="fg" style={{ marginTop:12 }}>
-                <div>
-                  <label className="lbl">Window start</label>
-                  <input className="inp" type="time" value={windowStart} onChange={(e) => setWindowStart(e.target.value)} />
-                </div>
-                <div>
-                  <label className="lbl">Window end</label>
-                  <input className="inp" type="time" value={windowEnd} onChange={(e) => setWindowEnd(e.target.value)} />
-                </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16, marginTop:12 }}>
+                <FormField>
+                  <FormLabel>Window start</FormLabel>
+                  <FormInput type="time" value={windowStart} onChange={(e) => setWindowStart(e.target.value)} />
+                </FormField>
+                <FormField>
+                  <FormLabel>Window end</FormLabel>
+                  <FormInput type="time" value={windowEnd} onChange={(e) => setWindowEnd(e.target.value)} />
+                </FormField>
               </div>
               <div style={{ display:'flex', justifyContent:'space-between', gap:8, alignItems:'center', marginTop:12, marginBottom:10 }}>
-                <div style={{ fontSize:12, color:'var(--sub)' }}>Pick which 30-minute times should stay bookable.</div>
-                <button type="button" className="btn btn-outline btn-sm" onClick={regenerateSlots}>Reset from window</button>
+                <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>Pick which 30-minute times should stay bookable.</div>
+                <Button type="button" variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={regenerateSlots}>Reset from window</Button>
               </div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {slotChoices.map((slot) => {
@@ -1325,9 +1329,9 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onC
                       style={{
                         padding:'8px 10px',
                         borderRadius:999,
-                        border:`1px solid ${active ? '#2563eb' : 'var(--border)'}`,
-                        background: active ? '#eff6ff' : 'var(--bg2)',
-                        color: active ? '#1d4ed8' : 'var(--sub)',
+                        border:`1px solid ${active ? '#2563eb' : 'var(--color-border)'}`,
+                        background: active ? '#eff6ff' : 'var(--color-gray-50)',
+                        color: active ? '#1d4ed8' : 'var(--color-text-secondary)',
                         cursor:'pointer',
                         fontSize:12,
                         fontWeight:600,
@@ -1338,63 +1342,63 @@ function DaySlotModal({ staffEmail, staffName, date, avail, appts, meetings, onC
                   )
                 })}
               </div>
-              <div style={{ fontSize:12, color:'var(--faint)', marginTop:10 }}>
+              <div style={{ fontSize:12, color:'var(--color-text-tertiary)', marginTop:10 }}>
                 Existing appointments and meetings will still block matching times automatically on the public booking page.
               </div>
-              <button className="btn btn-primary" onClick={save} disabled={saving} style={{ marginTop:14, width:'100%', justifyContent:'center' }}>
+              <Button variant="primary" style={{ marginTop:14, width:'100%', justifyContent:'center' }} onClick={save} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Availability'}
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Bookings that day */}
           <div>
-            <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
               Bookings this day {appts.length > 0 && `(${appts.length})`}
             </div>
             {appts.length === 0 ? (
-              <div style={{ fontSize:13, color:'var(--faint)', padding:'16px 0' }}>No bookings for this day</div>
+              <div style={{ fontSize:13, color:'var(--color-text-tertiary)', padding:'16px 0' }}>No bookings for this day</div>
             ) : appts.map(a => (
-              <div key={a.id} style={{ background:'var(--bg2)', borderRadius:10, padding:'14px 16px', marginBottom:8, border:'1px solid var(--border)' }}>
+              <div key={a.id} style={{ background:'var(--color-gray-50)', borderRadius:10, padding:'14px 16px', marginBottom:8, border:'1px solid var(--color-border)' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'var(--text)' }}>{a.client_name}</div>
-                    <div style={{ fontSize:12, color:'var(--faint)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'var(--color-text-primary)' }}>{a.client_name}</div>
+                    <div style={{ fontSize:12, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{a.client_email}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--accent)', fontWeight:600 }}>{a.start_time} – {a.end_time}</div>
-                    <div style={{ fontSize:11, color:'var(--faint)' }}>{a.duration} min</div>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--color-primary)', fontWeight:600 }}>{a.start_time} – {a.end_time}</div>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{a.duration} min</div>
                   </div>
                 </div>
-                {a.client_business && <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8 }}>{a.client_business}</div>}
+                {a.client_business && <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:8 }}>{a.client_business}</div>}
                 {canEdit && (
-                  <button className="btn btn-danger btn-sm" onClick={() => onCancelAppt(a)} style={{ marginTop:4 }}>Cancel booking</button>
+                  <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)', marginTop:4 }} onClick={() => onCancelAppt(a)}>Cancel booking</Button>
                 )}
               </div>
             ))}
           </div>
 
           <div>
-            <div style={{ fontSize:12, fontWeight:600, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
               Meetings this day {meetings.length > 0 && `(${meetings.length})`}
             </div>
             {meetings.length === 0 ? (
-              <div style={{ fontSize:13, color:'var(--faint)', padding:'16px 0' }}>No meetings for this day</div>
+              <div style={{ fontSize:13, color:'var(--color-text-tertiary)', padding:'16px 0' }}>No meetings for this day</div>
             ) : meetings.map((meeting) => (
-              <div key={meeting.id} style={{ background:'var(--bg2)', borderRadius:10, padding:'14px 16px', marginBottom:8, border:'1px solid var(--border)' }}>
+              <div key={meeting.id} style={{ background:'var(--color-gray-50)', borderRadius:10, padding:'14px 16px', marginBottom:8, border:'1px solid var(--color-border)' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, gap:10 }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14, color:'var(--text)' }}>{meeting.title}</div>
-                    <div style={{ fontSize:12, color:'var(--sub)', marginTop:3 }}>{meeting.meeting_with_name || 'Internal meeting'}</div>
+                    <div style={{ fontWeight:600, fontSize:14, color:'var(--color-text-primary)' }}>{meeting.title}</div>
+                    <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:3 }}>{meeting.meeting_with_name || 'Internal meeting'}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
                     <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'#b45309', fontWeight:600 }}>{meeting.start_time} – {meeting.end_time}</div>
-                    <div style={{ fontSize:11, color:'var(--faint)' }}>{meeting.location || meeting.meeting_type}</div>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{meeting.location || meeting.meeting_type}</div>
                   </div>
                 </div>
-                {meeting.notes ? <div style={{ fontSize:12, color:'var(--sub)', marginBottom:8, lineHeight:1.55 }}>{meeting.notes}</div> : null}
+                {meeting.notes ? <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:8, lineHeight:1.55 }}>{meeting.notes}</div> : null}
                 {canEdit && (
-                  <button className="btn btn-danger btn-sm" onClick={() => onCancelMeeting(meeting)} style={{ marginTop:4 }}>Cancel meeting</button>
+                  <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)', marginTop:4 }} onClick={() => onCancelMeeting(meeting)}>Cancel meeting</Button>
                 )}
               </div>
             ))}
@@ -1413,26 +1417,26 @@ function ApptDetail({ appt, onClose, onCancel, saving }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:600, display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
       <div onClick={onClose} style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.3)' }}/>
-      <div className="legacy-side-sheet" style={{ position:'relative', width:420, maxWidth:'95vw', height:'100vh', background:'var(--card)', borderLeft:'1px solid var(--border)', padding:'24px', display:'flex', flexDirection:'column', gap:20, boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
+      <div className="legacy-side-sheet" style={{ position:'relative', width:420, maxWidth:'95vw', height:'100vh', background:'var(--color-bg-surface)', borderLeft:'1px solid var(--color-border)', padding:'24px', display:'flex', flexDirection:'column', gap:20, boxShadow:'-8px 0 32px rgba(0,0,0,0.15)', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:17, fontWeight:600, color:'var(--text)' }}>{isMeeting ? 'Meeting Details' : 'Appointment Details'}</div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--faint)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
+          <div style={{ fontSize:17, fontWeight:600, color:'var(--color-text-primary)' }}>{isMeeting ? 'Meeting Details' : 'Appointment Details'}</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--color-text-tertiary)', cursor:'pointer', fontSize:20, lineHeight:1, padding:4 }}>×</button>
         </div>
         {rows.map(([l,v]) => (
           <div key={l} style={{ display:'flex', gap:12, borderBottom:'1px solid var(--border-light)', paddingBottom:12 }}>
-            <span style={{ fontSize:11, color:'var(--faint)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.06em', width:70, flexShrink:0, paddingTop:1 }}>{l}</span>
-            <span style={{ fontSize:13, color:'var(--text)' }}>{v}</span>
+            <span style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'0.06em', width:70, flexShrink:0, paddingTop:1 }}>{l}</span>
+            <span style={{ fontSize:13, color:'var(--color-text-primary)' }}>{v}</span>
           </div>
         ))}
         {appt.status === 'confirmed' && (
-          <button className="btn btn-danger" onClick={() => onCancel(appt)} disabled={saving} style={{ marginTop:'auto' }}>
+          <Button variant="secondary" style={{ color:'var(--color-red-500)', marginTop:'auto' }} onClick={() => onCancel(appt)} disabled={saving}>
             {saving ? 'Cancelling...' : 'Cancel Appointment'}
-          </button>
+          </Button>
         )}
         {appt.status === 'scheduled' && isMeeting && (
-          <button className="btn btn-danger" onClick={() => onCancel(appt)} disabled={saving} style={{ marginTop:'auto' }}>
+          <Button variant="secondary" style={{ color:'var(--color-red-500)', marginTop:'auto' }} onClick={() => onCancel(appt)} disabled={saving}>
             {saving ? 'Cancelling...' : 'Cancel Meeting'}
-          </button>
+          </Button>
         )}
       </div>
     </div>

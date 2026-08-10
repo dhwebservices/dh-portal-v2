@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchServiceAdminOverview, runServiceAdminAction } from '../utils/serviceAdmin'
 import { Button, StatusBadge } from '../components/ds'
 
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 const TABS = [
   { key: 'control', label: 'Control Center' },

@@ -5,7 +5,7 @@ import { fetchAuditLogs } from '../utils/auditApi'
 import { getPresenceMeta, mergeStaffPresenceRecord } from '../utils/staffPresence'
 import { FormInput, StatusBadge } from '../components/ds'
 
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 function formatPresenceAge(value) {
   if (!value) return 'Unknown'

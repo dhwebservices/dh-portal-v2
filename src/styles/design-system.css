@@ -450,6 +450,14 @@ textarea.ds-form-input {
   color: var(--color-blue-700);
 }
 
+/* Neutral/off state. Distinct from info so on/off pairs (On/Off, Pinned/Off,
+   Visible/Hidden) keep a colour cue - mapping the old grey badges onto info
+   made both halves of those pairs render identically blue. */
+.ds-status-neutral {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
 /* Alert Boxes */
 .ds-alert {
   padding: 12px var(--space-md);

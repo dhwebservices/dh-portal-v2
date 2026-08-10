@@ -21,7 +21,7 @@ import { StatCard } from '../components/ui'
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
 
 const DS_CARD = { background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)' }
-const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'info' }
+const TONE_TO_VARIANT = { green: 'active', amber: 'warning', red: 'error', blue: 'info', grey: 'neutral' }
 
 const EMPTY_EDITOR = {
   workflow_status: 'new',
