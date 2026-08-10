@@ -277,7 +277,7 @@ async function buildCommissionStatementPdf({ request, commissions, actionUser })
   pdf.setFontSize(10)
   pdf.text('David Hooper Home Limited', pageWidth - margin, y, { align: 'right' })
   pdf.text('mgmt@dhwebsiteservices.co.uk', pageWidth - margin, y + 14, { align: 'right' })
-  pdf.text('07359 587007', pageWidth - margin, y + 28, { align: 'right' })
+  pdf.text('029 2002 4218', pageWidth - margin, y + 28, { align: 'right' })
 
   y += 74
   pdf.setDrawColor(220)

@@ -126,7 +126,7 @@ export default function LoginPage() {
             <p className="login-form-help">
               Trouble signing in? Contact David Hooper on{' '}
               <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a>{' '}
-              or <a href="tel:07359587007">07359587007</a>.
+              or <a href="tel:02920024218">029 2002 4218</a>.
             </p>
           </div>
         </div>

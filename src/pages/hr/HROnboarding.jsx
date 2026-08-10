@@ -1782,7 +1782,7 @@ export default function HROnboarding() {
               <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.6 }}>
                 David Hooper<br />
                 <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a><br />
-                07359587007
+                <a href="tel:02920024218">029 2002 4218</a>
               </div>
             </div>
           </div>
