@@ -268,7 +268,20 @@ async function publishPage(env, user, payload) {
   )
   if (!response.ok) return json({ error: 'Could not publish the page.' }, 502)
 
-  return json({ ok: true, slug, publishedAt: new Date().toISOString() })
+  // Visitors get this immediately - the site reads published_content at
+  // runtime. Search engines do not: the pre-rendered HTML still carries the
+  // document baked in at build time, so a rebuild is kicked off to bring that
+  // up to date. Best-effort and deliberately not awaited for success: a
+  // publish that reached the database has succeeded, whether or not the
+  // rebuild fires.
+  let rebuild = 'not configured'
+  if (env.SITE_DEPLOY_HOOK) {
+    rebuild = await fetch(env.SITE_DEPLOY_HOOK, { method: 'POST' })
+      .then((r) => (r.ok ? 'queued' : `hook returned ${r.status}`))
+      .catch(() => 'hook unreachable')
+  }
+
+  return json({ ok: true, slug, publishedAt: new Date().toISOString(), rebuild })
 }
 
 /**

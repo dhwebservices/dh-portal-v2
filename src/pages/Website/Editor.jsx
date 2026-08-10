@@ -208,11 +208,16 @@ export default function WebsiteEditor({ slug = 'home' }) {
     setPending(null)
     try {
       if (dirty) await saveDraft(instance, account, slug, doc)
-      await publishPage(instance, account, slug)
+      const result = await publishPage(instance, account, slug)
       const refreshed = await getPage(instance, account, slug)
       setPage(refreshed.page)
       setDirty(false)
-      setError('')
+      // Surfaced rather than hidden: if the rebuild hook is not set up, the
+      // page is live for visitors but search engines keep seeing the old HTML
+      // until the next deploy. That is worth knowing about.
+      setError(result?.rebuild === 'not configured'
+        ? 'Published. Note: no rebuild hook is configured, so search engines will keep seeing the previous wording until the site is next deployed.'
+        : '')
     } catch (err) {
       setError(err.message)
     }
