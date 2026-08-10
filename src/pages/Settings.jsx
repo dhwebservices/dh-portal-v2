@@ -72,6 +72,16 @@ export default function Settings() {
         }
         setWhatsNew(nextPayload)
         setPreviousWhatsNew(nextPayload)
+      } else {
+        // No release saved yet. Without a baseline the unsaved-changes warning
+        // could never fire, so record the empty starting state as the baseline.
+        setPreviousWhatsNew((current) => current ?? {
+          active: false,
+          version: '',
+          title: 'What\u2019s New',
+          intro: '',
+          cards: [{ ...EMPTY_WHATS_NEW_CARD }],
+        })
       }
     })
   }, [])
@@ -82,6 +92,10 @@ export default function Settings() {
 
   const set = (k, v) => setSettings(p => ({ ...p, [k]: v }))
   const previewCards = Array.isArray(whatsNew.cards) && whatsNew.cards.length ? whatsNew.cards : [{ ...EMPTY_WHATS_NEW_CARD }]
+  // Removing a card only changed the form, and Save sits a long scroll below,
+  // so edits were being lost on refresh with nothing on screen to warn you.
+  const whatsNewDirty = previousWhatsNew !== null
+    && JSON.stringify(whatsNew) !== JSON.stringify(previousWhatsNew)
   const activePreviewCard = previewCards[previewWhatsNewIndex] || previewCards[0]
 
   const save = async (section) => {
@@ -515,6 +529,24 @@ export default function Settings() {
       )}
 
       {tab === 'experience' && (
+        <>
+        {whatsNewDirty && (
+          <div style={{
+            position:'sticky', top:0, zIndex:20, marginBottom:12,
+            display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
+            padding:'10px 14px', borderRadius:'var(--border-radius-lg)',
+            background:'var(--color-amber-50, #FFF7E6)', border:'1px solid var(--color-amber-200, #FFE0A3)',
+          }}>
+            <span style={{ fontSize:13, color:'var(--color-text-primary)' }}>
+              You have unsaved changes to the What’s New popup.
+            </span>
+            <div style={{ flex:1 }} />
+            <Button variant="secondary" style={{ height:28, fontSize:12 }} onClick={() => setWhatsNew(previousWhatsNew)}>Discard</Button>
+            <Button variant="primary" style={{ height:28, fontSize:12 }} onClick={saveWhatsNew} disabled={saving}>
+              {saving ? 'Saving…' : 'Save now'}
+            </Button>
+          </div>
+        )}
         <div style={{ display:'grid', gap:18, maxWidth:860 }}>
           <div style={{ ...DS_CARD, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'flex-start', marginBottom:18, flexWrap:'wrap' }}>
@@ -629,6 +661,7 @@ export default function Settings() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {tab === 'danger' && (
