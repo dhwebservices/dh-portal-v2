@@ -1,5 +1,5 @@
 import { useMsal } from '@azure/msal-react'
-import { loginRequest } from '../authConfig'
+import { loginRequest, prefersRedirectFlow } from '../authConfig'
 import { useEffect, useState } from 'react'
 import { supabase } from '../utils/supabase'
 
@@ -16,18 +16,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('dh-theme') === 'dark')
   const [portalStatus, setPortalStatus] = useState(null)
-  const isDesktopApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('DHStaffPortalDesktop')
+  const useRedirect = prefersRedirectFlow()
 
   const login = async () => {
     setLoading(true)
     try {
-      if (isDesktopApp) {
+      if (useRedirect) {
         await instance.loginRedirect(loginRequest)
         return
       }
       await instance.loginPopup(loginRequest)
     } catch (error) {
-      if (!isDesktopApp) {
+      if (!useRedirect) {
+        // Desktop popup can still be blocked by an extension or setting.
         try {
           await instance.loginRedirect(loginRequest)
           return
