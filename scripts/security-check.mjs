@@ -11,6 +11,18 @@ const ignoredDirs = new Set([
   'coverage',
 ])
 
+// `npx cap sync` copies the built bundle from dist/ into the native projects.
+// That is the same already-reviewed source a second time, only minified, so
+// scanning it produces a wall of findings the allowlists above can never match
+// (they key off src/ paths). Ignoring dist/ alone is not enough - these copies
+// have to go too, or the check fails permanently and stops being read.
+// Matched on path prefix, not directory name, so real native source still gets
+// scanned.
+const ignoredPathPrefixes = [
+  'android/app/src/main/assets/public',
+  'ios/App/App/public',
+]
+
 const scannedExtensions = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx'])
 
 const allowedDangerousHtmlFiles = new Set([
@@ -26,6 +38,13 @@ const allowedLocalStorageFiles = new Set([
   'src/pages/LoginPage.jsx',
   'src/pages/Search.jsx',
   'src/utils/portalPreferences.js',
+  // Native (Capacitor) only, both reviewed and non-credential:
+  //   nativeSession    - identity for the native login (username/name/oid).
+  //                      Tokens are explicitly not persisted, see that file.
+  //   pushNotifications- a pending screen name, so a tapped notification can
+  //                      route after launch. No user data.
+  'src/utils/nativeSession.js',
+  'src/utils/pushNotifications.js',
 ])
 
 const sensitiveStorageFiles = [
@@ -65,6 +84,7 @@ function walk(dir, files = []) {
     const fullPath = path.join(dir, entry)
     const stat = statSync(fullPath)
     if (stat.isDirectory()) {
+      if (ignoredPathPrefixes.includes(rel(fullPath))) continue
       walk(fullPath, files)
       continue
     }

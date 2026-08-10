@@ -36,7 +36,8 @@ The app is still one shared portal, but it now routes people more intentionally 
 - Auth and access state: `/Users/david/Downloads/dh-portal-v2/src/contexts/AuthContext.jsx`
 - Shared workspace resolver: `/Users/david/Downloads/dh-portal-v2/src/utils/workspaces.js`
 - Router / landing logic: `/Users/david/Downloads/dh-portal-v2/src/App.jsx`
-- Sidebar and workspace nav: `/Users/david/Downloads/dh-portal-v2/src/components/Sidebar.jsx`
+- Top navigation and tabs: `/Users/david/Downloads/dh-portal-v2/src/utils/navPermissions.js`
+- Secondary nav within sections: `/Users/david/Downloads/dh-portal-v2/src/components/SubNav.jsx`
 - Header and workspace label: `/Users/david/Downloads/dh-portal-v2/src/components/Header.jsx`
 - Main workspace dashboard: `/Users/david/Downloads/dh-portal-v2/src/pages/Dashboard.jsx`
 - Staff profile workspace assignment: `/Users/david/Downloads/dh-portal-v2/src/pages/StaffProfile.jsx`
@@ -246,7 +247,7 @@ When onboarding is approved in `/Users/david/Downloads/dh-portal-v2/src/pages/hr
 - `/Users/david/Downloads/dh-portal-v2/src/utils/workspaces.js`
 - `/Users/david/Downloads/dh-portal-v2/src/contexts/AuthContext.jsx`
 - `/Users/david/Downloads/dh-portal-v2/src/App.jsx`
-- `/Users/david/Downloads/dh-portal-v2/src/components/Sidebar.jsx`
+- `/Users/david/Downloads/dh-portal-v2/src/components/SubNav.jsx`
 - `/Users/david/Downloads/dh-portal-v2/src/components/Header.jsx`
 - `/Users/david/Downloads/dh-portal-v2/src/pages/Dashboard.jsx`
 - `/Users/david/Downloads/dh-portal-v2/src/pages/StaffProfile.jsx`

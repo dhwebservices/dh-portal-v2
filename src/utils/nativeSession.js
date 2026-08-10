@@ -29,9 +29,10 @@ export function saveNativeSession(tokenResponse) {
     username: (claims.preferred_username || claims.email || claims.upn || '').toLowerCase(),
     name: claims.name || claims.preferred_username || '',
     homeAccountId: claims.oid || claims.sub,
-    idToken: tokenResponse.id_token,
-    accessToken: tokenResponse.access_token,
-    refreshToken: tokenResponse.refresh_token || null,
+    // Deliberately NOT persisting id/access/refresh tokens. As the header note
+    // says, no native screen needs a Graph token, and nothing reads these back
+    // - AuthContext only uses username/name, App.jsx only checks existence.
+    // Keeping them meant credentials sitting at rest for no benefit.
     expiresAt: Date.now() + (tokenResponse.expires_in || 3600) * 1000,
     savedAt: Date.now(),
   }

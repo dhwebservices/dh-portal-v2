@@ -4,7 +4,6 @@ import process from 'node:process'
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const metadataPath = path.join(repoRoot, 'docs', 'portal-status.json')
-const readmePath = path.join(repoRoot, 'README.md')
 const handoverPath = path.join(repoRoot, 'docs', 'DH_PORTAL_LIVE_HANDOVER.md')
 
 const checkMode = process.argv.includes('--check')
@@ -81,46 +80,6 @@ git push origin main
 `
 }
 
-function renderReadme(metadata) {
-  const { project, stack, integrations, feature_groups, completed_phases, next_roadmap, known_cautions, supporting_docs } = metadata
-  return `# ${project.display_name}
-
-> This file is auto-generated from \`docs/portal-status.json\`. Update the metadata file, then run \`npm run docs:generate\`.
-
-## Project
-- Name: \`${project.name}\`
-- Local path: \`${project.local_path}\`
-- GitHub: [dhwebservices/dh-portal-v2](${project.github_url})
-- Live URL: [staff.dhwebsiteservices.co.uk](${project.live_url})
-- Last updated: ${project.last_updated}
-- Latest release summary: ${project.latest_release_summary}
-
-## Stack
-${bulletList(stack)}
-
-## Core Integrations
-${integrations.map((item) => `- ${item.label}: ${item.path ? `\`${item.path}\`` : item.value}`).join('\n')}
-
-## Current Live Feature Set
-${renderFeatureGroups(feature_groups)}
-
-## Build Phases Completed
-${renderPhases(completed_phases)}
-
-## Rolling Roadmap
-${renderRoadmap(next_roadmap)}
-
-${renderBuildSection(project)}
-${renderDeploymentSection(project)}
-
-## Known Cautions
-${bulletList(known_cautions)}
-
-## Supporting Docs
-${renderLinks(supporting_docs)}
-`
-}
-
 function renderHandover(metadata) {
   const { project, stack, integrations, feature_groups, completed_phases, next_roadmap, operational_notes, known_cautions, supporting_docs } = metadata
   return `# ${project.display_name} Live Handover
@@ -178,10 +137,12 @@ function writeIfChanged(filePath, content) {
 
 function main() {
   const metadata = loadMetadata()
-  const readme = renderReadme(metadata)
+  // README.md is no longer generated. It was hand-rewritten well past what
+  // portal-status.json describes, so regenerating it silently reverted ~200
+  // lines of newer content - and `docs:check` told you to run exactly that.
+  // The handover doc is still generated and still checked.
   const handover = renderHandover(metadata)
   const changed = [
-    writeIfChanged(readmePath, readme),
     writeIfChanged(handoverPath, handover),
   ].filter(Boolean)
 
