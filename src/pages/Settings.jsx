@@ -7,10 +7,11 @@ import { logAction } from '../utils/audit'
 import { clearAuditLogs } from '../utils/auditApi'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 import SubNav from '../components/SubNav'
-import { Button, FormField, FormLabel, FormInput, StatusBadge, Alert } from '../components/ds'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../components/ds'
 import {
   buildEntraGroupCatalogKey,
   createEntraGroupSkeleton,
+  fetchEntraDirectory,
   mergeEntraGroupCatalog,
 } from '../utils/entraGroups'
 
@@ -27,6 +28,10 @@ export default function Settings() {
   const [previousWhatsNew, setPreviousWhatsNew] = useState(null)
   const [entraGroups, setEntraGroups] = useState([])
   const [newGroupName, setNewGroupName] = useState('')
+  const [entraDirectory, setEntraDirectory] = useState({ groups: [], licenses: [] })
+  const [directoryLoading, setDirectoryLoading] = useState(false)
+  const [directoryError, setDirectoryError] = useState('')
+  const [pickedGroupId, setPickedGroupId] = useState('')
   const [previewWhatsNewIndex, setPreviewWhatsNewIndex] = useState(0)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
@@ -110,6 +115,27 @@ export default function Settings() {
     if (!newGroupName.trim()) return
     saveEntraGroups([...entraGroups, createEntraGroupSkeleton(newGroupName)])
     setNewGroupName('')
+  }
+
+  // Pull the real group + licence list from Entra so groups are picked, not pasted.
+  const loadEntraDirectory = async () => {
+    setDirectoryLoading(true)
+    setDirectoryError('')
+    try {
+      const result = await fetchEntraDirectory('all')
+      setEntraDirectory({ groups: result?.groups || [], licenses: result?.licenses || [] })
+    } catch (err) {
+      setDirectoryError(err?.message || 'Could not load groups from Entra.')
+    } finally {
+      setDirectoryLoading(false)
+    }
+  }
+
+  const addPickedEntraGroup = () => {
+    const picked = entraDirectory.groups.find((g) => g.id === pickedGroupId)
+    if (!picked) return
+    saveEntraGroups([...entraGroups, { ...createEntraGroupSkeleton(picked.name), group_id: picked.id }])
+    setPickedGroupId('')
   }
 
   const updateEntraGroup = (id, patch) => {
@@ -300,28 +326,58 @@ export default function Settings() {
           <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>Entra security groups</div>
           <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, marginBottom:16 }}>
             Groups listed here are applied automatically when a new starter's Microsoft 365 account is created,
-            so you no longer have to set group membership by hand in Entra. Paste each group's <strong>Object ID</strong> from
-            Entra admin center → Groups → the group → Overview. Mark a group <strong>Automatic</strong> to add every new
+            so you no longer have to set group membership by hand in Entra. Load the live group list from Entra and pick
+            the group from the dropdown — the Object ID comes across with it. Mark a group <strong>Automatic</strong> to add every new
             starter to it; leave it off to make it an optional tick-box on the new starter form.
           </div>
 
           <div style={{ marginBottom:16 }}>
             <Alert variant="warning">
-              This needs the <strong>GroupMember.ReadWrite.All</strong> application permission on the &quot;DH portal&quot; Entra app
-              registration, with admin consent granted. Without it the account is still created correctly, but group
-              assignment will report a failure for each group.
+              The group picker reads Entra using the <strong>GroupMember.ReadWrite.All</strong> and{' '}
+              <strong>Organization.Read.All</strong> application permissions on the &quot;DH portal&quot; app registration
+              (both Application, admin-consented). These are configured, so groups load and membership is applied at
+              account creation.
             </Alert>
           </div>
 
+          {directoryError && (
+            <div style={{ marginBottom:16 }}>
+              <Alert variant="warning">{directoryError}</Alert>
+            </div>
+          )}
+
           <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-            <FormInput
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addEntraGroup()}
-              placeholder="Group name (e.g. All Users)"
-              style={{ flex:1, minWidth:220 }}
-            />
-            <Button variant="primary" onClick={addEntraGroup} disabled={saving || !newGroupName.trim()}>+ Add group</Button>
+            {entraDirectory.groups.length > 0 ? (
+              <>
+                <FormSelect
+                  value={pickedGroupId}
+                  onChange={(e) => setPickedGroupId(e.target.value)}
+                  style={{ flex:1, minWidth:260 }}
+                >
+                  <option value="">Select a group to add…</option>
+                  {entraDirectory.groups
+                    .filter((group) => !entraGroups.some((existing) => existing.group_id === group.id))
+                    .map((group) => (
+                      <option key={group.id} value={group.id}>{group.name} — {group.type}</option>
+                    ))}
+                </FormSelect>
+                <Button variant="primary" onClick={addPickedEntraGroup} disabled={saving || !pickedGroupId}>+ Add group</Button>
+              </>
+            ) : (
+              <>
+                <FormInput
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addEntraGroup()}
+                  placeholder="Group name (e.g. All Users)"
+                  style={{ flex:1, minWidth:220 }}
+                />
+                <Button variant="primary" onClick={addEntraGroup} disabled={saving || !newGroupName.trim()}>+ Add group</Button>
+              </>
+            )}
+            <Button variant="secondary" onClick={loadEntraDirectory} disabled={directoryLoading}>
+              {directoryLoading ? 'Loading…' : 'Load groups from Entra'}
+            </Button>
             {saved === 'entra_groups' && <span style={{ fontSize:13, color:'var(--color-green-500)', alignSelf:'center' }}>✓ Saved</span>}
           </div>
 
@@ -351,13 +407,19 @@ export default function Settings() {
                       />
                     </td>
                     <td>
-                      <FormInput
-                        value={group.group_id}
-                        onChange={(e) => setEntraGroups((cur) => cur.map((g) => g.id === group.id ? { ...g, group_id: e.target.value } : g))}
-                        onBlur={(e) => updateEntraGroup(group.id, { group_id: e.target.value.trim() })}
-                        placeholder="00000000-0000-0000-0000-000000000000"
-                        style={{ fontFamily:'var(--font-mono)', fontSize:12 }}
-                      />
+                      {group.group_id ? (
+                        <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--color-text-tertiary)' }}>
+                          {group.group_id}
+                        </span>
+                      ) : (
+                        <FormInput
+                          value={group.group_id}
+                          onChange={(e) => setEntraGroups((cur) => cur.map((g) => g.id === group.id ? { ...g, group_id: e.target.value } : g))}
+                          onBlur={(e) => updateEntraGroup(group.id, { group_id: e.target.value.trim() })}
+                          placeholder="00000000-0000-0000-0000-000000000000"
+                          style={{ fontFamily:'var(--font-mono)', fontSize:12 }}
+                        />
+                      )}
                     </td>
                     <td>
                       <Button

@@ -30,8 +30,12 @@ import { sendEmail } from '../../utils/email'
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../../components/ds'
 import {
   buildEntraGroupCatalogKey,
+  fetchEntraDirectory,
+  generateTemporaryPassword,
+  isWorkEmailAvailable,
   mergeEntraGroupCatalog,
   resolveStarterGroupIds,
+  suggestWorkEmails,
 } from '../../utils/entraGroups'
 
 function assertSupabaseOk(result, label) {
@@ -106,19 +110,6 @@ function fileToBase64(arrayBuffer) {
     binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
   }
   return btoa(binary)
-}
-
-function suggestWorkEmail(fullName = '') {
-  const safe = String(fullName || '')
-    .toLowerCase()
-    .replace(/[^a-z\s-]/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-
-  if (!safe.length) return ''
-  if (safe.length === 1) return `${safe[0]}@dhwebsiteservices.co.uk`
-  return `${safe[0]}.${safe[safe.length - 1]}@dhwebsiteservices.co.uk`
 }
 
 function buildStarterEmailContent(starter = {}) {
@@ -577,6 +568,12 @@ export default function HROnboarding() {
   const [starterProvisioningResult, setStarterProvisioningResult] = useState(null)
   const [entraGroupCatalog, setEntraGroupCatalog] = useState([])
   const [selectedOptionalGroupIds, setSelectedOptionalGroupIds] = useState([])
+  const [entraLicenses, setEntraLicenses] = useState([])
+  const [entraDirectoryError, setEntraDirectoryError] = useState('')
+  const [selectedLicenseSkuId, setSelectedLicenseSkuId] = useState('')
+  const [workEmailTouched, setWorkEmailTouched] = useState(false)
+  const [workEmailChecking, setWorkEmailChecking] = useState(false)
+  const [workEmailStatus, setWorkEmailStatus] = useState(null)
   const rtwRef = useRef()
   const [starterForm, setStarterForm] = useState({
     full_name: '',
@@ -614,11 +611,9 @@ export default function HROnboarding() {
   const sf = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const ssf = (k, v) => setStarterForm((current) => {
     const next = { ...current, [k]: v }
-    if (k === 'full_name') {
-      const suggested = suggestWorkEmail(v)
-      if (!current.work_email || current.work_email === suggestWorkEmail(current.full_name)) {
-        next.work_email = suggested
-      }
+    if (k === 'full_name' && !workEmailTouched) {
+      // Derived from the name until the admin types their own work email.
+      next.work_email = suggestWorkEmails(v)[0] || ''
     }
     if (k === 'manager_email') {
       const selectedManager = starterManagers.find((item) => item.email === normalizeEmail(v))
@@ -657,6 +652,33 @@ export default function HROnboarding() {
   const managedDepartmentKeys = managedDepartments.map((department) => String(department || '').trim().toLowerCase()).filter(Boolean)
 
   useEffect(() => { load() }, [user?.email, isReviewer, canSeeAllSubmissions, managedDepartmentKeys.join('|')])
+
+  // The starter panel should never show an empty temporary password field.
+  useEffect(() => {
+    if (!isReviewer) return
+    setStarterForm((current) => current.temp_password
+      ? current
+      : { ...current, temp_password: generateTemporaryPassword() })
+  }, [isReviewer])
+
+  // Live licence SKUs for the starter panel. Never blocks the form if Graph is unreachable.
+  useEffect(() => {
+    if (!isReviewer) return undefined
+    let cancelled = false
+    fetchEntraDirectory('all')
+      .then((result) => {
+        if (cancelled) return
+        setEntraLicenses(result?.licenses || [])
+        setEntraDirectoryError('')
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.warn('Entra directory lookup failed:', error)
+        setEntraLicenses([])
+        setEntraDirectoryError(error?.message || 'Could not load Microsoft licences.')
+      })
+    return () => { cancelled = true }
+  }, [isReviewer])
 
   useEffect(() => {
     if (!user?.email) return undefined
@@ -859,7 +881,7 @@ export default function HROnboarding() {
       full_name: '',
       personal_email: '',
       work_email: '',
-      temp_password: '',
+      temp_password: generateTemporaryPassword(),
       job_title: '',
       department: '',
       start_date: '',
@@ -872,6 +894,33 @@ export default function HROnboarding() {
     })
     setStarterPreview(null)
     setStarterProvisioningResult(null)
+    setWorkEmailTouched(false)
+    setWorkEmailStatus(null)
+    setSelectedLicenseSkuId('')
+  }
+
+  const checkWorkEmailAvailability = async () => {
+    const candidate = normalizeEmail(starterForm.work_email)
+    if (!candidate.includes('@')) {
+      setWorkEmailStatus({ state: 'error', message: 'Enter a full work email first.' })
+      return
+    }
+    setWorkEmailChecking(true)
+    setWorkEmailStatus(null)
+    try {
+      const available = await isWorkEmailAvailable(candidate)
+      setWorkEmailStatus({
+        state: available ? 'available' : 'taken',
+        alternatives: available
+          ? []
+          : suggestWorkEmails(starterForm.full_name).filter((option) => option !== candidate),
+      })
+    } catch (error) {
+      console.warn('Work email availability check failed:', error)
+      setWorkEmailStatus({ state: 'error', message: error?.message || 'Could not check the work email.' })
+    } finally {
+      setWorkEmailChecking(false)
+    }
   }
 
   const validateStarterForm = () => {
@@ -1106,6 +1155,7 @@ export default function HROnboarding() {
         jobTitle: starterForm.job_title.trim(),
         managerEmail: normalizeEmail(starterForm.manager_email),
         groupIds: resolveStarterGroupIds(entraGroupCatalog, selectedOptionalGroupIds),
+        licenseSkuId: selectedLicenseSkuId || undefined,
       }),
     })
 
@@ -1811,11 +1861,72 @@ export default function HROnboarding() {
             </div>
             <div>
               <label className="lbl">Work email *</label>
-              <input className="inp" type="email" value={starterForm.work_email} onChange={(e) => ssf('work_email', e.target.value)} placeholder="staff.name@dhwebsiteservices.co.uk" />
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input
+                  className="inp"
+                  type="email"
+                  value={starterForm.work_email}
+                  onChange={(e) => {
+                    setWorkEmailTouched(true)
+                    setWorkEmailStatus(null)
+                    ssf('work_email', e.target.value)
+                  }}
+                  placeholder="staff.name@dhwebsiteservices.co.uk"
+                />
+                <Button
+                  variant="secondary"
+                  style={{ height:28, fontSize:12, padding:'0 8px' }}
+                  onClick={checkWorkEmailAvailability}
+                  disabled={workEmailChecking || !starterForm.work_email.trim()}
+                >
+                  {workEmailChecking ? 'Checking…' : 'Check availability'}
+                </Button>
+              </div>
+              {workEmailStatus?.state === 'available' && (
+                <div style={{ marginTop:6, fontSize:12.5, color:'var(--color-green-500)' }}>✓ Available</div>
+              )}
+              {workEmailStatus?.state === 'taken' && (
+                <div style={{ marginTop:6, fontSize:12.5, color:'var(--color-red-500)' }}>
+                  ✗ Already taken
+                  {workEmailStatus.alternatives?.length ? (
+                    <span style={{ color:'var(--sub)' }}>
+                      {' '}· try{' '}
+                      {workEmailStatus.alternatives.map((option, index) => (
+                        <span key={option}>
+                          {index > 0 ? ', ' : ''}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWorkEmailTouched(true)
+                              setWorkEmailStatus(null)
+                              ssf('work_email', option)
+                            }}
+                            style={{ background:'none', border:'none', padding:0, color:'var(--accent)', cursor:'pointer', font:'inherit', textDecoration:'underline' }}
+                          >
+                            {option}
+                          </button>
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+              {workEmailStatus?.state === 'error' && (
+                <div style={{ marginTop:6, fontSize:12.5, color:'var(--sub)' }}>{workEmailStatus.message}</div>
+              )}
             </div>
             <div>
               <label className="lbl">Temporary password *</label>
-              <input className="inp" value={starterForm.temp_password} onChange={(e) => ssf('temp_password', e.target.value)} placeholder="Sent in the welcome email" />
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input className="inp" value={starterForm.temp_password} onChange={(e) => ssf('temp_password', e.target.value)} placeholder="Sent in the welcome email" />
+                <Button
+                  variant="secondary"
+                  style={{ height:28, fontSize:12, padding:'0 8px' }}
+                  onClick={() => ssf('temp_password', generateTemporaryPassword())}
+                >
+                  Regenerate
+                </Button>
+              </div>
             </div>
             <div>
               <label className="lbl">Job title *</label>
@@ -1860,6 +1971,31 @@ export default function HROnboarding() {
                 <option value="">No template matched</option>
                 {starterContractTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
               </select>
+            </div>
+            <div>
+              {entraLicenses.length > 0 ? (
+                <FormField>
+                  <FormLabel>Microsoft licence</FormLabel>
+                  <FormSelect value={selectedLicenseSkuId} onChange={(e) => setSelectedLicenseSkuId(e.target.value)}>
+                    <option value="">No licence</option>
+                    {entraLicenses.map((licence) => (
+                      <option key={licence.skuId} value={licence.skuId} disabled={licence.available === 0}>
+                        {licence.name} — {licence.available} of {licence.total} available
+                        {licence.available === 0 ? ' (none left)' : ''}
+                      </option>
+                    ))}
+                  </FormSelect>
+                </FormField>
+              ) : (
+                <>
+                  <label className="lbl">Microsoft licence</label>
+                  <div style={{ fontSize:12.5, color:'var(--sub)', lineHeight:1.6 }}>
+                    {entraDirectoryError
+                      ? 'Licence list unavailable right now — the default licence in the account API will be used.'
+                      : 'Loading licences…'}
+                  </div>
+                </>
+              )}
             </div>
             <div style={{ gridColumn:'1 / -1' }}>
               <label className="lbl">Internal notes</label>
