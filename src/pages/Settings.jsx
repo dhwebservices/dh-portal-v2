@@ -305,7 +305,7 @@ export default function Settings() {
       ]} />
 
       <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
+        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['announcement','What\u2019s New'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
           <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>

@@ -38,6 +38,7 @@ const LoginPage = lazyRetry(() => import('./pages/LoginPage'), 'login')
 const HomeScreen = lazyRetry(() => import('./pages/HomeScreen'), 'home')
 const WebManager = lazyRetry(() => import('./pages/WebManager'), 'web-manager')
 const Website = lazyRetry(() => import('./pages/Website'), 'website')
+const AnnouncementHost = lazyRetry(() => import('./components/AnnouncementHost'), 'announcement-host')
 const Dashboard = lazyRetry(() => import('./pages/Dashboard'), 'dashboard')
 const Outreach = lazyRetry(() => import('./pages/Outreach'), 'outreach')
 const Clients = lazyRetry(() => import('./pages/Clients'), 'clients')
@@ -809,6 +810,7 @@ function AuthenticatedApp() {
   // Use web app on desktop
   return (
     <AuthProvider>
+      <Suspense fallback={null}><AnnouncementHost /></Suspense>
       <Suspense fallback={<RouteLoader />}>
         <Routes>
           <Route path="/book/:slug"     element={<PublicBookingPage />} />

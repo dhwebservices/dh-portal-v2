@@ -101,6 +101,28 @@ function lineNumberAt(content, index) {
   return content.slice(0, index).split('\n').length
 }
 
+/**
+ * Find a token, ignoring hits on obvious comment lines.
+ *
+ * Without this, writing "stored in the database rather than localStorage" in a
+ * doc comment trips the check. A scanner that cries wolf over its own
+ * documentation is one people start ignoring, which is worse than not having
+ * it. Only whole comment lines are skipped - a trailing comment after real
+ * code still counts, so nothing can hide behind one.
+ */
+function findTokenOutsideComments(content, token) {
+  const lines = content.split('\n')
+  let offset = 0
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const isComment = trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')
+    const at = line.indexOf(token)
+    if (at !== -1 && !isComment) return offset + at
+    offset += line.length + 1
+  }
+  return -1
+}
+
 function formatFinding(file, line, message) {
   return `${file}:${line} ${message}`
 }
@@ -121,9 +143,9 @@ for (const filePath of repoFiles) {
     }
   }
 
-  if (content.includes('localStorage')) {
+  if (findTokenOutsideComments(content, 'localStorage') !== -1) {
     if (!allowedLocalStorageFiles.has(relativePath)) {
-      const index = content.indexOf('localStorage')
+      const index = findTokenOutsideComments(content, 'localStorage')
       findings.push(formatFinding(relativePath, lineNumberAt(content, index), 'Unexpected localStorage usage outside approved non-sensitive UI preference files.'))
     }
   }
@@ -156,7 +178,7 @@ for (const filePath of repoFiles) {
 
 for (const file of sensitiveStorageFiles) {
   const content = readFileSync(path.join(rootDir, file), 'utf8')
-  if (content.includes('localStorage')) {
+  if (findTokenOutsideComments(content, 'localStorage') !== -1) {
     findings.push(formatFinding(file, lineNumberAt(content, content.indexOf('localStorage')), 'Sensitive auth/data access file must not use localStorage.'))
   }
 }

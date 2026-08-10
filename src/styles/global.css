@@ -4323,3 +4323,37 @@ textarea.inp { resize: vertical; line-height: 1.6; }
 .ui-action-tile-label { font-size: 13px; font-weight: 600; color: var(--text); }
 .ui-action-tile-hint { font-size: 11.5px; color: var(--sub); margin-top: 3px; line-height: 1.45; }
 .ui-action-tile-arrow { color: var(--faint); }
+
+/* Announcement modal ----------------------------------------------------- */
+/* Built to a fixed 834x434 to match the reference design, so it needs an
+   explicit stack below that width rather than relying on flex-wrap. */
+@media (max-width: 900px) {
+  .dh-announce {
+    flex-direction: column;
+    gap: 24px !important;
+    width: 100% !important;
+    max-width: 420px;
+    padding: 20px !important;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+
+  .dh-announce__visual {
+    width: 100% !important;
+    height: 200px !important;
+  }
+
+  .dh-announce__copy {
+    width: 100% !important;
+  }
+
+  .dh-announce__copy h2 {
+    font-size: 28px !important;
+    line-height: 34px !important;
+  }
+
+  .dh-announce__copy button,
+  .dh-announce__copy a {
+    width: 100% !important;
+  }
+}
