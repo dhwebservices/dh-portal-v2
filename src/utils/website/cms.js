@@ -9,13 +9,13 @@
 import { callPortalApi } from '../portalApi'
 
 /**
- * Where the editor frames the site. Pointed at the branch preview while the
- * block engine is still off main; set VITE_PUBLIC_SITE_ORIGIN to change it
- * without a code edit.
+ * Where the editor frames the site. The live domain now that the block engine
+ * is on main, so what you edit is genuinely the site visitors see. Override
+ * with VITE_PUBLIC_SITE_ORIGIN to point at a preview build.
  */
 export const SITE_ORIGIN =
   import.meta.env.VITE_PUBLIC_SITE_ORIGIN
-  || 'https://website-editor-blocks.dh-website-djh.pages.dev'
+  || 'https://dhwebsiteservices.co.uk'
 
 export const EDIT_PROTOCOL = 'dh-website-editor/v1'
 

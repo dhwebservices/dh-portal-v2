@@ -445,6 +445,7 @@ export default function WebManager() {
         <div style={{ width:1, height:24, background:'var(--color-border)', margin:'0 16px' }}/>
         <div style={{ display:'flex', borderBottom:'none' }}>
           {[['clients','Clients'],['publicsite','Our Public Site']].map(([k,l]) => canEditPublicSite || k!=='publicsite' ? <NavTab key={k} label={l} active={section===k} onClick={()=>{ setSelected(null); setSection(k) }}/> : null)}
+          {canEditPublicSite && <NavTab label="Website Editor" onClick={()=>{ window.location.href = '/website' }}/>}
         </div>
       </div>
       <div style={{ padding:'28px 32px' }}>

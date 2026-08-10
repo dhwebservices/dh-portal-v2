@@ -75,6 +75,7 @@ export default function Clients() {
         can('clientmgmt') && { label: 'Client Portal', onClick: () => navigate('/client-mgmt') },
         can('competitor') && { label: 'Competitor Lookup', onClick: () => navigate('/competitor') },
         can('domains') && { label: 'Domain Checker', onClick: () => navigate('/domains') },
+        can('website_editor') && { label: 'Website Editor', onClick: () => navigate('/website') },
         can('website_editor') && { label: 'Web Manager', onClick: () => navigate('/web-manager') },
         can('shop_orders_view') && { label: 'Shop Orders', onClick: () => navigate('/shop/orders') },
         can('shop_products_view') && { label: 'Shop Products', onClick: () => navigate('/shop/products') },

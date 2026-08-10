@@ -9,11 +9,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
+import SubNav from '../../components/SubNav'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button, Alert, StatusBadge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ds'
 import { listPages, loadBlockManifest, SITE_ORIGIN } from '../../utils/website/cms'
 
 export default function PageList() {
   const navigate = useNavigate()
+  const { can } = useAuth()
   const { instance, accounts } = useMsal()
   const account = accounts?.[0]
 
@@ -59,6 +62,15 @@ export default function PageList() {
           </p>
         </div>
       </div>
+
+      <SubNav items={[
+        { label: 'Clients', onClick: () => navigate('/clients') },
+        can('clientmgmt') && { label: 'Client Portal', onClick: () => navigate('/client-mgmt') },
+        can('competitor') && { label: 'Competitor Lookup', onClick: () => navigate('/competitor') },
+        can('domains') && { label: 'Domain Checker', onClick: () => navigate('/domains') },
+        { label: 'Website Editor', active: true, onClick: () => {} },
+        can('website_editor') && { label: 'Web Manager', onClick: () => navigate('/web-manager') },
+      ]} />
 
       {error ? <div style={{ marginBottom: 16 }}><Alert variant="warning">{error}</Alert></div> : null}
 
