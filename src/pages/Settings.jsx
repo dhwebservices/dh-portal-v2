@@ -32,7 +32,6 @@ export default function Settings() {
   const [directoryLoading, setDirectoryLoading] = useState(false)
   const [directoryError, setDirectoryError] = useState('')
   const [pickedGroupId, setPickedGroupId] = useState('')
-  const [previewWhatsNewIndex, setPreviewWhatsNewIndex] = useState(0)
   const [showWhatsNewPopup, setShowWhatsNewPopup] = useState(false)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
@@ -86,17 +85,11 @@ export default function Settings() {
     })
   }, [])
 
-  useEffect(() => {
-    setPreviewWhatsNewIndex(0)
-  }, [whatsNew.version, whatsNew.cards.length])
-
   const set = (k, v) => setSettings(p => ({ ...p, [k]: v }))
-  const previewCards = Array.isArray(whatsNew.cards) && whatsNew.cards.length ? whatsNew.cards : [{ ...EMPTY_WHATS_NEW_CARD }]
   // Removing a card only changed the form, and Save sits a long scroll below,
   // so edits were being lost on refresh with nothing on screen to warn you.
   const whatsNewDirty = previousWhatsNew !== null
     && JSON.stringify(whatsNew) !== JSON.stringify(previousWhatsNew)
-  const activePreviewCard = previewCards[previewWhatsNewIndex] || previewCards[0]
 
   const save = async (section) => {
     setSaving(true)
@@ -553,7 +546,9 @@ export default function Settings() {
               <div>
                 <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)' }}>What’s New popup</div>
                 <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, maxWidth:560 }}>
-                  Publish a multi-card update modal for staff. It appears once per user for each version until they dismiss it.
+                  This is the popup staff see after signing in. Write the cards here, preview it below,
+                  then save to publish. Each person sees a given version once; change the version to
+                  show it again to everyone.
                 </div>
               </div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -610,57 +605,25 @@ export default function Settings() {
           </div>
 
           <div style={{ ...DS_CARD, padding:20 }}>
-            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:4 }}>Content check</div>
-            <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginBottom:12, lineHeight:1.6 }}>
-              A plain read-through of what you have written. Use <strong>Preview the real popup</strong> below to see it exactly as staff will.
+            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:4 }}>Preview</div>
+            <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginBottom:14, lineHeight:1.6 }}>
+              Opens the popup exactly as staff will see it, with whatever is typed above. Nothing is
+              sent or saved by previewing.
             </div>
-            <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--color-blue-50)', border:'1px solid var(--color-border)', marginBottom:14 }}>
-              <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:6 }}>Version {whatsNew.version || '—'}</div>
-              <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
-              <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.7 }}>{whatsNew.intro || 'Your intro text will appear here.'}</div>
-            </div>
-            <div style={{ display:'grid', gap:14 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-                <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
-                  Previewing card {Math.min(previewWhatsNewIndex + 1, previewCards.length)} of {previewCards.length}
-                </div>
-                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-                  {previewCards.map((card, index) => (
-                    <button
-                      key={`preview-dot-${index}`}
-                      onClick={() => setPreviewWhatsNewIndex(index)}
-                      style={{
-                        width: index === previewWhatsNewIndex ? 28 : 10,
-                        height: 10,
-                        borderRadius: 999,
-                        border: 'none',
-                        background: index === previewWhatsNewIndex ? 'var(--color-primary)' : 'var(--color-border)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
 
-              <div style={{ padding:'18px', border:'1px solid var(--color-border)', borderRadius:14, background:'var(--color-bg-surface)', minHeight:220, display:'grid', alignContent:'start' }}>
-                {activePreviewCard?.tag ? <span style={{ marginBottom:10 }}><StatusBadge variant="info">{activePreviewCard.tag}</StatusBadge></span> : null}
-                <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>{activePreviewCard?.title || 'Update title'}</div>
-                <div style={{ fontSize:13, color:'var(--color-text-secondary)', lineHeight:1.7 }}>{activePreviewCard?.body || 'Card details appear here.'}</div>
-              </div>
+            <Button variant="secondary" onClick={() => setShowWhatsNewPopup(true)}>
+              Preview the popup
+            </Button>
 
-              <div style={{ display:'flex', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
-                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setPreviewWhatsNewIndex((current) => Math.max(0, current - 1))} disabled={previewWhatsNewIndex === 0}>Previous</Button>
-                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} onClick={() => setPreviewWhatsNewIndex((current) => Math.min(previewCards.length - 1, current + 1))} disabled={previewWhatsNewIndex >= previewCards.length - 1}>Next</Button>
-              </div>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20, paddingTop:20, borderTop:'1px solid var(--color-border)' }}>
               <Button variant="primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</Button>
-              <Button variant="secondary" onClick={() => setShowWhatsNewPopup(true)}>Preview the real popup</Button>
               {saved === 'experience' && <span style={{ fontSize:13, color:'var(--color-green-500)' }}>✓ Saved</span>}
+              <span style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>
+                Saving publishes to staff. Each person sees a version once.
+              </span>
             </div>
           </div>
-        </div>
+          </div>
         </>
       )}
 
