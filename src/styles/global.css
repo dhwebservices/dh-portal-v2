@@ -847,55 +847,106 @@ button { cursor: pointer; font-family: inherit; }
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   background: var(--bg);
   color: var(--text);
 }
 
-.login-nav {
+/* Brand panel - stays branded in both themes; it is the brand, not a surface. */
+.login-brand {
+  width: 44%;
+  max-width: 620px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  padding: 44px 44px 38px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
+  background:
+    radial-gradient(120% 90% at 15% 10%, #1E4FD8 0%, transparent 55%),
+    linear-gradient(150deg, #123FB8 0%, #0B2A6F 100%);
 }
 
-.login-nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Faint grid, faded out toward the edges so it reads as texture not pattern. */
+.login-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 34px 34px;
+  -webkit-mask-image: radial-gradient(90% 70% at 70% 30%, #000, transparent);
+  mask-image: radial-gradient(90% 70% at 70% 30%, #000, transparent);
+}
+
+.login-brand-top,
+.login-brand-mid,
+.login-brand-foot {
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-top {
   min-width: 0;
 }
 
-.login-nav-logo {
-  height: 22px;
-  width: auto;
+/* Pre-rendered mono-reverse lockup (public/dh-logo-white.png), sized by width -
+   it is a stacked mark, so constraining by height shrinks the wordmark to
+   nothing. It already reads "DH WEB SERVICES", so no text sits beside it. */
+.login-brand-logo {
+  width: 205px;
+  max-width: 60%;
+  height: auto;
   display: block;
 }
 
-.login-nav-title {
-  font-size: 15px;
+.login-brand-heading {
+  color: #fff;
+  font-size: 30px;
   font-weight: 600;
-  color: var(--text);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 0 0 8px;
 }
 
-.login-nav-subtitle {
+.login-brand-sub {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.login-brand-foot {
+  color: rgba(255, 255, 255, 0.42);
   font-size: 12px;
-  color: var(--sub);
-  margin-top: 1px;
+}
+
+/* Sign-in side */
+.login-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+}
+
+.login-panel-head {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px 24px 0;
 }
 
 .login-theme-btn {
-  flex-shrink: 0;
-  background: var(--card);
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 12px;
   font-size: 13px;
   color: var(--sub);
   cursor: pointer;
+  font-family: inherit;
 }
 
 .login-theme-btn:hover {
@@ -908,8 +959,10 @@ button { cursor: pointer; font-family: inherit; }
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--border);
+  margin: 16px 24px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--bg2);
   font-size: 13px;
 }
@@ -929,31 +982,28 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--sub);
 }
 
-.login-main {
+.login-panel-body {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 40px 24px 56px;
 }
 
-.login-card {
+.login-form {
   width: 100%;
-  max-width: 380px;
-  padding: 32px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  max-width: 340px;
 }
 
-.login-card-title {
-  font-size: 22px;
+.login-form-title {
+  font-size: 24px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text);
   margin: 0 0 6px;
 }
 
-.login-card-body {
+.login-form-body {
   font-size: 14px;
   line-height: 1.6;
   color: var(--sub);
@@ -962,7 +1012,7 @@ button { cursor: pointer; font-family: inherit; }
 
 .login-primary-btn {
   width: 100%;
-  min-height: 44px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -972,9 +1022,10 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--accent-contrast);
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
 }
 
 .login-primary-btn:hover:not(:disabled) {
@@ -996,46 +1047,67 @@ button { cursor: pointer; font-family: inherit; }
   animation: spin 0.7s linear infinite;
 }
 
-.login-card-help {
-  font-size: 13px;
-  line-height: 1.6;
+.login-form-help {
+  font-size: 12.5px;
+  line-height: 1.65;
   color: var(--sub);
-  margin: 20px 0 0;
-  padding-top: 20px;
+  margin: 18px 0 0;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
 }
 
-.login-card-help a {
+.login-form-help a {
   color: var(--accent);
   text-decoration: none;
+  font-weight: 500;
 }
 
-.login-card-help a:hover {
+.login-form-help a:hover {
   text-decoration: underline;
 }
 
-.login-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  color: var(--faint);
-  font-size: 12px;
+/* Below this the split stops earning its space - the brand panel becomes a
+   compact banner and the form takes the rest of the screen. */
+@media (max-width: 880px) {
+  .login-shell {
+    flex-direction: column;
+  }
+
+  .login-brand {
+    width: 100%;
+    max-width: none;
+    padding: 18px 20px;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .login-brand-logo {
+    width: 132px;
+    max-width: none;
+  }
+
+  .login-brand-mid,
+  .login-brand-foot {
+    display: none;
+  }
+
+  .login-panel-head {
+    padding: 16px 20px 0;
+  }
+
+  .login-status {
+    margin: 14px 20px 0;
+  }
+
+  .login-panel-body {
+    align-items: flex-start;
+    padding: 32px 20px 48px;
+  }
 }
 
-@media (max-width: 600px) {
-  .login-nav,
-  .login-status,
-  .login-footer {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .login-main {
-    padding: 24px 16px;
-    align-items: flex-start;
-  }
-
-  .login-card {
-    padding: 24px 20px;
+@media (max-width: 480px) {
+  .login-brand-logo {
+    width: 112px;
   }
 }
 

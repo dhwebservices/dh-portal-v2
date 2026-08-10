@@ -71,66 +71,66 @@ export default function LoginPage() {
 
   return (
     <div className="login-shell">
-      <header className="login-nav">
-        <div className="login-nav-brand">
-          <img src="/dh-logo.png" alt="" className="login-nav-logo" />
-          <div>
-            <div className="login-nav-title">DH Website Services</div>
-            <div className="login-nav-subtitle">Staff portal</div>
+      <aside className="login-brand">
+        <div className="login-brand-top">
+          <img src="/dh-logo-white.png" alt="DH Web Services" className="login-brand-logo" />
+        </div>
+        <div className="login-brand-mid">
+          <h1 className="login-brand-heading">Staff portal</h1>
+          <p className="login-brand-sub">HR, rotas, clients and recruitment.</p>
+        </div>
+        <div className="login-brand-foot">© {new Date().getFullYear()} DH Website Services</div>
+      </aside>
+
+      <main className="login-panel">
+        <div className="login-panel-head">
+          <button className="login-theme-btn" onClick={toggleTheme}>
+            {dark ? 'Light mode' : 'Dark mode'}
+          </button>
+        </div>
+
+        {statusMeta && (
+          <div className="login-status">
+            <span className="login-status-dot" style={{ background: statusMeta.color }} />
+            <span className="login-status-label" style={{ color: statusMeta.color }}>{statusMeta.label}</span>
+            <span className="login-status-note">
+              {portalStatus.note || 'The portal may not behave as expected.'}
+            </span>
+          </div>
+        )}
+
+        <div className="login-panel-body">
+          <div className="login-form">
+            <h2 className="login-form-title">Sign in</h2>
+            <p className="login-form-body">Use your DH Website Services Microsoft account.</p>
+
+            <button className="login-primary-btn" onClick={login} disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="login-spinner" />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+                  </svg>
+                  Sign in with Microsoft
+                </>
+              )}
+            </button>
+
+            <p className="login-form-help">
+              Trouble signing in? Contact David Hooper on{' '}
+              <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a>{' '}
+              or <a href="tel:07359587007">07359587007</a>.
+            </p>
           </div>
         </div>
-        <button className="login-theme-btn" onClick={toggleTheme}>
-          {dark ? 'Light mode' : 'Dark mode'}
-        </button>
-      </header>
-
-      {statusMeta && (
-        <div className="login-status">
-          <span className="login-status-dot" style={{ background: statusMeta.color }} />
-          <span className="login-status-label" style={{ color: statusMeta.color }}>{statusMeta.label}</span>
-          <span className="login-status-note">
-            {portalStatus.note || 'The portal may not behave as expected.'}
-          </span>
-        </div>
-      )}
-
-      <main className="login-main">
-        <div className="login-card">
-          <h1 className="login-card-title">Sign in</h1>
-          <p className="login-card-body">
-            Use your DH Website Services Microsoft account.
-          </p>
-
-          <button className="login-primary-btn" onClick={login} disabled={loading}>
-            {loading ? (
-              <>
-                <span className="login-spinner" />
-                Signing in…
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 21 21" fill="none" aria-hidden="true">
-                  <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                  <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                  <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                  <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-                </svg>
-                Sign in with Microsoft
-              </>
-            )}
-          </button>
-
-          <p className="login-card-help">
-            Trouble signing in? Contact David Hooper on{' '}
-            <a href="mailto:mgmt@dhwebsiteservices.co.uk">mgmt@dhwebsiteservices.co.uk</a>{' '}
-            or <a href="tel:07359587007">07359587007</a>.
-          </p>
-        </div>
       </main>
-
-      <footer className="login-footer">
-        © {new Date().getFullYear()} DH Website Services
-      </footer>
     </div>
   )
 }
