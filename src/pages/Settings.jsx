@@ -33,6 +33,7 @@ export default function Settings() {
   const [directoryError, setDirectoryError] = useState('')
   const [pickedGroupId, setPickedGroupId] = useState('')
   const [previewWhatsNewIndex, setPreviewWhatsNewIndex] = useState(0)
+  const [showWhatsNewPopup, setShowWhatsNewPopup] = useState(false)
   const [whatsNew, setWhatsNew] = useState({
     active: false,
     version: '',
@@ -305,7 +306,7 @@ export default function Settings() {
       ]} />
 
       <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['announcement','What\u2019s New'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
+        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
           <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
@@ -319,6 +320,14 @@ export default function Settings() {
           </div>
           <SaveBtn section="general"/>
         </div>
+      )}
+
+      {showWhatsNewPopup && (
+        <AnnouncementModal
+          slides={toSlides(whatsNew)}
+          onDismiss={() => setShowWhatsNewPopup(false)}
+          onDontShowAgain={() => setShowWhatsNewPopup(false)}
+        />
       )}
 
       {tab === 'entra_groups' && (
@@ -569,7 +578,10 @@ export default function Settings() {
           </div>
 
           <div style={{ ...DS_CARD, padding:20 }}>
-            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:12 }}>Preview</div>
+            <div style={{ fontSize:16, fontWeight:600, color:'var(--color-text-primary)', marginBottom:4 }}>Content check</div>
+            <div style={{ fontSize:12.5, color:'var(--color-text-secondary)', marginBottom:12, lineHeight:1.6 }}>
+              A plain read-through of what you have written. Use <strong>Preview the real popup</strong> below to see it exactly as staff will.
+            </div>
             <div style={{ padding:'16px 18px', borderRadius:14, background:'var(--color-blue-50)', border:'1px solid var(--color-border)', marginBottom:14 }}>
               <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:6 }}>Version {whatsNew.version || '—'}</div>
               <div style={{ fontSize:18, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>{whatsNew.title || 'What’s New'}</div>
@@ -612,6 +624,7 @@ export default function Settings() {
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:20 }}>
               <Button variant="primary" onClick={saveWhatsNew} disabled={saving}>{saving ? 'Saving...' : 'Save What’s New'}</Button>
+              <Button variant="secondary" onClick={() => setShowWhatsNewPopup(true)}>Preview the real popup</Button>
               {saved === 'experience' && <span style={{ fontSize:13, color:'var(--color-green-500)' }}>✓ Saved</span>}
             </div>
           </div>
