@@ -76,15 +76,15 @@ const DEFAULTS = {
   },
 }
 
+// Services, Pricing and FAQ used to live here. Those pages now render from
+// block documents in the Website Editor, so editing them here changed nothing
+// at all - a silent no-op, which is worse than the setting being missing.
+// They were removed rather than left to look functional.
 const SECTIONS = [
   { key: 'banner',   label: '📢 Banner',   desc: 'Top announcement bar' },
   { key: 'maintenance', label: '🛠 Maintenance', desc: 'Public site lock screen' },
-  { key: 'services', label: '🛠 Services',  desc: 'Service cards on homepage' },
-  { key: 'pricing',  label: '💰 Pricing',   desc: 'Build packages & hosting plans' },
-  { key: 'faq',      label: '❓ FAQ',        desc: 'Frequently asked questions' },
   { key: 'contact',  label: '📞 Contact',   desc: 'Contact details' },
   { key: 'mailing_list', label: '📬 Mailing List', desc: 'Popup settings' },
-  { key: 'pages', label: '📄 Pages', desc: 'Create and manage public pages' },
 ]
 
 const CORE_PAGE_OPTIONS = [
