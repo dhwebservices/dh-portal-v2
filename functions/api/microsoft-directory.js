@@ -23,6 +23,9 @@ const DEFAULT_ALLOWED_ORIGINS = [
 // Friendly names for the SKUs DH actually uses. Graph only returns skuPartNumber
 // (e.g. "O365_BUSINESS_PREMIUM"), which is not something you want in a dropdown.
 const SKU_DISPLAY_NAMES = {
+  SPE_E5: 'Microsoft 365 E5',
+  SPE_E3: 'Microsoft 365 E3',
+  SPE_F1: 'Microsoft 365 F3',
   O365_BUSINESS_ESSENTIALS: 'Microsoft 365 Business Basic',
   O365_BUSINESS_PREMIUM: 'Microsoft 365 Business Standard',
   SPB: 'Microsoft 365 Business Premium',

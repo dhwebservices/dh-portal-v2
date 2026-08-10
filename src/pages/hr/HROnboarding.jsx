@@ -1771,7 +1771,10 @@ export default function HROnboarding() {
               </div>
               <div style={{ fontSize:24, fontWeight:600, color:'var(--text)' }}>Create portal onboarding and preview the welcome email</div>
               <div style={{ marginTop:8, fontSize:14, color:'var(--sub)', lineHeight:1.7, maxWidth:760 }}>
-                This sets up the HR profile, onboarding draft, role defaults, and lifecycle state for a new starter. Microsoft 365 account creation still needs to be completed separately in admin before they can sign in.
+                This sets up the HR profile, onboarding draft, role defaults, and lifecycle state for a new starter.{' '}
+                {starterProvisioningEnabled
+                  ? 'With the tick-box below on, it also creates their Microsoft 365 account — work email, licence, department, job title, manager and Entra group membership — so there is no separate trip into the Microsoft admin centre.'
+                  : 'Tick the box below to create their Microsoft 365 account at the same time; leave it off and the account must be created separately in the Microsoft admin centre before they can sign in.'}
               </div>
             </div>
             <div style={{ padding:'10px 14px', border:'1px solid var(--border)', borderRadius:12, background:'var(--bg2)', minWidth:220 }}>
