@@ -37,6 +37,7 @@ function lazyRetry(importer, key) {
 const LoginPage = lazyRetry(() => import('./pages/LoginPage'), 'login')
 const HomeScreen = lazyRetry(() => import('./pages/HomeScreen'), 'home')
 const WebManager = lazyRetry(() => import('./pages/WebManager'), 'web-manager')
+const Website = lazyRetry(() => import('./pages/Website'), 'website')
 const Dashboard = lazyRetry(() => import('./pages/Dashboard'), 'dashboard')
 const Outreach = lazyRetry(() => import('./pages/Outreach'), 'outreach')
 const Clients = lazyRetry(() => import('./pages/Clients'), 'clients')
@@ -815,6 +816,7 @@ function AuthenticatedApp() {
           <Route path="/workspace"     element={<MaintenanceWall><LandingResolver /></MaintenanceWall>} />
           <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
           <Route path="/web-manager/*" element={<MaintenanceWall><WebManagerGate><WebManager /></WebManagerGate></MaintenanceWall>} />
+          <Route path="/website/*" element={<MaintenanceWall><WebManagerGate><Website /></WebManagerGate></MaintenanceWall>} />
           <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />
         </Routes>
       </Suspense>
