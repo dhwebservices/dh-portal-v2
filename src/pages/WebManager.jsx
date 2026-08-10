@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { PaymentsHub } from '../components/PaymentsHub'
 import { sendEmail } from '../utils/email'
-import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../components/ds'
+import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge, Alert } from '../components/ds'
 
 const DS_CARD = { background:'var(--color-bg-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--border-radius-lg)' }
 const TONE_TO_VARIANT = { green:'active', amber:'warning', red:'error', blue:'info', grey: 'neutral' }
@@ -68,6 +68,57 @@ function NavTab({ label, active, onClick, badge }) {
 
 
 // ── Site Editor Component ──────────────────────────────────────────────
+/**
+ * Shown when a client has no website URL yet.
+ *
+ * This was being rendered without existing anywhere - opening any client
+ * without a URL threw "ConnectSitePrompt is not defined" and left Web Manager
+ * blank. Found by scripts/check-undefined-refs.mjs.
+ */
+function ConnectSitePrompt({ clientId, onSave }) {
+  const [url, setUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async () => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    const normalised = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+    setSaving(true); setError('')
+    const { error: saveError } = await supabase
+      .from('clients')
+      .update({ website_url: normalised })
+      .eq('id', clientId)
+    setSaving(false)
+
+    if (saveError) { setError(saveError.message); return }
+    onSave?.(normalised)
+  }
+
+  return (
+    <div style={{ ...DS_CARD, padding: 24, maxWidth: 520 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No website connected</div>
+      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
+        Add this client&apos;s website address to manage it here.
+      </div>
+      {error ? <div style={{ marginBottom: 12 }}><Alert variant="warning">{error}</Alert></div> : null}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <FormInput
+          value={url}
+          placeholder="example.co.uk"
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+          style={{ flex: 1, minWidth: 220 }}
+        />
+        <Button variant="primary" onClick={save} disabled={saving || !url.trim()}>
+          {saving ? 'Saving…' : 'Connect'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function SiteEditor({ url, title }) {
   const [device, setDevice] = useState('desktop')
   const [loading, setLoading] = useState(true)
