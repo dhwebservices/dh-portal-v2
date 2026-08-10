@@ -50,7 +50,11 @@ export function getPage(instance, account, slug) {
 }
 
 export function importPage(instance, account, slug, overwrite = false) {
-  return callPortalApi(instance, account, '/api/website-cms', { action: 'import_page', slug, overwrite })
+  // The server allowlists this; it is a hint about which build to read the
+  // manifest from, not a trusted value.
+  return callPortalApi(instance, account, '/api/website-cms', {
+    action: 'import_page', slug, overwrite, siteOrigin: SITE_ORIGIN,
+  })
 }
 
 export function saveDraft(instance, account, slug, document) {

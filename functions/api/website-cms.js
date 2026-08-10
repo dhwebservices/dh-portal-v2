@@ -88,9 +88,33 @@ async function saveContent(env, user, payload) {
   return json({ ok: true, section, updated_by: user.name || user.email })
 }
 
-/** Where the editor frames the site, and where the manifest is read from. */
-function siteOrigin(env) {
-  return env.PUBLIC_SITE_ORIGIN || 'https://dhwebsiteservices.co.uk'
+/**
+ * Where the block manifest is read from.
+ *
+ * The caller may name an origin, because while the block engine is still on a
+ * branch the manifest only exists on a preview build. It is checked against an
+ * allowlist rather than trusted: this fetches a document that then becomes the
+ * page's content, so an arbitrary origin here would let an authenticated user
+ * import content from anywhere.
+ */
+function resolveSiteOrigin(env, requested) {
+  const configured = env.PUBLIC_SITE_ORIGIN || 'https://dhwebsiteservices.co.uk'
+  if (!requested) return configured
+
+  let host
+  try {
+    const url = new URL(requested)
+    if (url.protocol !== 'https:') return configured
+    host = url.host
+  } catch {
+    return configured
+  }
+
+  const allowed = host === 'dhwebsiteservices.co.uk'
+    || host === 'www.dhwebsiteservices.co.uk'
+    || host.endsWith('.dh-website-djh.pages.dev')
+
+  return allowed ? `https://${host}` : configured
 }
 
 async function getPage(env, payload) {
@@ -117,7 +141,8 @@ async function importPage(env, user, payload) {
   const slug = String(payload?.slug || '').trim()
   if (!slug) return json({ error: 'No page requested.' }, 400)
 
-  const manifestUrl = `${siteOrigin(env)}/block-manifest.json`
+  const origin = resolveSiteOrigin(env, payload?.siteOrigin)
+  const manifestUrl = `${origin}/block-manifest.json`
   const manifest = await fetch(manifestUrl, { cf: { cacheTtl: 0 } })
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null)
