@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useMsal } from '@azure/msal-react'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { callPortalApi } from '../utils/portalApi'
 
 const SUPABASE_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
@@ -104,24 +106,6 @@ async function loadSection(section) {
   )
   const rows = await res.json()
   return rows?.[0]?.content || null
-}
-
-async function saveSection(section, content, updatedBy) {
-  // Upsert by section
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/website_content?on_conflict=section`,
-    {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify({ section, content, updated_at: new Date().toISOString(), updated_by: updatedBy }),
-    }
-  )
-  return res.ok
 }
 
 async function loadPages() {
@@ -235,6 +219,7 @@ function createDraftPage() {
 
 export default function SiteEditor() {
   const { user } = useAuth()
+  const { instance, accounts } = useMsal()
   const [active, setActive]       = useState('banner')
   const [data, setData]           = useState({})    // { section: content }
   const [pages, setPages]         = useState([])
@@ -278,12 +263,23 @@ export default function SiteEditor() {
 
   const save = async (section) => {
     setSaving(true); setError('')
-    const ok = await saveSection(section, data[section], user?.name || user?.email)
+    let ok = true
+    try {
+      // Goes through /api/website-cms on the service-role key rather than
+      // writing from the browser: the anon key is public, so a browser-side
+      // write means anyone can change the live site.
+      await callPortalApi(instance, accounts?.[0], '/api/website-cms', {
+        action: 'save_content',
+        section,
+        content: data[section],
+      })
+    } catch (err) {
+      ok = false
+      setError(err.message || 'Save failed.')
+    }
     if (ok) {
       setDirty(p => { const n = { ...p }; delete n[section]; return n })
       setSaved(section); setTimeout(() => setSaved(''), 3000)
-    } else {
-      setError('Save failed — check Supabase table exists (run the SQL below)')
     }
     setSaving(false)
   }
