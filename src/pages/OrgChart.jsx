@@ -9,7 +9,7 @@ const cardStyle = {
   borderRadius: 'var(--border-radius-lg)',
 }
 
-const normalizeEmail = (email = '') => email.toLowerCase().trim()
+const normalizeEmail = (email) => String(email || '').toLowerCase().trim()
 const EXCLUDED_EMAIL_PREFIXES = ['hr@', 'clients@', 'log@', 'legal@', 'noreply@', 'admin@', 'test@']
 
 function pickBest(rows = []) {

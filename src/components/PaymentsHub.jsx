@@ -52,7 +52,9 @@ function paymentAmountPounds(payment) {
   return payment?.currency === 'GBP' ? amount / 100 : amount
 }
 
-function paymentTypeLabel(paymentType = '') {
+function paymentTypeLabel(rawPaymentType) {
+  // payment_type is nullable; a default param only catches undefined.
+  const paymentType = String(rawPaymentType || '')
   if (paymentType === 'one_off') return 'One-off DD'
   if (paymentType === 'subscription') return 'Subscription'
   if (paymentType === 'instalments') return 'Instalments'

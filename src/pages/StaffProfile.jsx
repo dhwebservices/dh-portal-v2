@@ -378,8 +378,10 @@ export default function StaffProfile() {
   const fileRef = useRef()
   const signDocumentFileRef = useRef()
 
-  const fileTypeLabel = (name = '') => {
-    const ext = name.split('.').pop()?.toUpperCase()
+  const fileTypeLabel = (name) => {
+    // staff_documents.name is nullable, and a default param only catches
+    // undefined - one null row would blank this whole page.
+    const ext = String(name || '').split('.').pop()?.toUpperCase()
     return ext ? ext : 'FILE'
   }
 

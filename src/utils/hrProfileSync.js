@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export const normalizeEmail = (email = '') => email.toLowerCase().trim()
+export const normalizeEmail = (email) => String(email || '').toLowerCase().trim()
 export const buildOnboardingPayloadKey = (email = '') => `onboarding_payload:${normalizeEmail(email)}`
 
 export const pickBestProfileRow = (rows = []) =>
