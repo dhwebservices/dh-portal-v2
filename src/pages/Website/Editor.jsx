@@ -31,6 +31,9 @@ const AUTOSAVE_MS = 2000
 export default function WebsiteEditor({ slug = 'home' }) {
   const { instance, accounts } = useMsal()
   const account = accounts?.[0]
+  // MSAL hands back a new account object on many renders. Depending on the
+  // object itself re-ran the load effect over and over; the id is stable.
+  const accountKey = account?.homeAccountId || account?.username || ''
   const frameRef = useRef(null)
 
   const [manifest, setManifest] = useState(null)
@@ -75,7 +78,8 @@ export default function WebsiteEditor({ slug = 'home' }) {
       }
     })()
     return () => { active = false }
-  }, [instance, account, slug])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instance, accountKey, slug])
 
   /* ── iframe bridge ────────────────────────────────────────────────────── */
 
@@ -201,7 +205,10 @@ export default function WebsiteEditor({ slug = 'home' }) {
   if (status === 'error') {
     return (
       <div className="ds-content">
-        <div className="ds-page-header"><div><h1>Website</h1></div></div>
+        <div className="ds-page-header">
+          <div><h1>Website</h1></div>
+          <Button variant="secondary" onClick={() => { window.location.href = '/website' }}>← Back to pages</Button>
+        </div>
         <Alert variant="warning">{error}</Alert>
       </div>
     )
@@ -215,6 +222,11 @@ export default function WebsiteEditor({ slug = 'home' }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 46px)', background: 'var(--color-bg-base)' }}>
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', flexShrink: 0 }}>
+        <Button
+          variant="ghost"
+          style={{ height: 28, fontSize: 12, padding: '0 8px' }}
+          onClick={() => { window.location.href = '/website' }}
+        >← Pages</Button>
         <div style={{ fontSize: 14, fontWeight: 600 }}>{page?.title || slug}</div>
         <StatusBadge variant={page?.status === 'published' ? 'active' : 'neutral'}>
           {page?.status === 'published' ? 'Published' : 'Draft'}
