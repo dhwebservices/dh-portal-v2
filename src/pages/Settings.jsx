@@ -35,6 +35,9 @@ export default function Settings() {
   const [directoryError, setDirectoryError] = useState('')
   const [pickedGroupId, setPickedGroupId] = useState('')
   const [showWhatsNewPopup, setShowWhatsNewPopup] = useState(false)
+  const [escalation, setEscalation] = useState([])
+  const [callStaff, setCallStaff] = useState([])
+  const [pickedAgent, setPickedAgent] = useState('')
   const [whatsNew, setWhatsNew] = useState({
     active: false,
     version: '',
@@ -63,6 +66,7 @@ export default function Settings() {
       data.forEach(r => { map[r.key] = r.value?.value ?? r.value })
       setSettings(p => ({ ...p, ...map }))
       setEntraGroups(mergeEntraGroupCatalog(map[buildEntraGroupCatalogKey()] || []))
+      setEscalation(Array.isArray(map.appointment_call_escalation) ? map.appointment_call_escalation : [])
       if (map.whats_new_payload) {
         const nextPayload = {
           active: map.whats_new_payload.active === true,
@@ -84,6 +88,17 @@ export default function Settings() {
           cards: [{ ...EMPTY_WHATS_NEW_CARD }],
         })
       }
+    })
+
+    // Only people with a phone number can be rung, so the picker lists exactly
+    // those. Anyone missing one is reported separately rather than offered and
+    // silently skipped at dial time.
+    supabase.from('hr_profiles').select('user_email,full_name,phone').then(({ data }) => {
+      setCallStaff((Array.isArray(data) ? data : []).map((row) => ({
+        email: String(row.user_email || '').toLowerCase().trim(),
+        name: row.full_name || row.user_email || '',
+        phone: String(row.phone || '').trim(),
+      })).filter((row) => row.email))
     })
   }, [])
 
@@ -119,6 +134,26 @@ export default function Settings() {
     setSaving(false)
     setSaved('entra_groups')
     setTimeout(() => setSaved(''), 3000)
+  }
+
+  const saveEscalation = async (nextOrder) => {
+    setEscalation(nextOrder)
+    setSaving(true)
+    await supabase.from('portal_settings').upsert({
+      key: 'appointment_call_escalation',
+      value: { value: nextOrder },
+    }, { onConflict: 'key' })
+    setSaving(false)
+    setSaved('calls')
+    setTimeout(() => setSaved(''), 3000)
+  }
+
+  const moveAgent = (index, direction) => {
+    const next = [...escalation]
+    const target = index + direction
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    saveEscalation(next)
   }
 
   const addEntraGroup = () => {
@@ -315,7 +350,7 @@ export default function Settings() {
       ]} />
 
       <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
+        {[['general','General'],['email','Email'],['payments','Payments'],['notifications','Notifications'],['experience','Experience'],['calls','Appointment Calls'],['entra_groups','Entra Groups'],['danger','Danger Zone']].map(([k,l]) => (
           <Button key={k} onClick={() => setTab(k)} variant={tab===k ? 'primary' : 'secondary'} style={{ height:30, fontSize:12, padding:'0 10px' }}>{l}</Button>
         ))}
       </div>
@@ -337,6 +372,94 @@ export default function Settings() {
           onDismiss={() => setShowWhatsNewPopup(false)}
           onDontShowAgain={() => setShowWhatsNewPopup(false)}
         />
+      )}
+
+      {tab === 'calls' && (
+        <div style={{ ...DS_CARD, padding:20, maxWidth:720 }}>
+          <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>Automated appointment calls</div>
+          <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, marginBottom:16 }}>
+            At the appointment time we ring the staff member it is booked with. They hear who
+            the call is with and press 1 to be connected to the client. If nobody accepts,
+            the next person below is tried. If the list runs out the client is never dialled —
+            they get an apology email with a rebooking link instead.
+          </div>
+
+          {callStaff.some((person) => !person.phone) && (
+            <div style={{ marginBottom:16 }}>
+              <Alert variant="warning">
+                {callStaff.filter((person) => !person.phone).length} of {callStaff.length} staff have no
+                phone number on their profile and cannot be rung. Add one on their profile to make them selectable.
+              </Alert>
+            </div>
+          )}
+
+          <div style={{ fontSize:13, fontWeight:600, color:'var(--color-text-primary)', marginBottom:8 }}>Ring order</div>
+
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:8, marginBottom:8, background:'var(--color-bg-hover)' }}>
+            <StatusBadge variant="info">1st</StatusBadge>
+            <div style={{ flex:1, fontSize:13, color:'var(--color-text-primary)' }}>
+              The staff member the appointment is booked with
+            </div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>Always first</div>
+          </div>
+
+          {escalation.map((email, index) => {
+            const person = callStaff.find((candidate) => candidate.email === email)
+            return (
+              <div key={email} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:'1px solid var(--color-border)', borderRadius:8, marginBottom:8 }}>
+                <StatusBadge variant="neutral">{index + 2}</StatusBadge>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, color:'var(--color-text-primary)' }}>{person?.name || email}</div>
+                  <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+                    {person?.phone || 'No phone number — will be skipped'}
+                  </div>
+                </div>
+                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} disabled={index === 0 || saving} onClick={() => moveAgent(index, -1)}>↑</Button>
+                <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px' }} disabled={index === escalation.length - 1 || saving} onClick={() => moveAgent(index, 1)}>↓</Button>
+                <Button
+                  variant="secondary"
+                  style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }}
+                  disabled={saving}
+                  onClick={() => saveEscalation(escalation.filter((item) => item !== email))}
+                >
+                  Remove
+                </Button>
+              </div>
+            )
+          })}
+
+          {escalation.length === 0 && (
+            <div style={{ fontSize:13, color:'var(--color-text-secondary)', padding:'10px 12px', marginBottom:8 }}>
+              No fallbacks. If the assigned staff member does not answer, the client is emailed a rebooking link.
+            </div>
+          )}
+
+          <div style={{ display:'flex', gap:8, marginTop:16, flexWrap:'wrap' }}>
+            <FormSelect
+              value={pickedAgent}
+              onChange={(event) => setPickedAgent(event.target.value)}
+              style={{ flex:1, minWidth:260 }}
+            >
+              <option value="">Add a fallback…</option>
+              {callStaff
+                .filter((person) => person.phone && !escalation.includes(person.email))
+                .map((person) => (
+                  <option key={person.email} value={person.email}>{person.name} — {person.phone}</option>
+                ))}
+            </FormSelect>
+            <Button
+              variant="primary"
+              disabled={saving || !pickedAgent}
+              onClick={() => { saveEscalation([...escalation, pickedAgent]); setPickedAgent('') }}
+            >
+              + Add fallback
+            </Button>
+          </div>
+
+          {saved === 'calls' && (
+            <div style={{ marginTop:12 }}><Alert variant="info">Ring order saved.</Alert></div>
+          )}
+        </div>
       )}
 
       {tab === 'entra_groups' && (

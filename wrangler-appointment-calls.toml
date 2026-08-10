@@ -1,0 +1,8 @@
+name = "dh-appointment-calls"
+main = "workers/appointment-calls.js"
+compatibility_date = "2026-04-22"
+
+# Appointment slots are on the hour and half hour, so a five minute tick keeps
+# the worst-case delay well inside the dispatcher's ten minute due window.
+[triggers]
+crons = ["*/5 * * * *"]

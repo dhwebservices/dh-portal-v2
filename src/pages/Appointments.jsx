@@ -939,6 +939,33 @@ function BookingLinksPanel({ staff, feedback, onCopy, isAdmin }) {
   )
 }
 
+// Outcome of the automated call placed at the appointment time. Null means the
+// cron has not reached it yet, which is the normal state for a future booking.
+const CALL_STATUS = {
+  pending:   { label: 'Dialling',   variant: 'info' },
+  ringing:   { label: 'Ringing',    variant: 'info' },
+  connected: { label: 'Connected',  variant: 'active' },
+  no_answer: { label: 'No answer',  variant: 'warning' },
+  declined:  { label: 'Declined',   variant: 'warning' },
+  failed:    { label: 'Failed',     variant: 'error' },
+  skipped:   { label: 'Skipped',    variant: 'neutral' },
+}
+
+function CallOutcome({ appointment }) {
+  const state = CALL_STATUS[appointment.call_status]
+  if (!state) return <span style={{ color:'var(--color-text-tertiary)', fontSize:12 }}>—</span>
+  return (
+    <div>
+      <StatusBadge variant={state.variant}>{state.label}</StatusBadge>
+      {appointment.call_answered_by && (
+        <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:2 }}>
+          {appointment.call_answered_by}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, onRefresh }) {
   const [filter, setFilter] = useState('upcoming')
   const [staffFilter, setStaffFilter] = useState('all')
@@ -987,7 +1014,7 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
           <>
             <div className="tbl-wrap hide-mob">
               <table className="ds-table">
-                <thead><tr><th>Client</th><th>Business</th><th>Date</th><th>Time</th><th>Duration</th><th>Staff</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Client</th><th>Business</th><th>Date</th><th>Time</th><th>Duration</th><th>Staff</th><th>Status</th><th>Call</th><th></th></tr></thead>
                 <tbody>
                   {filtered.map(a => (
                     <tr key={a.id}>
@@ -1001,6 +1028,7 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
                       <td style={{ fontSize:12 }}>{a.duration} min</td>
                       <td style={{ fontSize:12 }}>{a.staff_name?.split(' ')[0]}</td>
                       <td><StatusBadge variant={a.status==='confirmed'?'active':a.status==='cancelled'?'error':'warning'}>{a.status}</StatusBadge></td>
+                      <td><CallOutcome appointment={a} /></td>
                       <td>
                         {a.status === 'confirmed' && (
                           <Button variant="secondary" style={{ height:28, fontSize:12, padding:'0 8px', color:'var(--color-red-500)' }} onClick={() => onCancel(a)} disabled={saving}>Cancel</Button>
@@ -1008,7 +1036,7 @@ function AllBookings({ appointments, loading, onCancel, saving, isAdmin, user, o
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No appointments found</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign:'center', padding:40, color:'var(--color-text-tertiary)' }}>No appointments found</td></tr>}
                 </tbody>
               </table>
             </div>
