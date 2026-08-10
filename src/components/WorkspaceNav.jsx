@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 const WORKSPACES = [
   { id: 'people', label: 'People', path: '/people' },
   { id: 'recruiting', label: 'Recruiting', path: '/recruiting' },
-  { id: 'websites', label: 'Websites', path: '/website-builder' },
+  { id: 'websites', label: 'Websites', path: '/clients' },
   { id: 'support', label: 'Support', path: '/support' },
   { id: 'reports', label: 'Reports', path: '/reports' },
   { id: 'admin', label: 'Admin', path: '/settings' },
