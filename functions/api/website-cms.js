@@ -88,6 +88,164 @@ async function saveContent(env, user, payload) {
   return json({ ok: true, section, updated_by: user.name || user.email })
 }
 
+/** Where the editor frames the site, and where the manifest is read from. */
+function siteOrigin(env) {
+  return env.PUBLIC_SITE_ORIGIN || 'https://dhwebsiteservices.co.uk'
+}
+
+async function getPage(env, payload) {
+  const slug = String(payload?.slug || '').trim()
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}&select=*&limit=1`,
+    { headers: supabaseHeaders(env) },
+  )
+  const rows = await response.json().catch(() => [])
+  const page = Array.isArray(rows) ? rows[0] : null
+  if (!page) return json({ error: `No page with slug "${slug}".` }, 404)
+
+  return json({ ok: true, page })
+}
+
+/**
+ * Seed a page's draft from the document bundled in the site build.
+ * Refuses to overwrite an existing draft - importing is for starting a page
+ * off, not for quietly discarding someone's unpublished work.
+ */
+async function importPage(env, user, payload) {
+  const slug = String(payload?.slug || '').trim()
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+
+  const manifestUrl = `${siteOrigin(env)}/block-manifest.json`
+  const manifest = await fetch(manifestUrl, { cf: { cacheTtl: 0 } })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
+
+  const document = manifest?.documents?.[slug]
+  if (!document) {
+    return json({ error: `The site build has no built-in document for "${slug}".` }, 404)
+  }
+
+  const existing = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}&select=content&limit=1`,
+    { headers: supabaseHeaders(env) },
+  ).then((r) => r.json()).catch(() => [])
+
+  const currentBlocks = existing?.[0]?.content?.blocks
+  if (Array.isArray(currentBlocks) && currentBlocks.length > 0 && !payload?.overwrite) {
+    return json({ error: 'This page already has a draft. Importing would discard it.' }, 409)
+  }
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders(env, { Prefer: 'return=representation' }),
+      body: JSON.stringify({
+        content: document,
+        updated_at: new Date().toISOString(),
+        updated_by_email: user.email,
+        updated_by_name: user.name,
+      }),
+    },
+  )
+  if (!response.ok) return json({ error: 'Could not import the page.' }, 502)
+
+  return json({ ok: true, slug, blocks: document.blocks?.length || 0 })
+}
+
+async function saveDraft(env, user, payload) {
+  const slug = String(payload?.slug || '').trim()
+  const document = payload?.document
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+  if (!document || !Array.isArray(document.blocks)) {
+    return json({ error: 'A block document is required.' }, 400)
+  }
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders(env),
+      body: JSON.stringify({
+        content: document,
+        updated_at: new Date().toISOString(),
+        updated_by_email: user.email,
+        updated_by_name: user.name,
+      }),
+    },
+  )
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    return json({ error: 'Could not save the draft.', detail: detail.slice(0, 300) }, 502)
+  }
+  return json({ ok: true, savedAt: new Date().toISOString() })
+}
+
+/**
+ * Copy draft to published, and keep the previous published version so a bad
+ * publish is one click back rather than a retype.
+ */
+async function publishPage(env, user, payload) {
+  const slug = String(payload?.slug || '').trim()
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+
+  const rows = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}&select=id,content,published_content&limit=1`,
+    { headers: supabaseHeaders(env) },
+  ).then((r) => r.json()).catch(() => [])
+
+  const page = Array.isArray(rows) ? rows[0] : null
+  if (!page) return json({ error: `No page with slug "${slug}".` }, 404)
+  if (!Array.isArray(page.content?.blocks) || page.content.blocks.length === 0) {
+    return json({ error: 'There is nothing in this draft to publish.' }, 400)
+  }
+
+  if (page.published_content) {
+    // version_number is NOT NULL with no default, so it has to be worked out
+    // here rather than left to the database.
+    const previous = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/website_versions`
+        + `?page_id=eq.${page.id}&select=version_number&order=version_number.desc&limit=1`,
+      { headers: supabaseHeaders(env) },
+    ).then((r) => r.json()).catch(() => [])
+
+    const nextVersion = (Number(previous?.[0]?.version_number) || 0) + 1
+
+    await fetch(`${env.SUPABASE_URL}/rest/v1/website_versions`, {
+      method: 'POST',
+      headers: supabaseHeaders(env),
+      body: JSON.stringify({
+        page_id: page.id,
+        version_number: nextVersion,
+        label: `Replaced on publish by ${user.name || user.email}`,
+        content: page.published_content,
+        created_by_email: user.email,
+        created_by_name: user.name,
+      }),
+    }).catch(() => null) // history is useful, not worth failing a publish over
+  }
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders(env),
+      body: JSON.stringify({
+        published_content: page.content,
+        status: 'published',
+        published_at: new Date().toISOString(),
+        updated_by_email: user.email,
+        updated_by_name: user.name,
+      }),
+    },
+  )
+  if (!response.ok) return json({ error: 'Could not publish the page.' }, 502)
+
+  return json({ ok: true, slug, publishedAt: new Date().toISOString() })
+}
+
 async function listPages(env) {
   const response = await fetch(
     `${env.SUPABASE_URL}/rest/v1/website_pages`
@@ -127,6 +285,14 @@ export async function onRequestPost(context) {
         return await saveContent(env, user, payload)
       case 'list_pages':
         return await listPages(env)
+      case 'get_page':
+        return await getPage(env, payload)
+      case 'import_page':
+        return await importPage(env, user, payload)
+      case 'save_draft':
+        return await saveDraft(env, user, payload)
+      case 'publish_page':
+        return await publishPage(env, user, payload)
       default:
         return json({ error: `Unknown action "${payload?.action}".` }, 400)
     }
