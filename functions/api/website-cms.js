@@ -309,6 +309,85 @@ async function revertDraft(env, user, payload) {
   return json({ ok: true, slug })
 }
 
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+// Owned by real routes on the site. A managed page using one of these would
+// never render, because the hardcoded route wins - so refuse it here rather
+// than let someone create a page that silently does nothing.
+const RESERVED_SLUGS = new Set([
+  'home', 'services', 'about', 'partners', 'portfolio', 'pricing', 'calculator',
+  'careers', 'contact', 'privacy', 'terms', 'services-terms', 'refunds',
+  'cookies', 'acceptable-use', 'accessibility', 'security', 'complaints',
+  'appointment', 'shop',
+])
+
+async function createPage(env, user, payload) {
+  const slug = String(payload?.slug || '').trim().toLowerCase()
+  const title = String(payload?.title || '').trim()
+
+  if (!title) return json({ error: 'The page needs a title.' }, 400)
+  if (!SLUG_PATTERN.test(slug)) {
+    return json({ error: 'The address may only use lowercase letters, numbers and hyphens.' }, 400)
+  }
+  if (RESERVED_SLUGS.has(slug)) {
+    return json({ error: `"${slug}" is used by an existing page, so this one would never appear.` }, 409)
+  }
+
+  const existing = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}&select=id&limit=1`,
+    { headers: supabaseHeaders(env) },
+  ).then((r) => r.json()).catch(() => [])
+  if (Array.isArray(existing) && existing.length) {
+    return json({ error: `A page already uses the address "${slug}".` }, 409)
+  }
+
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/website_pages`, {
+    method: 'POST',
+    headers: supabaseHeaders(env, { Prefer: 'return=representation' }),
+    body: JSON.stringify({
+      slug,
+      title,
+      nav_label: payload?.navLabel || title,
+      content: { version: 1, blocks: [] },
+      published_content: null,
+      status: 'draft',
+      active: true,
+      show_in_nav: payload?.showInNav === true,
+      sort_order: Number(payload?.sortOrder) || 0,
+      meta_description: payload?.metaDescription || '',
+      created_by_email: user.email,
+      created_by_name: user.name,
+    }),
+  })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    return json({ error: 'Could not create the page.', detail: detail.slice(0, 300) }, 502)
+  }
+  const rows = await response.json().catch(() => [])
+  return json({ ok: true, page: Array.isArray(rows) ? rows[0] : rows })
+}
+
+/** Title, address, nav placement and SEO - everything except the blocks. */
+async function updatePageSettings(env, user, payload) {
+  const slug = String(payload?.slug || '').trim()
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+
+  const patch = { updated_at: new Date().toISOString(), updated_by_email: user.email, updated_by_name: user.name }
+  if (payload.title !== undefined) patch.title = String(payload.title).trim()
+  if (payload.navLabel !== undefined) patch.nav_label = String(payload.navLabel).trim()
+  if (payload.showInNav !== undefined) patch.show_in_nav = payload.showInNav === true
+  if (payload.active !== undefined) patch.active = payload.active === true
+  if (payload.sortOrder !== undefined) patch.sort_order = Number(payload.sortOrder) || 0
+  if (payload.metaDescription !== undefined) patch.meta_description = String(payload.metaDescription)
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}`,
+    { method: 'PATCH', headers: supabaseHeaders(env), body: JSON.stringify(patch) },
+  )
+  if (!response.ok) return json({ error: 'Could not save the page settings.' }, 502)
+  return json({ ok: true })
+}
+
 async function listPages(env) {
   const response = await fetch(
     `${env.SUPABASE_URL}/rest/v1/website_pages`
@@ -358,6 +437,10 @@ export async function onRequestPost(context) {
         return await publishPage(env, user, payload)
       case 'revert_draft':
         return await revertDraft(env, user, payload)
+      case 'create_page':
+        return await createPage(env, user, payload)
+      case 'update_page_settings':
+        return await updatePageSettings(env, user, payload)
       default:
         return json({ error: `Unknown action "${payload?.action}".` }, 400)
     }

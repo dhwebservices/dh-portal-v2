@@ -11,8 +11,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMsal } from '@azure/msal-react'
 import SubNav from '../../components/SubNav'
 import { useAuth } from '../../contexts/AuthContext'
-import { Button, Alert, StatusBadge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ds'
-import { listPages, loadBlockManifest, SITE_ORIGIN } from '../../utils/website/cms'
+import { Button, Alert, StatusBadge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, FormField, FormLabel, FormInput, FormHint } from '../../components/ds'
+import { listPages, loadBlockManifest, createPage, slugify, SITE_ORIGIN } from '../../utils/website/cms'
 
 export default function PageList() {
   const navigate = useNavigate()
@@ -24,6 +24,11 @@ export default function PageList() {
   const [importable, setImportable] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newSlug, setNewSlug] = useState('')
+  const [slugEdited, setSlugEdited] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -61,6 +66,9 @@ export default function PageList() {
             {pages.length} {pages.length === 1 ? 'page' : 'pages'} · dhwebsiteservices.co.uk
           </p>
         </div>
+        <Button variant="primary" onClick={() => setCreating((v) => !v)}>
+          {creating ? 'Cancel' : '+ New page'}
+        </Button>
       </div>
 
       <SubNav items={[
@@ -73,6 +81,56 @@ export default function PageList() {
       ]} />
 
       {error ? <div style={{ marginBottom: 16 }}><Alert variant="warning">{error}</Alert></div> : null}
+
+      {creating && (
+        <div style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-lg)', padding: 20, marginBottom: 16, maxWidth: 560 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>New page</div>
+          <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+            Starts empty. Add sections in the editor, then publish — the address goes live at that point,
+            not before.
+          </div>
+
+          <FormField>
+            <FormLabel required>Title</FormLabel>
+            <FormInput
+              value={newTitle}
+              placeholder="e.g. Web Design for Dentists"
+              onChange={(e) => {
+                setNewTitle(e.target.value)
+                if (!slugEdited) setNewSlug(slugify(e.target.value))
+              }}
+            />
+          </FormField>
+
+          <FormField>
+            <FormLabel required>Address</FormLabel>
+            <FormInput
+              value={newSlug}
+              placeholder="web-design-for-dentists"
+              onChange={(e) => { setSlugEdited(true); setNewSlug(slugify(e.target.value)) }}
+            />
+            <FormHint>dhwebsiteservices.co.uk/{newSlug || '…'}</FormHint>
+          </FormField>
+
+          <Button
+            variant="primary"
+            disabled={saving || !newTitle.trim() || !newSlug}
+            onClick={async () => {
+              setSaving(true); setError('')
+              try {
+                const result = await createPage(instance, account, { title: newTitle.trim(), slug: newSlug })
+                navigate(`/website/edit/${result.page.slug}`)
+              } catch (err) {
+                setError(err.message)
+              } finally {
+                setSaving(false)
+              }
+            }}
+          >
+            {saving ? 'Creating…' : 'Create and open'}
+          </Button>
+        </div>
+      )}
 
       {SITE_ORIGIN.includes('pages.dev') ? (
         <div style={{ marginBottom: 16 }}>

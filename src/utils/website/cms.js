@@ -61,6 +61,23 @@ export function saveDraft(instance, account, slug, document) {
   return callPortalApi(instance, account, '/api/website-cms', { action: 'save_draft', slug, document })
 }
 
+export function createPage(instance, account, page) {
+  return callPortalApi(instance, account, '/api/website-cms', { action: 'create_page', ...page })
+}
+
+export function updatePageSettings(instance, account, settings) {
+  return callPortalApi(instance, account, '/api/website-cms', { action: 'update_page_settings', ...settings })
+}
+
+/** Turn a title into a URL-safe address, the way the server expects it. */
+export function slugify(title) {
+  return String(title || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export function revertDraft(instance, account, slug) {
   return callPortalApi(instance, account, '/api/website-cms', { action: 'revert_draft', slug })
 }
