@@ -47,7 +47,7 @@ function Field({ field, value, onChange }) {
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: PANEL_GAP }}>
           <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{label}</span>
-          <Toggle checked={value === true} onChange={(next) => onChange(next === true || next?.target?.checked === true)} />
+          <Toggle enabled={value === true} onChange={(next) => onChange(next === true)} />
         </div>
       )
 

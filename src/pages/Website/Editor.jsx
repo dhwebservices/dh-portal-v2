@@ -47,6 +47,9 @@ export default function WebsiteEditor({ slug = 'home' }) {
   const [frameReady, setFrameReady] = useState(false)
   const [showInsert, setShowInsert] = useState(false)
   const [dragIndex, setDragIndex] = useState(null)
+  // Two-step buttons rather than window.confirm: a native dialog blocks the
+  // whole page, and looks nothing like the rest of the portal.
+  const [pending, setPending] = useState(null)
 
   const history = useRef({ past: [], future: [] })
 
@@ -170,7 +173,7 @@ export default function WebsiteEditor({ slug = 'home' }) {
   /* ── actions ──────────────────────────────────────────────────────────── */
 
   const handleImport = async () => {
-    if (!confirm('Load this page\'s current content from the live site? Any draft here is replaced.')) return
+    setPending(null)
     try {
       await importPage(instance, account, slug, true)
       const refreshed = await getPage(instance, account, slug)
@@ -183,7 +186,7 @@ export default function WebsiteEditor({ slug = 'home' }) {
   }
 
   const handlePublish = async () => {
-    if (!confirm('Publish this page? It goes live immediately.')) return
+    setPending(null)
     try {
       if (dirty) await saveDraft(instance, account, slug, doc)
       await publishPage(instance, account, slug)
@@ -249,8 +252,24 @@ export default function WebsiteEditor({ slug = 'home' }) {
         </div>
 
         <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={undo}>Undo</Button>
-        <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={handleImport}>Reload from site</Button>
-        <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={handlePublish}>Publish</Button>
+        {pending === 'import' ? (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Replace this draft with the live page?</span>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending(null)}>Cancel</Button>
+            <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={handleImport}>Yes, reload</Button>
+          </>
+        ) : pending === 'publish' ? (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Publish to the live site now?</span>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending(null)}>Cancel</Button>
+            <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={handlePublish}>Yes, publish</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending('import')}>Reload from site</Button>
+            <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending('publish')}>Publish</Button>
+          </>
+        )}
       </div>
 
       {error ? <div style={{ padding: '8px 16px' }}><Alert variant="warning">{error}</Alert></div> : null}
