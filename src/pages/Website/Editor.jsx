@@ -15,7 +15,7 @@ import { useMsal } from '@azure/msal-react'
 import { Button, Alert, StatusBadge } from '../../components/ds'
 import {
   SITE_ORIGIN, EDIT_PROTOCOL, loadBlockManifest,
-  getPage, importPage, saveDraft, publishPage,
+  getPage, importPage, saveDraft, publishPage, revertDraft,
   createBlock, moveBlock, insertBlock, removeBlock, duplicateBlock, patchBlockProps,
 } from '../../utils/website/cms'
 import Inspector from './Inspector'
@@ -27,6 +27,11 @@ const DEVICES = {
 }
 
 const AUTOSAVE_MS = 2000
+
+/** "home" lives at the site root; everything else at /slug. */
+function pathForSlug(slug) {
+  return slug === 'home' ? '/' : `/${slug}`
+}
 
 export default function WebsiteEditor({ slug = 'home' }) {
   const { instance, accounts } = useMsal()
@@ -185,6 +190,20 @@ export default function WebsiteEditor({ slug = 'home' }) {
     }
   }
 
+  const handleRevert = async () => {
+    setPending(null)
+    try {
+      await revertDraft(instance, account, slug)
+      const refreshed = await getPage(instance, account, slug)
+      setPage(refreshed.page)
+      setDoc(refreshed.page.content)
+      setDirty(false)
+      setError('')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const handlePublish = async () => {
     setPending(null)
     try {
@@ -254,9 +273,18 @@ export default function WebsiteEditor({ slug = 'home' }) {
         <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={undo}>Undo</Button>
         {pending === 'import' ? (
           <>
-            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Replace this draft with the live page?</span>
+            <span style={{ fontSize: 12, color: 'var(--color-red-500)' }}>
+              Replaces all {blocks.length} section{blocks.length === 1 ? '' : 's'} with the copy built
+              into the site. Anything edited here and not yet published is lost.
+            </span>
             <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending(null)}>Cancel</Button>
             <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={handleImport}>Yes, reload</Button>
+          </>
+        ) : pending === 'revert' ? (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Discard this draft and go back to what is live?</span>
+            <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending(null)}>Cancel</Button>
+            <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={handleRevert}>Yes, undo</Button>
           </>
         ) : pending === 'publish' ? (
           <>
@@ -266,6 +294,9 @@ export default function WebsiteEditor({ slug = 'home' }) {
           </>
         ) : (
           <>
+            {page?.status === 'published' && (
+              <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending('revert')}>Undo to live</Button>
+            )}
             <Button variant="secondary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending('import')}>Reload from site</Button>
             <Button variant="primary" style={{ height: 28, fontSize: 12 }} onClick={() => setPending('publish')}>Publish</Button>
           </>
@@ -344,7 +375,7 @@ export default function WebsiteEditor({ slug = 'home' }) {
           <iframe
             ref={frameRef}
             title="Website preview"
-            src={`${SITE_ORIGIN}/?dh_edit=1`}
+            src={`${SITE_ORIGIN}${pathForSlug(slug)}?dh_edit=1`}
             style={{
               width: frameWidth,
               maxWidth: '100%',

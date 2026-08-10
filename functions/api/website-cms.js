@@ -271,6 +271,44 @@ async function publishPage(env, user, payload) {
   return json({ ok: true, slug, publishedAt: new Date().toISOString() })
 }
 
+/**
+ * Put the draft back to whatever is currently published.
+ *
+ * The counterpart to publish. Without it, a draft that goes wrong - a bad
+ * import, an edit in the wrong place - can only be undone by retyping, because
+ * the editor's undo stack does not survive a reload.
+ */
+async function revertDraft(env, user, payload) {
+  const slug = String(payload?.slug || '').trim()
+  if (!slug) return json({ error: 'No page requested.' }, 400)
+
+  const rows = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}&select=published_content&limit=1`,
+    { headers: supabaseHeaders(env) },
+  ).then((r) => r.json()).catch(() => [])
+
+  const published = Array.isArray(rows) ? rows[0]?.published_content : null
+  if (!published?.blocks?.length) {
+    return json({ error: 'This page has never been published, so there is nothing to go back to.' }, 400)
+  }
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/website_pages?slug=eq.${encodeURIComponent(slug)}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders(env),
+      body: JSON.stringify({
+        content: published,
+        updated_at: new Date().toISOString(),
+        updated_by_email: user.email,
+        updated_by_name: user.name,
+      }),
+    },
+  )
+  if (!response.ok) return json({ error: 'Could not restore the draft.' }, 502)
+  return json({ ok: true, slug })
+}
+
 async function listPages(env) {
   const response = await fetch(
     `${env.SUPABASE_URL}/rest/v1/website_pages`
@@ -318,6 +356,8 @@ export async function onRequestPost(context) {
         return await saveDraft(env, user, payload)
       case 'publish_page':
         return await publishPage(env, user, payload)
+      case 'revert_draft':
+        return await revertDraft(env, user, payload)
       default:
         return json({ error: `Unknown action "${payload?.action}".` }, 400)
     }

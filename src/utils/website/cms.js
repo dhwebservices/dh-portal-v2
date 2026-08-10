@@ -61,6 +61,10 @@ export function saveDraft(instance, account, slug, document) {
   return callPortalApi(instance, account, '/api/website-cms', { action: 'save_draft', slug, document })
 }
 
+export function revertDraft(instance, account, slug) {
+  return callPortalApi(instance, account, '/api/website-cms', { action: 'revert_draft', slug })
+}
+
 export function publishPage(instance, account, slug) {
   return callPortalApi(instance, account, '/api/website-cms', { action: 'publish_page', slug })
 }
