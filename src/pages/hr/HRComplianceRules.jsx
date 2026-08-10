@@ -173,7 +173,7 @@ export default function HRComplianceRules() {
       <div className="ds-page-header">
         <div>
           <h1>Compliance Rules</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Define required documents and training by role, department, and lifecycle, then watch the gaps automatically.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Required documents and training by role</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button variant="secondary" onClick={() => navigate('/hr/documents')}>Back to HR documents</Button>

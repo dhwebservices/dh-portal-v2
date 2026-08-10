@@ -199,7 +199,7 @@ export default function Search() {
       <div className="ds-page-header">
         <div>
           <h1>Search</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Find clients, staff, tasks, tickets, notifications, and invoices from one place.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Search across the portal</p>
         </div>
       </div>
 

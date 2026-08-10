@@ -135,7 +135,7 @@ export default function RecruitingJobEditor() {
         <div className="ds-page-header">
           <div>
             <h1>{job.title || 'Role overview'}</h1>
-            <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Overview, requisition health, and the live candidate pipeline for this role.</p>
+            <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Role overview and candidates</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <Button variant="secondary" onClick={() => navigate('/recruiting')}>Back</Button>
@@ -198,7 +198,7 @@ export default function RecruitingJobEditor() {
       <div className="ds-page-header">
         <div>
           <h1>{isNew ? 'Create role' : 'Edit role'}</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Build a full public job post and control how the careers site accepts applications.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Job post and application settings</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => navigate(isNew ? '/recruiting' : `/recruiting/jobs/${id}`)}>Back</Button>

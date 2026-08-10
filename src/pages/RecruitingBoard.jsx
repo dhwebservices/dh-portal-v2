@@ -26,7 +26,7 @@ export default function RecruitingBoard() {
       <div className="ds-page-header">
         <div>
           <h1>Recruiting board</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Pipeline view across every stage from new applicant to hire.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Candidate pipeline</p>
         </div>
       </div>
 

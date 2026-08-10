@@ -558,7 +558,7 @@ export default function ServiceAdmin() {
         </div>
         <div className="service-admin-panel">
           <div className="service-admin-section__eyebrow">Managed here</div>
-          <h3>Settings you can now control</h3>
+          <h3>Settings you control</h3>
           <div className="service-admin-note-list">
             <span>Booking defaults and public booking toggles</span>
             <span>Onboarding manager, department, and starter guide defaults</span>

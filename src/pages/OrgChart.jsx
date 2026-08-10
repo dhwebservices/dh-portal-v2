@@ -327,7 +327,7 @@ export default function OrgChart() {
       <div className="ds-page-header">
         <div>
           <h1>Organisation Chart</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live reporting lines from staff profiles and manager assignments.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Reporting lines across the business</p>
         </div>
       </div>
 

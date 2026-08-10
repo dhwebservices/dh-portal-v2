@@ -37,7 +37,7 @@ export default function RecruitingSettings() {
       <div className="ds-page-header">
         <div>
           <h1>Recruiting settings</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Keep the default commission acknowledgement and reusable question copy in one place.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Recruitment defaults</p>
         </div>
       </div>
 

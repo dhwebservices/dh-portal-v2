@@ -191,7 +191,7 @@ export default function ContractTemplates() {
       <div className="ds-page-header">
         <div>
           <h1>Contract Templates</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Build mergeable employment contract templates, attach a reference contract, and reuse them across staff onboarding.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Employment contract templates</p>
         </div>
         <Button variant="primary" onClick={openNew}>+ New Template</Button>
       </div>

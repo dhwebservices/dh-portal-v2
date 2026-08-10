@@ -587,7 +587,7 @@ export default function Reports() {
       <div className="page-hd" style={{ marginBottom: 18 }}>
         <div>
           <h1 className="page-title">Reports</h1>
-          <p className="page-sub">Live operations, people activity, and audit visibility in one place.</p>
+          <p className="page-sub">Operations, people and audit reporting</p>
         </div>
       </div>
 

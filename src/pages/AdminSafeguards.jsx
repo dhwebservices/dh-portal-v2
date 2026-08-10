@@ -343,7 +343,7 @@ export default function AdminSafeguards() {
       <div className="ds-page-header">
         <div>
           <h1>Admin Safeguards</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live checks for staff data integrity, onboarding drift, scheduling gaps, and client payment hygiene.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Data and scheduling checks</p>
         </div>
         <Button variant="secondary" onClick={load} disabled={refreshing} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <RefreshCw size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />

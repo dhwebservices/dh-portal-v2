@@ -641,40 +641,6 @@ export default function SiteEditor() {
               )}
             </div>
 
-            {/* Setup instructions if needed */}
-            <details style={{ marginTop:24 }}>
-              <summary style={{ fontSize:12, color:'var(--faint)', cursor:'pointer', fontFamily:'var(--font-mono)' }}>SQL setup (run once if not done)</summary>
-              <pre style={{ marginTop:8, padding:'12px', background:'var(--bg2)', borderRadius:8, fontSize:11, fontFamily:'var(--font-mono)', color:'var(--text)', overflow:'auto', lineHeight:1.6 }}>{`drop table if exists website_content;
-create table website_content (
-  id uuid default gen_random_uuid() primary key,
-  section text unique not null,
-  content jsonb,
-  updated_at timestamptz default now(),
-  updated_by text
-);
-create table if not exists website_pages (
-  id uuid default gen_random_uuid() primary key,
-  title text not null,
-  slug text unique not null,
-  nav_label text,
-  summary text,
-  body text,
-  show_in_nav boolean default false,
-  active boolean default true,
-  sort_order integer default 0,
-  meta_title text,
-  meta_description text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  updated_by text
-);
-alter table website_content enable row level security;
-alter table website_pages enable row level security;
-create policy "allow_all" on website_content
-  for all using (true) with check (true);
-create policy "allow_all_pages" on website_pages
-  for all using (true) with check (true);`}</pre>
-            </details>
           </>
         )}
       </div>

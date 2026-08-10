@@ -108,7 +108,6 @@ export default function Proposals() {
       })
 
       setProposalId(proposal.id)
-      console.log('Proposal saved:', proposal.id)
     } catch (err) {
       console.error('Failed to save proposal:', err)
     }
@@ -143,7 +142,6 @@ export default function Proposals() {
       })
 
       const emailResult = await sendPaymentEmail(form.clientEmail, form.clientName, result.url, amount, description)
-      console.log('Email send result:', emailResult)
 
       if (!emailResult?.ok) {
         console.warn('Email failed to send:', emailResult)

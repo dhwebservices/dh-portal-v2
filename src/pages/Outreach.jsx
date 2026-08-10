@@ -1174,7 +1174,7 @@ export default function Outreach() {
       <div className="ds-page-header">
         <div>
           <h1>Outreach</h1>
-          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Outreach queue, recent contact history, and follow-up actions in one place.</p>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Outreach queue and follow-ups</p>
         </div>
         {tab === 'contacts' && <Button variant="primary" onClick={openAdd}>+ Add Contact</Button>}
       </div>

@@ -1847,9 +1847,8 @@ export default function HROnboarding() {
             <div style={{ marginBottom:16 }}>
               <Alert variant="warning">
                 The account was created, but {starterProvisioningResult.groups.failed.length} group
-                {starterProvisioningResult.groups.failed.length === 1 ? '' : 's'} could not be assigned. Check the Object
-                IDs in Settings → Entra Groups, and that the app registration has GroupMember.ReadWrite.All with admin
-                consent. You may need to add these manually in Entra for now.
+                {starterProvisioningResult.groups.failed.length === 1 ? '' : 's'} could not be assigned.
+                Check the group list in Settings → Entra Groups, and add the missing ones in Entra.
               </Alert>
             </div>
           ) : null}

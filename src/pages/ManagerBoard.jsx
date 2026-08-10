@@ -198,7 +198,7 @@ export default function ManagerBoard() {
       <div className="ds-page-header" style={{ marginBottom: 18 }}>
         <div>
           <h1>Manager Board</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>A live control centre for overdue work, approvals, onboarding pressure, and team load.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Overdue work, approvals and team load</p>
         </div>
       </div>
 

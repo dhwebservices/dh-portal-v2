@@ -113,7 +113,7 @@ export default function HRTrainingCatalogue() {
       <div className="ds-page-header">
         <div>
           <h1>Training Catalogue</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Reusable training templates for induction, compliance, systems, and certification assignments.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Training templates</p>
         </div>
         <Button variant="primary" onClick={openCreate}>New training template</Button>
       </div>

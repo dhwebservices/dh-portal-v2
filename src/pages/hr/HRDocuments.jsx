@@ -252,7 +252,7 @@ export default function HRDocuments() {
       <div className="ds-page-header">
         <div>
           <h1>HR Documents</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Document coverage, right-to-work risk, and payroll file health across the team.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Staff documents and right-to-work</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button variant="secondary" onClick={() => navigate('/hr/compliance-rules')}>Open compliance rules</Button>

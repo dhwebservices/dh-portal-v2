@@ -136,7 +136,7 @@ export default function KnowledgeBase() {
       <div className="ds-page-header">
         <div>
           <h1>Knowledge Base</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Reusable answers, onboarding notes, billing guidance, and support playbooks in one shared library.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Support answers and internal guides</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button variant="secondary" onClick={() => load()}>Refresh</Button>

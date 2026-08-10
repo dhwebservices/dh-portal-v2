@@ -325,19 +325,9 @@ export default function Settings() {
         <div style={{ ...DS_CARD, padding:20, maxWidth:860 }}>
           <div style={{ fontSize:15, fontWeight:600, color:'var(--color-text-primary)' }}>Entra security groups</div>
           <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginTop:6, lineHeight:1.6, marginBottom:16 }}>
-            Groups listed here are applied automatically when a new starter's Microsoft 365 account is created,
-            so you no longer have to set group membership by hand in Entra. Load the live group list from Entra and pick
-            the group from the dropdown — the Object ID comes across with it. Mark a group <strong>Automatic</strong> to add every new
-            starter to it; leave it off to make it an optional tick-box on the new starter form.
-          </div>
-
-          <div style={{ marginBottom:16 }}>
-            <Alert variant="warning">
-              The group picker reads Entra using the <strong>GroupMember.ReadWrite.All</strong> and{' '}
-              <strong>Organization.Read.All</strong> application permissions on the &quot;DH portal&quot; app registration
-              (both Application, admin-consented). These are configured, so groups load and membership is applied at
-              account creation.
-            </Alert>
+            New starters are added to these groups when their Microsoft 365 account is created.
+            Mark a group <strong>Automatic</strong> to add every starter to it, or leave it off to make it
+            a tick-box on the new starter form.
           </div>
 
           {directoryError && (

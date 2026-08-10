@@ -600,7 +600,7 @@ export default function Departments() {
       <div className="ds-page-header">
         <div>
           <h1>Departments</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Director control centre for departments, manager assignments, and approval requests.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Departments, managers and approvals</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={() => navigate('/recruiting')}>Open Hiring</Button>

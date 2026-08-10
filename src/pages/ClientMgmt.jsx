@@ -595,7 +595,7 @@ export default function ClientMgmt() {
   return (
     <div className="ds-content">
       <div className="ds-page-header">
-        <div><h1>Client Portal Management</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Live delivery, billing, and support view across {clients.length} client accounts.</p></div>
+        <div><h1>Client Portal Management</h1><p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>{clients.length} client accounts</p></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0,1fr))', gap:14, marginBottom:20 }}>
         <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{stats.active}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Active clients</div></div>

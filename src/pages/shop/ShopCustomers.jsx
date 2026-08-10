@@ -52,7 +52,7 @@ export default function ShopCustomers() {
       <div className="ds-page-header">
         <div>
           <h1>Shop customers</h1>
-          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Review customer accounts, contact details, and order history.</p>
+          <p style={{ fontSize:'14px', color:'var(--color-text-secondary)', marginTop:'4px' }}>Customer accounts and orders</p>
         </div>
         <FormInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customers…" style={{ width: 280 }} />
       </div>
