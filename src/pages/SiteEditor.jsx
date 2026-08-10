@@ -33,12 +33,6 @@ const DEFAULTS = {
     email_to: 'mgmt@dhwebsiteservices.co.uk',
     background_tone: 'light',
   },
-  services: [
-    { icon: '💻', title: 'Custom Web Development', desc: 'Tailored solutions built from the ground up for your unique business needs. Production-ready code, not templates.', color: 'var(--cyan)' },
-    { icon: '🎨', title: 'User-Centric Design', desc: 'Beautiful interfaces that engage visitors and drive conversions. Every pixel intentional, every interaction purposeful.', color: 'var(--purple2)' },
-    { icon: '🛠', title: 'Full Support & Maintenance', desc: "Ongoing maintenance to keep your site running at peak performance. We're here long after launch.", color: 'var(--green)' },
-    { icon: '👥', title: 'HR System Integration', desc: 'Full HR portal built into your website — onboarding, leave, payslips, timesheets and more.', color: 'var(--amber)' },
-  ],
   mailing_list: {
     enabled: true,
     headline: 'Get a discount on your first project',
@@ -46,26 +40,6 @@ const DEFAULTS = {
     button_text: 'Claim my discount',
     delay_seconds: 5,
   },
-  pricing: {
-    builds: [
-      { name: 'Starter', price: 449, delivery: '2–3 weeks', revisions: '1 round', badge: '', features: ['5-page professional website', 'Mobile responsive design', 'Basic SEO setup', 'Contact form', 'Google Maps embed', 'SSL certificate'] },
-      { name: 'Growth', price: 999, delivery: '3–4 weeks', revisions: '2 rounds', badge: 'Most Popular', features: ['10-page website', 'Blog section', 'Full SEO setup', 'Branding integration', 'Google Analytics', 'Social media links', 'SSL certificate'] },
-      { name: 'Pro', price: 1499, delivery: '4–6 weeks', revisions: '3 rounds', badge: '', features: ['15 pages', 'E-commerce ready', 'Custom integrations', 'Advanced SEO', 'Blog/News section', 'Priority support', 'SSL certificate'] },
-      { name: 'Enterprise + HR', price: 2499, delivery: '6–8 weeks', revisions: '3 rounds', badge: 'Most Complete', features: ['Full enterprise website', 'Integrated HR system', 'Staff onboarding portal', 'Leave & timesheet management', 'SEO & branding', 'Content creation'] },
-    ],
-    hosting: [
-      { name: 'Starter', price: 35, badge: '', features: ['1 content update/month', '48–72hr support response', 'Weekly backups', 'Uptime monitoring'] },
-      { name: 'Professional', price: 65, badge: 'Most Popular', features: ['3 content updates/month', 'Priority support', 'Weekly backups', 'SEO health check', 'Uptime monitoring'] },
-      { name: 'Business', price: 109, badge: '', features: ['Unlimited content updates', 'Priority support', 'Weekly backups', 'Weekly performance tuning', 'Quarterly strategy review'] },
-    ],
-  },
-  faq: [
-    { q: 'Do you offer payment plans?', a: 'Yes — we can arrange staged payments for larger projects. Get in touch to discuss what works for you.' },
-    { q: 'What happens after the project is delivered?', a: 'You get a handover call, access to all files, and ongoing support through one of our hosting & maintenance plans.' },
-    { q: 'Can I upgrade my package later?', a: 'Absolutely. Many clients start on Starter and grow into Growth or Pro as their business scales.' },
-    { q: 'Is hosting included in the build price?', a: "No — hosting is a separate monthly plan. This keeps things flexible so you're not locked into a bundle you don't need." },
-    { q: 'Do you work with clients outside Wales / the UK?', a: 'Yes, we work with clients across the UK and internationally. Everything is done remotely.' },
-  ],
   contact: {
     email: 'clients@dhwebsiteservices.co.uk',
     phone: '029 2002 4218',
@@ -452,68 +426,6 @@ export default function SiteEditor() {
                 <div style={{ padding:'10px 14px', background:'var(--blue-bg)', border:'1px solid var(--blue)', borderRadius:8, fontSize:13, color:'var(--blue)' }}>
                   When enabled, the public site will be replaced with a maintenance screen. Callback requests are emailed to the address above.
                 </div>
-              </SectionEditor>
-            )}
-
-            {/* Services editor */}
-            {active === 'services' && (
-              <SectionEditor title="Services" desc="4 service cards shown on the homepage">
-                {(activeData||[]).map((svc, i) => (
-                  <div key={i} style={{ background:'var(--bg2)', borderRadius:10, padding:'16px', marginBottom:12, border:'1px solid var(--border)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>Service {i+1}</div>
-                    <div className="fg">
-                      <Field label="Icon (emoji)" value={svc.icon} onChange={v => { const a=[...activeData]; a[i]={...a[i],icon:v}; update('services',a) }} type="text"/>
-                      <Field label="Title" value={svc.title} onChange={v => { const a=[...activeData]; a[i]={...a[i],title:v}; update('services',a) }} type="text"/>
-                    </div>
-                    <Field label="Description" value={svc.desc} onChange={v => { const a=[...activeData]; a[i]={...a[i],desc:v}; update('services',a) }} type="textarea"/>
-                  </div>
-                ))}
-              </SectionEditor>
-            )}
-
-            {/* Pricing editor */}
-            {active === 'pricing' && (
-              <SectionEditor title="Pricing" desc="Build packages and hosting plans">
-                <div style={{ fontWeight:500, fontSize:13, marginBottom:12, color:'var(--text)' }}>Build Packages</div>
-                {(activeData?.builds||[]).map((pkg, i) => (
-                  <div key={i} style={{ background:'var(--bg2)', borderRadius:10, padding:'16px', marginBottom:12, border:'1px solid var(--border)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>{pkg.name}</div>
-                    <div className="fg">
-                      <Field label="Package Name" value={pkg.name} onChange={v => { const b=[...activeData.builds]; b[i]={...b[i],name:v}; update('pricing',{...activeData,builds:b}) }} type="text"/>
-                      <Field label="Price (£)" value={String(pkg.price)} onChange={v => { const b=[...activeData.builds]; b[i]={...b[i],price:Number(v)||pkg.price}; update('pricing',{...activeData,builds:b}) }} type="text"/>
-                      <Field label="Delivery Time" value={pkg.delivery} onChange={v => { const b=[...activeData.builds]; b[i]={...b[i],delivery:v}; update('pricing',{...activeData,builds:b}) }} type="text"/>
-                      <Field label="Badge (optional)" value={pkg.badge||''} onChange={v => { const b=[...activeData.builds]; b[i]={...b[i],badge:v}; update('pricing',{...activeData,builds:b}) }} type="text"/>
-                    </div>
-                    <Field label="Features (one per line)" value={(pkg.features||[]).join('\n')} onChange={v => { const b=[...activeData.builds]; b[i]={...b[i],features:v.split('\n').filter(Boolean)}; update('pricing',{...activeData,builds:b}) }} type="textarea" rows={6}/>
-                  </div>
-                ))}
-
-                <div style={{ fontWeight:500, fontSize:13, margin:'20px 0 12px', color:'var(--text)' }}>Hosting Plans</div>
-                {(activeData?.hosting||[]).map((plan, i) => (
-                  <div key={i} style={{ background:'var(--bg2)', borderRadius:10, padding:'16px', marginBottom:12, border:'1px solid var(--border)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>{plan.name}</div>
-                    <div className="fg">
-                      <Field label="Plan Name" value={plan.name} onChange={v => { const h=[...activeData.hosting]; h[i]={...h[i],name:v}; update('pricing',{...activeData,hosting:h}) }} type="text"/>
-                      <Field label="Price (£/mo)" value={String(plan.price)} onChange={v => { const h=[...activeData.hosting]; h[i]={...h[i],price:Number(v)||plan.price}; update('pricing',{...activeData,hosting:h}) }} type="text"/>
-                      <Field label="Badge (optional)" value={plan.badge||''} onChange={v => { const h=[...activeData.hosting]; h[i]={...h[i],badge:v}; update('pricing',{...activeData,hosting:h}) }} type="text"/>
-                    </div>
-                    <Field label="Features (one per line)" value={(plan.features||[]).join('\n')} onChange={v => { const h=[...activeData.hosting]; h[i]={...h[i],features:v.split('\n').filter(Boolean)}; update('pricing',{...activeData,hosting:h}) }} type="textarea" rows={4}/>
-                  </div>
-                ))}
-              </SectionEditor>
-            )}
-
-            {/* FAQ editor */}
-            {active === 'faq' && (
-              <SectionEditor title="FAQ" desc="Questions shown on the pricing page">
-                {(activeData||[]).map((item, i) => (
-                  <div key={i} style={{ background:'var(--bg2)', borderRadius:10, padding:'16px', marginBottom:12, border:'1px solid var(--border)' }}>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--faint)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10 }}>FAQ {i+1}</div>
-                    <Field label="Question" value={item.q} onChange={v => { const a=[...activeData]; a[i]={...a[i],q:v}; update('faq',a) }} type="text"/>
-                    <Field label="Answer" value={item.a} onChange={v => { const a=[...activeData]; a[i]={...a[i],a:v}; update('faq',a) }} type="textarea" rows={3}/>
-                  </div>
-                ))}
-                <button className="btn btn-outline btn-sm" onClick={() => update('faq', [...(activeData||[]), { q:'New question', a:'Answer here' }])}>+ Add FAQ</button>
               </SectionEditor>
             )}
 
