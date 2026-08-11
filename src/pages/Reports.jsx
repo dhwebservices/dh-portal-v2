@@ -23,7 +23,6 @@ const ACTION_COLORS = {
 
 const LOG_PAGE_SIZE = 50
 const ACTION_TYPES = ['all', 'outreach', 'client', 'task', 'support', 'staff', 'leave', 'login']
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const OUTREACH_META_PREFIX = '[dh-outreach-meta]'
 
 function getWeekStart(d = new Date()) {
@@ -35,15 +34,38 @@ function getWeekStart(d = new Date()) {
   return dt.toISOString().split('T')[0]
 }
 
-function getTodayName() {
-  return DAYS[new Date().getDay()]
+function addDaysIso(iso, days) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function scheduleHours(entry) {
-  if (!entry?.start || !entry?.end) return 0
-  const [sh, sm] = entry.start.split(':').map(Number)
-  const [eh, em] = entry.end.split(':').map(Number)
-  return Math.max(0, ((eh * 60 + em) - (sh * 60 + sm)) / 60)
+/** Hours a rostered shift represents, with the break taken off. */
+function shiftHours(row) {
+  const start = String(row?.start_time || '').slice(0, 5)
+  const end = String(row?.end_time || '').slice(0, 5)
+  if (!start || !end) return 0
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const minutes = (eh * 60 + em) - (sh * 60 + sm) - (Number(row?.break_minutes) || 0)
+  return Math.max(0, minutes / 60)
+}
+
+/** Per-person totals for a week of published shifts. */
+function shiftTotalsByPerson(rows, todayIso) {
+  const byPerson = new Map()
+  for (const row of rows || []) {
+    const key = String(row.employee_email || '').toLowerCase()
+    if (!key) continue
+    if (!byPerson.has(key)) {
+      byPerson.set(key, { email: key, name: row.employee_name || key, weekHours: 0, todayHours: 0 })
+    }
+    const person = byPerson.get(key)
+    const hours = shiftHours(row)
+    person.weekHours += hours
+    if (row.shift_date === todayIso) person.todayHours += hours
+  }
+  return Array.from(byPerson.values())
 }
 
 function formatMoney(value) {
@@ -249,7 +271,6 @@ export default function Reports() {
     const since = new Date(Date.now() - Number(period) * 86400000).toISOString()
     const todayIso = new Date().toISOString().split('T')[0]
     const twoWeeksOut = new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
-    const todayName = getTodayName()
     const weekStart = getWeekStart()
 
     const results = await Promise.allSettled([
@@ -260,7 +281,7 @@ export default function Reports() {
       supabase.from('onboarding_submissions').select('user_email,user_name,status,submitted_at').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(8),
       supabase.from('appointments').select('id,client_name,staff_name,date,start_time,status').gte('date', todayIso).lte('date', twoWeeksOut).neq('status', 'cancelled').order('date', { ascending: true }).limit(8),
       supabase.from('commissions').select('commission_amount,date,status').gte('date', since).order('date', { ascending: true }),
-      supabase.from('schedules').select('user_email,user_name,week_data,submitted').eq('week_start', weekStart).eq('submitted', true),
+      supabase.from('shifts').select('employee_email,employee_name,shift_date,start_time,end_time,break_minutes').eq('published', true).gte('shift_date', weekStart).lte('shift_date', addDaysIso(weekStart, 6)),
       supabase.from('outreach').select('*', { count: 'exact', head: true }),
     ])
 
@@ -283,16 +304,12 @@ export default function Reports() {
       return acc
     }, [])
 
-    const scheduleHoursByStaff = schedules
-      .map((row) => {
-        const todayEntry = row.week_data?.[todayName] || {}
-        const allHours = Object.values(row.week_data || {}).reduce((sum, entry) => sum + scheduleHours(entry), 0)
-        return {
-          name: row.user_name || row.user_email,
-          todayHours: Number(scheduleHours(todayEntry).toFixed(1)),
-          weekHours: Number(allHours.toFixed(1)),
-        }
-      })
+    const scheduleHoursByStaff = shiftTotalsByPerson(schedules, todayIso)
+      .map((person) => ({
+        name: person.name,
+        todayHours: Number(person.todayHours.toFixed(1)),
+        weekHours: Number(person.weekHours.toFixed(1)),
+      }))
       .filter((row) => row.weekHours > 0)
       .sort((a, b) => b.weekHours - a.weekHours)
       .slice(0, 6)
@@ -340,7 +357,7 @@ export default function Reports() {
         ['Revenue tracked', formatMoney(totalRevenue)],
         ['Paid commissions', formatMoney(completedRevenue)],
         ['Upcoming calls', appointments.length],
-        ['Submitted schedules', schedules.length],
+        ['Staff rostered this week', shiftTotalsByPerson(schedules, todayIso).length],
         ['Pending onboarding', pendingOnboarding.length],
         ['Open support tickets', tickets],
       ],
@@ -355,7 +372,7 @@ export default function Reports() {
       const [{ data: profiles }, logs, { data: schedules }, { data: onboarding }] = await Promise.all([
         supabase.from('hr_profiles').select('user_email,full_name,role,department,manager_name,last_seen').not('user_email', 'is', null),
         fetchAuditLogs({ select: 'user_email,created_at', action: 'user_login', limit: 500 }),
-        supabase.from('schedules').select('user_email,user_name,week_data').eq('week_start', weekStart).eq('submitted', true),
+        supabase.from('shifts').select('employee_email,employee_name,shift_date,start_time,end_time,break_minutes').eq('published', true).gte('shift_date', weekStart).lte('shift_date', addDaysIso(weekStart, 6)),
         supabase.from('onboarding_submissions').select('user_email,status').order('submitted_at', { ascending: false }),
       ])
 
@@ -370,9 +387,8 @@ export default function Reports() {
       })
 
       const scheduleMap = {}
-      ;(schedules || []).forEach((row) => {
-        const key = (row.user_email || '').toLowerCase()
-        scheduleMap[key] = Object.values(row.week_data || {}).reduce((sum, entry) => sum + scheduleHours(entry), 0)
+      shiftTotalsByPerson(schedules).forEach((person) => {
+        scheduleMap[person.email] = person.weekHours
       })
 
       const onboardingMap = {}
@@ -688,7 +704,7 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <EmptyState text="No submitted schedules were found for this week." />
+                    <EmptyState text="Nobody is rostered for this week." />
                   )}
                 </ReportPanel>
 

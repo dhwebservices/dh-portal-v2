@@ -33,6 +33,13 @@ function getWeekStart(d = new Date()) {
   return dt.toISOString().split('T')[0]
 }
 
+/** Sunday of the week that starts on the given Monday. */
+function shiftWeekEnd(weekStart) {
+  const d = new Date(`${weekStart}T12:00:00`)
+  d.setDate(d.getDate() + 6)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function daysSince(dateString) {
   if (!dateString) return null
   const ms = Date.now() - new Date(dateString).getTime()
@@ -126,7 +133,7 @@ export default function AdminSafeguards() {
         supabase.from('hr_profiles').select('*'),
         supabase.from('user_permissions').select('*'),
         supabase.from('onboarding_submissions').select('*'),
-        supabase.from('schedules').select('user_email,user_name,submitted,week_start').eq('week_start', weekStart).eq('submitted', true),
+        supabase.from('shifts').select('employee_email,employee_name,shift_date').eq('published', true).gte('shift_date', weekStart).lte('shift_date', shiftWeekEnd(weekStart)),
         supabase.from('clients').select('*'),
         supabase.from('gocardless_mandates').select('*'),
         supabase.from('client_payments').select('client_email,created_at,status'),
@@ -161,7 +168,7 @@ export default function AdminSafeguards() {
         }))
 
       const permissionsByEmail = Object.fromEntries(permissions.map((row) => [normalizeEmail(row.user_email), row]))
-      const schedulesByEmail = Object.fromEntries(schedules.map((row) => [normalizeEmail(row.user_email), row]))
+      const schedulesByEmail = Object.fromEntries(schedules.map((row) => [normalizeEmail(row.employee_email), row]))
 
       const missingManagers = hrProfiles
         .filter((row) => normalizeEmail(row.user_email) !== 'david@dhwebsiteservices.co.uk')
@@ -234,8 +241,8 @@ export default function AdminSafeguards() {
           kind: 'staff',
           email: row.user_email,
           title: hrProfiles.find((profile) => normalizeEmail(profile.user_email) === normalizeEmail(row.user_email))?.full_name || row.user_email,
-          detail: 'This staff member is marked bookable for calls but has no submitted schedule for the current week.',
-          badge: 'No submitted schedule',
+          detail: 'This staff member is marked bookable for calls but has no published shifts for the current week, so customers cannot book them.',
+          badge: 'Not rostered',
           badgeTone: 'amber',
           meta: ['Bookable for calls'],
         }))

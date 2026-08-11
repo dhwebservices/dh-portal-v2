@@ -52,19 +52,6 @@ function weekDays(anchor) {
   })
 }
 
-function getScheduleWeekStart(dateStr) {
-  const dt = new Date(`${dateStr}T12:00:00`)
-  const day = dt.getDay()
-  const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
-  dt.setDate(diff)
-  dt.setHours(0, 0, 0, 0)
-  return dt.toISOString().split('T')[0]
-}
-
-function dayName(dateStr) {
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })
-}
-
 function buildWindowSlots(start, end) {
   if (!start || !end) return []
   const slots = []
@@ -146,11 +133,10 @@ export default function Appointments() {
   const load = useCallback(async () => {
     setLoading(true)
     const from = days[0], to = days[6]
-    const weekKey = getScheduleWeekStart(from)
-    const [{ data: profiles }, { data: perms }, { data: schedules }, { data: avail }, { data: appts }, { data: meetingRows }, { data: lifecycleRows }] = await Promise.all([
+    const [{ data: profiles }, { data: perms }, { data: shiftRows }, { data: avail }, { data: appts }, { data: meetingRows }, { data: lifecycleRows }] = await Promise.all([
       supabase.from('hr_profiles').select('user_email,full_name,role,bookable,phone').order('full_name'),
       supabase.from('user_permissions').select('user_email,bookable_staff').eq('bookable_staff', true),
-      supabase.from('schedules').select('user_email,user_name,week_start,submitted,week_data').eq('week_start', weekKey).eq('submitted', true),
+      supabase.from('shifts').select('employee_email,employee_name,shift_date,start_time,end_time').eq('published', true).gte('shift_date', from).lte('shift_date', to),
       supabase.from('staff_availability').select('*').gte('date', from).lte('date', to),
       supabase.from('appointments').select('*').gte('date', from).lte('date', to).neq('status','cancelled'),
       supabase.from('staff_meetings').select('*').gte('date', from).lte('date', to).neq('status','cancelled').order('date').order('start_time'),
@@ -175,10 +161,10 @@ export default function Appointments() {
       if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
       if (item.bookable_staff) bookableEmails.add(email)
     }
-    for (const item of schedules || []) {
+    for (const item of shiftRows || []) {
       const email = normalizeStaffEmail(item.user_email)
       if (!isSchedulableStaffEmail(email, lifecycleStateMap)) continue
-      if (item.week_data) bookableEmails.add(email)
+      bookableEmails.add(email)
     }
     for (const item of avail || []) {
       const email = normalizeStaffEmail(item.staff_email)
@@ -225,33 +211,39 @@ export default function Appointments() {
         .map((item) => `${normalizeStaffEmail(item.staff_email)}::${item.date}`)
     )
 
-    const scheduleMap = new Map(
-      (schedules || []).map((item) => [String(item.user_email || '').toLowerCase(), item])
-    )
+    // Published shifts keyed by person and date. A day can hold several, so
+    // each becomes its own derived availability window.
+    const shiftsByKey = new Map()
+    for (const row of shiftRows || []) {
+      const key = `${String(row.employee_email || '').toLowerCase()}::${row.shift_date}`
+      const list = shiftsByKey.get(key) || []
+      list.push(row)
+      shiftsByKey.set(key, list)
+    }
 
     const derivedAvailability = []
     for (const staffMember of staff) {
-      const schedule = scheduleMap.get(staffMember.user_email)
-      if (!schedule?.week_data) continue
-
       for (const date of days) {
         const key = `${staffMember.user_email}::${date}`
         if (explicitKeys.has(key)) continue
 
-        const entry = schedule.week_data?.[dayName(date)]
-        if (!entry?.start || !entry?.end) continue
+        for (const shift of shiftsByKey.get(key) || []) {
+          const start = String(shift.start_time || '').slice(0, 5)
+          const endTime = String(shift.end_time || '').slice(0, 5)
+          if (!start || !endTime) continue
 
-        derivedAvailability.push({
-          id: `schedule:${staffMember.user_email}:${date}`,
-          staff_email: staffMember.user_email,
-          staff_name: staffMember.full_name,
-          date,
-          is_available: true,
-          start_time: entry.start,
-          end_time: entry.end,
-          slots: buildWindowSlots(entry.start, entry.end),
-          source: 'schedule',
-        })
+          derivedAvailability.push({
+            id: `shift:${staffMember.user_email}:${date}:${start}`,
+            staff_email: staffMember.user_email,
+            staff_name: staffMember.full_name,
+            date,
+            is_available: true,
+            start_time: start,
+            end_time: endTime,
+            slots: buildWindowSlots(start, endTime),
+            source: 'rota',
+          })
+        }
       }
     }
 
