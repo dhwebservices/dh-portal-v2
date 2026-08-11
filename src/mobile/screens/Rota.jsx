@@ -31,45 +31,64 @@ function fmtWeek(ws) {
   return new Date(ws + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function dayHours(entry) {
-  if (!entry?.start || !entry?.end) return 0
-  const [sh, sm] = entry.start.split(':').map(Number)
-  const [eh, em] = entry.end.split(':').map(Number)
-  return Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60)
+function shiftHours(shift) {
+  if (!shift?.start_time || !shift?.end_time) return 0
+  const [sh, sm] = String(shift.start_time).split(':').map(Number)
+  const [eh, em] = String(shift.end_time).split(':').map(Number)
+  const minutes = (eh * 60 + em) - (sh * 60 + sm) - (Number(shift.break_minutes) || 0)
+  return Math.max(0, minutes / 60)
+}
+
+function totalHours(shifts) {
+  return shifts.reduce((sum, shift) => sum + shiftHours(shift), 0)
+}
+
+/** Times are stored as HH:MM:SS in places; the seconds are noise on a phone. */
+function fmtTime(value) {
+  return String(value || '').slice(0, 5)
 }
 
 export default function MobileRota({ goBack, user, isAdmin }) {
   const [view, setView] = useState('mine') // 'mine' | 'team'
   const [weekStart, setWeekStart] = useState(getWeekStart())
-  const [mySchedule, setMySchedule] = useState(null)
-  const [teamSchedules, setTeamSchedules] = useState([])
+  const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     load()
-  }, [weekStart, user?.email])
+  }, [weekStart, user?.email, isAdmin])
 
+  /**
+   * Reads the `shifts` table - the same one the web Rotas page writes to.
+   *
+   * This screen used to read `schedules`, a separate and older table that the
+   * web rota never writes. The two never met, so a shift published on the web
+   * simply did not exist as far as the phone was concerned. Anyone carrying
+   * leftover `schedules` rows still saw something, which is why the screen
+   * looked like it worked for some people and was empty for everyone else.
+   */
   const load = async () => {
     setLoading(true)
     try {
-      const { data: mine } = await supabase
-        .from('schedules')
+      const weekEnd = shiftWeek(weekStart, 6)
+      let query = supabase
+        .from('shifts')
         .select('*')
-        .ilike('user_email', user.email)
-        .eq('week_start', weekStart)
-        .maybeSingle()
-      setMySchedule(mine || null)
+        .gte('shift_date', weekStart)
+        .lte('shift_date', weekEnd)
+        .eq('published', true)
+        .order('start_time', { ascending: true })
 
-      if (isAdmin) {
-        const { data: team } = await supabase
-          .from('schedules')
-          .select('*')
-          .eq('week_start', weekStart)
-          .order('user_name')
-        setTeamSchedules(team || [])
-      }
+      // Drafts are hidden from everyone here; the web page is where they are
+      // built. Non-admins only ever pull their own row.
+      if (!isAdmin) query = query.ilike('employee_email', user?.email || '')
+
+      const { data, error } = await query
+      if (error) throw error
+      setShifts(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to load rota:', error)
+      setShifts([])
     } finally {
       setLoading(false)
     }
@@ -85,7 +104,23 @@ export default function MobileRota({ goBack, user, isAdmin }) {
     setView(next)
   }
 
-  const myWeekTotal = mySchedule ? DAYS.reduce((sum, d) => sum + dayHours(mySchedule.week_data?.[d]), 0) : 0
+  const myEmail = String(user?.email || '').toLowerCase()
+  const myShifts = shifts.filter((s) => String(s.employee_email || '').toLowerCase() === myEmail)
+  const myWeekTotal = totalHours(myShifts)
+
+  // One row per person, ordered by name, so the team table reads the same way
+  // as the web rota.
+  const teamRows = Object.values(
+    shifts.reduce((acc, shift) => {
+      const key = String(shift.employee_email || '').toLowerCase()
+      if (!key) return acc
+      if (!acc[key]) acc[key] = { email: key, name: shift.employee_name || key, shifts: [] }
+      acc[key].shifts.push(shift)
+      return acc
+    }, {}),
+  ).sort((a, b) => a.name.localeCompare(b.name))
+
+  const shiftsOn = (list, date) => list.filter((s) => s.shift_date === date)
 
   return (
     <div className="mobile-rota">
@@ -123,19 +158,29 @@ export default function MobileRota({ goBack, user, isAdmin }) {
           </MobileCard>
 
           {DAYS.map((day, i) => {
-            const entry = mySchedule?.week_data?.[day]
-            const hasShift = entry?.start && entry?.end
-            const date = new Date(shiftWeek(weekStart, i) + 'T12:00:00')
+            const dateKey = shiftWeek(weekStart, i)
+            const dayShifts = shiftsOn(myShifts, dateKey)
+            const date = new Date(dateKey + 'T12:00:00')
             return (
               <MobileCard key={day} small className="mobile-rota-day-row">
                 <div className="mobile-rota-day-label">
                   <div className="mobile-rota-day-name">{day.slice(0, 3)}</div>
                   <div className="mobile-rota-day-date">{date.getDate()}</div>
                 </div>
-                {hasShift ? (
-                  <div className="mobile-rota-shift-block">
-                    <div className="mobile-rota-shift-time">{entry.start} – {entry.end}</div>
-                    {entry.note && <div className="mobile-rota-shift-note">{entry.note}</div>}
+                {dayShifts.length ? (
+                  <div className="mobile-rota-shift-stack">
+                    {dayShifts.map((shift) => (
+                      <div key={shift.id} className="mobile-rota-shift-block">
+                        <div className="mobile-rota-shift-time">
+                          {fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}
+                        </div>
+                        {(shift.role || shift.note) && (
+                          <div className="mobile-rota-shift-note">
+                            {[shift.role, shift.note].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="mobile-rota-off">No shift</div>
@@ -146,8 +191,8 @@ export default function MobileRota({ goBack, user, isAdmin }) {
         </div>
       ) : (
         <div className="mobile-rota-team">
-          {teamSchedules.length === 0 ? (
-            <div className="mobile-rota-empty">No schedules submitted for this week</div>
+          {teamRows.length === 0 ? (
+            <div className="mobile-rota-empty">No published shifts for this week</div>
           ) : (
             <div className="mobile-rota-team-scroll">
               <table className="mobile-rota-table">
@@ -161,28 +206,30 @@ export default function MobileRota({ goBack, user, isAdmin }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {teamSchedules.map((s) => {
-                    const hrs = DAYS.reduce((sum, d) => sum + dayHours(s.week_data?.[d]), 0)
-                    return (
-                      <tr key={s.id}>
-                        <td className="mobile-rota-sticky-col mobile-rota-staff-name">{s.user_name?.split('(')[0].trim()}</td>
-                        {DAYS.map((day) => {
-                          const entry = s.week_data?.[day]
-                          const hasShift = entry?.start && entry?.end
-                          return (
-                            <td key={day}>
-                              {hasShift ? (
-                                <div className="mobile-rota-cell-shift">{entry.start}–{entry.end}</div>
-                              ) : (
-                                <span className="mobile-rota-cell-off">–</span>
-                              )}
-                            </td>
-                          )
-                        })}
-                        <td className="mobile-rota-cell-total">{hrs.toFixed(1)}h</td>
-                      </tr>
-                    )
-                  })}
+                  {teamRows.map((row) => (
+                    <tr key={row.email}>
+                      <td className="mobile-rota-sticky-col mobile-rota-staff-name">
+                        {row.name.split('(')[0].trim()}
+                      </td>
+                      {DAYS.map((day, i) => {
+                        const dayShifts = shiftsOn(row.shifts, shiftWeek(weekStart, i))
+                        return (
+                          <td key={day}>
+                            {dayShifts.length ? (
+                              dayShifts.map((shift) => (
+                                <div key={shift.id} className="mobile-rota-cell-shift">
+                                  {fmtTime(shift.start_time)}–{fmtTime(shift.end_time)}
+                                </div>
+                              ))
+                            ) : (
+                              <span className="mobile-rota-cell-off">–</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className="mobile-rota-cell-total">{totalHours(row.shifts).toFixed(1)}h</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -320,6 +367,15 @@ export default function MobileRota({ goBack, user, isAdmin }) {
           font-size: 16px;
           font-weight: 700;
           color: var(--mobile-text);
+        }
+
+        /* A day can hold more than one shift now that these come from the
+           shifts table rather than a single slot per day. */
+        .mobile-rota-shift-stack {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
 
         .mobile-rota-shift-block {
