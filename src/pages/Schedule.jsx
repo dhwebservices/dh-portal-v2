@@ -54,6 +54,70 @@ function fmtWeek(ws) {
 
 const EMPTY_SCHEDULE = Object.fromEntries(DAYS.map(d => [d, { start:'', end:'', note:'' }]))
 
+function addDaysIso(iso, days) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function sameEmail(a, b) {
+  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+}
+
+/** Times come back as HH:MM or HH:MM:SS depending on how they were written. */
+function hhmm(value) {
+  return String(value || '').slice(0, 5)
+}
+
+/**
+ * Folds dated shift rows back into the day-keyed grid this page edits.
+ *
+ * The grid holds one entry per day, so where a day has several shifts only the
+ * earliest is shown. Saving would flatten the rest, which is why people with
+ * multiple shifts in a day are rostered from the Rotas page instead.
+ */
+function shiftsToWeek(rows, weekStart) {
+  const week = Object.fromEntries(DAYS.map(d => [d, { start:'', end:'', note:'' }]))
+  DAYS.forEach((day, index) => {
+    const date = addDaysIso(weekStart, index)
+    const forDay = rows
+      .filter((row) => row.shift_date === date)
+      .sort((a, b) => hhmm(a.start_time).localeCompare(hhmm(b.start_time)))
+    if (!forDay.length) return
+    week[day] = {
+      start: hhmm(forDay[0].start_time),
+      end: hhmm(forDay[0].end_time),
+      note: forDay[0].note || '',
+    }
+  })
+  return week
+}
+
+/** Shapes the team tab's rows the way it already expects to read them. */
+function groupShiftsByPerson(rows, weekStart) {
+  const byPerson = new Map()
+  for (const row of rows) {
+    const key = String(row.employee_email || '').toLowerCase()
+    if (!key) continue
+    if (!byPerson.has(key)) {
+      byPerson.set(key, { user_email: key, user_name: row.employee_name || key, rows: [] })
+    }
+    byPerson.get(key).rows.push(row)
+  }
+  return Array.from(byPerson.values())
+    .map((person) => ({
+      id: person.user_email,
+      user_email: person.user_email,
+      user_name: person.user_name,
+      week_data: shiftsToWeek(person.rows, weekStart),
+      submitted: person.rows.some((row) => row.published),
+    }))
+    .sort((a, b) => a.user_name.localeCompare(b.user_name))
+}
+
 function scheduleSummary(schedule) {
   return DAYS.map(day => {
     const entry = schedule?.[day] || {}
@@ -98,32 +162,27 @@ export default function Schedule() {
     if (!user?.email) return
     setLoading(true)
 
-    // Load this user's (or target's) schedule for the week
-    const { data } = await supabase
-      .from('schedules')
+    // Hours live in `shifts` now, one row per shift per date, shared with the
+    // Rotas page and with public booking availability. This page still shows a
+    // week grid, so the rows are folded back into day keys on the way in.
+    const weekEnd = addDaysIso(weekStart, 6)
+    const { data: rows } = await supabase
+      .from('shifts')
       .select('*')
-      .ilike('user_email', targetEmail)
-      .eq('week_start', weekStart)
-      .maybeSingle()
+      .gte('shift_date', weekStart)
+      .lte('shift_date', weekEnd)
+      .order('start_time', { ascending: true })
 
-    if (data) {
-      setSchedule(data.week_data || EMPTY_SCHEDULE)
-      setSubmitted(data.submitted || false)
-      setRecordId(data.id)
-    } else {
-      setSchedule(EMPTY_SCHEDULE)
-      setSubmitted(false)
-      setRecordId(null)
-    }
+    const all = Array.isArray(rows) ? rows : []
+    const mine = all.filter((row) => sameEmail(row.employee_email, targetEmail))
 
-    // Load all schedules for team view
-    const { data: all } = await supabase
-      .from('schedules')
-      .select('*')
-      .eq('week_start', weekStart)
-      .order('user_name')
-    setAll(all || [])
+    setSchedule(shiftsToWeek(mine, weekStart))
+    // A week counts as submitted once the person's own rows are published.
+    const own = mine.filter((row) => row.source === 'self')
+    setSubmitted(own.length > 0 && own.every((row) => row.published))
+    setRecordId(null)
 
+    setAll(groupShiftsByPerson(all, weekStart))
     setLoading(false)
   }, [weekStart, targetEmail, user?.email])
 
@@ -140,28 +199,47 @@ export default function Schedule() {
 
   const save = async (submit = false) => {
     setSaving(true)
-    const payload = {
-      user_email: targetEmail,
-      user_name: targetName,
-      week_start: weekStart,
-      week_data: schedule,
-      submitted: submit,
-      submitted_at: submit ? new Date().toISOString() : null,
-      ...(onBehalfOf ? { manager_edited: true, manager_email: user.email, manager_name: user.name } : {}),
-      updated_at: new Date().toISOString(),
-    }
-    const { data, error } = await supabase
-      .from('schedules')
-      .upsert(payload, { onConflict: 'user_email,week_start' })
-      .select()
-      .maybeSingle()
+    const weekEnd = addDaysIso(weekStart, 6)
+    const rows = DAYS
+      .map((day, index) => ({ day, index, entry: schedule[day] }))
+      .filter(({ entry }) => entry?.start && entry?.end)
+      .map(({ index, entry }) => ({
+        employee_email: String(targetEmail || '').toLowerCase(),
+        employee_name: targetName || targetEmail,
+        shift_date: addDaysIso(weekStart, index),
+        start_time: entry.start,
+        end_time: entry.end,
+        note: entry.note || null,
+        published: submit,
+        source: 'self',
+        created_by: user?.email,
+        updated_at: new Date().toISOString(),
+      }))
+
+    // Replace only this person's own entries for the week. Shifts a manager
+    // built on the Rotas page carry source='roster' and are left untouched,
+    // so saving here can never wipe someone's roster.
+    const { error: clearError } = await supabase
+      .from('shifts')
+      .delete()
+      .ilike('employee_email', targetEmail)
+      .eq('source', 'self')
+      .gte('shift_date', weekStart)
+      .lte('shift_date', weekEnd)
+
+    const error = clearError
+      || (rows.length ? (await supabase.from('shifts').insert(rows)).error : null)
 
     if (!error) {
       setSubmitted(submit)
-      if (data) setRecordId(data.id)
-      // Reload team view
-      const { data: all } = await supabase.from('schedules').select('*').eq('week_start', weekStart).order('user_name')
-      setAll(all || [])
+      setRecordId(null)
+      const { data: all } = await supabase
+        .from('shifts')
+        .select('*')
+        .gte('shift_date', weekStart)
+        .lte('shift_date', weekEnd)
+        .order('start_time', { ascending: true })
+      setAll(groupShiftsByPerson(Array.isArray(all) ? all : [], weekStart))
 
       if (onBehalfOf) {
         const title = submit ? '📅 Your schedule has been submitted' : '📅 Your schedule has been updated'
@@ -187,19 +265,21 @@ export default function Schedule() {
         }).catch(() => {})
       }
 
-      if (data?.id) {
-        await enqueueMicrosoftCalendarSyncJob({
-          staffEmail: targetEmail,
-          jobType: 'schedule_upsert',
-          sourceTable: 'schedules',
-          sourceId: data.id,
-          payload: {
-            trigger: submit ? 'schedule_submitted' : 'schedule_saved',
-            submitted: !!submit,
-            week_start: weekStart,
-          },
-        })
-      }
+      // A week is many rows now rather than one, so there is no single row id
+      // to point the sync job at. The queue rejects a blank sourceId, so the
+      // person and week are used as the identity instead - which is what the
+      // job actually operates on.
+      await enqueueMicrosoftCalendarSyncJob({
+        staffEmail: targetEmail,
+        jobType: 'schedule_upsert',
+        sourceTable: 'shifts',
+        sourceId: `${String(targetEmail || '').toLowerCase()}::${weekStart}`,
+        payload: {
+          trigger: submit ? 'schedule_submitted' : 'schedule_saved',
+          submitted: !!submit,
+          week_start: weekStart,
+        },
+      })
     }
     setSaving(false)
   }
@@ -209,14 +289,16 @@ export default function Schedule() {
     setSaving(true)
     const previousWeek = shiftWeek(weekStart, -7)
     const { data } = await supabase
-      .from('schedules')
-      .select('week_data')
-      .ilike('user_email', targetEmail)
-      .eq('week_start', previousWeek)
-      .maybeSingle()
+      .from('shifts')
+      .select('*')
+      .ilike('employee_email', targetEmail)
+      .gte('shift_date', previousWeek)
+      .lte('shift_date', addDaysIso(previousWeek, 6))
+      .order('start_time', { ascending: true })
 
-    if (data?.week_data) {
-      setSchedule(data.week_data)
+    const previous = Array.isArray(data) ? data : []
+    if (previous.length) {
+      setSchedule(shiftsToWeek(previous, previousWeek))
       setSubmitted(false)
       setRecordId(null)
     }
@@ -248,21 +330,27 @@ export default function Schedule() {
   }
 
   const editSchedule = async () => {
-    // Unlock for editing — don't wipe the data
-    if (recordId) {
-      await supabase.from('schedules').update({ submitted: false, updated_at: new Date().toISOString() }).eq('id', recordId)
-      await enqueueMicrosoftCalendarSyncJob({
-        staffEmail: targetEmail,
-        jobType: 'schedule_upsert',
-        sourceTable: 'schedules',
-        sourceId: recordId,
-        payload: {
-          trigger: 'schedule_unsubmitted',
-          submitted: false,
-          week_start: weekStart,
-        },
-      })
-    }
+    // Unlock for editing without wiping anything: the rows stay, they just stop
+    // being published, which also takes them out of public booking.
+    await supabase
+      .from('shifts')
+      .update({ published: false, updated_at: new Date().toISOString() })
+      .ilike('employee_email', targetEmail)
+      .eq('source', 'self')
+      .gte('shift_date', weekStart)
+      .lte('shift_date', addDaysIso(weekStart, 6))
+
+    await enqueueMicrosoftCalendarSyncJob({
+      staffEmail: targetEmail,
+      jobType: 'schedule_upsert',
+      sourceTable: 'shifts',
+      sourceId: `${String(targetEmail || '').toLowerCase()}::${weekStart}`,
+      payload: {
+        trigger: 'schedule_unsubmitted',
+        submitted: false,
+        week_start: weekStart,
+      },
+    })
     setSubmitted(false)
   }
 
