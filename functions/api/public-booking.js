@@ -82,6 +82,27 @@ function addMins(time, mins) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+/**
+ * Trims a stored time to HH:MM.
+ *
+ * buildWindowSlots compares times as strings, so an "16:00:00" end would sort
+ * after "16:00" and yield one slot beyond the end of the shift.
+ */
+function hhmm(value) {
+  return String(value || '').slice(0, 5)
+}
+
+/** Slots a published shift offers, ignoring anything without both ends set. */
+function slotsForShifts(shifts = []) {
+  const slots = new Set()
+  for (const shift of shifts) {
+    for (const slot of buildWindowSlots(hhmm(shift.start_time), hhmm(shift.end_time))) {
+      slots.add(slot)
+    }
+  }
+  return Array.from(slots).sort()
+}
+
 function buildWindowSlots(start, end) {
   if (!start || !end) return []
   const slots = []
@@ -91,19 +112,6 @@ function buildWindowSlots(start, end) {
     current = addMins(current, 30)
   }
   return slots
-}
-
-function getScheduleWeekStart(dateStr) {
-  const dt = new Date(`${dateStr}T12:00:00`)
-  const day = dt.getDay()
-  const diff = dt.getDate() - day + (day === 0 ? -6 : 1)
-  dt.setDate(diff)
-  dt.setHours(0, 0, 0, 0)
-  return dt.toISOString().split('T')[0]
-}
-
-function dayName(dateStr) {
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })
 }
 
 function buildLifecycleStateMap(rows = []) {
@@ -177,15 +185,13 @@ async function sendWorkerEmail(env, payload) {
 async function resolveBookableStaff(env, slug) {
   const today = isoLocalDate(new Date())
   const end = isoLocalDate(addDays(new Date(), 13))
-  const weekStarts = Array.from(new Set(
-    Array.from({ length: 14 }, (_, index) => getScheduleWeekStart(isoLocalDate(addDays(new Date(), index))))
-  ))
-
-  const [profiles, permissions, lifecycleRows, schedules, availabilityRows, appointmentRows, meetingRows] = await Promise.all([
-    supabaseFetch(env, '/rest/v1/hr_profiles?select=user_email,full_name,role,phone,bookable&order=full_name.asc'),
+  const [profiles, permissions, lifecycleRows, shiftRows, availabilityRows, appointmentRows, meetingRows] = await Promise.all([
+    supabaseFetch(env, '/rest/v1/hr_profiles?select=user_email,full_name,role,phone,bookable,scheduling_mode&order=full_name.asc'),
     supabaseFetch(env, '/rest/v1/user_permissions?select=user_email,bookable_staff'),
     supabaseFetch(env, '/rest/v1/portal_settings?select=key,value'),
-    supabaseFetch(env, `/rest/v1/schedules?select=user_email,week_start,submitted,week_data&submitted=eq.true&week_start=in.(${weekStarts.join(',')})`),
+    // Published shifts, whether a manager rostered them or the person entered
+    // their own hours. Draft shifts are not offered to customers.
+    supabaseFetch(env, `/rest/v1/shifts?select=employee_email,shift_date,start_time,end_time&published=is.true&shift_date=gte.${today}&shift_date=lte.${end}`),
     supabaseFetch(env, `/rest/v1/staff_availability?select=staff_email,date,is_available&date=gte.${today}&date=lte.${end}`),
     supabaseFetch(env, `/rest/v1/appointments?select=staff_email,date,status&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
     supabaseFetch(env, `/rest/v1/staff_meetings?select=staff_email,date,status&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
@@ -204,10 +210,10 @@ async function resolveBookableStaff(env, slug) {
     if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
     if (item.bookable_staff) bookableEmails.add(email)
   }
-  for (const item of schedules || []) {
-    const email = normalizeStaffEmail(item.user_email)
+  for (const item of shiftRows || []) {
+    const email = normalizeStaffEmail(item.employee_email)
     if (!isSchedulableStaffEmail(email, lifecycleMap)) continue
-    if (item.week_data) bookableEmails.add(email)
+    bookableEmails.add(email)
   }
   for (const item of availabilityRows || []) {
     const email = normalizeStaffEmail(item.staff_email)
@@ -244,7 +250,6 @@ async function resolveBookableStaff(env, slug) {
     match: staffRows.find((item) => item.slug === slug) || null,
     today,
     end,
-    weekStarts,
   }
 }
 
@@ -256,13 +261,13 @@ function formatDate(dateStr) {
   })
 }
 
-async function loadPublicAvailability(env, staffEmail, today, end, weekStarts, lifecycleMap) {
+async function loadPublicAvailability(env, staffEmail, today, end, lifecycleMap) {
   const encodedEmail = encodeURIComponent(staffEmail)
-  const [availRows, appointmentRows, meetingRows, scheduleRows] = await Promise.all([
+  const [availRows, appointmentRows, meetingRows, shiftRows] = await Promise.all([
     supabaseFetch(env, `/rest/v1/staff_availability?select=*&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}`),
     supabaseFetch(env, `/rest/v1/appointments?select=staff_email,date,start_time,status&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
     supabaseFetch(env, `/rest/v1/staff_meetings?select=staff_email,date,start_time,status&staff_email=eq.${encodedEmail}&date=gte.${today}&date=lte.${end}&status=neq.cancelled`),
-    supabaseFetch(env, `/rest/v1/schedules?select=user_email,week_start,submitted,week_data&user_email=eq.${encodedEmail}&submitted=eq.true&week_start=in.(${weekStarts.join(',')})`),
+    supabaseFetch(env, `/rest/v1/shifts?select=employee_email,shift_date,start_time,end_time&employee_email=eq.${encodedEmail}&published=is.true&shift_date=gte.${today}&shift_date=lte.${end}`),
   ])
 
   const explicitMap = new Map(
@@ -270,7 +275,13 @@ async function loadPublicAvailability(env, staffEmail, today, end, weekStarts, l
       .filter((item) => isSchedulableStaffEmail(item.staff_email, lifecycleMap))
       .map((item) => [`${normalizeStaffEmail(item.staff_email)}::${item.date}`, item])
   )
-  const scheduleMap = new Map((scheduleRows || []).map((row) => [row.week_start, row]))
+  // A day can hold more than one shift, so group rather than index.
+  const shiftsByDate = new Map()
+  for (const row of shiftRows || []) {
+    const list = shiftsByDate.get(row.shift_date) || []
+    list.push(row)
+    shiftsByDate.set(row.shift_date, list)
+  }
   const takenSlots = new Set()
 
   for (const row of appointmentRows || []) {
@@ -294,14 +305,12 @@ async function loadPublicAvailability(env, staffEmail, today, end, weekStarts, l
       if (Array.isArray(explicit.slots) && explicit.slots.length) {
         slots = explicit.slots
       } else if (explicit.start_time && explicit.end_time) {
-        slots = buildWindowSlots(explicit.start_time, explicit.end_time)
+        slots = buildWindowSlots(hhmm(explicit.start_time), hhmm(explicit.end_time))
       }
     } else {
-      const schedule = scheduleMap.get(getScheduleWeekStart(date))
-      const entry = schedule?.week_data?.[dayName(date)]
-      if (entry?.start && entry?.end) {
-        slots = buildWindowSlots(entry.start, entry.end)
-      }
+      // Falls back to the rota. staff_availability still wins above, so a
+      // one-off "not in that day" beats whatever is rostered.
+      slots = slotsForShifts(shiftsByDate.get(date) || [])
     }
 
     const openSlots = slots.filter((slot) => !takenSlots.has(`${date}::${slot}`))
@@ -329,10 +338,10 @@ export async function onRequestGet(context) {
     const slug = normalizeSlugPart(url.searchParams.get('slug') || '')
     if (!slug) return json({ error: 'Missing booking slug.' }, 400)
 
-    const { lifecycleMap, match, today, end, weekStarts } = await resolveBookableStaff(context.env, slug)
+    const { lifecycleMap, match, today, end } = await resolveBookableStaff(context.env, slug)
     if (!match) return json({ error: 'No matching bookable staff member found.' }, 404)
 
-    const availability = await loadPublicAvailability(context.env, match.email, today, end, weekStarts, lifecycleMap)
+    const availability = await loadPublicAvailability(context.env, match.email, today, end, lifecycleMap)
     return json({
       staff: {
         email: match.email,
@@ -379,10 +388,10 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const { lifecycleMap, match, today, end, weekStarts } = await resolveBookableStaff(context.env, slug)
+    const { lifecycleMap, match, today, end } = await resolveBookableStaff(context.env, slug)
     if (!match) return json({ error: 'No matching bookable staff member found.' }, 404)
 
-    const availability = await loadPublicAvailability(context.env, match.email, today, end, weekStarts, lifecycleMap)
+    const availability = await loadPublicAvailability(context.env, match.email, today, end, lifecycleMap)
     const day = availability.find((item) => item.date === date)
     if (!day || !day.slots.includes(startTime)) {
       return json({ error: 'That slot is no longer available.' }, 409)
