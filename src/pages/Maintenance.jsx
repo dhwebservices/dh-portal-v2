@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
 import { sendEmail, sendPacedEmailBroadcast } from '../utils/email'
+import PushNotificationSender from '../components/PushNotificationSender'
 import {
   Button,
   Toggle,
@@ -149,6 +150,8 @@ export default function Maintenance() {
           </p>
         </div>
       </div>
+
+      <PushNotificationSender />
 
       {/* Portal Maintenance Lock */}
       <div style={{
