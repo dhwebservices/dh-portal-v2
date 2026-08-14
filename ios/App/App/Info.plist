@@ -31,6 +31,11 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- The app only uses HTTPS and Apple-provided cryptography, which is exempt.
+	     Declaring it here stops App Store Connect flagging every upload as
+	     "Missing Compliance" and waiting on the question to be answered by hand. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
