@@ -30,11 +30,14 @@ const KEY_STORAGE = 'fishtank.operatorKey'
 export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
   const [keyDraft, setKeyDraft] = useState('')
+  const [keyError, setKeyError] = useState('')
+  const [checkingKey, setCheckingKey] = useState(false)
   const [players, setPlayers] = useState([])
   const [grants, setGrants] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('players')
+  const [isKeyRejected, setIsKeyRejected] = useState(false)
 
   // The grant being composed, or null.
   const [granting, setGranting] = useState(null)
@@ -71,6 +74,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   const load = async () => {
     setLoading(true)
     setError('')
+    setIsKeyRejected(false)
     try {
       const [people, history] = await Promise.all([
         call('/operator/players'),
@@ -85,6 +89,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       // problem is the network.
       if (/403|No\./.test(err.message)) {
         setError('That operator key was not accepted.')
+        setIsKeyRejected(true)
       } else if (/Load failed|NetworkError|Failed to fetch/i.test(err.message)) {
         setError("Couldn't reach the game's server. Check your connection and try again.")
       } else {
@@ -95,12 +100,51 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     }
   }
 
-  const saveKey = () => {
-    const trimmed = keyDraft.trim()
-    if (!trimmed) return
-    localStorage.setItem(KEY_STORAGE, trimmed)
-    setKey(trimmed)
-    setKeyDraft('')
+  /**
+   * Takes the key, checks it, and only then keeps it.
+   *
+   * Storing first and discovering later is how somebody ends up on a screen
+   * that says the key is wrong with no way to tell whether they mistyped it
+   * or the server moved. Whitespace is stripped from anywhere in the string,
+   * not just the ends: 64 characters pasted out of a wrapped line arrives
+   * with a space or a newline through the middle of it, which is invisible
+   * in a password field.
+   */
+  const saveKey = async () => {
+    const candidate = keyDraft.replace(/\s+/g, '')
+    if (!candidate) return
+
+    if (!/^[0-9a-f]{64}$/i.test(candidate)) {
+      setKeyError(
+        candidate.length === 64
+          ? 'That is the right length but contains characters the key cannot have. It is 64 letters a–f and digits.'
+          : `That is ${candidate.length} character${candidate.length === 1 ? '' : 's'}; the key is 64.`
+      )
+      return
+    }
+
+    setCheckingKey(true)
+    setKeyError('')
+    try {
+      const response = await fetch(`${API}/operator/players`, {
+        headers: { Authorization: `Bearer ${candidate}` },
+      })
+      if (response.status === 403 || response.status === 401) {
+        setKeyError('The server did not accept that key.')
+        return
+      }
+      if (!response.ok) {
+        setKeyError(`The server answered ${response.status}. Try again in a moment.`)
+        return
+      }
+      localStorage.setItem(KEY_STORAGE, candidate)
+      setKey(candidate)
+      setKeyDraft('')
+    } catch {
+      setKeyError("Couldn't reach the game's server. Check your connection.")
+    } finally {
+      setCheckingKey(false)
+    }
   }
 
   const forgetKey = () => {
@@ -208,16 +252,26 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             once and this device remembers it.
           </p>
           <input
-            className="fta-field"
-            type="password"
+            className="fta-field fta-key"
+            type="text"
             value={keyDraft}
-            onChange={e => setKeyDraft(e.target.value)}
+            onChange={e => { setKeyDraft(e.target.value); setKeyError('') }}
             placeholder="Operator key"
             autoCapitalize="none"
             autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
           />
-          <button className="fta-primary" onClick={saveKey} disabled={!keyDraft.trim()}>
-            Unlock
+          <p className="fta-count">
+            {keyDraft.replace(/\s+/g, '').length} of 64 characters
+          </p>
+          {keyError && <p className="fta-error">{keyError}</p>}
+          <button
+            className="fta-primary"
+            onClick={saveKey}
+            disabled={!keyDraft.trim() || checkingKey}
+          >
+            {checkingKey ? 'Checking…' : 'Unlock'}
           </button>
         </MobileCard>
       </div>
@@ -251,7 +305,14 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       {error && (
         <div className="fta-failure">
           <p className="fta-error">{error}</p>
-          <button className="fta-retry" onClick={load}>Try again</button>
+          {/* A rejected key cannot be retried into working, so offer the only
+              thing that helps: entering a different one. Retrying is right for
+              everything else. */}
+          {isKeyRejected ? (
+            <button className="fta-retry" onClick={forgetKey}>Re-enter key</button>
+          ) : (
+            <button className="fta-retry" onClick={load}>Try again</button>
+          )}
         </div>
       )}
       {loading && <p className="fta-note">Loading…</p>}
@@ -520,6 +581,23 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         }
 
         .fta-textarea { resize: vertical; }
+
+        /* Shown, not masked. A masked field hides exactly the paste damage
+           that stops the key working, and there is nobody to shoulder-surf a
+           key you are typing into your own phone. */
+        .fta-key {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 13px;
+          letter-spacing: 0.02em;
+          word-break: break-all;
+        }
+
+        .fta-count {
+          margin: 6px 2px 0;
+          font-size: 12.5px;
+          font-variant-numeric: tabular-nums;
+          color: var(--mobile-text-secondary);
+        }
 
         .fta-note {
           margin: 10px 2px 0;
