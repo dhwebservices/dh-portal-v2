@@ -2,3 +2,9 @@ node_modules/
 dist/
 .DS_Store
 .env*
+
+# Build output — archives and exported binaries do not belong in history.
+AppStore/export-*/
+ios/App/build/
+*.ipa
+*.xcarchive/

@@ -243,7 +243,7 @@ export default function MobileLoginProfessional() {
         }
 
         .professional-btn-primary {
-          background: #0066cc;
+          background: var(--mobile-accent);
           color: white;
           box-shadow: 0 2px 8px rgba(0, 102, 204, 0.25);
           margin-bottom: 16px;
@@ -260,7 +260,7 @@ export default function MobileLoginProfessional() {
         }
 
         .professional-btn-secondary:hover:not(:disabled) {
-          background: #e8e8ed;
+          background: var(--mobile-border);
         }
 
         .professional-icon {

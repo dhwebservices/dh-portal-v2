@@ -5,7 +5,22 @@ import { getUserDevices, removeDevice, initPushNotifications } from '../../utils
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
-export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference }) {
+import { eventsFor } from '../../shared/notificationEvents'
+
+export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference, isAdmin }) {
+  /**
+   * Per-event push preferences.
+   *
+   * The master switch above these stays what it always was — turning it off
+   * silences everything, and this list goes quiet with it rather than
+   * pretending each row still means something. A missing key is ON, so
+   * somebody who never opens this screen keeps receiving everything.
+   */
+  const eventPrefs = preferences?.notificationPrefs || {}
+
+  const toggleEvent = (key, currentlyOn) => {
+    savePreference('notificationPrefs', { ...eventPrefs, [key]: !currentlyOn })
+  }
   const { logout } = useAuth()
   const loading = prefsLoading
   const [devices, setDevices] = useState([])
@@ -98,7 +113,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Settings</h1>
           <div style={{ width: 60 }} />
@@ -114,7 +129,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Settings</h1>
         <div style={{ width: 60 }} />
@@ -128,7 +143,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
 
             <div className="setting-row">
               <div className="setting-info">
-                <Icon name="bell" size={20} color="#0066cc" />
+                <Icon name="bell" size={20} color="var(--mobile-accent)" />
                 <div>
                   <div className="setting-label">Push Notifications</div>
                   <div className="setting-description">Receive notifications on your device</div>
@@ -144,7 +159,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
 
             <div className="setting-row">
               <div className="setting-info">
-                <Icon name="mail" size={20} color="#0066cc" />
+                <Icon name="mail" size={20} color="var(--mobile-accent)" />
                 <div>
                   <div className="setting-label">Email Notifications</div>
                   <div className="setting-description">Receive notifications via email</div>
@@ -156,6 +171,93 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
               >
                 <div className="toggle-slider" />
               </button>
+            </div>
+          </div>
+        </MobileCard>
+
+        {isAdmin && (
+          <MobileCard style={{ marginTop: '16px' }}>
+            <div style={{ padding: '8px' }}>
+              <div className="setting-section-title">Office</div>
+              <div className="setting-row" onClick={() => navigate('send-notification')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="bell" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Send a message</div>
+                    <div className="setting-description">Notify staff on their phones</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
+
+              <div className="setting-row" onClick={() => navigate('fishtank')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="gift" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Fish Tank</div>
+                    <div className="setting-description">Players, coins, shop items and prizes</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
+            </div>
+          </MobileCard>
+        )}
+
+        <MobileCard style={{ marginTop: '16px' }}>
+          <div style={{ padding: '8px' }}>
+            <div className="setting-section-title">Devices</div>
+            <div className="setting-row" onClick={() => navigate('devices')} style={{ cursor: 'pointer' }}>
+              <div className="setting-info">
+                <Icon name="smartphone" size={20} color="var(--mobile-accent)" />
+                <div>
+                  <div className="setting-label">Your devices</div>
+                  <div className="setting-description">Where your notifications are sent</div>
+                </div>
+              </div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </div>
+          </div>
+        </MobileCard>
+
+        {/* What you get told about. Dimmed rather than hidden when the master
+            switch is off, so it is obvious why they have stopped mattering. */}
+        <MobileCard style={{ marginTop: '16px' }}>
+          <div style={{ padding: '8px' }}>
+            <div className="setting-section-title">What you're told about</div>
+
+            {!preferences.pushNotifications && (
+              <p className="setting-muted-note">
+                Push notifications are off, so none of these will reach your phone.
+                They still appear in your inbox.
+              </p>
+            )}
+
+            <div className={preferences.pushNotifications ? '' : 'setting-dimmed'}>
+              {eventsFor({ isManager: !!isAdmin }).map(event => {
+                const on = eventPrefs[event.key] !== false
+                return (
+                  <div className="setting-row" key={event.key}>
+                    <div className="setting-info">
+                      <div>
+                        <div className="setting-label">{event.label}</div>
+                        <div className="setting-description">{event.description}</div>
+                      </div>
+                    </div>
+                    {event.required ? (
+                      <span className="setting-always">Always</span>
+                    ) : (
+                      <button
+                        className={`toggle-button ${on ? 'active' : ''}`}
+                        onClick={() => toggleEvent(event.key, on)}
+                        aria-label={`${event.label}: ${on ? 'on' : 'off'}`}
+                      >
+                        <div className="toggle-slider" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </MobileCard>
@@ -180,21 +282,21 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 className={`theme-button ${preferences.theme === 'light' ? 'active' : ''}`}
                 onClick={() => handleThemeChange('light')}
               >
-                <Icon name="sun" size={20} color={preferences.theme === 'light' ? '#0066cc' : '#86868b'} />
+                <Icon name="sun" size={20} color={preferences.theme === 'light' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
                 Light
               </button>
               <button
                 className={`theme-button ${preferences.theme === 'dark' ? 'active' : ''}`}
                 onClick={() => handleThemeChange('dark')}
               >
-                <Icon name="moon" size={20} color={preferences.theme === 'dark' ? '#0066cc' : '#86868b'} />
+                <Icon name="moon" size={20} color={preferences.theme === 'dark' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
                 Dark
               </button>
               <button
                 className={`theme-button ${preferences.theme === 'auto' ? 'active' : ''}`}
                 onClick={() => handleThemeChange('auto')}
               >
-                <Icon name="smartphone" size={20} color={preferences.theme === 'auto' ? '#0066cc' : '#86868b'} />
+                <Icon name="smartphone" size={20} color={preferences.theme === 'auto' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
                 Auto
               </button>
             </div>
@@ -239,7 +341,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
             ) : (
               devices.map(device => (
                 <div className="device-row" key={device.id}>
-                  <Icon name="smartphone" size={20} color="#0066cc" />
+                  <Icon name="smartphone" size={20} color="var(--mobile-accent)" />
                   <div className="device-info">
                     <div className="device-name">{device.device_name || device.device_model || 'Unknown device'}</div>
                     <div className="device-meta">
@@ -306,124 +408,171 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
       </div>
 
       <style>{`
-        .section-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          margin: 0 0 16px 0;
-        }
-
+        /* Presentation only. Every toggle still writes the same preference
+           through the same savePreference call. */
         .setting-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 12px 0;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 13px 8px;
           border-bottom: 1px solid var(--mobile-border);
         }
 
-        .setting-row:last-child {
-          border-bottom: none;
-        }
+        .setting-row:last-child { border-bottom: none; }
 
         .setting-info {
           display: flex;
-          gap: 12px;
-          align-items: flex-start;
+          align-items: center;
+          gap: 13px;
+          min-width: 0;
           flex: 1;
         }
 
         .setting-label {
-          font-size: 15px;
+          font-size: 15.5px;
           font-weight: 600;
           color: var(--mobile-text);
-          margin-bottom: 2px;
         }
 
         .setting-description {
+          margin-top: 1px;
           font-size: 13px;
+          line-height: 1.35;
           color: var(--mobile-text-secondary);
         }
 
+        /* A proper switch: the track carries the state, so it reads at a
+           glance rather than needing the label to explain it. */
         .toggle-button {
-          width: 51px;
-          height: 31px;
-          border-radius: 31px;
-          background: var(--mobile-border);
-          border: none;
-          cursor: pointer;
+          flex: 0 0 auto;
           position: relative;
-          transition: background 0.2s;
+          width: 50px;
+          height: 30px;
+          border-radius: 999px;
+          border: none;
+          background: var(--mobile-border);
+          cursor: pointer;
+          transition: background 0.18s ease;
+          padding: 0;
         }
 
-        .toggle-button.active {
-          background: #34c759;
-        }
+        .toggle-button.active { background: var(--mobile-accent); }
 
         .toggle-slider {
-          width: 27px;
-          height: 27px;
-          border-radius: 50%;
-          background: var(--mobile-card);
           position: absolute;
-          top: 2px;
-          left: 2px;
-          transition: left 0.2s;
+          top: 3px;
+          left: 3px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #ffffff;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+          transition: transform 0.18s ease;
         }
 
-        .toggle-button.active .toggle-slider {
-          left: 22px;
-        }
+        .toggle-button.active .toggle-slider { transform: translateX(20px); }
 
         .theme-options {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 8px;
-          margin-top: 12px;
+          padding: 8px;
         }
 
         .theme-button {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
           gap: 6px;
-          padding: 12px;
-          background: var(--mobile-bg);
-          border: 2px solid transparent;
-          border-radius: 8px;
-          font-size: 12px;
+          padding: 14px 8px;
+          border-radius: 12px;
+          border: 1px solid var(--mobile-border);
+          background: var(--mobile-card);
+          font-size: 13px;
           font-weight: 600;
           color: var(--mobile-text-secondary);
           cursor: pointer;
         }
 
         .theme-button.active {
-          border-color: #0066cc;
-          color: #0066cc;
-          background: #e3f2fd;
+          border-color: var(--mobile-accent);
+          background: var(--mobile-accent-soft);
+          color: var(--mobile-accent);
         }
 
         .info-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 12px 0;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 11px 8px;
           border-bottom: 1px solid var(--mobile-border);
+          font-size: 14.5px;
         }
 
-        .info-row:last-child {
-          border-bottom: none;
-        }
+        .info-row:last-child { border-bottom: none; }
 
-        .info-label {
-          font-size: 15px;
-          color: var(--mobile-text);
-        }
+        .info-label { color: var(--mobile-text-secondary); }
 
         .info-value {
-          font-size: 15px;
-          color: var(--mobile-text-secondary);
+          color: var(--mobile-text);
+          font-weight: 600;
           text-align: right;
+        }
+
+        .logout-button {
+          width: 100%;
+          margin-top: 20px;
+          padding: 15px;
+          border-radius: 12px;
+          border: 1px solid rgba(192, 57, 43, 0.35);
+          background: none;
+          font-size: 15.5px;
+          font-weight: 600;
+          color: #c0392b;
+          cursor: pointer;
+        }
+
+        .section-title {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--mobile-text-secondary);
+          padding: 4px 8px 10px;
+        }
+
+        /* Used three times on this screen and defined nowhere, so every
+           section heading rendered as unstyled body text. */
+        .setting-section-title {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--mobile-text-secondary);
+          padding: 4px 8px 10px;
+        }
+
+        .setting-muted-note {
+          margin: 4px 8px 12px;
+          font-size: 13px;
+          line-height: 1.4;
+          color: var(--mobile-text-secondary);
+        }
+
+        .setting-dimmed {
+          opacity: 0.45;
+          pointer-events: none;
+        }
+
+        .setting-always {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--mobile-text-secondary);
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: var(--mobile-accent-soft);
         }
 
         .section-description {
@@ -483,43 +632,12 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
           border-radius: 8px;
           font-size: 14px;
           font-weight: 600;
-          color: #0066cc;
+          color: var(--mobile-accent);
           cursor: pointer;
         }
 
         .check-push-btn:disabled {
           opacity: 0.6;
-        }
-
-        .logout-button {
-          width: 100%;
-          padding: 14px;
-          background: var(--mobile-card);
-          border: 1px solid #ff3b30;
-          border-radius: 8px;
-          font-size: 16px;
-          font-weight: 600;
-          color: #ff3b30;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          margin-top: 24px;
-          cursor: pointer;
-        }
-
-        .logout-button:active {
-          opacity: 0.7;
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
         }
 
         @keyframes spin {

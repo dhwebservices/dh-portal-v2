@@ -118,8 +118,8 @@ function getLocalDateKey(date = new Date()) {
 }
 
 const statusColor = {
-  new: '#86868b',
-  contacted: '#0066cc',
+  new: 'var(--mobile-text-secondary)',
+  contacted: 'var(--mobile-accent)',
   interested: '#34c759',
   not_interested: '#ff3b30',
   follow_up: '#ff9500',
@@ -430,7 +430,7 @@ export default function MobileOutreach({ navigate }) {
       <div className="professional-section" style={{ paddingTop: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#0066cc' }}>{contacts.length}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--mobile-accent)' }}>{contacts.length}</div>
             <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Total Leads</div>
           </div>
           <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
@@ -480,7 +480,7 @@ export default function MobileOutreach({ navigate }) {
                 padding: '8px 16px',
                 borderRadius: 20,
                 border: 'none',
-                background: filter === value ? '#0066cc' : 'var(--mobile-bg)',
+                background: filter === value ? 'var(--mobile-accent)' : 'var(--mobile-bg)',
                 color: filter === value ? 'white' : 'var(--mobile-text)',
                 fontSize: 14,
                 fontWeight: 600,
@@ -540,7 +540,7 @@ export default function MobileOutreach({ navigate }) {
               )}
 
               {contact.outcome && contact.outcome !== 'none' && (
-                <div style={{ fontSize: 12, color: '#0066cc', marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: 'var(--mobile-accent)', marginTop: 8 }}>
                   Last outcome: {labelize(contact.outcome)}
                 </div>
               )}
@@ -559,7 +559,7 @@ export default function MobileOutreach({ navigate }) {
           width: 60,
           height: 60,
           borderRadius: 30,
-          background: '#0066cc',
+          background: 'var(--mobile-accent)',
           border: 'none',
           boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
           display: 'flex',
@@ -589,7 +589,7 @@ export default function MobileOutreach({ navigate }) {
           <div className="professional-screen-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button onClick={closeForm} style={{ background: 'none', border: 'none', padding: 0 }}>
-                <Icon name="chevronLeft" size={24} color="#0066cc" />
+                <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
               </button>
               <div>
                 <h1>{editing ? 'Edit Contact' : 'Add Contact'}</h1>
@@ -784,7 +784,7 @@ export default function MobileOutreach({ navigate }) {
                 padding: 16,
                 borderRadius: 12,
                 border: 'none',
-                background: '#0066cc',
+                background: 'var(--mobile-accent)',
                 color: 'white',
                 fontSize: 16,
                 fontWeight: 600,
@@ -829,7 +829,7 @@ export default function MobileOutreach({ navigate }) {
           <div className="professional-screen-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button onClick={() => setShowDetail(null)} style={{ background: 'none', border: 'none', padding: 0 }}>
-                <Icon name="chevronLeft" size={24} color="#0066cc" />
+                <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
               </button>
               <div>
                 <h1>{showDetail.business_name}</h1>
@@ -858,7 +858,7 @@ export default function MobileOutreach({ navigate }) {
             {showDetail.email && (
               <div style={{ marginBottom: 12, fontSize: 15 }}>
                 <strong>Email:</strong>{' '}
-                <a href={`mailto:${showDetail.email}`} style={{ color: '#0066cc' }}>
+                <a href={`mailto:${showDetail.email}`} style={{ color: 'var(--mobile-accent)' }}>
                   {showDetail.email}
                 </a>
               </div>
@@ -867,7 +867,7 @@ export default function MobileOutreach({ navigate }) {
             {showDetail.phone && (
               <div style={{ marginBottom: 12, fontSize: 15 }}>
                 <strong>Phone:</strong>{' '}
-                <a href={`tel:${showDetail.phone}`} style={{ color: '#0066cc' }}>
+                <a href={`tel:${showDetail.phone}`} style={{ color: 'var(--mobile-accent)' }}>
                   {showDetail.phone}
                 </a>
               </div>
@@ -876,7 +876,7 @@ export default function MobileOutreach({ navigate }) {
             {showDetail.website && (
               <div style={{ marginBottom: 12, fontSize: 15 }}>
                 <strong>Website:</strong>{' '}
-                <a href={showDetail.website} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc' }}>
+                <a href={showDetail.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mobile-accent)' }}>
                   {showDetail.website}
                 </a>
               </div>
@@ -940,7 +940,7 @@ export default function MobileOutreach({ navigate }) {
                   style={{
                     padding: 12,
                     borderRadius: 10,
-                    background: '#0066cc',
+                    background: 'var(--mobile-accent)',
                     color: 'white',
                     textAlign: 'center',
                     fontSize: 14,
@@ -1019,7 +1019,7 @@ export default function MobileOutreach({ navigate }) {
                 padding: 16,
                 borderRadius: 12,
                 border: 'none',
-                background: '#0066cc',
+                background: 'var(--mobile-accent)',
                 color: 'white',
                 fontSize: 16,
                 fontWeight: 600,

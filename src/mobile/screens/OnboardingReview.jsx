@@ -157,7 +157,7 @@ export default function MobileOnboardingReview({ goBack, navigate, isAdmin }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Onboarding</h1>
           <div style={{ width: 60 }} />
@@ -174,7 +174,7 @@ export default function MobileOnboardingReview({ goBack, navigate, isAdmin }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={() => setDetail(null)}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Review</h1>
           <div style={{ width: 60 }} />
@@ -268,7 +268,7 @@ export default function MobileOnboardingReview({ goBack, navigate, isAdmin }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Onboarding</h1>
         <div style={{ width: 60 }} />
@@ -336,9 +336,9 @@ const reviewStyles = (
     }
 
     .filter-chip.active {
-      background: #0066cc;
+      background: var(--mobile-accent);
       color: white;
-      border-color: #0066cc;
+      border-color: var(--mobile-accent);
     }
 
     .list-row {
@@ -411,7 +411,7 @@ const reviewStyles = (
     .rtw-view-link {
       display: block;
       margin-top: 8px;
-      color: #0066cc;
+      color: var(--mobile-accent);
       font-weight: 600;
       font-size: 14px;
       text-decoration: none;

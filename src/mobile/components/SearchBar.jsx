@@ -6,7 +6,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
 
   return (
     <div className={`search-bar ${isFocused ? 'focused' : ''}`}>
-      <Icon name="search" size={18} color={isFocused ? '#0066cc' : '#86868b'} />
+      <Icon name="search" size={18} color={isFocused ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
 
       <input
         type="search"
@@ -25,7 +25,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
           onClick={() => onChange('')}
           type="button"
         >
-          <Icon name="x" size={16} color="#86868b" />
+          <Icon name="x" size={16} color="var(--mobile-text-secondary)" />
         </button>
       )}
 
@@ -44,7 +44,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search...', 
 
         .search-bar.focused {
           background: var(--mobile-card);
-          border-color: #0066cc;
+          border-color: var(--mobile-accent);
           box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
         }
 

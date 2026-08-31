@@ -43,6 +43,52 @@ export default function Icon({ name, size = 24, color = 'currentColor', strokeWi
         <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
       </>
     ),
+    'chevron-right': (
+      <polyline points="9 18 15 12 9 6" />
+    ),
+    'chevron-down': (
+      <polyline points="6 9 12 15 18 9" />
+    ),
+    'chevron-up': (
+      <polyline points="18 15 12 9 6 15" />
+    ),
+    'chevron-left': (
+      <polyline points="15 18 9 12 15 6" />
+    ),
+    plane: (
+      <path d="M17.8 19.2L16 11l3.5-3.5a2.12 2.12 0 00-3-3L13 8 4.8 6.2a1 1 0 00-.9 1.7l5.3 3.4-2 2-2.6-.5a1 1 0 00-.9 1.6l2.4 2.4 2.4 2.4a1 1 0 001.6-.9l-.5-2.6 2-2 3.4 5.3a1 1 0 001.7-.9z" />
+    ),
+    grid: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </>
+    ),
+    'calendar-off': (
+      <>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <line x1="4" y1="20" x2="20" y2="4" />
+      </>
+    ),
+    menu: (
+      <>
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </>
+    ),
+    'alert-circle': (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </>
+    ),
     file: (
       <>
         <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
@@ -72,6 +118,15 @@ export default function Icon({ name, size = 24, color = 'currentColor', strokeWi
         <path d="M7 21h11" />
         <path d="M6 12h7" />
         <path d="M9 21v-13a3 3 0 016-1" />
+      </>
+    ),
+    gift: (
+      <>
+        <polyline points="20 12 20 22 4 22 4 12" />
+        <rect x="2" y="7" width="20" height="5" />
+        <line x1="12" y1="22" x2="12" y2="7" />
+        <path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" />
+        <path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
       </>
     ),
     barChart: (
@@ -222,6 +277,19 @@ export default function Icon({ name, size = 24, color = 'currentColor', strokeWi
       </>
     ),
   }
+
+  // Aliases for names already used across the app.
+  //
+  // `arrowLeft`, `chevronLeft` and `chevronRight` are referenced at 30 call
+  // sites — every back button and every week arrow — and none of them existed
+  // in the map above. `icons[name]` came back undefined and the component
+  // rendered an empty <svg>: a button the right size, in the right place,
+  // with nothing drawn in it. Aliasing fixes all thirty without touching them.
+  icons.arrowLeft = icons['chevron-left']
+  icons.chevronLeft = icons['chevron-left']
+  icons.chevronRight = icons['chevron-right']
+  icons.chevronUp = icons['chevron-up']
+  icons.chevronDown = icons['chevron-down']
 
   return (
     <svg

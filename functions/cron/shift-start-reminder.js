@@ -13,11 +13,12 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //   APNS_KEY_ID, APNS_TEAM_ID, APNS_AUTH_KEY, APNS_BUNDLE_ID, APNS_ENVIRONMENT
 // Optional:
-//   SHIFT_REMINDER_LEAD_MINUTES - how far ahead to warn (default 10)
+//   SHIFT_REMINDER_LEAD_MINUTES - how far ahead to warn (default 15)
 
 import { sendApnsNotification, getIosDeviceTokens, logPushNotification } from '../api/_apns.js'
 
-const DEFAULT_LEAD_MINUTES = 10
+// 15 minutes: enough to leave the house, short enough to still be relevant.
+const DEFAULT_LEAD_MINUTES = 15
 
 // Must match the cron cadence in wrangler-shift-start-reminder.toml. The window
 // is what stops a shift falling between two ticks and never being notified.
@@ -234,7 +235,13 @@ export async function sendShiftStartReminders(env, referenceDate = new Date()) {
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(sendShiftStartReminders(env))
+    // allSettled, not all: the two passes are independent, and a fault in the
+    // newer end-of-shift pass must not stop people being reminded that their
+    // shift is about to start. With Promise.all, one rejection takes both out.
+    ctx.waitUntil(Promise.allSettled([
+      sendShiftStartReminders(env),
+      sendShiftEndReminders(env),
+    ]))
   },
 
   // Manual trigger for testing: GET the worker URL. Guarded so it can't be used
@@ -245,9 +252,113 @@ export default {
       return new Response('Not found', { status: 404 })
     }
 
-    const result = await sendShiftStartReminders(env)
+    const [start, end] = await Promise.all([
+      sendShiftStartReminders(env),
+      sendShiftEndReminders(env),
+    ])
+    const result = { start, end }
     return new Response(JSON.stringify(result, null, 2), {
       headers: { 'Content-Type': 'application/json' },
     })
   },
+}
+
+
+/**
+ * "Your shift ends soon" — five minutes before the end time.
+ *
+ * Deliberately only sent to somebody who is actually clocked IN and has not
+ * clocked out. Reminding a person to finish a shift they never started is
+ * noise, and noise is how a notification channel gets muted.
+ *
+ * Deduped on `shifts.clock_out_reminder_sent_at`, mirroring the start
+ * reminder — without it this five-minute cron would re-send on every tick.
+ */
+export async function sendShiftEndReminders(env, referenceDate = new Date()) {
+  const leadMinutes = Number(env.SHIFT_END_REMINDER_LEAD_MINUTES) || 5
+  const now = londonNow(referenceDate)
+
+  const shifts = await supabaseGet(
+    env,
+    `shifts?shift_date=eq.${now.date}&published=is.true&clock_out_reminder_sent_at=is.null` +
+      `&select=id,employee_email,employee_name,shift_date,end_time`,
+  )
+
+  const result = { checked: 0, sent: 0, skipped: [], errors: [] }
+
+  for (const shift of shifts) {
+    const endMinutes = parseStartMinutes(shift.end_time)
+    if (endMinutes === null || !shift.employee_email) continue
+
+    const minutesUntilEnd = endMinutes - now.minutes
+    if (minutesUntilEnd < leadMinutes || minutesUntilEnd >= leadMinutes + WINDOW_MINUTES) continue
+
+    result.checked += 1
+    const email = shift.employee_email
+
+    try {
+      // Only worth saying to somebody who is on the clock right now.
+      const open = await supabaseGet(
+        env,
+        `timesheets?user_email=eq.${encodeURIComponent(email)}` +
+          `&clock_out=is.null&clock_in=not.is.null&select=id&limit=1`,
+      )
+      if (open.length === 0) {
+        await markEndReminderSent(env, shift.id)
+        result.skipped.push(`${email}: not clocked in`)
+        continue
+      }
+
+      if (!(await pushEnabledFor(env, email))) {
+        await markEndReminderSent(env, shift.id)
+        result.skipped.push(`${email}: push notifications turned off`)
+        continue
+      }
+
+      const tokens = await getIosDeviceTokens(email, env)
+      if (tokens.length === 0) {
+        await markEndReminderSent(env, shift.id)
+        result.skipped.push(`${email}: no registered devices`)
+        continue
+      }
+
+      const notification = {
+        title: 'Your shift ends soon',
+        body: `Your shift ends at ${shift.end_time}. Remember to clock out.`,
+        data: {
+          type: 'shift_end_reminder',
+          shift_id: shift.id,
+          shift_date: shift.shift_date,
+          end_time: shift.end_time,
+          click_action: 'https://staff.dhwebsiteservices.co.uk/clock-in',
+        },
+      }
+
+      const results = await Promise.all(
+        tokens.map((token) => sendApnsNotification(token, notification, env)),
+      )
+      const delivered = results.filter((r) => r.success).length
+
+      await logPushNotification(email, 'shift_end_reminder', notification, delivered > 0, env)
+      await markEndReminderSent(env, shift.id)
+      result.sent += delivered
+    } catch (error) {
+      result.errors.push(`${email}: ${error.message}`)
+    }
+  }
+
+  return result
+}
+
+async function markEndReminderSent(env, shiftId) {
+  await fetch(`${env.SUPABASE_URL}/rest/v1/shifts?id=eq.${shiftId}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ clock_out_reminder_sent_at: new Date().toISOString() }),
+  })
 }

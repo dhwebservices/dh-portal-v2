@@ -12,6 +12,10 @@
 -- Everything below is scoped to the single review account. No real staff records
 -- are touched.
 
+-- The seed is topped up by app-review-demo-data-refresh.sql, which rolls the
+-- dates forward from "today". Run THIS file only after approval; running the
+-- refresh instead is what keeps the account populated while review is pending.
+
 delete from shifts        where employee_email = 'app-review@dhwebsiteservices.co.uk';
 delete from schedules     where user_email     = 'app-review@dhwebsiteservices.co.uk';
 delete from work_schedule where user_email     = 'app-review@dhwebsiteservices.co.uk';

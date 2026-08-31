@@ -1,3 +1,4 @@
+import { apiUrl } from '../utils/apiBase'
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
 import { loadActivePortalStaffAudience } from '../utils/staffAudience'
@@ -55,54 +56,70 @@ export default function PushNotificationSender() {
 
   const withDevices = staff.filter((person) => deviceCounts[person.email] > 0)
 
+  /**
+   * One request, not one per person.
+   *
+   * This used to loop over the audience and fire a request each — forty staff
+   * meant forty round trips from the browser, and a partial failure halfway
+   * through left no way to say what had actually gone out. The endpoint now
+   * takes the audience itself and answers once.
+   *
+   * Tagged as the `announcement` event, the same as the app's sender, so both
+   * routes log identically and neither can be muted — this is the channel for
+   * things staff need to know.
+   */
   const send = async () => {
     if (!recipient || !title.trim() || !body.trim()) return
 
     setSending(true)
     setResult(null)
 
-    const targets = recipient === ALL_RECIPIENTS ? withDevices : staff.filter((p) => p.email === recipient)
+    const toEveryone = recipient === ALL_RECIPIENTS
 
-    let sent = 0
-    const noDevices = []
-    const failed = []
+    try {
+      const response = await fetch(apiUrl('/api/send-push-notification'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(toEveryone
+            ? { userEmails: withDevices.map((p) => p.email) }
+            : { userEmail: recipient }),
+          event: 'announcement',
+          title: title.trim(),
+          body: body.trim(),
+          data: { type: 'manual', sent_from: 'portal_admin' },
+        }),
+      })
 
-    for (const person of targets) {
-      try {
-        const response = await fetch('/api/send-push-notification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: person.email,
-            title: title.trim(),
-            body: body.trim(),
-            data: { type: 'manual', sent_from: 'portal_admin' },
-          }),
-        })
+      const payload = await response.json().catch(() => ({}))
 
-        const payload = await response.json().catch(() => ({}))
-
-        if (!response.ok) {
-          failed.push(`${person.name}: ${payload.error || response.status}`)
-        } else if (payload.sent > 0) {
-          sent += payload.sent
-        } else {
-          noDevices.push(person.name)
-        }
-      } catch (error) {
-        failed.push(`${person.name}: ${error.message}`)
+      if (!response.ok) {
+        setResult({ variant: 'error', message: payload.error || `Failed (${response.status})` })
+        return
       }
+
+      const sent = payload.sent || 0
+      const people = payload.recipients || 0
+
+      // A send that reached nobody says so plainly. The request succeeding is
+      // not the same as somebody's phone buzzing, and conflating the two is
+      // how you find out weeks later that nothing was ever delivered.
+      setResult({
+        variant: sent > 0 ? 'success' : 'warning',
+        message: sent > 0
+          ? `Delivered to ${people} ${people === 1 ? 'person' : 'people'} on ${sent} device${sent === 1 ? '' : 's'}.`
+          : 'Nobody received it. Nobody in that group has the app installed with notifications turned on.',
+      })
+
+      if (sent > 0) {
+        setTitle('')
+        setBody('')
+      }
+    } catch (error) {
+      setResult({ variant: 'error', message: error.message })
+    } finally {
+      setSending(false)
     }
-
-    const notes = []
-    if (noDevices.length) notes.push(`${noDevices.length} with no registered device (${noDevices.join(', ')})`)
-    if (failed.length) notes.push(`${failed.length} failed - ${failed.join('; ')}`)
-
-    setResult({
-      variant: sent > 0 && !failed.length ? 'success' : failed.length ? 'error' : 'warning',
-      message: `Delivered to ${sent} device${sent === 1 ? '' : 's'}.${notes.length ? ` ${notes.join('. ')}.` : ''}`,
-    })
-    setSending(false)
   }
 
   const canSend = !!recipient && title.trim() && body.trim() && !sending

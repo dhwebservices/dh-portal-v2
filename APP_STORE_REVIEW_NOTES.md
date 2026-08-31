@@ -30,8 +30,7 @@ tiers and no anonymous access.
 
 ## 2. Devices and operating systems tested
 
-<!-- TODO(David): replace with the real list before sending -->
-- iPhone <MODEL>, iOS <VERSION> (physical device)
+- iPhone 17 Pro, iOS 27.0 (physical device)
 - iPhone 17 Pro Max, iOS 26 (Simulator)
 - iPad Pro 13-inch, iPadOS 26 (Simulator)
 

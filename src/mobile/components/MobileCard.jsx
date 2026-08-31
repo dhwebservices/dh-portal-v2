@@ -37,7 +37,7 @@ export default function MobileCard({ children, onPress, small, highlight, classN
 
         .mobile-card-highlight {
           border: 2px solid var(--mobile-accent);
-          background: linear-gradient(135deg, var(--mobile-card) 0%, rgba(184, 150, 12, 0.05) 100%);
+          background: linear-gradient(135deg, var(--mobile-card) 0%, var(--mobile-accent-soft) 100%);
         }
 
         .mobile-card-pressable {

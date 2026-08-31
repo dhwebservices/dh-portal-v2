@@ -137,16 +137,7 @@ export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, st
           padding-bottom: 80px;
         }
 
-        .mobile-screen-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-back-btn,
+                .mobile-back-btn,
         .mobile-edit-btn {
           font-size: 16px;
           color: var(--mobile-accent);
@@ -157,14 +148,7 @@ export default function MobileStaffProfile({ goBack, navigate, user, isAdmin, st
           font-weight: 600;
         }
 
-        .mobile-screen-header h1 {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-profile-header {
+                .mobile-profile-header {
           text-align: center;
           padding: 32px 20px;
           background: var(--mobile-card);
@@ -518,7 +502,7 @@ function DocumentsTab({ profile, isAdmin, staffEmail, adminUser, onUpdated }) {
           <MobileButton
             variant="secondary"
             fullWidth
-            icon={<Icon name="file" size={18} color="#0066cc" />}
+            icon={<Icon name="file" size={18} color="var(--mobile-accent)" />}
             onPress={() => Browser.open({ url: profile.contract_url })}
           >
             View Contract
@@ -530,7 +514,7 @@ function DocumentsTab({ profile, isAdmin, staffEmail, adminUser, onUpdated }) {
         {isAdmin && (
           <label className="contract-upload">
             <input type="file" accept="application/pdf,image/*" onChange={handleFileChange} hidden disabled={uploading} />
-            <Icon name="download" size={18} color="#0066cc" />
+            <Icon name="download" size={18} color="var(--mobile-accent)" />
             <span>{uploading ? 'Uploading...' : profile.contract_url ? 'Replace Contract' : 'Issue Contract'}</span>
           </label>
         )}
@@ -564,7 +548,7 @@ function DocumentsTab({ profile, isAdmin, staffEmail, adminUser, onUpdated }) {
           border-radius: 10px;
           font-size: 15px;
           font-weight: 600;
-          color: #0066cc;
+          color: var(--mobile-accent);
           cursor: pointer;
         }
       `}</style>

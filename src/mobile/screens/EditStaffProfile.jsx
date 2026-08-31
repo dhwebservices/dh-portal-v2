@@ -346,20 +346,24 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
             <option value="both">Hourly + Commission</option>
           </select>
 
-          {(profile.payment_type === 'hourly' || profile.payment_type === 'both') && (
-            <>
-              <label className="mobile-label">Hourly Rate (£/hour)</label>
-              <input
-                className="mobile-input"
-                type="number"
-                step="0.01"
-                min="0"
-                value={profile.hourly_rate || ''}
-                onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
-                placeholder="0.00"
-              />
-            </>
-          )}
+          {/* Always shown, not only for hourly payment types.
+              The rate now drives what the rota says a day costs and what a
+              shift is estimated to pay, and those are useful for somebody on
+              commission too. Hiding it behind the payment type is why every
+              rate was 0 and the cost summary read £0.00. */}
+          <label className="mobile-label">Hourly Rate (£/hour)</label>
+          <input
+            className="mobile-input"
+            type="number"
+            step="0.01"
+            min="0"
+            value={profile.hourly_rate || ''}
+            onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
+            placeholder="0.00"
+          />
+          <p className="mobile-field-note">
+            Used for rota costs and the estimated pay shown against each shift.
+          </p>
 
           <label className="mobile-label">Commission Rate (%)</label>
           <input
@@ -420,22 +424,20 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
       </div>
 
       <style>{`
+        .mobile-field-note {
+          margin: 6px 2px 4px;
+          font-size: 12.5px;
+          line-height: 1.4;
+          color: var(--mobile-text-secondary);
+        }
+
         .mobile-edit-profile {
           min-height: 100vh;
           background: var(--mobile-bg);
           padding-bottom: 80px;
         }
 
-        .mobile-screen-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-back-btn,
+                .mobile-back-btn,
         .mobile-save-btn {
           font-size: 16px;
           color: var(--mobile-accent);
@@ -450,14 +452,7 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
           opacity: 0.5;
         }
 
-        .mobile-screen-header h1 {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-form {
+                .mobile-form {
           padding: 20px;
           display: flex;
           flex-direction: column;

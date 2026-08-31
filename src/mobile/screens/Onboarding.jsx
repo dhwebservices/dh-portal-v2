@@ -219,7 +219,7 @@ export default function MobileOnboarding({ goBack, user }) {
       <div className="onboarding-screen">
         <div className="onboarding-status">
           <div className="status-icon submitted">
-            <Icon name="check" size={40} color="#0066cc" />
+            <Icon name="check" size={40} color="var(--mobile-accent)" />
           </div>
           <h1>Onboarding Submitted</h1>
           <p>Thanks, {form.first_name || user.name}. Your onboarding details have been sent for review.</p>
@@ -302,7 +302,7 @@ export default function MobileOnboarding({ goBack, user }) {
           <label className="field-label">Upload Document</label>
           <label className="rtw-upload">
             <input type="file" accept="image/*,application/pdf" capture="environment" onChange={handleRtwFile} hidden />
-            <Icon name="file" size={20} color="#0066cc" />
+            <Icon name="file" size={20} color="var(--mobile-accent)" />
             <span>{rtwUploading ? 'Uploading...' : rtwFileName || 'Take photo or choose file'}</span>
           </label>
           {form.rtw_doc_url && <div className="rtw-uploaded">✓ Document uploaded</div>}
@@ -350,15 +350,6 @@ const onboardingStyles = (
       align-items: center;
       justify-content: center;
       height: 100vh;
-    }
-
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid var(--mobile-border);
-      border-top-color: var(--mobile-accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {

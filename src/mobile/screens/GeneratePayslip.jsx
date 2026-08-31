@@ -159,6 +159,7 @@ export default function MobileGeneratePayslip({ goBack, isAdmin, staffEmail: ini
       if (insertError) throw insertError
 
       await sendManagedNotification({
+        event: 'payslip_available',
         userEmail: staffEmail,
         userName: staffName,
         title: '💷 Payslip Available',
@@ -188,7 +189,7 @@ export default function MobileGeneratePayslip({ goBack, isAdmin, staffEmail: ini
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Payslips</h1>
           <div style={{ width: 60 }} />
@@ -220,7 +221,7 @@ export default function MobileGeneratePayslip({ goBack, isAdmin, staffEmail: ini
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Generate Payslip</h1>
         <div style={{ width: 60 }} />
@@ -289,7 +290,7 @@ export default function MobileGeneratePayslip({ goBack, isAdmin, staffEmail: ini
               <label className="gp-label">Payslip File</label>
               <label className="gp-upload">
                 <input type="file" accept="application/pdf,image/*" onChange={handleFileChange} hidden />
-                <Icon name="file" size={20} color="#0066cc" />
+                <Icon name="file" size={20} color="var(--mobile-accent)" />
                 <span>{fileName || 'Choose PDF or image'}</span>
               </label>
             </>
@@ -369,9 +370,9 @@ const payslipStyles = (
     }
 
     .gp-mode-btn.active {
-      background: #0066cc;
+      background: var(--mobile-accent);
       color: white;
-      border-color: #0066cc;
+      border-color: var(--mobile-accent);
     }
 
     .gp-hours-summary {
@@ -413,7 +414,7 @@ const payslipStyles = (
       width: 100%;
       margin-top: 20px;
       padding: 14px;
-      background: #0066cc;
+      background: var(--mobile-accent);
       color: white;
       border: none;
       border-radius: 8px;

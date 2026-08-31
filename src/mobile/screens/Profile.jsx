@@ -89,7 +89,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={() => setEditing(false)}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Edit Profile</h1>
           <div style={{ width: 60 }} />
@@ -174,13 +174,13 @@ export default function MobileProfile({ goBack, user, navigate }) {
 
           .form-input:focus {
             outline: none;
-            border-color: #0066cc;
+            border-color: var(--mobile-accent);
           }
 
           .save-button {
             width: 100%;
             padding: 14px;
-            background: #0066cc;
+            background: var(--mobile-accent);
             color: white;
             border: none;
             border-radius: 8px;
@@ -205,7 +205,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>My Profile</h1>
         <div style={{ width: 60 }} />
@@ -223,7 +223,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
               <div className="profile-section-header">
                 <h3>Personal Information</h3>
                 <button className="edit-button" onClick={() => setEditing(true)}>
-                  <Icon name="edit" size={18} color="#0066cc" />
+                  <Icon name="edit" size={18} color="var(--mobile-accent)" />
                 </button>
               </div>
 
@@ -317,7 +317,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
           {/* Actions */}
           <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <button className="action-button" onClick={() => navigate('settings')}>
-              <Icon name="settings" size={20} color="#0066cc" />
+              <Icon name="settings" size={20} color="var(--mobile-accent)" />
               Settings
             </button>
 
@@ -401,7 +401,7 @@ export default function MobileProfile({ goBack, user, navigate }) {
           border-radius: 8px;
           font-size: 16px;
           font-weight: 600;
-          color: #0066cc;
+          color: var(--mobile-accent);
           cursor: pointer;
         }
 
@@ -412,16 +412,6 @@ export default function MobileProfile({ goBack, user, navigate }) {
 
         .action-button:active {
           opacity: 0.7;
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
         }
 
         @keyframes spin {

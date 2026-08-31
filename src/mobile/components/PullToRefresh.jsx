@@ -24,7 +24,7 @@ export default function PullToRefresh({ isRefreshing, pullDistance }) {
                 opacity: progress / 100
               }}
             >
-              <Icon name="refresh" size={24} color="#0066cc" />
+              <Icon name="refresh" size={24} color="var(--mobile-accent)" />
             </div>
             <span style={{ opacity: progress / 100 }}>
               {progress >= 100 ? 'Release to refresh' : 'Pull to refresh'}
@@ -50,7 +50,7 @@ export default function PullToRefresh({ isRefreshing, pullDistance }) {
 
         .pull-to-refresh-content span {
           font-size: 13px;
-          color: #0066cc;
+          color: var(--mobile-accent);
           font-weight: 600;
         }
 
@@ -62,7 +62,7 @@ export default function PullToRefresh({ isRefreshing, pullDistance }) {
           width: 24px;
           height: 24px;
           border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
+          border-top-color: var(--mobile-accent);
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }

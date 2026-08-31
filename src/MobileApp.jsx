@@ -32,6 +32,11 @@ import MobileEditPermissions from './mobile/screens/EditPermissions'
 import MobileOutreach from './mobile/screens/Outreach'
 import MobileTimesheet from './mobile/screens/Timesheet'
 import MobileRota from './mobile/screens/Rota'
+import MobileMyShifts from './mobile/screens/MyShifts'
+import MobileSendNotification from './mobile/screens/SendNotification'
+import MobileDeviceHistory from './mobile/screens/DeviceHistory'
+import MobileAddShift from './mobile/screens/AddShift'
+import MobileFishTankAdmin from './mobile/screens/FishTankAdmin'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -260,6 +265,20 @@ export default function MobileApp() {
         return <MobileTimesheet {...screenProps} />
       case 'rota':
         return <MobileRota {...screenProps} />
+      case 'myshifts':
+        return <MobileMyShifts {...screenProps} />
+      case 'add-shift':
+        return isAdmin ? <MobileAddShift {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'devices':
+        return <MobileDeviceHistory {...screenProps} />
+      case 'send-notification':
+        // Managers only. The screen checks again for itself rather than
+        // trusting this gate alone.
+        return isAdmin ? <MobileSendNotification {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'fishtank':
+        // Managers only, and the screen additionally wants a real operator
+        // key before it will talk to the game's backend at all.
+        return isAdmin ? <MobileFishTankAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       default:
         return <MobileHome {...screenProps} />
     }
@@ -287,7 +306,7 @@ export default function MobileApp() {
       <div className={`mobile-app ${activeTheme}`}>
         <div className="lock-screen">
           <div className="lock-icon">
-            <Icon name="lock" size={40} color="#b8960c" />
+            <Icon name="lock" size={40} color="var(--mobile-accent)" />
           </div>
           <h2>DH Staff Portal Locked</h2>
           <p>{lockError || 'Authenticate to continue'}</p>
@@ -374,28 +393,28 @@ export default function MobileApp() {
           onPress={() => navigate('home')}
         />
         <TabButton
-          iconName="clock"
-          label="Clock In"
-          active={currentScreen === 'clockin'}
-          onPress={() => navigate('clockin')}
+          iconName="grid"
+          label="Rota"
+          active={currentScreen === 'rota'}
+          onPress={() => navigate('rota')}
         />
         <TabButton
-          iconName="calendar"
+          iconName="clock"
+          label="Shifts"
+          active={currentScreen === 'myshifts'}
+          onPress={() => navigate('myshifts')}
+        />
+        <TabButton
+          iconName="plane"
           label="Leave"
           active={currentScreen === 'leave'}
           onPress={() => navigate('leave')}
         />
         <TabButton
-          iconName="bell"
-          label="Alerts"
-          active={currentScreen === 'notifications'}
-          onPress={() => navigate('notifications')}
-        />
-        <TabButton
-          iconName="user"
-          label="Profile"
-          active={currentScreen === 'profile'}
-          onPress={() => navigate('profile')}
+          iconName="calendar"
+          label="Timesheets"
+          active={currentScreen === 'timesheet'}
+          onPress={() => navigate('timesheet')}
         />
       </nav>
 
@@ -411,23 +430,122 @@ export default function MobileApp() {
           overflow: hidden;
         }
 
+        /* DH blue, taken from the company design system
+           (--color-blue-500 in src/styles/design-system.css) rather than
+           invented here, so the app and the portal agree.
+
+           --mobile-accent-soft is the tint used behind icons and on selected
+           rows. It exists as a token because it was previously written out as
+           a literal rgba in four different files, which is how a rebrand
+           leaves fragments of the old colour behind. */
         .mobile-app.light {
-          --mobile-bg: #f5f5f5;
+          --mobile-bg: #f4f6f8;
           --mobile-card: #ffffff;
-          --mobile-text: #000000;
-          --mobile-text-secondary: #666666;
-          --mobile-border: #e0e0e0;
-          --mobile-accent: #b8960c;
+          --mobile-text: #0d1b2a;
+          --mobile-text-secondary: #5b6b7c;
+          --mobile-border: #dfe5ea;
+          --mobile-accent: #0066cc;
+          --mobile-accent-soft: rgba(0, 102, 204, 0.12);
+          --mobile-accent-strong: #0052a3;
+          --mobile-on-accent: #ffffff;
         }
 
+        /* The dark theme was built around the gold and ran warm — browns.
+           On blue that reads as a mismatch, so the neutrals go cool, and the
+           accent lifts to a lighter blue that still holds contrast against a
+           dark ground. #0066cc on #1a2028 does not. */
         .mobile-app.dark {
-          --mobile-bg: #1a1612;
-          --mobile-card: #2a2622;
-          --mobile-text: #ffffff;
-          --mobile-text-secondary: #a8a096;
-          --mobile-border: #3a3632;
-          --mobile-accent: #b8960c;
+          --mobile-bg: #0f1419;
+          --mobile-card: #1a2028;
+          --mobile-text: #eef3f7;
+          --mobile-text-secondary: #93a3b3;
+          --mobile-border: #2a333d;
+          --mobile-accent: #3d92f0;
+          --mobile-accent-soft: rgba(61, 146, 240, 0.16);
+          --mobile-accent-strong: #62a8f5;
+          --mobile-on-accent: #06121f;
         }
+
+        /* The shared screen chrome, defined ONCE, here.
+           Fifteen screens use .mobile-screen-header and only four defined it,
+           so the other eleven rendered an unstyled header. Defining it in the
+           shell, which is always mounted, fixes all of them.
+
+           NOTE: never put a backtick in this comment. It lives inside the
+           style tag's template literal, and a backtick here ends that
+           literal — everything after it is then parsed as JavaScript. That is
+           exactly what happened once, and it crashed the whole app with
+           "header is not defined" the moment a signed-in user got past the
+           loading screen. */
+        /* Defined once. Six screens carried an identical copy of this, all
+           of them global, all of them overwriting each other. */
+        .spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid var(--mobile-border);
+          border-top-color: var(--mobile-accent);
+          border-radius: 50%;
+          animation: mobile-spin 0.8s linear infinite;
+        }
+
+        @keyframes mobile-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .spinner { animation-duration: 2.4s; }
+        }
+
+        /* Used by MobileButton and by EditStaffProfile, and defined in
+           neither. Found by rendering every screen and asking the CSSOM which
+           classes in the DOM match no rule. */
+        .mobile-btn-text {
+          font-size: 15.5px;
+          font-weight: 600;
+          line-height: 1.2;
+        }
+
+        .mobile-card-title {
+          margin: 0 0 12px;
+          font-size: 16px;
+          font-weight: 700;
+          color: var(--mobile-text);
+        }
+
+        .mobile-screen-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 14px 16px;
+          background: var(--mobile-card);
+          border-bottom: 1px solid var(--mobile-border);
+          position: sticky;
+          top: 0;
+          z-index: 3;
+        }
+
+        .mobile-screen-header h1 {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          color: var(--mobile-text);
+        }
+
+        .mobile-back-btn {
+          background: none;
+          border: none;
+          padding: 6px;
+          margin: -6px;
+          cursor: pointer;
+          display: grid;
+          place-items: center;
+          color: var(--mobile-accent);
+          border-radius: 8px;
+        }
+
+        .mobile-back-btn:active { background: var(--mobile-accent-soft); }
 
         .mobile-screen {
           flex: 1;

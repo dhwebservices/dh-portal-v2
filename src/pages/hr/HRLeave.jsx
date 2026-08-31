@@ -90,6 +90,7 @@ export default function HRLeave() {
       if (newStatus !== prevStatus) {
         const statusLabel = newStatus === 'approved' ? '✅ Leave Approved' : newStatus === 'rejected' ? '❌ Leave Rejected' : '📅 Leave Updated'
         await sendManagedNotification({
+          event: 'leave_approved',
           userEmail: targetEmail,
           userName: targetName,
           title: statusLabel,
@@ -107,6 +108,7 @@ export default function HRLeave() {
       } else {
         // Dates/details changed
         await sendManagedNotification({
+          event: 'leave_approved',
           userEmail: targetEmail,
           userName: targetName,
           title: '📅 Leave request updated',

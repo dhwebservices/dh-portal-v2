@@ -6,7 +6,7 @@
 // every push sent through this endpoint was silently failing. Sends via
 // APNs directly now (see ./_apns.js for credentials/config).
 
-import { sendApnsNotification, getIosDeviceTokens, logPushNotification } from './_apns.js'
+import { sendApnsNotification, getIosDeviceTokens, getAllIosDevices, getOptedOutEmails, logPushNotification } from './_apns.js'
 
 export async function onRequest(context) {
   const { request, env } = context
@@ -30,24 +30,51 @@ export async function onRequest(context) {
 
   try {
     const payload = await request.json()
-    const { userEmail, title, body, data = {} } = payload
+    const { userEmail, userEmails, audience, event, title, body, data = {} } = payload
 
-    if (!userEmail || !title || !body) {
+    if (!title || !body) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: userEmail, title, body' }),
+        JSON.stringify({ error: 'Missing required fields: title, body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const tokens = await getIosDeviceTokens(userEmail, env)
+    // Three ways to say who gets it, in order of specificity. The original
+    // single-`userEmail` shape is first and unchanged, so every existing
+    // caller keeps working exactly as it did.
+    let recipients = []
 
-    if (tokens.length === 0) {
-      console.log(`No iOS devices registered for ${userEmail}`)
+    if (userEmail) {
+      const tokens = await getIosDeviceTokens(userEmail, env)
+      recipients = tokens.map(token => ({ email: String(userEmail).toLowerCase(), token }))
+    } else if (Array.isArray(userEmails) && userEmails.length > 0) {
+      const wanted = new Set(userEmails.map(e => String(e).toLowerCase()))
+      const all = await getAllIosDevices(env)
+      recipients = all.filter(d => wanted.has(d.email))
+    } else if (audience === 'everyone') {
+      recipients = await getAllIosDevices(env)
+    } else {
       return new Response(
-        JSON.stringify({ message: 'No devices registered', sent: 0 }),
+        JSON.stringify({ error: 'No recipient: pass userEmail, userEmails, or audience' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Anyone who turned this kind off, or push off entirely, drops out here.
+    // Read once for the whole send rather than per person.
+    if (event) {
+      const optedOut = await getOptedOutEmails(event, env)
+      recipients = recipients.filter(r => !optedOut.has(r.email))
+    }
+
+    if (recipients.length === 0) {
+      return new Response(
+        JSON.stringify({ message: 'No devices to send to', sent: 0, total_devices: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const tokens = recipients.map(r => r.token)
 
     const notificationData = {
       title,
@@ -65,12 +92,21 @@ export async function onRequest(context) {
     const sent = results.filter(r => r.success).length
     const errors = results.filter(r => !r.success).map(r => r.error)
 
-    await logPushNotification(userEmail, data.type, notificationData, sent > 0, env)
+    // One log row per person reached, so `push_notifications` remains a
+    // truthful record of who was told what.
+    const reached = [...new Set(recipients.map(r => r.email))]
+    await Promise.all(
+      reached.map(email =>
+        logPushNotification(email, event || data.type, notificationData, sent > 0, env)
+          .catch(() => null)
+      )
+    )
 
     return new Response(
       JSON.stringify({
         success: true,
         sent,
+        recipients: reached.length,
         total_devices: tokens.length,
         errors: errors.length > 0 ? errors : undefined,
       }),

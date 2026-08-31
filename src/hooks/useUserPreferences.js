@@ -6,6 +6,10 @@ const DEFAULTS = {
   emailNotifications: true,
   theme: 'light',
   biometricAuth: false,
+  // Per-event push preferences, keyed by src/shared/notificationEvents.js.
+  // Empty means "everything", which is what somebody who has never opened the
+  // notifications screen should get.
+  notificationPrefs: {},
 }
 
 const FIELD_MAP = {
@@ -13,6 +17,7 @@ const FIELD_MAP = {
   emailNotifications: 'email_notifications',
   theme: 'theme',
   biometricAuth: 'biometric_auth',
+  notificationPrefs: 'notification_prefs',
 }
 
 // Single source of truth for user_preferences - shared between MobileApp
@@ -45,6 +50,7 @@ export function useUserPreferences(userEmail) {
           emailNotifications: data.email_notifications !== false,
           theme: data.theme || 'light',
           biometricAuth: data.biometric_auth || false,
+          notificationPrefs: data.notification_prefs || {},
         })
       } else {
         setPreferences(DEFAULTS)

@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import { sendEmail } from './email'
 import { buildPortalSmsNotificationMessage, sendPortalSms } from './sms'
+import { wantsNotification } from '../shared/notificationEvents'
+import { apiUrl } from './apiBase'
 import {
   buildPreferenceSettingKey,
   DEFAULT_PORTAL_PREFERENCES,
@@ -9,6 +11,9 @@ import {
 } from './portalPreferences'
 
 const CATEGORY_KEYS = new Set(NOTIFICATION_CATEGORY_OPTIONS.map(([key]) => key))
+
+/** Thrown to skip the push leg without it reading as a delivery failure. */
+class SkipPush extends Error {}
 const DEFAULT_PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 
 export function getNotificationCategoryLabel(category = 'general') {
@@ -69,6 +74,11 @@ export async function sendManagedNotification({
   portalUrl = DEFAULT_PORTAL_URL,
   forceImportant = false,
   forceDelivery = '',
+  // Which kind of notification this is, from src/shared/notificationEvents.js.
+  // Only the PUSH leg reads it — the portal row, email and SMS keep using the
+  // older `category` system, which other code already depends on. Omitting it
+  // sends the push, which is what every existing caller expects.
+  event = '',
 }) {
   const safeEmail = String(userEmail || '').toLowerCase().trim()
   if (!safeEmail || !title || !message) {
@@ -174,11 +184,29 @@ export async function sendManagedNotification({
     }
   }
 
-  // Send push notification to mobile devices
+  // Push, to whatever devices this person has registered.
+  //
+  // Gated on `user_preferences.notification_prefs` — a different table from
+  // the portal preferences above, and deliberately so: turning off "clock-in
+  // reminders" on your phone should not stop the same notification reaching
+  // your portal inbox or your email, which is what merging them would do.
   let pushSent = false
   let pushError = null
+  let pushAllowed = true
+
+  if (event) {
+    const { data: prefRows } = await supabase
+      .from('user_preferences')
+      .select('push_notifications, notification_prefs')
+      .ilike('user_email', safeEmail)
+      .limit(1)
+
+    pushAllowed = wantsNotification(prefRows?.[0], event)
+  }
+
   try {
-    const pushResponse = await fetch('/api/send-push-notification', {
+    if (!pushAllowed) throw new SkipPush()
+    const pushResponse = await fetch(apiUrl('/api/send-push-notification'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -196,11 +224,16 @@ export async function sendManagedNotification({
       pushSent = true
     }
   } catch (error) {
-    pushError = error
-    console.warn('Push notification failed:', error.message)
+    // Somebody switching a notification off is not a failure.
+    if (!(error instanceof SkipPush)) {
+      pushError = error
+      console.warn('Push notification failed:', error.message)
+    }
   }
 
-  if (!portalSent && !emailSent && !smsSent && !pushSent) {
+  // A push the person asked not to receive must not count as nothing having
+  // been delivered — the inbox row still went in.
+  if (!portalSent && !emailSent && !smsSent && !pushSent && pushAllowed) {
     throw portalError || emailError || smsError || pushError || new Error('Notification delivery failed')
   }
 

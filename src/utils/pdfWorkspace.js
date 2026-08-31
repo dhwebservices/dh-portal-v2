@@ -1,3 +1,4 @@
+import { apiUrl } from './apiBase'
 function buildHeaders(user) {
   return {
     'x-staff-email': String(user?.email || '').trim().toLowerCase(),
@@ -40,7 +41,7 @@ export async function uploadPdfWorkspaceFiles(user, payload = {}) {
   if (payload.library_key) formData.append('library_key', payload.library_key)
   if (payload.tags) formData.append('tags', payload.tags)
   if (payload.title) formData.append('title', payload.title)
-  const response = await fetch('/api/pdf-workspace/upload', {
+  const response = await fetch(apiUrl('/api/pdf-workspace/upload'), {
     method: 'POST',
     headers: buildHeaders(user),
     body: formData,

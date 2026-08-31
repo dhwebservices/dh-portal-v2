@@ -6,7 +6,34 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Mobile theme tokens, defined at :root as well as on .mobile-app.
+ *
+ * The reason: not everything mobile renders inside `.mobile-app`. The native
+ * login screen is rendered straight from App.jsx, outside that wrapper, and
+ * it referenced `--mobile-card`, `--mobile-text` and friends — which resolved
+ * to nothing, because the only place they were defined was on a wrapper that
+ * was not an ancestor.
+ *
+ * That was survivable while the sign-in button had a hardcoded blue. Once it
+ * used `--mobile-accent` too, the button lost its background while keeping
+ * `color: white`, and became an invisible white-on-white control on a white
+ * card — a screen with nothing usable on it.
+ *
+ * These are the light values. `.mobile-app.light` / `.dark` still override
+ * them inside the app, so nothing about the themed experience changes; this
+ * only stops the variables being undefined outside it.
+ */
 :root {
+  --mobile-bg: #f4f6f8;
+  --mobile-card: #ffffff;
+  --mobile-text: #0d1b2a;
+  --mobile-text-secondary: #5b6b7c;
+  --mobile-border: #dfe5ea;
+  --mobile-accent: #0066cc;
+  --mobile-accent-soft: rgba(0, 102, 204, 0.12);
+  --mobile-accent-strong: #0052a3;
+  --mobile-on-accent: #ffffff;
+
   --sidebar-w: 72px;
   --font-size-base: 14px;
   --line-height-base: 1.5;

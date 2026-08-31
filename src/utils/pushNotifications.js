@@ -68,6 +68,25 @@ async function registerDeviceToken(userEmail, fcmToken) {
     const platform = Capacitor.getPlatform() // 'ios' or 'android'
     const deviceInfo = await getDeviceInfo()
 
+    // A device belongs to whoever is signed in on it NOW.
+    //
+    // The unique key is (user_email, fcm_token), so signing in as a second
+    // account on the same handset added a SECOND row for the same physical
+    // device rather than replacing the first. Both rows then looked live, and
+    // a push addressed to either account went to that one phone.
+    //
+    // That is not hypothetical: David signed in as the App Store review
+    // account on 14 August to test it, and afterwards a leave rejection meant
+    // for `app-review@` arrived on his own phone reading "Your Sick Leave
+    // request was rejected" — about somebody else's leave.
+    //
+    // So: clear any other account's claim on this token before registering it.
+    await supabase
+      .from('user_devices')
+      .delete()
+      .eq('fcm_token', fcmToken)
+      .neq('user_email', userEmail)
+
     const { error } = await supabase
       .from('user_devices')
       .upsert({

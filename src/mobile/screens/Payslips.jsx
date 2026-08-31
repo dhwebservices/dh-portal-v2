@@ -77,7 +77,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={() => setSelectedPayslip(null)}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Payslip Details</h1>
           <div style={{ width: 60 }} />
@@ -188,7 +188,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           .download-button {
             width: 100%;
             padding: 14px;
-            background: #0066cc;
+            background: var(--mobile-accent);
             color: white;
             border: none;
             border-radius: 8px;
@@ -214,7 +214,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Payslips</h1>
         <div style={{ width: 60 }} />
@@ -235,7 +235,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           <SkeletonList count={4} lines={2} />
         ) : payslips.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Icon name="file" size={48} color="#d2d2d7" />
+            <Icon name="file" size={48} color="var(--mobile-border)" />
             <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               No payslips available
             </p>
@@ -246,7 +246,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
               <MobileCard key={payslip.id} onPress={() => handlePayslipTap(payslip)}>
                 <div className="payslip-item">
                   <div className="payslip-icon">
-                    <Icon name="file" size={24} color="#0066cc" />
+                    <Icon name="file" size={24} color="var(--mobile-accent)" />
                   </div>
                   <div className="payslip-info">
                     <div className="payslip-period">{payslip.period || '—'}</div>
@@ -255,7 +255,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
                     </div>
                   </div>
                   {!payslip.viewed && <div className="unread-dot" />}
-                  <Icon name="chevronRight" size={20} color="#86868b" />
+                  <Icon name="chevronRight" size={20} color="var(--mobile-text-secondary)" />
                 </div>
               </MobileCard>
             ))}
@@ -281,7 +281,7 @@ export default function MobilePayslips({ goBack, user, navigate }) {
         }
 
         .ytd-value.primary {
-          color: #0066cc;
+          color: var(--mobile-accent);
         }
 
         .ytd-sub {

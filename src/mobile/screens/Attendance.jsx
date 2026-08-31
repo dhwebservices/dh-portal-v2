@@ -100,7 +100,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Attendance</h1>
         <div style={{ width: 60 }} />
@@ -129,7 +129,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         <div className="stats-grid">
           <MobileCard small>
             <div className="stat-card">
-              <Icon name="clock" size={24} color="#0066cc" />
+              <Icon name="clock" size={24} color="var(--mobile-accent)" />
               <div>
                 <div className="stat-value">{stats.totalHours}h</div>
                 <div className="stat-label">Total Hours</div>
@@ -167,7 +167,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
           </div>
         ) : records.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Icon name="clock" size={48} color="#d2d2d7" />
+            <Icon name="clock" size={48} color="var(--mobile-border)" />
             <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               No attendance records
             </p>
@@ -202,7 +202,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
 
                   {record.office_location && (
                     <div className="record-location">
-                      <Icon name="mapPin" size={14} color="#86868b" />
+                      <Icon name="mapPin" size={14} color="var(--mobile-text-secondary)" />
                       <span>{record.office_location}</span>
                     </div>
                   )}
@@ -232,9 +232,9 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         }
 
         .period-chip.active {
-          background: #0066cc;
+          background: var(--mobile-accent);
           color: white;
-          border-color: #0066cc;
+          border-color: var(--mobile-accent);
         }
 
         .stats-grid {
@@ -288,7 +288,7 @@ export default function MobileAttendance({ goBack, user, navigate }) {
         .record-duration {
           font-size: 16px;
           font-weight: 700;
-          color: #0066cc;
+          color: var(--mobile-accent);
         }
 
         .record-times {
@@ -330,16 +330,6 @@ export default function MobileAttendance({ goBack, user, navigate }) {
           color: var(--mobile-text-secondary);
           padding-top: 8px;
           border-top: 1px solid var(--mobile-border);
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
         }
 
         @keyframes spin {

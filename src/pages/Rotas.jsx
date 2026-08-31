@@ -76,6 +76,7 @@ export default function Rotas() {
   const [weekStart, setWeekStart] = useState(getWeekStart())
   const [monthDate, setMonthDate] = useState(() => { const d = new Date(); d.setDate(1); return d })
   const [roster, setRoster] = useState([])
+  const [rates, setRates] = useState(new Map())
   const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
@@ -95,10 +96,15 @@ export default function Rotas() {
     setLoading(true)
     const rangeStart = view === 'week' ? weekDates[0] : monthRange.startIso
     const rangeEnd = view === 'week' ? weekDates[6] : monthRange.endIso
-    const [{ data: rosterData }, { data: shiftData }] = await Promise.all([
+    const [{ data: rosterData }, { data: shiftData }, { data: rateData }] = await Promise.all([
       supabase.from('rota_employees').select('*').order('employee_name', { ascending: true }),
       supabase.from('shifts').select('*').gte('shift_date', rangeStart).lte('shift_date', rangeEnd).order('start_time', { ascending: true }),
+      // Pay rates, for the cost of the week. `staff.hourly_rate` already
+      // exists; the arithmetic matches the mobile dashboard so the two cannot
+      // disagree about what a week costs.
+      supabase.from('staff').select('email, hourly_rate'),
     ])
+    setRates(new Map((rateData || []).map(r => [String(r.email || '').toLowerCase(), Number(r.hourly_rate) || 0])))
     setRoster(rosterData || [])
     setShifts(shiftData || [])
     setLoading(false)
@@ -121,6 +127,14 @@ export default function Rotas() {
   const shiftsFor = (email, date) => shifts.filter(s => s.employee_email === email && s.shift_date === date)
   const employeeWeekHours = (email) => shifts.filter(s => s.employee_email === email).reduce((sum, s) => sum + shiftHours(s), 0)
   const totalWeekHours = useMemo(() => shifts.reduce((sum, s) => sum + shiftHours(s), 0), [shifts])
+
+  const totalWeekCost = useMemo(
+    () => shifts.reduce(
+      (sum, s) => sum + shiftHours(s) * (rates.get(String(s.employee_email || '').toLowerCase()) ?? 0),
+      0,
+    ),
+    [shifts, rates],
+  )
   const draftCount = useMemo(() => shifts.filter(s => !s.published).length, [shifts])
 
   const switchView = (v) => {
@@ -197,6 +211,7 @@ export default function Rotas() {
 
     if (editing.publishNow && !editing._wasPublished && editing.employee_email) {
       await sendManagedNotification({
+        event: 'shift_published',
         userEmail: editing.employee_email,
         userName: editing.employee_name,
         title: 'New shift published',
@@ -250,6 +265,7 @@ export default function Rotas() {
     })
     await Promise.all(Array.from(byEmployee.entries()).map(([email, info]) =>
       sendManagedNotification({
+        event: 'shift_published',
         userEmail: email,
         userName: info.name,
         title: 'Rota published',
@@ -300,6 +316,7 @@ export default function Rotas() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom: 16 }}>
               <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Staff on rota</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{employeeRows.length}</div></div>
               <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Team hours</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{totalWeekHours.toFixed(1)}h</div></div>
+              <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Cost</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)', fontVariantNumeric:'tabular-nums' }}>£{totalWeekCost.toFixed(2)}</div></div>
               <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Open shifts</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{openShifts.length}</div></div>
               <div style={{ ...DS_CARD, padding:20 }}><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Draft</div><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{draftCount}</div></div>
             </div>

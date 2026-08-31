@@ -144,7 +144,7 @@ export default function MobileClockIn({ goBack, user }) {
     <div className="mobile-clockin">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Clock In/Out</h1>
         <div style={{ width: 40 }} />
@@ -265,32 +265,7 @@ export default function MobileClockIn({ goBack, user }) {
           padding-bottom: 40px;
         }
 
-        .mobile-screen-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-back-btn {
-          background: none;
-          border: none;
-          padding: 8px 0;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-        }
-
-        .mobile-screen-header h1 {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-time-display {
+                                .mobile-time-display {
           text-align: center;
           padding: 32px 20px;
           background: var(--mobile-card);

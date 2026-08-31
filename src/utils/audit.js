@@ -1,3 +1,4 @@
+import { apiUrl } from './apiBase'
 function normalizeAuditValue(value, maxLength = 240) {
   const text = String(value ?? '').trim()
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
@@ -14,7 +15,7 @@ export async function logAction(userEmail, userName, action, target, targetId, d
     created_at: new Date().toISOString(),
   }
   try {
-    const response = await fetch('/api/audit-log', {
+    const response = await fetch(apiUrl('/api/audit-log'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

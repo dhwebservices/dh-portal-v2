@@ -85,7 +85,7 @@ export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Permissions</h1>
           <div style={{ width: 60 }} />
@@ -103,7 +103,7 @@ export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Permissions</h1>
         <button
@@ -171,7 +171,7 @@ export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
         .mobile-save-btn {
           background: none;
           border: none;
-          color: #0066cc;
+          color: var(--mobile-accent);
           font-size: 16px;
           font-weight: 600;
           padding: 8px 12px;
@@ -308,16 +308,6 @@ export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
 
         .toggle-button.active .toggle-slider {
           left: 22px;
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
         }
 
         @keyframes spin {

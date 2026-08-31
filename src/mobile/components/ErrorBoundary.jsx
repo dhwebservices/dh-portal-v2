@@ -72,7 +72,7 @@ export default class MobileErrorBoundary extends Component {
             style={{
               marginTop: '24px',
               padding: '14px 28px',
-              background: '#0066cc',
+              background: 'var(--mobile-accent)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',

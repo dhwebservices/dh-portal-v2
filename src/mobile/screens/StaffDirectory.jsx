@@ -153,23 +153,7 @@ export default function MobileStaffDirectory({ navigate, user, can, isAdmin }) {
           padding-bottom: 80px;
         }
 
-        .mobile-screen-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-screen-header h1 {
-          font-size: 24px;
-          font-weight: 700;
-          margin: 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-add-btn {
+                        .mobile-add-btn {
           font-size: 16px;
           font-weight: 600;
           color: var(--mobile-accent);
@@ -277,7 +261,7 @@ export default function MobileStaffDirectory({ navigate, user, can, isAdmin }) {
           display: inline-block;
           margin-top: 4px;
           padding: 2px 8px;
-          background: rgba(184, 150, 12, 0.1);
+          background: var(--mobile-accent-soft);
           color: var(--mobile-accent);
           font-size: 12px;
           font-weight: 600;

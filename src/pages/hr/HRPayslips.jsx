@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../../components/ds'
 
 export default function HRPayslips() {
@@ -75,6 +76,24 @@ export default function HRPayslips() {
       if (insertError) {
         setUploadError(insertError.message || 'Could not save the payslip record.')
       } else {
+        // Tell them it is there.
+        //
+        // A payslip uploaded here notified nobody, while the same payslip
+        // generated from the phone did — so whether you found out you had
+        // been paid depended on which screen your manager happened to use.
+        // Never allowed to fail the upload: the payslip is already saved.
+        await sendManagedNotification({
+          event: 'payslip_available',
+          userEmail: form.user_email,
+          userName: form.user_name,
+          title: 'Payslip available',
+          message: `Your payslip for ${form.period.trim()} is ready to view.`,
+          link: '/hr/payslips',
+          type: 'info',
+          category: 'hr',
+          sentBy: user?.name || user?.email,
+        }).catch(() => {})
+
         setUploadSuccess(`Uploaded ${selectedFile.name}`)
         setSelectedFile(null)
         setForm((current) => ({ ...current, period: '' }))

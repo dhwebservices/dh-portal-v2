@@ -127,6 +127,72 @@ export async function sendApnsNotification(deviceToken, notificationData, env) {
 // Device tokens are stored in the `fcm_token` column regardless of platform
 // (legacy naming from before the APNs rewrite) - only `device_type=ios`
 // tokens are valid APNs device tokens.
+/**
+ * Every registered iOS device, with the email it belongs to.
+ *
+ * Used for a broadcast, where the caller needs to know who each token is for
+ * so it can honour that person's notification preferences and log the send
+ * against them. `getIosDeviceTokens` below stays as it is — it has callers.
+ */
+export async function getAllIosDevices(env) {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/user_devices?device_type=eq.ios&select=user_email,fcm_token`,
+    {
+      headers: {
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      }
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch devices')
+  }
+
+  const devices = await response.json()
+  return devices
+    .filter(d => d.fcm_token && d.user_email)
+    .map(d => ({ email: String(d.user_email).toLowerCase(), token: d.fcm_token }))
+}
+
+/**
+ * The people who have switched a given notification off.
+ *
+ * Read once for a broadcast rather than per person — a send to forty staff
+ * should not be forty round trips. Only rows that have explicitly opted out
+ * come back; everyone else is treated as opted in, which matches
+ * `wantsNotification` in src/shared/notificationEvents.js.
+ */
+export async function getOptedOutEmails(eventKey, env) {
+  if (!eventKey) return new Set()
+
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/user_preferences?select=user_email,push_notifications,notification_prefs`,
+    {
+      headers: {
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      }
+    }
+  )
+
+  if (!response.ok) return new Set()
+
+  const rows = await response.json()
+  const out = new Set()
+  for (const row of rows) {
+    const email = String(row.user_email || '').toLowerCase()
+    if (!email) continue
+    if (row.push_notifications === false) { out.add(email); continue }
+    if (row.notification_prefs && row.notification_prefs[eventKey] === false) out.add(email)
+  }
+  return out
+}
+
 export async function getIosDeviceTokens(userEmail, env) {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env
 

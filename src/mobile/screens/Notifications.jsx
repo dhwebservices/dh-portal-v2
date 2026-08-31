@@ -112,7 +112,7 @@ export default function MobileNotifications({ goBack, user, navigate }) {
       case 'success': return { name: 'check', color: '#34c759' }
       case 'warning': return { name: 'alertTriangle', color: '#ff9500' }
       case 'error': return { name: 'x', color: '#ff3b30' }
-      case 'info': return { name: 'info', color: '#0066cc' }
+      case 'info': return { name: 'info', color: 'var(--mobile-accent)' }
       default: return { name: 'bell', color: 'var(--mobile-text-secondary)' }
     }
   }
@@ -144,7 +144,7 @@ export default function MobileNotifications({ goBack, user, navigate }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Notifications</h1>
         <div style={{ width: 60 }} />
@@ -189,7 +189,7 @@ export default function MobileNotifications({ goBack, user, navigate }) {
           <div style={{ display: 'flex', gap: '12px' }}>
             {unreadCount > 0 && (
               <button className="action-button" onClick={handleMarkAllAsRead}>
-                <Icon name="checkCircle" size={16} color="#0066cc" />
+                <Icon name="checkCircle" size={16} color="var(--mobile-accent)" />
                 Mark all read
               </button>
             )}
@@ -209,7 +209,7 @@ export default function MobileNotifications({ goBack, user, navigate }) {
           </div>
         ) : filteredNotifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Icon name="bell" size={48} color="#d2d2d7" />
+            <Icon name="bell" size={48} color="var(--mobile-border)" />
             <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
               {filter === 'unread' ? 'No unread notifications' : filter === 'read' ? 'No read notifications' : 'No notifications'}
             </p>
@@ -265,9 +265,9 @@ export default function MobileNotifications({ goBack, user, navigate }) {
         }
 
         .filter-chip.active {
-          background: #0066cc;
+          background: var(--mobile-accent);
           color: white;
-          border-color: #0066cc;
+          border-color: var(--mobile-accent);
         }
 
         .action-button {
@@ -278,11 +278,11 @@ export default function MobileNotifications({ goBack, user, navigate }) {
           gap: 6px;
           padding: 8px 12px;
           background: var(--mobile-card);
-          border: 1px solid #0066cc;
+          border: 1px solid var(--mobile-accent);
           border-radius: 8px;
           font-size: 13px;
           font-weight: 600;
-          color: #0066cc;
+          color: var(--mobile-accent);
           cursor: pointer;
         }
 
@@ -340,7 +340,7 @@ export default function MobileNotifications({ goBack, user, navigate }) {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #0066cc;
+          background: var(--mobile-accent);
           flex-shrink: 0;
         }
 
@@ -354,16 +354,6 @@ export default function MobileNotifications({ goBack, user, navigate }) {
         .notification-time {
           font-size: 12px;
           color: var(--mobile-text-secondary);
-        }
-
-        .spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid var(--mobile-border);
-          border-top-color: #0066cc;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto;
         }
 
         @keyframes spin {

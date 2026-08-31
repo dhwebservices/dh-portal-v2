@@ -163,7 +163,7 @@ export default function MobileTimesheet({ goBack, user }) {
       <div className="mobile-screen">
         <div className="mobile-screen-header">
           <button className="mobile-back-btn" onClick={() => setShowEntryModal(false)}>
-            <Icon name="chevronLeft" size={24} color="#0066cc" />
+            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
           </button>
           <h1>Schedule Work</h1>
           <div style={{ width: 60 }} />
@@ -235,7 +235,7 @@ export default function MobileTimesheet({ goBack, user }) {
 
           .form-input:focus {
             outline: none;
-            border-color: #0066cc;
+            border-color: var(--mobile-accent);
           }
 
           .date-display {
@@ -250,7 +250,7 @@ export default function MobileTimesheet({ goBack, user }) {
           .btn-primary {
             width: 100%;
             padding: 14px;
-            background: #0066cc;
+            background: var(--mobile-accent);
             color: white;
             border: none;
             border-radius: 8px;
@@ -292,7 +292,7 @@ export default function MobileTimesheet({ goBack, user }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Work Schedule</h1>
         <div style={{ width: 60 }} />
@@ -310,7 +310,7 @@ export default function MobileTimesheet({ goBack, user }) {
           }}
           disabled={currentWeek === 0}
         >
-          <Icon name="chevronLeft" size={20} color={currentWeek === 0 ? '#d2d2d7' : '#0066cc'} />
+          <Icon name="chevronLeft" size={20} color={currentWeek === 0 ? 'var(--mobile-border)' : 'var(--mobile-accent)'} />
         </button>
         <div className="week-label">{weekLabel}</div>
         <button
@@ -323,26 +323,17 @@ export default function MobileTimesheet({ goBack, user }) {
           }}
           disabled={currentWeek === 3}
         >
-          <Icon name="chevronRight" size={20} color={currentWeek === 3 ? '#d2d2d7' : '#0066cc'} />
+          <Icon name="chevronRight" size={20} color={currentWeek === 3 ? 'var(--mobile-border)' : 'var(--mobile-accent)'} />
         </button>
       </div>
 
-      {/* Total Hours */}
-      <div style={{ padding: '0 20px 20px' }}>
-        <MobileCard>
-          <div className="total-hours">
-            <Icon name="clock" size={24} color="#0066cc" />
-            <div>
-              <div className="total-hours-label">Scheduled Hours This Week</div>
-              <div className="total-hours-value">{totalHoursThisWeek}h</div>
-            </div>
-          </div>
-        </MobileCard>
-      </div>
+      <div className="ts-body">
+        <div className="ts-total">
+          <span>Scheduled this week</span>
+          <strong>{totalHoursThisWeek}h</strong>
+        </div>
 
-      {/* Calendar */}
-      <div style={{ padding: '0 20px 100px' }}>
-        <div className="calendar">
+        <div className="ts-days">
           {weekDates.map(date => {
             const dateStr = formatDate(date)
             const entry = schedule[dateStr]
@@ -350,42 +341,155 @@ export default function MobileTimesheet({ goBack, user }) {
             const isPast = date < new Date() && !isToday
 
             return (
-              <MobileCard
+              <div
                 key={dateStr}
-                onPress={() => !isPast && handleDatePress(date)}
-                style={{ opacity: isPast ? 0.5 : 1 }}
+                className={[
+                  'ts-day',
+                  isToday && 'is-today',
+                  isPast && 'is-past',
+                ].filter(Boolean).join(' ')}
+                onClick={() => !isPast && handleDatePress(date)}
               >
-                <div className="calendar-day">
-                  <div className="calendar-day-header">
-                    <div className={`calendar-day-name ${isToday ? 'today' : ''}`}>
-                      {formatDisplayDate(date)}
+                <div className="ts-day-date">
+                  <span className="ts-dow">{formatDisplayDate(date).split(' ')[0]}</span>
+                  <span className="ts-num">{date.getDate()}</span>
+                </div>
+
+                <div className="ts-day-body">
+                  {entry ? (
+                    <>
+                      <div className="ts-day-top">
+                        <strong>{entry.hours}h scheduled</strong>
+                      </div>
+                      {entry.notes && <div className="ts-day-note">{entry.notes}</div>}
+                    </>
+                  ) : (
+                    <div className="ts-day-empty">
+                      {isPast ? 'Past' : 'Tap to schedule'}
                     </div>
-                    {entry && (
-                      <div className="calendar-day-hours">{entry.hours}h</div>
-                    )}
-                  </div>
-                  {entry?.notes && (
-                    <div className="calendar-day-notes">{entry.notes}</div>
-                  )}
-                  {!entry && !isPast && (
-                    <div className="calendar-day-empty">Tap to schedule</div>
-                  )}
-                  {isPast && !entry && (
-                    <div className="calendar-day-empty">Past</div>
                   )}
                 </div>
-              </MobileCard>
+
+                {!isPast && <Icon name="chevron-right" size={16} />}
+              </div>
             )
           })}
         </div>
-      </div>
 
-      <div className="info-banner">
-        <Icon name="info" size={16} color="#0066cc" />
-        <p>Schedule your planned work hours for the next 4 weeks. Actual hours are tracked via GPS clock-in.</p>
+        <p className="ts-note">
+          Plan your hours for the next four weeks. Actual hours come from GPS
+          clock-in, not from here.
+        </p>
       </div>
 
       <style>{`
+        .ts-body {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 16px 16px 110px;
+        }
+
+        .ts-total {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: var(--mobile-card);
+          border-radius: 14px;
+          padding: 14px 16px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+          font-size: 15px;
+          color: var(--mobile-text-secondary);
+        }
+
+        .ts-total strong {
+          font-size: 18px;
+          color: var(--mobile-text);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .ts-days {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .ts-day {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: var(--mobile-card);
+          border-radius: 14px;
+          padding: 13px 14px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+          cursor: pointer;
+          color: var(--mobile-text-secondary);
+        }
+
+        /* A past day cannot be scheduled, so it reads as inert rather than
+           merely faint — the old version dimmed it but still looked tappable. */
+        .ts-day.is-past {
+          opacity: 0.55;
+          cursor: default;
+          box-shadow: none;
+          background: transparent;
+          border: 1px dashed var(--mobile-border);
+        }
+
+        .ts-day.is-today {
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), inset 3px 0 0 var(--mobile-accent);
+        }
+
+        .ts-day-date {
+          flex: 0 0 42px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1px;
+        }
+
+        .ts-dow {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+
+        .ts-num {
+          font-size: 19px;
+          font-weight: 700;
+          color: var(--mobile-text);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .ts-day-body { flex: 1; min-width: 0; }
+
+        .ts-day-top strong {
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--mobile-text);
+        }
+
+        .ts-day-note {
+          margin-top: 2px;
+          font-size: 13px;
+          color: var(--mobile-text-secondary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .ts-day-empty { font-size: 14px; }
+
+        .ts-day svg { color: var(--mobile-text-secondary); opacity: 0.5; }
+
+        .ts-note {
+          margin: 6px 4px 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: var(--mobile-text-secondary);
+        }
+
         .week-nav {
           display: flex;
           align-items: center;
@@ -433,7 +537,7 @@ export default function MobileTimesheet({ goBack, user }) {
         .total-hours-value {
           font-size: 24px;
           font-weight: 700;
-          color: #0066cc;
+          color: var(--mobile-accent);
         }
 
         .calendar {
@@ -460,13 +564,13 @@ export default function MobileTimesheet({ goBack, user }) {
         }
 
         .calendar-day-name.today {
-          color: #0066cc;
+          color: var(--mobile-accent);
         }
 
         .calendar-day-hours {
           font-size: 18px;
           font-weight: 700;
-          color: #0066cc;
+          color: var(--mobile-accent);
         }
 
         .calendar-day-notes {
@@ -486,7 +590,7 @@ export default function MobileTimesheet({ goBack, user }) {
           left: 20px;
           right: 20px;
           background: #e3f2fd;
-          border: 1px solid #0066cc;
+          border: 1px solid var(--mobile-accent);
           border-radius: 8px;
           padding: 12px 16px;
           display: flex;
@@ -497,7 +601,7 @@ export default function MobileTimesheet({ goBack, user }) {
         .info-banner p {
           margin: 0;
           font-size: 12px;
-          color: #0066cc;
+          color: var(--mobile-accent);
           line-height: 1.5;
         }
 

@@ -70,7 +70,7 @@ export default function MobileAddStaff({ goBack, navigate }) {
     <div className="mobile-screen">
       <div className="mobile-screen-header">
         <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="#0066cc" />
+          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Add Staff</h1>
         <div style={{ width: 60 }} />
@@ -169,7 +169,7 @@ export default function MobileAddStaff({ goBack, navigate }) {
         .add-staff-submit {
           width: 100%;
           padding: 14px;
-          background: #0066cc;
+          background: var(--mobile-accent);
           color: white;
           border: none;
           border-radius: 8px;
