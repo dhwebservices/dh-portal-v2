@@ -79,10 +79,17 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       setPlayers(Array.isArray(people) ? people : [])
       setGrants(Array.isArray(history) ? history : [])
     } catch (err) {
-      setError(err.message)
-      // A bad key is the overwhelmingly likely cause, so say that rather than
-      // leaving somebody staring at "403".
-      if (/403|No\./.test(err.message)) setError('That operator key was not accepted.')
+      // Say which of the two things went wrong, because the fix is different.
+      // "Load failed" is all WebKit gives you for a fetch that never
+      // completed, and on its own it sends you looking at the key when the
+      // problem is the network.
+      if (/403|No\./.test(err.message)) {
+        setError('That operator key was not accepted.')
+      } else if (/Load failed|NetworkError|Failed to fetch/i.test(err.message)) {
+        setError("Couldn't reach the game's server. Check your connection and try again.")
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -241,7 +248,12 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         ))}
       </div>
 
-      {error && <p className="fta-error">{error}</p>}
+      {error && (
+        <div className="fta-failure">
+          <p className="fta-error">{error}</p>
+          <button className="fta-retry" onClick={load}>Try again</button>
+        </div>
+      )}
       {loading && <p className="fta-note">Loading…</p>}
 
       {outcome && (
@@ -250,7 +262,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
       {tab === 'players' && (
         <div className="fta-list">
-          {players.length === 0 && !loading && (
+          {players.length === 0 && !loading && !error && (
             <p className="fta-note">
               No players yet. Somebody appears here once they take a name in the
               game's multiplayer.
@@ -280,7 +292,9 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
       {tab === 'grants' && (
         <div className="fta-list">
-          {grants.length === 0 && !loading && <p className="fta-note">Nothing given yet.</p>}
+          {grants.length === 0 && !loading && !error && (
+            <p className="fta-note">Nothing given yet.</p>
+          )}
           {grants.map(grant => (
             <InfoRow
               key={grant.id}
@@ -514,8 +528,28 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           color: var(--mobile-text-secondary);
         }
 
+        .fta-failure {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 8px;
+        }
+
+        .fta-retry {
+          flex: none;
+          padding: 7px 14px;
+          border-radius: 999px;
+          border: none;
+          background: var(--mobile-accent-soft);
+          color: var(--mobile-accent);
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
         .fta-error {
-          margin: 4px 2px 12px;
+          margin: 4px 2px;
           font-size: 13.5px;
           font-weight: 600;
           color: #c0392b;
