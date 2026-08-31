@@ -41,13 +41,25 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
   // The grant being composed, or null.
   const [granting, setGranting] = useState(null)
-  const [form, setForm] = useState({ kind: 'coins', amount: '', itemId: '', note: '' })
+  const [form, setForm] = useState({
+    kind: 'coins',
+    direction: 'give',   // 'give' | 'take' — only meaningful for coins
+    amount: '',
+    itemId: '',
+    note: '',
+    pushBody: '',
+  })
+  const [catalogue, setCatalogue] = useState({ fish: [], upgrades: [] })
+  const [itemSearch, setItemSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState(null)
 
   // Announcements
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
+  const [audience, setAudience] = useState('everyone')   // 'everyone' | 'some'
+  const [chosen, setChosen] = useState(new Set())
+  const [channels, setChannels] = useState({ inGame: true, push: true })
 
   useEffect(() => {
     if (key) load()
@@ -76,12 +88,14 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     setError('')
     setIsKeyRejected(false)
     try {
-      const [people, history] = await Promise.all([
+      const [people, history, shop] = await Promise.all([
         call('/operator/players'),
         call('/operator/grants'),
+        call('/operator/catalogue'),
       ])
       setPlayers(Array.isArray(people) ? people : [])
       setGrants(Array.isArray(history) ? history : [])
+      if (shop?.fish) setCatalogue(shop)
     } catch (err) {
       // Say which of the two things went wrong, because the fix is different.
       // "Load failed" is all WebKit gives you for a fetch that never
@@ -156,14 +170,17 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
   const submitGrant = async () => {
     if (!granting || busy) return
-    const amount = parseInt(form.amount, 10)
+    // The sign comes from the Give/Take control, not from the operator
+    // remembering to type a minus. Whichever they type, the control decides.
+    const typed = Math.abs(parseInt(form.amount, 10))
+    const amount = form.direction === 'take' ? -typed : typed
 
-    if (form.kind === 'coins' && (!Number.isFinite(amount) || amount === 0)) {
-      setOutcome({ ok: false, text: 'Enter an amount. Negative takes coins away.' })
+    if (form.kind === 'coins' && (!Number.isFinite(typed) || typed === 0)) {
+      setOutcome({ ok: false, text: 'Enter an amount.' })
       return
     }
-    if (form.kind !== 'coins' && !form.itemId.trim()) {
-      setOutcome({ ok: false, text: 'Enter the item or prize id.' })
+    if (form.kind !== 'coins' && !form.itemId) {
+      setOutcome({ ok: false, text: 'Choose something to give.' })
       return
     }
 
@@ -171,7 +188,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     setBusy(true)
     setOutcome(null)
     try {
-      await call('/operator/grants', {
+      const result = await call('/operator/grants', {
         method: 'POST',
         body: JSON.stringify({
           player_id: granting.id,
@@ -180,13 +197,21 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           item_id: form.kind === 'coins' ? null : form.itemId.trim(),
           note: form.note.trim() || null,
           created_by: user?.name || user?.email || 'operator',
+          push: form.pushBody.trim()
+            ? { title: 'Fish Tank', body: form.pushBody.trim() }
+            : undefined,
         }),
       })
+
+      const landed = result?.pushed
+        ? ` Notified ${result.pushed.sent} device${result.pushed.sent === 1 ? '' : 's'}.`
+        : ' They see it as soon as they open the game.'
       setOutcome({
         ok: true,
-        text: `Sent to ${granting.username}. It lands next time they open the game.`,
+        text: `${form.direction === 'take' && form.kind === 'coins' ? 'Taken from' : 'Sent to'} ${granting.username}.${landed}`,
       })
-      setForm({ kind: 'coins', amount: '', itemId: '', note: '' })
+      setForm({ kind: 'coins', direction: 'give', amount: '', itemId: '', note: '', pushBody: '' })
+      setItemSearch('')
       setGranting(null)
       await load()
     } catch (err) {
@@ -206,8 +231,26 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     }
   }
 
+  const toggleRecipient = (id) => {
+    setChosen(previous => {
+      const next = new Set(previous)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   const announce = async () => {
     if (!title.trim() && !message.trim()) return
+    if (!channels.inGame && !channels.push) {
+      setOutcome({ ok: false, text: 'Pick at least one way to send it.' })
+      return
+    }
+    if (audience === 'some' && chosen.size === 0) {
+      setOutcome({ ok: false, text: 'Choose who it goes to.' })
+      return
+    }
+
+    await Haptics.impact({ style: ImpactStyle.Medium })
     setBusy(true)
     setOutcome(null)
     try {
@@ -216,12 +259,29 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         body: JSON.stringify({
           title: title.trim(),
           body: message.trim(),
+          player_ids: audience === 'some' ? [...chosen] : undefined,
+          inGame: channels.inGame,
+          push: channels.push,
           created_by: user?.name || user?.email || 'operator',
         }),
       })
+
+      // Two numbers, because they mean different things: devices a
+      // notification actually reached, and players the in-game message is
+      // waiting for. Reporting one as the other is how "sent to 3" comes to
+      // mean nothing.
+      const parts = []
+      if (channels.push) {
+        parts.push(`${result.sent} device${result.sent === 1 ? '' : 's'} notified`)
+        if (result.failed) parts.push(`${result.failed} failed`)
+      }
+      if (channels.inGame) {
+        parts.push(`waiting in-game for ${result.queued} player${result.queued === 1 ? '' : 's'}`)
+      }
       setOutcome({
-        ok: true,
-        text: `Waiting for ${result.queued} player${result.queued === 1 ? '' : 's'}. Anyone playing sees it now; everyone else the next time they open the game.`,
+        ok: result.sent > 0 || result.queued > 0,
+        text: parts.join(', ') + '.'
+          + (channels.push && result.sent === 0 ? ' Nobody in that group has notifications turned on.' : ''),
       })
       setTitle('')
       setMessage('')
@@ -379,7 +439,54 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
       {tab === 'message' && (
         <MobileCard>
-          <SectionHeader title="Message every player" />
+          <SectionHeader title="Who gets it" />
+          <div className="fta-kinds">
+            <button
+              className={audience === 'everyone' ? 'on' : ''}
+              onClick={() => setAudience('everyone')}
+            >Everyone</button>
+            <button
+              className={audience === 'some' ? 'on' : ''}
+              onClick={() => setAudience('some')}
+            >Choose players</button>
+          </div>
+
+          {audience === 'some' && (
+            <div className="fta-catalogue">
+              {players.map(person => (
+                <button
+                  key={person.id}
+                  className={`fta-item${chosen.has(person.id) ? ' on' : ''}`}
+                  onClick={() => toggleRecipient(person.id)}
+                >
+                  <span>{person.username}</span>
+                  {chosen.has(person.id) && <Icon name="check" size={16} />}
+                </button>
+              ))}
+              {players.length === 0 && <p className="fta-note">No players yet.</p>}
+            </div>
+          )}
+
+          <SectionHeader title="How it reaches them" />
+          <div className="fta-kinds">
+            <button
+              className={channels.push ? 'on' : ''}
+              onClick={() => setChannels(c => ({ ...c, push: !c.push }))}
+            >Phone notification</button>
+            <button
+              className={channels.inGame ? 'on' : ''}
+              onClick={() => setChannels(c => ({ ...c, inGame: !c.inGame }))}
+            >In the game</button>
+          </div>
+          <p className="fta-note">
+            {/* Said plainly because the two behave differently, and the
+                difference decides which one is the right choice. */}
+            A phone notification arrives now, for anyone who allowed them. The
+            in-game message waits until they next open Fish Tank, so it reaches
+            people a notification would not.
+          </p>
+
+          <SectionHeader title="Message" />
           <input
             className="fta-field"
             value={title}
@@ -395,11 +502,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             rows={4}
             maxLength={300}
           />
-          <p className="fta-note">
-            Shows inside the game, not as a phone notification. It waits for
-            anyone who is not playing right now, so everybody sees it
-            eventually.
-          </p>
+
           <button
             className="fta-primary"
             onClick={announce}
@@ -417,36 +520,102 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             <h2>Give to {granting.username}</h2>
 
             <div className="fta-kinds">
-              {[['coins', 'Coins'], ['item', 'Shop item'], ['prize', 'Prize']].map(([id, label]) => (
+              {[['coins', 'Coins'], ['item', 'Fish'], ['prize', 'Upgrade']].map(([id, label]) => (
                 <button
                   key={id}
                   className={form.kind === id ? 'on' : ''}
-                  onClick={() => setForm(f => ({ ...f, kind: id }))}
+                  onClick={() => {
+                    setForm(f => ({ ...f, kind: id, itemId: '' }))
+                    setItemSearch('')
+                  }}
                 >{label}</button>
               ))}
             </div>
 
             {form.kind === 'coins' ? (
               <>
+                {/* Give or take, chosen explicitly. Relying on somebody
+                    typing a minus sign makes taking coins back a hidden
+                    feature, and a mistyped sign the wrong way is a player
+                    waking up richer than intended. */}
+                <div className="fta-kinds fta-direction">
+                  <button
+                    className={form.direction === 'give' ? 'on' : ''}
+                    onClick={() => setForm(f => ({ ...f, direction: 'give' }))}
+                  >Give</button>
+                  <button
+                    className={form.direction === 'take' ? 'on take' : ''}
+                    onClick={() => setForm(f => ({ ...f, direction: 'take' }))}
+                  >Take away</button>
+                </div>
                 <input
                   className="fta-field"
                   type="number"
+                  inputMode="numeric"
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="Amount"
+                  placeholder="How many coins"
                 />
                 <p className="fta-note">
-                  A negative number takes coins away. Up to 1,000,000 either way.
+                  {form.direction === 'take'
+                    ? 'Their balance floors at zero — nobody goes into debt.'
+                    : 'Up to 1,000,000 at a time.'}
                 </p>
               </>
             ) : (
-              <input
-                className="fta-field"
-                value={form.itemId}
-                onChange={e => setForm(f => ({ ...f, itemId: e.target.value }))}
-                placeholder={form.kind === 'item' ? 'Shop item id' : 'Prize id'}
-              />
+              <>
+                {(() => {
+                  const list = form.kind === 'item' ? catalogue.fish : catalogue.upgrades
+                  const query = itemSearch.trim().toLowerCase()
+                  const shown = query
+                    ? list.filter(entry => entry.name.toLowerCase().includes(query))
+                    : list
+                  return (
+                    <>
+                      {list.length > 8 && (
+                        <input
+                          className="fta-field"
+                          value={itemSearch}
+                          onChange={e => setItemSearch(e.target.value)}
+                          placeholder={`Search ${list.length} ${form.kind === 'item' ? 'fish' : 'upgrades'}`}
+                          autoCapitalize="none"
+                        />
+                      )}
+                      <div className="fta-catalogue">
+                        {shown.map(entry => (
+                          <button
+                            key={entry.id}
+                            className={`fta-item${form.itemId === entry.id ? ' on' : ''}`}
+                            onClick={() => setForm(f => ({ ...f, itemId: entry.id }))}
+                          >
+                            <span>{entry.name}</span>
+                            {entry.price > 0 && (
+                              <span className="fta-price">{entry.price.toLocaleString()}</span>
+                            )}
+                          </button>
+                        ))}
+                        {shown.length === 0 && (
+                          <p className="fta-note">Nothing matches "{itemSearch}".</p>
+                        )}
+                        {list.length === 0 && (
+                          <p className="fta-note">
+                            Couldn't load the catalogue. Pull back and refresh.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )
+                })()}
+              </>
             )}
+
+            <input
+              className="fta-field"
+              value={form.pushBody}
+              onChange={e => setForm(f => ({ ...f, pushBody: e.target.value }))}
+              placeholder="Tell them on their phone (optional)"
+              maxLength={140}
+            />
 
             <input
               className="fta-field"
@@ -687,6 +856,8 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           border-radius: 18px;
           padding: 20px;
           box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+          max-height: 78vh;
+          overflow-y: auto;
         }
 
         .fta-sheet h2 {
@@ -719,6 +890,58 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           background: var(--mobile-accent-soft);
           color: var(--mobile-accent);
         }
+
+        /* Taking coins away is coloured differently from giving them. The two
+           are one tap apart and they are not the same act. */
+        .fta-kinds button.on.take {
+          border-color: #c0392b;
+          background: rgba(192, 57, 43, 0.1);
+          color: #c0392b;
+        }
+
+        .fta-direction { margin-top: 12px; }
+
+        .fta-catalogue {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 10px;
+          max-height: 220px;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .fta-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 11px 14px;
+          border-radius: 10px;
+          border: 1px solid var(--mobile-border);
+          background: none;
+          font-size: 15px;
+          font-weight: 500;
+          color: var(--mobile-text);
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .fta-item.on {
+          border-color: var(--mobile-accent);
+          background: var(--mobile-accent-soft);
+          color: var(--mobile-accent);
+          font-weight: 700;
+        }
+
+        .fta-price {
+          flex: none;
+          font-size: 13px;
+          font-variant-numeric: tabular-nums;
+          color: var(--mobile-text-secondary);
+        }
+
+        .fta-item.on .fta-price { color: var(--mobile-accent); }
 
         .fta-forget {
           width: 100%;
