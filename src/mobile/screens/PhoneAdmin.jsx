@@ -58,6 +58,11 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
   // is fetched, turned into a blob and revoked when the next one starts.
   const [playing, setPlaying] = useState(null)
 
+  // The uploaded hold music: what is on the server, and whether we are in the
+  // middle of replacing it.
+  const [holdFile, setHoldFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+
   useEffect(() => { if (key) load() }, [key])
 
   if (!isAdmin) return <div className="ph"><p className="ph-note">Managers only.</p></div>
@@ -111,6 +116,13 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
           hold_music_url: flow.hold_music_url ?? '',
         })
         setWeek(prev => prev ?? weekFrom(f?.hours ?? [], flow.id))
+        try {
+          setHoldFile(await call(`/api/hold-music?flow_id=${encodeURIComponent(flow.id)}`))
+        } catch {
+          // Not worth failing the whole screen over; the card just shows
+          // nothing uploaded, which is recoverable by uploading something.
+          setHoldFile({ present: false })
+        }
       }
     } catch (err) {
       if (err.status === 403) {
@@ -273,6 +285,70 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
       setOutcome({ ok: false, text: err.message })
     } finally {
       setBusy(false)
+    }
+  }
+
+  /**
+   * Uploads a hold music file.
+   *
+   * Sent as the raw body rather than a form: it is one file and nothing else.
+   * The type is checked here as well as on the server so that picking a .m4a
+   * from the Files app fails immediately with a sentence you can act on,
+   * rather than after waiting for a few megabytes to upload.
+   */
+  const uploadHoldMusic = async (file) => {
+    if (!file || !setup || uploading) return
+    const ok = /^audio\/(mpeg|mp3|wav|wave|x-wav)$/i.test(file.type)
+      || /\.(mp3|wav)$/i.test(file.name)
+    if (!ok) {
+      setOutcome({ ok: false, text: 'Twilio can only play MP3 or WAV files.' })
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setOutcome({ ok: false, text: `That is ${Math.round(file.size / 1048576)} MB; the limit is 20 MB.` })
+      return
+    }
+
+    setUploading(true)
+    setOutcome(null)
+    try {
+      const response = await fetch(
+        `${API}/api/hold-music?flow_id=${encodeURIComponent(setup.id)}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': /\.wav$/i.test(file.name) ? 'audio/wav' : (file.type || 'audio/mpeg'),
+            'X-Filename': encodeURIComponent(file.name),
+          },
+          body: file,
+        },
+      )
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error?.message || `Upload failed (${response.status})`)
+      setOutcome({ ok: true, text: `${file.name} is now the hold music.` })
+      setSetup(s => ({ ...s, hold_music_url: payload.url }))
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeHoldMusic = async () => {
+    if (!setup || uploading) return
+    setUploading(true)
+    try {
+      await call(`/api/hold-music?flow_id=${encodeURIComponent(setup.id)}`, { method: 'DELETE' })
+      setSetup(s => ({ ...s, hold_music_url: '' }))
+      setHoldFile({ present: false })
+      setOutcome({ ok: true, text: 'Back to Twilio’s hold music.' })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -539,19 +615,47 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
 
           <MobileCard>
             <SectionHeader title="Hold music" />
-            <input
-              className="ph-field"
-              value={setup.hold_music_url}
-              onChange={e => setSetup(s => ({ ...s, hold_music_url: e.target.value }))}
-              placeholder="https://…/hold.mp3"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
+
+            {holdFile?.present ? (
+              <div className="ph-file">
+                <div>
+                  <strong>{holdFile.name}</strong>
+                  <span className="ph-call-meta">
+                    {holdFile.size ? `${(holdFile.size / 1048576).toFixed(1)} MB` : ''} · playing on a loop
+                  </span>
+                </div>
+                <button className="ph-toggle" onClick={removeHoldMusic} disabled={uploading}>
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <p className="ph-note">
+                Twilio’s own hold music is playing at the moment. Upload a file
+                to use your own.
+              </p>
+            )}
+
+            <label className={`ph-upload${uploading ? ' busy' : ''}`}>
+              {uploading
+                ? 'Uploading…'
+                : holdFile?.present ? 'Replace file' : 'Choose a file'}
+              <input
+                type="file"
+                accept="audio/mpeg,audio/wav,.mp3,.wav"
+                disabled={uploading}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  // Cleared so picking the same file twice still fires.
+                  e.target.value = ''
+                  uploadHoldMusic(file)
+                }}
+              />
+            </label>
+
             <p className="ph-note">
-              {setup.hold_music_url.trim()
-                ? 'Your own music, played on a loop while they wait.'
-                : 'Empty means Twilio’s own hold music, which is already playing. Paste a public MP3 link to use your own.'}
+              MP3 or WAV, up to 20 MB. Check you are allowed to play it to
+              callers — plenty of music is fine to listen to and not fine to
+              put on a phone line.
             </p>
           </MobileCard>
 
@@ -963,4 +1067,22 @@ const PHONE_CSS = `
   }
   .ph-play.on { background: var(--mobile-accent); color: var(--mobile-on-accent); }
   .ph-audio { width: 100%; margin-top: 10px; height: 34px; }
+
+  /* Hold music upload ---------------------------------------------------- */
+  .ph-file {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 11px 0 13px;
+  }
+  .ph-file strong { display: block; font-size: 15px; color: var(--mobile-text); }
+
+  /* A label wrapping a hidden input, because a bare file input cannot be
+     styled and looks like a form from 2003 next to everything else here. */
+  .ph-upload {
+    display: block; width: 100%; padding: 12px; border-radius: 10px;
+    border: 1px dashed var(--mobile-border); background: none;
+    font-size: 14.5px; font-weight: 600; color: var(--mobile-accent);
+    text-align: center; cursor: pointer;
+  }
+  .ph-upload.busy { opacity: 0.6; cursor: default; }
+  .ph-upload input { display: none; }
 `
