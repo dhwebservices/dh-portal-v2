@@ -40,12 +40,23 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
   const [users, setUsers] = useState([])
   const [flows, setFlows] = useState([])
   const [options, setOptions] = useState([])
+  const [hours, setHours] = useState([])
 
   const [editing, setEditing] = useState(null)   // option being edited, or null
   const [addingUser, setAddingUser] = useState(false)
   const [userForm, setUserForm] = useState({ name: '', email: '', sip_username: '', forward_to: '' })
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState(null)
+
+  // Greeting, out-of-hours message and hold music, edited as one form so the
+  // whole of what a caller hears can be changed in a single save.
+  const [setup, setSetup] = useState(null)
+  const [week, setWeek] = useState(null)
+
+  // Which voicemail is playing, and the blob it is playing from. The audio
+  // cannot be given a plain URL — it needs the admin key in a header — so it
+  // is fetched, turned into a blob and revoked when the next one starts.
+  const [playing, setPlaying] = useState(null)
 
   useEffect(() => { if (key) load() }, [key])
 
@@ -85,6 +96,22 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
       setUsers(Array.isArray(u) ? u : [])
       setFlows(f?.flows ?? [])
       setOptions(f?.options ?? [])
+      setHours(f?.hours ?? [])
+
+      // The forms are seeded from the server once, then owned by the user
+      // until they save. Re-seeding on every refresh would wipe half-typed
+      // edits the moment a background reload landed.
+      const flow = (f?.flows ?? [])[0]
+      if (flow) {
+        setSetup(prev => prev ?? {
+          id: flow.id,
+          greeting: flow.greeting ?? '',
+          closed_greeting: flow.closed_greeting ?? '',
+          hold_message: flow.hold_message ?? '',
+          hold_music_url: flow.hold_music_url ?? '',
+        })
+        setWeek(prev => prev ?? weekFrom(f?.hours ?? [], flow.id))
+      }
     } catch (err) {
       if (err.status === 403) {
         setError('That admin key was not accepted.')
@@ -162,6 +189,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
           label: editing.label,
           strategy: editing.strategy,
           ring_seconds: Number(editing.ring_seconds) || 20,
+          voicemail: editing.voicemail || '',
         }),
       })
       await call('/api/option-members', {
@@ -195,6 +223,88 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
     }
   }
 
+  /** Everything the caller hears: greeting, closed message, hold. */
+  const saveSetup = async () => {
+    if (!setup || busy) return
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/api/flows/${setup.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          greeting: setup.greeting,
+          closed_greeting: setup.closed_greeting,
+          hold_message: setup.hold_message,
+          // Sent even when empty — clearing it is how you hand hold music
+          // back to Twilio's own, and that has to be undoable.
+          hold_music_url: setup.hold_music_url.trim(),
+        }),
+      })
+      setOutcome({ ok: true, text: 'Saved. New calls will hear it.' })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const saveHours = async () => {
+    if (!week || !setup || busy) return
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call('/api/hours', {
+        method: 'POST',
+        body: JSON.stringify({
+          flow_id: setup.id,
+          days: week
+            .map((d, weekday) => (d.open
+              ? { weekday, open_minute: toMinutes(d.from), close_minute: toMinutes(d.to) }
+              : null))
+            .filter(Boolean),
+        }),
+      })
+      setOutcome({ ok: true, text: 'Opening hours saved.' })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * Plays a voicemail.
+   *
+   * The recording lives on Twilio behind the account credentials, so the
+   * Worker fetches it for us. The admin key travels in a header and the audio
+   * comes back as a blob — putting the key in the URL of an <audio> tag would
+   * leak it into logs and browser history.
+   */
+  const playRecording = async (callId) => {
+    if (playing?.id === callId) {
+      URL.revokeObjectURL(playing.url)
+      setPlaying(null)
+      return
+    }
+    if (playing) URL.revokeObjectURL(playing.url)
+    setPlaying({ id: callId, url: '', loading: true })
+    try {
+      const response = await fetch(`${API}/api/recordings/${callId}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      })
+      if (!response.ok) throw new Error(`Could not fetch that recording (${response.status}).`)
+      const url = URL.createObjectURL(await response.blob())
+      setPlaying({ id: callId, url, loading: false })
+    } catch (err) {
+      setPlaying(null)
+      setOutcome({ ok: false, text: err.message })
+    }
+  }
+
   const toggleUser = async (user) => {
     try {
       await call(`/api/users/${user.id}`, {
@@ -212,6 +322,8 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
   const membersOf = (option) => {
     try { return JSON.parse(option.members || '[]') } catch { return [] }
   }
+
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
   const when = (ms) => {
     if (!ms) return ''
@@ -277,7 +389,8 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
       </div>
 
       <div className="ph-tabs">
-        {[['calls', 'Calls'], ['menu', 'Menu'], ['team', 'Team']].map(([id, label]) => (
+        {[['calls', 'Calls'], ['menu', 'Menu'], ['team', 'Team'],
+          ['hours', 'Hours'], ['setup', 'Setup']].map(([id, label]) => (
           <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
             {label}
           </button>
@@ -334,11 +447,118 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
                 <div className="ph-call-side">
                   <span className={`ph-pill ${c.status}`}>{c.status}</span>
                   <span className="ph-when">{when(c.started_at)}</span>
+                  {c.recording_url && (
+                    <button
+                      className={`ph-play${playing?.id === c.id ? ' on' : ''}`}
+                      onClick={() => playRecording(c.id)}
+                    >
+                      {playing?.id === c.id
+                        ? (playing.loading ? 'Loading…' : 'Close')
+                        : 'Listen'}
+                    </button>
+                  )}
                 </div>
+                {playing?.id === c.id && playing.url && (
+                  /* eslint-disable-next-line jsx-a11y/media-has-caption */
+                  <audio className="ph-audio" src={playing.url} controls autoPlay />
+                )}
               </div>
             ))}
           </div>
         </>
+      )}
+
+      {/* ---------------------------------------------------------- hours */}
+      {tab === 'hours' && week && (
+        <div className="ph-list">
+          <p className="ph-note">
+            Outside these hours callers hear the closed message and go straight
+            to voicemail — no mobile rings. Times are UK time and follow the
+            clocks, so British Summer Time takes care of itself.
+          </p>
+          {week.map((day, weekday) => (
+            <div key={weekday} className={`ph-day${day.open ? '' : ' shut'}`}>
+              <button
+                className="ph-day-name"
+                onClick={() => setWeek(w => w.map((d, i) => (
+                  i === weekday ? { ...d, open: !d.open } : d
+                )))}
+              >
+                <span>{DAYS[weekday]}</span>
+                <span className="ph-day-state">{day.open ? 'Open' : 'Closed'}</span>
+              </button>
+              {day.open && (
+                <div className="ph-day-times">
+                  {['from', 'to'].map(edge => (
+                    <input
+                      key={edge}
+                      className="ph-field ph-time"
+                      type="time"
+                      value={day[edge]}
+                      onChange={e => setWeek(w => w.map((d, i) => (
+                        i === weekday ? { ...d, [edge]: e.target.value } : d
+                      )))}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          <button className="ph-primary" onClick={saveHours} disabled={busy}>
+            {busy ? 'Saving…' : 'Save opening hours'}
+          </button>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------- setup */}
+      {tab === 'setup' && setup && (
+        <div className="ph-list">
+          <MobileCard>
+            <SectionHeader title="What callers hear" />
+            {[
+              ['greeting', 'Greeting', 'Thanks for calling…'],
+              ['closed_greeting', 'When closed', 'We are closed at the moment…'],
+              ['hold_message', 'Before the hold music', 'Thanks for holding…'],
+            ].map(([field, label, placeholder]) => (
+              <div key={field} className="ph-labelled">
+                <label>{label}</label>
+                <textarea
+                  className="ph-field ph-textarea"
+                  value={setup[field]}
+                  onChange={e => setSetup(s => ({ ...s, [field]: e.target.value }))}
+                  placeholder={placeholder}
+                  rows={2}
+                />
+              </div>
+            ))}
+            <p className="ph-note">
+              The recording notice is added automatically after the greeting.
+              It is a legal requirement, so it is not editable here.
+            </p>
+          </MobileCard>
+
+          <MobileCard>
+            <SectionHeader title="Hold music" />
+            <input
+              className="ph-field"
+              value={setup.hold_music_url}
+              onChange={e => setSetup(s => ({ ...s, hold_music_url: e.target.value }))}
+              placeholder="https://…/hold.mp3"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <p className="ph-note">
+              {setup.hold_music_url.trim()
+                ? 'Your own music, played on a loop while they wait.'
+                : 'Empty means Twilio’s own hold music, which is already playing. Paste a public MP3 link to use your own.'}
+            </p>
+          </MobileCard>
+
+          <button className="ph-primary" onClick={saveSetup} disabled={busy}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       )}
 
       {/* ----------------------------------------------------------- menu */}
@@ -493,6 +713,19 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
               <p className="ph-note">Nobody selected — callers go straight to voicemail.</p>
             )}
 
+            <SectionHeader title="Voicemail message" />
+            <textarea
+              className="ph-field ph-textarea"
+              value={editing.voicemail || ''}
+              onChange={e => setEditing(v => ({ ...v, voicemail: e.target.value }))}
+              placeholder="Left empty, callers hear the standard message"
+              rows={2}
+            />
+            <p className="ph-note">
+              What this option says when nobody picks up. Worth setting for
+              accounts, where “leave your invoice number” saves a call back.
+            </p>
+
             <button className="ph-primary" onClick={saveOption} disabled={busy}>
               {busy ? 'Saving…' : 'Save'}
             </button>
@@ -508,6 +741,27 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
   )
 }
 
+/* Minutes from midnight is what the phone system stores, because it is what
+   comparing "is it open now" actually needs. A <input type="time"> speaks
+   "09:00". These two are the only place that difference exists. */
+const toClock = (minutes) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+const toMinutes = (clock) => {
+  const [h, m] = String(clock || '09:00').split(':').map(Number)
+  return (Number.isFinite(h) ? h : 9) * 60 + (Number.isFinite(m) ? m : 0)
+}
+
+/** Seven days, closed unless the server says otherwise. */
+function weekFrom(rows, flowId) {
+  return Array.from({ length: 7 }, (_, weekday) => {
+    const row = rows.find(r => r.flow_id === flowId && r.weekday === weekday)
+    return row && row.open_minute != null
+      ? { open: true, from: toClock(row.open_minute), to: toClock(row.close_minute) }
+      : { open: false, from: '09:00', to: '17:00' }
+  })
+}
+
 /* Kept out of the component so the key gate and the panel cannot drift apart
    visually — they are the same screen at two moments. */
 const PHONE_CSS = `
@@ -520,11 +774,14 @@ const PHONE_CSS = `
     cursor: pointer; display: grid; place-items: center;
   }
 
-  .ph-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  /* Five tabs now rather than three, so they are allowed to shrink and the
+     labels are kept short enough to survive a small phone. */
+  .ph-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
   .ph-tabs button {
-    flex: 1; padding: 9px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); font-size: 13.5px; font-weight: 600;
-    color: var(--mobile-text-secondary); cursor: pointer;
+    flex: 1; min-width: 0; padding: 9px 4px; border-radius: 10px;
+    border: 1px solid var(--mobile-border);
+    background: var(--mobile-card); font-size: 12.5px; font-weight: 600;
+    color: var(--mobile-text-secondary); cursor: pointer; white-space: nowrap;
   }
   .ph-tabs button.active {
     background: var(--mobile-accent); border-color: var(--mobile-accent);
@@ -670,4 +927,40 @@ const PHONE_CSS = `
     width: 100%; margin-top: 26px; padding: 12px; border: none; background: none;
     font-size: 13px; color: var(--mobile-text-secondary); cursor: pointer;
   }
+
+  /* Opening hours ------------------------------------------------------- */
+  .ph-day {
+    background: var(--mobile-card); border: 1px solid var(--mobile-border);
+    border-radius: 12px; padding: 4px 14px 12px;
+  }
+  .ph-day.shut { opacity: 0.62; padding-bottom: 4px; }
+  .ph-day-name {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 12px 0; background: none; border: none; cursor: pointer;
+    font-size: 15px; font-weight: 600; color: var(--mobile-text); text-align: left;
+  }
+  .ph-day-state { font-size: 12.5px; font-weight: 600; color: var(--mobile-accent); }
+  .ph-day.shut .ph-day-state { color: var(--mobile-text-secondary); }
+  .ph-day-times { display: flex; gap: 10px; }
+  .ph-time { flex: 1; margin: 0; font-variant-numeric: tabular-nums; }
+
+  /* Setup ---------------------------------------------------------------- */
+  .ph-labelled { margin-bottom: 12px; }
+  .ph-labelled label {
+    display: block; margin-bottom: 5px; font-size: 12.5px; font-weight: 600;
+    color: var(--mobile-text-secondary);
+  }
+  .ph-textarea { resize: vertical; min-height: 56px; line-height: 1.4; font: inherit; }
+
+  /* Voicemail playback --------------------------------------------------- */
+  /* The row has to wrap: the player is a second line under the call, not
+     something squeezed in beside the timestamp. */
+  .ph-call { flex-wrap: wrap; }
+  .ph-play {
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--mobile-accent);
+    background: none; color: var(--mobile-accent); font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+  .ph-play.on { background: var(--mobile-accent); color: var(--mobile-on-accent); }
+  .ph-audio { width: 100%; margin-top: 10px; height: 34px; }
 `
