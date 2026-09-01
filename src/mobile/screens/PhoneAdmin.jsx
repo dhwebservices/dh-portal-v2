@@ -869,7 +869,10 @@ function weekFrom(rows, flowId) {
 /* Kept out of the component so the key gate and the panel cannot drift apart
    visually — they are the same screen at two moments. */
 const PHONE_CSS = `
-  .ph { padding: 16px 16px 60px; }
+  /* Nothing on a phone screen should ever scroll sideways. This is a guard,
+     not the fix — the widths below are meant to add up on their own. */
+  .ph { padding: 16px 16px 60px; overflow-x: hidden; }
+  .ph * { max-width: 100%; }
 
   .ph-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .ph-head h1 { margin: 0; flex: 1; font-size: 22px; font-weight: 700; color: var(--mobile-text); }
@@ -917,6 +920,17 @@ const PHONE_CSS = `
     display: block; font-size: 15px; color: var(--mobile-text);
   }
   .ph-call-meta { font-size: 12.5px; color: var(--mobile-text-secondary); }
+
+  /* A flex item defaults to min-width:auto, so it refuses to shrink below its
+     longest unbreakable word — and a phone number is one long unbreakable
+     word. Paired with a side column that never shrinks, that made the whole
+     screen wider than the phone and scrollable sideways. The number truncates
+     instead. */
+  .ph-call-main, .ph-user > div { min-width: 0; }
+  .ph-call-main strong, .ph-user > div strong,
+  .ph-call-main .ph-call-meta, .ph-user > div .ph-call-meta {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .ph-call-side { text-align: right; flex: none; }
   .ph-when { display: block; font-size: 11.5px; color: var(--mobile-text-secondary); }
   .ph-pill {
@@ -1046,7 +1060,9 @@ const PHONE_CSS = `
   .ph-day-state { font-size: 12.5px; font-weight: 600; color: var(--mobile-accent); }
   .ph-day.shut .ph-day-state { color: var(--mobile-text-secondary); }
   .ph-day-times { display: flex; gap: 10px; }
-  .ph-time { flex: 1; margin: 0; font-variant-numeric: tabular-nums; }
+  /* Same trap as the call rows: a native time input has a wide intrinsic
+     size and will not shrink under it without this. */
+  .ph-time { flex: 1; min-width: 0; margin: 0; font-variant-numeric: tabular-nums; }
 
   /* Setup ---------------------------------------------------------------- */
   .ph-labelled { margin-bottom: 12px; }
@@ -1078,6 +1094,8 @@ const PHONE_CSS = `
   /* A label wrapping a hidden input, because a bare file input cannot be
      styled and looks like a form from 2003 next to everything else here. */
   .ph-upload {
+    /* width:100% plus padding overflows unless the padding is counted in. */
+    box-sizing: border-box;
     display: block; width: 100%; padding: 12px; border-radius: 10px;
     border: 1px dashed var(--mobile-border); background: none;
     font-size: 14.5px; font-weight: 600; color: var(--mobile-accent);
