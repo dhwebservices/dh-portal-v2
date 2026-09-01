@@ -190,6 +190,17 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
 
+              <div className="setting-row" onClick={() => navigate('phone')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="phone" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Phone</div>
+                    <div className="setting-description">Call menu, who answers, missed calls</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
+
               <div className="setting-row" onClick={() => navigate('fishtank')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="gift" size={20} color="var(--mobile-accent)" />

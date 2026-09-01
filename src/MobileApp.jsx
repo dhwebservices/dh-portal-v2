@@ -37,6 +37,7 @@ import MobileSendNotification from './mobile/screens/SendNotification'
 import MobileDeviceHistory from './mobile/screens/DeviceHistory'
 import MobileAddShift from './mobile/screens/AddShift'
 import MobileFishTankAdmin from './mobile/screens/FishTankAdmin'
+import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -275,6 +276,10 @@ export default function MobileApp() {
         // Managers only. The screen checks again for itself rather than
         // trusting this gate alone.
         return isAdmin ? <MobileSendNotification {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'phone':
+        // Managers only, and the screen wants a real admin key before it will
+        // talk to the phone system at all.
+        return isAdmin ? <MobilePhoneAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'fishtank':
         // Managers only, and the screen additionally wants a real operator
         // key before it will talk to the game's backend at all.
