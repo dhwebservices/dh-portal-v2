@@ -41,6 +41,13 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
 
   // The grant being composed, or null.
   const [granting, setGranting] = useState(null)
+
+  // Banning. `banning` holds the player whose sheet is open; the reason is
+  // typed there and travels to the server, because it is what the person is
+  // shown when they next open the game.
+  const [banning, setBanning] = useState(null)
+  const [banReason, setBanReason] = useState('')
+  const [notifyOnBan, setNotifyOnBan] = useState(true)
   const [form, setForm] = useState({
     kind: 'coins',
     direction: 'give',   // 'give' | 'take' — only meaningful for coins
@@ -231,6 +238,64 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     }
   }
 
+  /**
+   * Bans somebody, with a reason they will actually be shown.
+   *
+   * The reason is not optional-in-spirit: an account that simply stops working
+   * reads as a bug and teaches the person nothing. It is stored, returned by
+   * every request they make afterwards, and pushed to their phone.
+   */
+  const banPlayer = async () => {
+    if (!banning) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const result = await call(`/operator/players/${banning.id}/ban`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: banReason.trim(),
+          notify: notifyOnBan,
+          created_by: 'portal',
+        }),
+      })
+      const pushed = result?.pushed
+      const bits = [`${banning.username} is banned.`]
+      if (result?.grants_withdrawn) {
+        bits.push(`${result.grants_withdrawn} unclaimed grant${result.grants_withdrawn === 1 ? '' : 's'} withdrawn.`)
+      }
+      if (notifyOnBan) {
+        bits.push(pushed?.sent
+          ? `Told on ${pushed.sent} device${pushed.sent === 1 ? '' : 's'}.`
+          : 'No devices registered, so no notification was delivered.')
+      }
+      setOutcome({ ok: true, text: bits.join(' ') })
+      setBanning(null)
+      setBanReason('')
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const unbanPlayer = async (person) => {
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/operator/players/${person.id}/ban`, {
+        method: 'DELETE',
+        body: JSON.stringify({ notify: true }),
+      })
+      setOutcome({ ok: true, text: `${person.username} can play again.` })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const toggleRecipient = (id) => {
     setChosen(previous => {
       const next = new Set(previous)
@@ -390,15 +455,47 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             </p>
           )}
           {players.map(person => (
-            <div key={person.id} className="fta-player">
+            <div
+              key={person.id}
+              className={person.banned_at ? 'fta-player fta-player--banned' : 'fta-player'}
+            >
               <div className="fta-player-top">
                 <div>
                   <strong>{person.username}</strong>
                   <span className="fta-platform">{person.platform}</span>
+                  {person.banned_at && <span className="fta-banned-tag">Banned</span>}
                 </div>
-                <button className="fta-give" onClick={() => { setGranting(person); setOutcome(null) }}>
-                  Give
-                </button>
+                <div className="fta-player-actions">
+                  {person.banned_at ? (
+                    <button
+                      className="fta-unban"
+                      disabled={busy}
+                      onClick={() => unbanPlayer(person)}
+                    >
+                      Unban
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="fta-give"
+                        onClick={() => { setGranting(person); setOutcome(null) }}
+                      >
+                        Give
+                      </button>
+                      <button
+                        className="fta-ban"
+                        onClick={() => {
+                          setBanning(person)
+                          setBanReason('')
+                          setNotifyOnBan(true)
+                          setOutcome(null)
+                        }}
+                      >
+                        Ban
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="fta-player-stats">
                 Tank {person.best_container} · {person.best_score.toLocaleString()} pts ·
@@ -406,6 +503,14 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
                 {person.coins_granted ? ` · ${person.coins_granted.toLocaleString()} granted` : ''}
                 {person.unclaimed ? ` · ${person.unclaimed} waiting` : ''}
               </div>
+              {person.banned_at && (
+                <div className="fta-ban-note">
+                  {person.ban_reason
+                    ? `"${person.ban_reason}"`
+                    : 'No reason recorded.'}
+                  {person.banned_by ? ` — ${person.banned_by}` : ''}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -511,6 +616,60 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             {busy ? 'Sending…' : 'Send'}
           </button>
         </MobileCard>
+      )}
+
+      {banning && (
+        <>
+          <div className="fta-scrim" onClick={() => !busy && setBanning(null)} />
+          <div className="fta-sheet">
+            <h2>Ban {banning.username}?</h2>
+
+            <p className="fta-note">
+              They will be signed out, removed from the leaderboards, and told
+              why. Their name stays taken so nobody else can claim it. Any
+              unclaimed grants are withdrawn.
+            </p>
+
+            <label className="fta-label" htmlFor="fta-ban-reason">
+              Reason — they will be shown this
+            </label>
+            <textarea
+              id="fta-ban-reason"
+              className="fta-field"
+              rows={3}
+              maxLength={300}
+              placeholder="Offensive username."
+              value={banReason}
+              onChange={event => setBanReason(event.target.value)}
+            />
+
+            <label className="fta-check">
+              <input
+                type="checkbox"
+                checked={notifyOnBan}
+                onChange={event => setNotifyOnBan(event.target.checked)}
+              />
+              Send a notification to their phone
+            </label>
+
+            <div className="fta-sheet-actions">
+              <button
+                className="fta-cancel"
+                disabled={busy}
+                onClick={() => setBanning(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="fta-confirm-ban"
+                disabled={busy}
+                onClick={banPlayer}
+              >
+                {busy ? 'Banning…' : 'Ban'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {granting && (
@@ -736,6 +895,108 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           font-weight: 700;
           cursor: pointer;
         }
+
+        .fta-player-actions {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        /* Destructive, so it does not look like the button beside it. Outlined
+           rather than filled: a solid red block next to "Give" is the kind of
+           thing that gets pressed by accident on a phone. */
+        .fta-ban {
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 1px solid var(--mobile-danger, #c0392b);
+          background: transparent;
+          color: var(--mobile-danger, #c0392b);
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .fta-unban {
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 1px solid var(--mobile-border);
+          background: transparent;
+          color: var(--mobile-text, #111);
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        /* A banned row stays visible and readable — greying it into
+           illegibility would hide the very thing an operator came to check. */
+        .fta-player--banned {
+          border-left: 3px solid var(--mobile-danger, #c0392b);
+          opacity: 0.82;
+        }
+
+        .fta-banned-tag {
+          margin-left: 8px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: var(--mobile-danger, #c0392b);
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .fta-ban-note {
+          margin-top: 6px;
+          font-size: 12.5px;
+          font-style: italic;
+          color: var(--mobile-muted, #666);
+        }
+
+        .fta-label {
+          display: block;
+          margin-top: 14px;
+          font-size: 12.5px;
+          font-weight: 700;
+          color: var(--mobile-muted, #666);
+        }
+
+        .fta-check {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 12px;
+          font-size: 14px;
+        }
+
+        .fta-sheet-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 18px;
+        }
+
+        .fta-sheet-actions button {
+          flex: 1;
+          padding: 14px;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .fta-cancel {
+          border: 1px solid var(--mobile-border);
+          background: transparent;
+          color: var(--mobile-text, #111);
+        }
+
+        .fta-confirm-ban {
+          border: none;
+          background: var(--mobile-danger, #c0392b);
+          color: #fff;
+        }
+
+        .fta-sheet-actions button:disabled { opacity: 0.5; cursor: default; }
 
         .fta-field {
           width: 100%;
