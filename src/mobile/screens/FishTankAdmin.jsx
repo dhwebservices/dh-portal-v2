@@ -626,7 +626,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
                   {profile.daily.map(day => (
                     <div className="fta-kv" key={day.day}>
                       <span>{day.day}</span>
-                      <strong>{day.score.toLocaleString()} pts · tank {day.container}</strong>
+                      <strong>{day.score.toLocaleString()} pts · {day.tide} tide</strong>
                     </div>
                   ))}
                 </>
