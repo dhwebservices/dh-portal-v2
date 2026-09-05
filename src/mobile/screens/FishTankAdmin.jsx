@@ -114,14 +114,23 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   }
 
   const call = async (path, options = {}) => {
-    const response = await fetch(`${API}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-        ...(options.headers || {}),
-      },
-    })
+    let response
+    try {
+      response = await fetch(`${API}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+          ...(options.headers || {}),
+        },
+      })
+    } catch {
+      // A fetch that never completed throws a TypeError whose message is the
+      // useless "Load failed" on WebKit. Translated here rather than in each
+      // caller, because every action handler used to print it raw and it read
+      // as a bug in the button the operator had just pressed.
+      throw new Error("Couldn't reach the game's server. Check your connection and try again.")
+    }
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(payload?.error?.message || `Failed (${response.status})`)
     return payload
