@@ -42,6 +42,16 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   // The grant being composed, or null.
   const [granting, setGranting] = useState(null)
 
+  // The open profile: the player id, and everything the server knows about
+  // them once it arrives. Null id means the list is showing.
+  const [profileId, setProfileId] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState('')
+  const [expandedCrash, setExpandedCrash] = useState(null)
+
+  // Removing an account is destructive twice over, so it gets its own sheet.
+  const [removing, setRemoving] = useState(null)
+
   // Banning. `banning` holds the player whose sheet is open; the reason is
   // typed there and travels to the server, because it is what the person is
   // shown when they next open the game.
@@ -221,6 +231,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       setItemSearch('')
       setGranting(null)
       await load()
+      await refreshProfile()
     } catch (err) {
       setOutcome({ ok: false, text: err.message })
     } finally {
@@ -272,6 +283,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       setBanning(null)
       setBanReason('')
       await load()
+      await refreshProfile()
     } catch (err) {
       setOutcome({ ok: false, text: err.message })
     } finally {
@@ -295,6 +307,86 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       setBusy(false)
     }
   }
+
+  /**
+   * Opens one player's file. The list row already holds the basics, so it is
+   * shown immediately while the full record loads behind it.
+   */
+  const openProfile = async (person) => {
+    setProfileId(person.id)
+    setProfile({ player: person, devices: [], grants: [], daily: [], crashes: [], friends: 0, partial: true })
+    setProfileError('')
+    setExpandedCrash(null)
+    setOutcome(null)
+    try {
+      const full = await call(`/operator/players/${person.id}`)
+      setProfile(full)
+    } catch (err) {
+      setProfileError(err.message)
+    }
+  }
+
+  const refreshProfile = async () => {
+    if (!profileId) return
+    try {
+      setProfile(await call(`/operator/players/${profileId}`))
+    } catch (err) {
+      setProfileError(err.message)
+    }
+  }
+
+  const closeProfile = () => {
+    setProfileId(null)
+    setProfile(null)
+    setProfileError('')
+  }
+
+  /**
+   * Deletes the account outright. Ban is for people; removal is for rows —
+   * duplicates, test accounts, ghosts holding a name. The server cascades
+   * everything, so the name genuinely frees up.
+   */
+  const removePlayer = async () => {
+    if (!removing) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/operator/players/${removing.id}`, { method: 'DELETE' })
+      setOutcome({ ok: true, text: `${removing.username} removed. The name is free again.` })
+      setRemoving(null)
+      closeProfile()
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const ago = (stamp) => {
+    if (!stamp) return 'never'
+    const s = Math.floor((Date.now() - stamp) / 1000)
+    if (s < 60) return 'just now'
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+    if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`
+    return new Date(stamp).toLocaleDateString()
+  }
+
+  /**
+   * "Signed up and never came back." True of an account older than a day
+   * whose last sight of the server was within ten minutes of its creation
+   * and which never scored a point — the johnnyd/johnnyde/johnnydee shape.
+   */
+  const looksStale = (person) =>
+    person &&
+    !person.banned_at &&
+    (person.best_score ?? 0) === 0 &&
+    person.seen_at - person.created_at < 10 * 60 * 1000 &&
+    Date.now() - person.created_at > 24 * 60 * 60 * 1000
+
+  const fullDate = (stamp) =>
+    stamp ? new Date(stamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 
   const toggleRecipient = (id) => {
     setChosen(previous => {
@@ -417,7 +509,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         </button>
       </div>
 
-      <div className="fta-tabs">
+      {!profileId && <div className="fta-tabs">
         {[['players', 'Players'], ['grants', 'History'], ['message', 'Message']].map(([id, label]) => (
           <button
             key={id}
@@ -425,7 +517,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             onClick={() => setTab(id)}
           >{label}</button>
         ))}
-      </div>
+      </div>}
 
       {error && (
         <div className="fta-failure">
@@ -446,7 +538,177 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         <p className={`fta-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</p>
       )}
 
-      {tab === 'players' && (
+      {profileId && profile && (() => {
+        const person = profile.player
+        const stale = looksStale(person)
+        return (
+          <div className="fta-profile">
+            <button className="fta-profile-back" onClick={closeProfile}>
+              <Icon name="chevron-left" size={18} /> All players
+            </button>
+
+            <div className="fta-profile-head">
+              <div>
+                <h2>{person.username}</h2>
+                <div className="fta-profile-chips">
+                  <span className="fta-platform">{person.platform}</span>
+                  {person.banned_at && <span className="fta-banned-tag">Banned</span>}
+                  {stale && <span className="fta-stale-tag">Inactive</span>}
+                </div>
+              </div>
+            </div>
+
+            {profileError && <p className="fta-error">{profileError}</p>}
+
+            {stale && (
+              <p className="fta-stale-note">
+                Signed up {ago(person.created_at)} and never played — likely an
+                abandoned or duplicate registration. Removing it frees the name.
+              </p>
+            )}
+
+            {person.banned_at && (
+              <p className="fta-stale-note">
+                Banned {ago(person.banned_at)}{person.banned_by ? ` by ${person.banned_by}` : ''}.
+                {person.ban_reason ? ` "${person.ban_reason}"` : ' No reason recorded.'}
+              </p>
+            )}
+
+            <MobileCard>
+              <SectionHeader title="Account" />
+              <div className="fta-kv"><span>Joined</span><strong>{fullDate(person.created_at)}</strong></div>
+              <div className="fta-kv"><span>Last played</span><strong>{ago(person.seen_at)}</strong></div>
+              <div className="fta-kv"><span>Friends</span><strong>{profile.friends}</strong></div>
+              <div className="fta-kv">
+                <span>Device</span>
+                <strong>{person.device_id
+                  ? `…${person.device_id.slice(-8)}`
+                  : 'not recorded (older app)'}</strong>
+              </div>
+              <div className="fta-kv">
+                <span>Notifications</span>
+                <strong>{profile.devices.length
+                  ? `${profile.devices.length} device${profile.devices.length === 1 ? '' : 's'}`
+                  : 'none registered'}</strong>
+              </div>
+            </MobileCard>
+
+            {profile.siblings?.length > 0 && (
+              <MobileCard>
+                <SectionHeader title="Same device" />
+                <p className="fta-note">
+                  These accounts were created on the same physical device.
+                  Duplicates from before one-account-per-device are usually
+                  safe to remove.
+                </p>
+                {profile.siblings.map(sib => (
+                  <button key={sib.id} className="fta-sibling" onClick={() => openProfile(sib)}>
+                    <span>
+                      <strong>{sib.username}</strong>
+                      {sib.banned_at ? ' · banned' : looksStale(sib) ? ' · inactive' : ''}
+                    </span>
+                    <span className="fta-sibling-when">{ago(sib.created_at)}</span>
+                  </button>
+                ))}
+              </MobileCard>
+            )}
+
+            <MobileCard>
+              <SectionHeader title="Their game" />
+              <div className="fta-kv"><span>Tank reached</span><strong>{person.best_container}</strong></div>
+              <div className="fta-kv"><span>Best score</span><strong>{(person.best_score ?? 0).toLocaleString()}</strong></div>
+              <div className="fta-kv"><span>Matches won</span><strong>{person.wins ?? 0}</strong></div>
+              <div className="fta-kv"><span>Fish eaten</span><strong>{person.kills ?? 0}</strong></div>
+              <div className="fta-kv"><span>Coins granted</span><strong>{(person.coins_granted ?? 0).toLocaleString()}</strong></div>
+              {profile.daily.length > 0 && (
+                <>
+                  <SectionHeader title="Recent daily runs" />
+                  {profile.daily.map(day => (
+                    <div className="fta-kv" key={day.day}>
+                      <span>{day.day}</span>
+                      <strong>{day.score.toLocaleString()} pts · tank {day.container}</strong>
+                    </div>
+                  ))}
+                </>
+              )}
+            </MobileCard>
+
+            <MobileCard>
+              <SectionHeader title="Crashes" />
+              {profile.partial ? (
+                <p className="fta-note">Loading…</p>
+              ) : profile.crashes.length === 0 ? (
+                <p className="fta-note">No crashes reported from their game.</p>
+              ) : profile.crashes.map((crash, index) => (
+                <button
+                  key={index}
+                  className="fta-crash"
+                  onClick={() => setExpandedCrash(expandedCrash === index ? null : index)}
+                >
+                  <div className="fta-crash-top">
+                    <span>{ago(crash.created_at)}</span>
+                    <span>{crash.platform}{crash.app_version ? ` · v${crash.app_version}` : ''}</span>
+                  </div>
+                  <div className="fta-crash-message">{crash.message}</div>
+                  {expandedCrash === index && crash.stack && (
+                    <pre className="fta-crash-stack">{crash.stack}</pre>
+                  )}
+                </button>
+              ))}
+            </MobileCard>
+
+            {profile.grants.length > 0 && (
+              <MobileCard>
+                <SectionHeader title="Grant history" />
+                {profile.grants.map(grant => (
+                  <div className="fta-kv" key={grant.id}>
+                    <span>
+                      {grant.kind === 'coins'
+                        ? `${grant.amount > 0 ? '+' : ''}${grant.amount.toLocaleString()} coins`
+                        : grant.item_id || grant.kind}
+                    </span>
+                    <strong>{grant.claimed_at ? 'claimed' : 'waiting'} · {ago(grant.created_at)}</strong>
+                  </div>
+                ))}
+              </MobileCard>
+            )}
+
+            <div className="fta-profile-actions">
+              {!person.banned_at && (
+                <button
+                  className="fta-primary"
+                  onClick={() => { setGranting(person); setOutcome(null) }}
+                >Give something</button>
+              )}
+              {person.banned_at ? (
+                <button
+                  className="fta-unban fta-wide"
+                  disabled={busy}
+                  onClick={async () => { await unbanPlayer(person); await refreshProfile() }}
+                >Unban</button>
+              ) : (
+                <button
+                  className="fta-ban fta-wide"
+                  disabled={busy}
+                  onClick={() => {
+                    setBanning(person)
+                    setBanReason('')
+                    setNotifyOnBan(true)
+                    setOutcome(null)
+                  }}
+                >Ban this player</button>
+              )}
+              <button
+                className="fta-remove"
+                disabled={busy}
+                onClick={() => setRemoving(person)}
+              >Remove account…</button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {!profileId && tab === 'players' && (
         <div className="fta-list">
           {players.length === 0 && !loading && !error && (
             <p className="fta-note">
@@ -455,68 +717,31 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             </p>
           )}
           {players.map(person => (
-            <div
+            <button
               key={person.id}
               className={person.banned_at ? 'fta-player fta-player--banned' : 'fta-player'}
+              onClick={() => openProfile(person)}
             >
               <div className="fta-player-top">
                 <div>
                   <strong>{person.username}</strong>
                   <span className="fta-platform">{person.platform}</span>
                   {person.banned_at && <span className="fta-banned-tag">Banned</span>}
+                  {looksStale(person) && <span className="fta-stale-tag">Inactive</span>}
                 </div>
-                <div className="fta-player-actions">
-                  {person.banned_at ? (
-                    <button
-                      className="fta-unban"
-                      disabled={busy}
-                      onClick={() => unbanPlayer(person)}
-                    >
-                      Unban
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        className="fta-give"
-                        onClick={() => { setGranting(person); setOutcome(null) }}
-                      >
-                        Give
-                      </button>
-                      <button
-                        className="fta-ban"
-                        onClick={() => {
-                          setBanning(person)
-                          setBanReason('')
-                          setNotifyOnBan(true)
-                          setOutcome(null)
-                        }}
-                      >
-                        Ban
-                      </button>
-                    </>
-                  )}
-                </div>
+                <span className="fta-chevron"><Icon name="chevron-right" size={18} /></span>
               </div>
               <div className="fta-player-stats">
-                Tank {person.best_container} · {person.best_score.toLocaleString()} pts ·
-                {' '}{person.wins}W · {person.kills} eaten
-                {person.coins_granted ? ` · ${person.coins_granted.toLocaleString()} granted` : ''}
+                Tank {person.best_container} · {person.best_score.toLocaleString()} pts
+                {' '}· last played {ago(person.seen_at)}
                 {person.unclaimed ? ` · ${person.unclaimed} waiting` : ''}
               </div>
-              {person.banned_at && (
-                <div className="fta-ban-note">
-                  {person.ban_reason
-                    ? `"${person.ban_reason}"`
-                    : 'No reason recorded.'}
-                  {person.banned_by ? ` — ${person.banned_by}` : ''}
-                </div>
-              )}
-            </div>
+            </button>
           ))}
         </div>
       )}
 
-      {tab === 'grants' && (
+      {!profileId && tab === 'grants' && (
         <div className="fta-list">
           {grants.length === 0 && !loading && !error && (
             <p className="fta-note">Nothing given yet.</p>
@@ -542,7 +767,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         </div>
       )}
 
-      {tab === 'message' && (
+      {!profileId && tab === 'message' && (
         <MobileCard>
           <SectionHeader title="Who gets it" />
           <div className="fta-kinds">
@@ -667,6 +892,33 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
               >
                 {busy ? 'Banning…' : 'Ban'}
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {removing && (
+        <>
+          <div className="fta-scrim" onClick={() => !busy && setRemoving(null)} />
+          <div className="fta-sheet">
+            <h2>Remove {removing.username}?</h2>
+            <p className="fta-note">
+              This deletes the account outright — their name becomes free to
+              claim, their grants, scores and friendships go with it, and it
+              cannot be undone. Use ban for people who broke the rules; use
+              this for duplicates and abandoned sign-ups.
+            </p>
+            <div className="fta-sheet-actions">
+              <button
+                className="fta-cancel"
+                disabled={busy}
+                onClick={() => setRemoving(null)}
+              >Keep it</button>
+              <button
+                className="fta-confirm-ban"
+                disabled={busy}
+                onClick={removePlayer}
+              >{busy ? 'Removing…' : 'Remove forever'}</button>
             </div>
           </div>
         </>
@@ -1203,6 +1455,153 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
         }
 
         .fta-item.on .fta-price { color: var(--mobile-accent); }
+
+        .fta-chevron { color: var(--mobile-text-secondary); display: grid; place-items: center; }
+
+        /* The row is a button now; keep it looking like the card it was. */
+        .fta-player {
+          border: none;
+          width: 100%;
+          text-align: left;
+          font: inherit;
+          cursor: pointer;
+        }
+
+        .fta-stale-tag {
+          margin-left: 8px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(150, 110, 20, 0.14);
+          color: #8a6d1a;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .fta-profile-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          border: none;
+          background: none;
+          padding: 4px 0 10px;
+          color: var(--mobile-accent);
+          font-size: 14.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .fta-profile-head h2 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 800;
+          color: var(--mobile-text);
+        }
+
+        .fta-profile-chips { margin-top: 4px; }
+        .fta-profile-chips .fta-platform { margin-left: 0; }
+
+        .fta-stale-note {
+          margin: 10px 2px 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: #8a6d1a;
+        }
+
+        .fta-kv {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          padding: 7px 0;
+          font-size: 14px;
+        }
+
+        .fta-kv span { color: var(--mobile-text-secondary); }
+        .fta-kv strong { color: var(--mobile-text); font-weight: 600; text-align: right; }
+
+        .fta-sibling {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 10px 0;
+          border: none;
+          border-top: 1px solid var(--mobile-border);
+          background: none;
+          font: inherit;
+          font-size: 14px;
+          color: var(--mobile-text);
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .fta-sibling-when { color: var(--mobile-text-secondary); font-size: 12.5px; flex: none; }
+
+        .fta-crash {
+          display: block;
+          width: 100%;
+          padding: 10px 0;
+          border: none;
+          border-top: 1px solid var(--mobile-border);
+          background: none;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .fta-crash-top {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: var(--mobile-text-secondary);
+        }
+
+        .fta-crash-message {
+          margin-top: 4px;
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #c0392b;
+          word-break: break-word;
+        }
+
+        .fta-crash-stack {
+          margin: 8px 0 0;
+          padding: 10px;
+          border-radius: 8px;
+          background: var(--mobile-bg);
+          font-size: 11px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+          word-break: break-all;
+          color: var(--mobile-text-secondary);
+          max-height: 240px;
+          overflow-y: auto;
+        }
+
+        .fta-profile-actions { margin-top: 16px; }
+
+        .fta-wide {
+          width: 100%;
+          margin-top: 8px;
+          padding: 14px;
+          border-radius: 12px;
+          font-size: 15px;
+        }
+
+        .fta-remove {
+          width: 100%;
+          margin-top: 18px;
+          padding: 12px;
+          border: none;
+          background: none;
+          color: #c0392b;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
 
         .fta-forget {
           width: 100%;
