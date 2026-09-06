@@ -43,6 +43,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   const [overview, setOverview] = useState(null)
   const [maintenance, setMaintenance] = useState({ on: false, message: '' })
   const [maintenanceDraft, setMaintenanceDraft] = useState('')
+  const [minVersion, setMinVersion] = useState({ ios: '', android: '' })
   const [stale, setStale] = useState([])
   const [staleChosen, setStaleChosen] = useState(new Set())
   const [crashes, setCrashes] = useState([])
@@ -141,18 +142,20 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     setError('')
     setIsKeyRejected(false)
     try {
-      const [people, history, shop, stats, maint] = await Promise.all([
+      const [people, history, shop, stats, maint, minimums] = await Promise.all([
         call('/operator/players'),
         call('/operator/grants'),
         call('/operator/catalogue'),
         call('/operator/overview').catch(() => null),
         call('/operator/maintenance').catch(() => null),
+        call('/operator/min-version').catch(() => null),
       ])
       setPlayers(Array.isArray(people) ? people : [])
       setGrants(Array.isArray(history) ? history : [])
       if (shop?.fish) setCatalogue(shop)
       if (stats) setOverview(stats)
       if (maint) { setMaintenance(maint); setMaintenanceDraft(maint.message || '') }
+      if (minimums) setMinVersion({ ios: minimums.ios || '', android: minimums.android || '' })
     } catch (err) {
       // Say which of the two things went wrong, because the fix is different.
       // "Load failed" is all WebKit gives you for a fetch that never
@@ -447,6 +450,29 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       if (which === 'schedule') setSchedule(await call('/operator/schedule'))
     } catch (err) {
       setOutcome({ ok: false, text: err.message })
+    }
+  }
+
+  const saveMinVersion = async () => {
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const result = await call('/operator/min-version', {
+        method: 'PUT',
+        body: JSON.stringify({ ios: minVersion.ios.trim(), android: minVersion.android.trim() }),
+      })
+      setMinVersion({ ios: result.ios || '', android: result.android || '' })
+      const none = !result.ios && !result.android
+      setOutcome({
+        ok: true,
+        text: none
+          ? 'Update gate lifted. Every build can play.'
+          : `Anything below iOS ${result.ios || '—'} / Android ${result.android || '—'} must update before playing.`,
+      })
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -993,6 +1019,42 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
               onClick={() => setMaintenanceMode(!maintenance.on)}
             >
               {maintenance.on ? 'Lift maintenance — open the game' : 'Close the game for maintenance'}
+            </button>
+          </MobileCard>
+
+          <MobileCard>
+            <SectionHeader title="Required version" />
+            <p className="fta-note">
+              {minVersion.ios || minVersion.android
+                ? 'Anything older is walled and sent to the store. Blank a field to lift it for that platform.'
+                : 'No gate. Every build can play. Set a version to force older ones to update first.'}
+            </p>
+            <label className="fta-kv"><span>iOS</span>
+              <input
+                className="fta-field fta-field-inline"
+                value={minVersion.ios}
+                onChange={e => setMinVersion(v => ({ ...v, ios: e.target.value }))}
+                placeholder="e.g. 1.5"
+                inputMode="decimal"
+                maxLength={20}
+              />
+            </label>
+            <label className="fta-kv"><span>Android</span>
+              <input
+                className="fta-field fta-field-inline"
+                value={minVersion.android}
+                onChange={e => setMinVersion(v => ({ ...v, android: e.target.value }))}
+                placeholder="e.g. 1.2.1"
+                inputMode="decimal"
+                maxLength={20}
+              />
+            </label>
+            <p className="fta-note">
+              Set each one only to a version that is actually live on that store — a build
+              nobody can download is a wall with no door.
+            </p>
+            <button className="fta-primary" disabled={busy} onClick={saveMinVersion}>
+              Save required version
             </button>
           </MobileCard>
 
@@ -1871,6 +1933,15 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           color: var(--mobile-text);
           font-size: 15px;
           font-family: inherit;
+        }
+
+        /* A field that sits on the right of an fta-kv row rather than
+           filling the card, so "iOS  [1.5]" reads as one line. */
+        .fta-field-inline {
+          width: 132px;
+          margin-top: 0;
+          padding: 9px 12px;
+          text-align: right;
         }
 
         .fta-textarea { resize: vertical; }
