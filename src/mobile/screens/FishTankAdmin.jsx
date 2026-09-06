@@ -834,7 +834,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
             <MobileCard>
               <SectionHeader title="Account" />
               <div className="fta-kv"><span>Joined</span><strong>{fullDate(person.created_at)}</strong></div>
-              <div className="fta-kv"><span>Last played</span><strong>{ago(person.seen_at)}</strong></div>
+              <div className="fta-kv"><span>Last seen</span><strong>{ago(person.seen_at)}</strong></div>
               <div className="fta-kv"><span>Friends</span><strong>{profile.friends}</strong></div>
               <div className="fta-kv">
                 <span>Device</span>
@@ -875,7 +875,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
               <div className="fta-kv"><span>Tank reached</span><strong>{person.best_container}</strong></div>
               <div className="fta-kv"><span>Best score</span><strong>{(person.best_score ?? 0).toLocaleString()}</strong></div>
               <div className="fta-kv"><span>Matches won</span><strong>{person.wins ?? 0}</strong></div>
-              <div className="fta-kv"><span>Fish eaten</span><strong>{person.kills ?? 0}</strong></div>
+              <div className="fta-kv"><span>Fish eaten (versus)</span><strong>{person.kills ?? 0}</strong></div>
               <div className="fta-kv"><span>Coins granted</span><strong>{(person.coins_granted ?? 0).toLocaleString()}</strong></div>
               {profile.daily.length > 0 && (
                 <>
