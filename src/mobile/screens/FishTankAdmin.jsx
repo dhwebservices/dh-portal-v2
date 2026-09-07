@@ -864,9 +864,13 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
               <div className="fta-kv"><span>Friends</span><strong>{profile.friends}</strong></div>
               <div className="fta-kv">
                 <span>Device</span>
+                {/* Not "older app": the device is written at signup, so an
+                    account made before device binding shipped stays without
+                    one however new the player's app is. It is adopted the
+                    next time that build registers for push. */}
                 <strong>{person.device_id
                   ? `…${person.device_id.slice(-8)}`
-                  : 'not recorded (older app)'}</strong>
+                  : 'not recorded (account predates binding)'}</strong>
               </div>
               <div className="fta-kv">
                 <span>Notifications</span>
