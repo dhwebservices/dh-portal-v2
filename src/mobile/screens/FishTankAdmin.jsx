@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useMsal } from '@azure/msal-react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { getPortalIdToken } from '../../utils/portalApi'
+import { apiUrl } from '../../utils/apiBase'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 import SectionHeader from '../components/SectionHeader'
@@ -28,6 +31,7 @@ const API = 'https://fishtank.aged-silence-66a7.workers.dev/v1'
 const KEY_STORAGE = 'fishtank.operatorKey'
 
 export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
+  const { instance, accounts } = useMsal()
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
   const [keyDraft, setKeyDraft] = useState('')
   const [keyError, setKeyError] = useState('')
@@ -44,6 +48,10 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
   const [maintenance, setMaintenance] = useState({ on: false, message: '' })
   const [maintenanceDraft, setMaintenanceDraft] = useState('')
   const [minVersion, setMinVersion] = useState({ ios: '', android: '' })
+  const [versions, setVersions] = useState([])
+  const [active, setActive] = useState(null)
+  const [flags, setFlags] = useState({ multiplayer: true, daily: true, leaderboard: true })
+  const [opLog, setOpLog] = useState([])
   const [stale, setStale] = useState([])
   const [staleChosen, setStaleChosen] = useState(new Set())
   const [crashes, setCrashes] = useState([])
@@ -114,18 +122,60 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     return <div className="fta"><p className="fta-note">Managers only.</p></div>
   }
 
+  /**
+   * Prefers the portal's own proxy, which authenticates the signed-in staff
+   * member with Entra, keeps the operator key server-side, and passes the
+   * verified email on so the game's operator log can say who did what.
+   *
+   * Falls back to calling the Worker directly with the stored key, because the
+   * proxy only works once FISHTANK_OPERATOR_KEY is set as a Pages secret — and
+   * losing the admin screen in the meantime would be worse than the key
+   * lingering in this device's storage a little longer.
+   */
+  const callViaProxy = async (path, options) => {
+    const account = accounts?.[0]
+    if (!account) throw Object.assign(new Error('proxy-unavailable'), { fallback: true })
+    let token
+    try {
+      token = await getPortalIdToken(instance, account)
+    } catch {
+      throw Object.assign(new Error('proxy-unavailable'), { fallback: true })
+    }
+    const response = await fetch(apiUrl(`/api/fishtank${path}`), {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    })
+    // A misconfigured proxy must not look like a refusal from the game.
+    if (response.status === 404 || response.status === 500) {
+      throw Object.assign(new Error('proxy-unavailable'), { fallback: true })
+    }
+    return response
+  }
+
   const call = async (path, options = {}) => {
     let response
     try {
-      response = await fetch(`${API}${path}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-          ...(options.headers || {}),
-        },
-      })
-    } catch {
+      try {
+        response = await callViaProxy(path, options)
+      } catch (proxyError) {
+        if (!proxyError?.fallback) throw proxyError
+        response = await fetch(`${API}${path}`, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+            ...(options.headers || {}),
+          },
+        })
+      }
+    } catch (err) {
+      if (err?.fallback === undefined && err instanceof Error && !/Load failed|NetworkError|Failed to fetch/i.test(err.message)) {
+        throw err
+      }
       // A fetch that never completed throws a TypeError whose message is the
       // useless "Load failed" on WebKit. Translated here rather than in each
       // caller, because every action handler used to print it raw and it read
@@ -142,13 +192,17 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
     setError('')
     setIsKeyRejected(false)
     try {
-      const [people, history, shop, stats, maint, minimums] = await Promise.all([
+      const [people, history, shop, stats, maint, minimums, vers, act, flg, log] = await Promise.all([
         call('/operator/players'),
         call('/operator/grants'),
         call('/operator/catalogue'),
         call('/operator/overview').catch(() => null),
         call('/operator/maintenance').catch(() => null),
         call('/operator/min-version').catch(() => null),
+        call('/operator/versions').catch(() => null),
+        call('/operator/active').catch(() => null),
+        call('/operator/flags').catch(() => null),
+        call('/operator/log').catch(() => null),
       ])
       setPlayers(Array.isArray(people) ? people : [])
       setGrants(Array.isArray(history) ? history : [])
@@ -156,6 +210,10 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       if (stats) setOverview(stats)
       if (maint) { setMaintenance(maint); setMaintenanceDraft(maint.message || '') }
       if (minimums) setMinVersion({ ios: minimums.ios || '', android: minimums.android || '' })
+      if (Array.isArray(vers)) setVersions(vers)
+      if (act) setActive(act)
+      if (flg) setFlags(flg)
+      if (Array.isArray(log)) setOpLog(log)
     } catch (err) {
       // Say which of the two things went wrong, because the fix is different.
       // "Load failed" is all WebKit gives you for a fetch that never
@@ -450,6 +508,41 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
       if (which === 'schedule') setSchedule(await call('/operator/schedule'))
     } catch (err) {
       setOutcome({ ok: false, text: err.message })
+    }
+  }
+
+  const toggleFlag = async (name) => {
+    const next = { ...flags, [name]: !flags[name] }
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const result = await call('/operator/flags', { method: 'PUT', body: JSON.stringify(next) })
+      setFlags(result)
+      setOutcome({
+        ok: true,
+        text: result[name] ? `${name} is back on.` : `${name} is off for every player.`,
+      })
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const resetEverything = async (playerId, username) => {
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call('/operator/leaderboard', {
+        method: 'DELETE',
+        body: JSON.stringify({ board: 'all', player_id: playerId }),
+      })
+      setOutcome({ ok: true, text: `${username}'s scores, tank, wins and kills are back to nothing.` })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -966,6 +1059,16 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
                   className="fta-primary"
                   onClick={() => { setGranting(person); setOutcome(null) }}
                 >Give something</button>
+                <button
+                  className="fta-danger"
+                  disabled={busy}
+                  onClick={() => resetEverything(person.id, person.username)}
+                >Reset their scores</button>
+                <p className="fta-note">
+                  Clears the score, tank, wins, kills and coin record — everything the boards
+                  read. Zeroing the score alone used to leave an inflated tank in place for
+                  good. Their account, coins and fish are untouched.
+                </p>
               )}
               {person.banned_at ? (
                 <button
@@ -1025,6 +1128,77 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
               {maintenance.on ? 'Lift maintenance — open the game' : 'Close the game for maintenance'}
             </button>
           </MobileCard>
+
+          {active && (
+            <MobileCard>
+              <SectionHeader title="Playing" />
+              <div className="fta-kv"><span>Last hour</span><strong>{active.counts?.last_hour ?? 0}</strong></div>
+              <div className="fta-kv"><span>Today</span><strong>{active.counts?.today ?? 0}</strong></div>
+              <div className="fta-kv"><span>This week</span><strong>{active.counts?.this_week ?? 0}</strong></div>
+              <p className="fta-note">
+                Counted from the last time each app checked in — opened the game, not mid-run.
+              </p>
+            </MobileCard>
+          )}
+
+          {versions.length > 0 && (
+            <MobileCard>
+              <SectionHeader title="App versions" />
+              <p className="fta-note">
+                What people are actually running. Set the required version below to something
+                most of them already have, or you are walling the difference.
+              </p>
+              {versions.map(v => (
+                <div className="fta-kv" key={`${v.platform}-${v.version}`}>
+                  <span>{v.platform} {v.version}</span>
+                  <strong>{v.players}</strong>
+                </div>
+              ))}
+              <p className="fta-note">
+                "unknown" is an account that has not opened the game since version reporting
+                shipped — an older build, not a missing player.
+              </p>
+            </MobileCard>
+          )}
+
+          <MobileCard>
+            <SectionHeader title="Switches" />
+            <p className="fta-note">
+              Turn a part of the game off for everyone without shipping a release. Takes effect
+              on each player's next launch or resume.
+            </p>
+            {['multiplayer', 'daily', 'leaderboard'].map(name => (
+              <div className="fta-kv" key={name}>
+                <span>{name === 'daily' ? "Today's Tank" : name}</span>
+                <button
+                  className={flags[name] ? 'fta-chip-on' : 'fta-chip-off'}
+                  disabled={busy}
+                  onClick={() => toggleFlag(name)}
+                >
+                  {flags[name] ? 'On' : 'Off'}
+                </button>
+              </div>
+            ))}
+          </MobileCard>
+
+          {opLog.length > 0 && (
+            <MobileCard>
+              <SectionHeader title="Recent admin actions" />
+              {opLog.slice(0, 12).map(entry => (
+                <div className="fta-log" key={entry.id}>
+                  <div className="fta-log-top">
+                    <strong>{entry.action}</strong>
+                    <span>{ago(entry.created_at)}</span>
+                  </div>
+                  <span className="fta-log-who">{entry.operator}</span>
+                </div>
+              ))}
+              <p className="fta-note">
+                "unknown" means the game's operator key was used directly rather than through
+                a signed-in portal session.
+              </p>
+            </MobileCard>
+          )}
 
           <MobileCard>
             <SectionHeader title="Required version" />
@@ -1946,6 +2120,36 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
           margin-top: 0;
           padding: 9px 12px;
           text-align: right;
+        }
+
+        .fta-chip-on, .fta-chip-off {
+          border: none;
+          border-radius: 999px;
+          padding: 5px 16px;
+          font-size: 13px;
+          font-weight: 600;
+          font-family: inherit;
+        }
+        .fta-chip-on  { background: #1f7a3d; color: #fff; }
+        .fta-chip-off { background: #8a2b22; color: #fff; }
+
+        .fta-log { padding: 7px 0; border-bottom: 1px solid var(--mobile-border); }
+        .fta-log:last-of-type { border-bottom: none; }
+        .fta-log-top { display: flex; justify-content: space-between; font-size: 14px; }
+        .fta-log-top span { color: var(--mobile-text-secondary); }
+        .fta-log-who { font-size: 12px; color: var(--mobile-text-secondary); }
+
+        .fta-danger {
+          width: 100%;
+          margin-top: 10px;
+          padding: 13px;
+          border: none;
+          border-radius: 12px;
+          background: #8a2b22;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 600;
+          font-family: inherit;
         }
 
         .fta-textarea { resize: vertical; }
