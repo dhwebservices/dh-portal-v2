@@ -1059,17 +1059,19 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
                   className="fta-primary"
                   onClick={() => { setGranting(person); setOutcome(null) }}
                 >Give something</button>
-                <button
-                  className="fta-danger"
-                  disabled={busy}
-                  onClick={() => resetEverything(person.id, person.username)}
-                >Reset their scores</button>
-                <p className="fta-note">
-                  Clears the score, tank, wins, kills and coin record — everything the boards
-                  read. Zeroing the score alone used to leave an inflated tank in place for
-                  good. Their account, coins and fish are untouched.
-                </p>
               )}
+              {/* Offered for a banned player too: a ban stops them playing, it
+                  does not take an inflated score off the board. */}
+              <button
+                className="fta-danger"
+                disabled={busy}
+                onClick={() => resetEverything(person.id, person.username)}
+              >Reset their scores</button>
+              <p className="fta-note">
+                Clears the score, tank, wins, kills and coin record — everything the boards
+                read. Zeroing the score alone used to leave an inflated tank in place for
+                good. Their account, coins and fish are untouched.
+              </p>
               {person.banned_at ? (
                 <button
                   className="fta-unban fta-wide"
