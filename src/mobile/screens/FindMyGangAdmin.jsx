@@ -25,6 +25,7 @@ import Icon from '../components/Icon'
 const TABS = [
   ['overview', 'Overview'],
   ['people', 'People'],
+  ['groups', 'Groups'],
   ['message', 'Message'],
   ['banners', 'Banners'],
   ['settings', 'Settings'],
@@ -46,6 +47,12 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
   const [banDays, setBanDays] = useState(7)
   const [deleting, setDeleting] = useState(false)
   const [deleteWord, setDeleteWord] = useState('')
+
+  const [circles, setCircles] = useState([])
+  const [groupSearch, setGroupSearch] = useState('')
+  const [group, setGroup] = useState(null)           // { circle, members, places }
+  const [renameDraft, setRenameDraft] = useState('')
+  const [deletingGroup, setDeletingGroup] = useState(false)
 
   const [announcements, setAnnouncements] = useState([])
   const [draft, setDraft] = useState({ title: '', body: '', style: 'banner', link_url: '', days: '7' })
@@ -80,6 +87,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
     try {
       if (tab === 'overview') setOverview(await call('/overview'))
       if (tab === 'people' || tab === 'message') setUsers((await call(`/users?q=${encodeURIComponent(search)}`)).users || [])
+      if (tab === 'groups') setCircles((await call(`/circles?q=${encodeURIComponent(groupSearch)}`)).circles || [])
       if (tab === 'banners') setAnnouncements((await call('/announcements')).announcements || [])
       if (tab === 'settings') {
         const { settings: s } = await call('/settings')
@@ -126,17 +134,30 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
 
   const reloadProfile = () => profile && openProfile(profile.user.id)
 
+  async function openGroup(id) {
+    setOutcome(null)
+    setDeletingGroup(false)
+    try {
+      const g = await call(`/circles/${id}`)
+      setGroup(g)
+      setRenameDraft(g.circle.name)
+      setProfile(null)
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   // ---------------------------------------------------------------- render
 
   const header = (
     <>
       <style>{FG_CSS}</style>
       <div className="fg-head">
-        <button className="fg-back" onClick={profile ? () => setProfile(null) : goBack} aria-label="Back">
+        <button className="fg-back" onClick={profile ? () => setProfile(null) : group ? () => setGroup(null) : goBack} aria-label="Back">
           <Icon name="chevron-left" size={22} />
         </button>
-        <h1>{profile ? (profile.user.display_name || profile.user.email) : 'FindMyGang'}</h1>
-        <button className="fg-back" onClick={profile ? reloadProfile : load} aria-label="Refresh">
+        <h1>{profile ? (profile.user.display_name || profile.user.email) : group ? group.circle.name : 'FindMyGang'}</h1>
+        <button className="fg-back" onClick={profile ? reloadProfile : group ? () => openGroup(group.circle.id) : load} aria-label="Refresh">
           <Icon name="refresh" size={18} />
         </button>
       </div>
@@ -145,6 +166,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
   )
 
   if (profile) return <div className="fg">{header}{renderProfile()}</div>
+  if (group) return <div className="fg">{header}{renderGroup()}</div>
 
   return (
     <div className="fg">
@@ -158,6 +180,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
       {loading && <p className="fg-note">Loading…</p>}
       {!loading && tab === 'overview' && renderOverview()}
       {!loading && tab === 'people' && renderPeople()}
+      {!loading && tab === 'groups' && renderGroups()}
       {!loading && tab === 'message' && renderMessage()}
       {!loading && tab === 'banners' && renderBanners()}
       {!loading && tab === 'settings' && renderSettings()}
@@ -229,13 +252,24 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
 
         <h3 className="fg-h">Circles</h3>
         <div className="fg-card">
-          {circles.length ? circles.map((c, i) => <Info key={i} label={c.circles?.name || 'Circle'} value={c.role} />) : <p className="fg-note">None</p>}
+          {circles.length ? circles.map((c, i) => (
+            <button key={i} className="fg-row flat" onClick={() => c.circles?.id && openGroup(c.circles.id)}>
+              <div><strong>{c.circles?.name || 'Circle'}</strong><span className="fg-meta">{c.role} · sharing {c.sharing}</span></div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </button>
+          )) : <p className="fg-note">None</p>}
         </div>
 
         <h3 className="fg-h">Phones</h3>
         <div className="fg-card">
-          {devices.length ? devices.map((d, i) => (
-            <Info key={i} label={`${d.platform} ${d.app_version || ''}`} value={`${d.can_push ? 'push on' : 'no push'} · seen ${ago(d.last_seen_at)}`} />
+          {devices.length ? devices.map(d => (
+            <div key={d.id} className="fg-device">
+              <Info label={`${d.platform} ${d.app_version || ''}`} value={`${d.can_push ? 'push on' : 'no push'} · seen ${ago(d.last_seen_at)}`} />
+              <button className="warn" disabled={busy} onClick={async () => {
+                if (await act('Phone removed. It stops getting notifications until the app is opened signed in again — ban the account to keep them out.',
+                  () => call(`/devices/${d.id}`, { method: 'DELETE' }))) reloadProfile()
+              }}>Remove phone</button>
+            </div>
           )) : <p className="fg-note">None registered</p>}
         </div>
 
@@ -283,6 +317,82 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
         <div className="fg-card">
           {history.length ? history.map((h, i) => <Info key={i} label={`${h.action} · ${h.operator}`} value={when(h.created_at)} />) : <p className="fg-note">None</p>}
         </div>
+      </>
+    )
+  }
+
+  function renderGroups() {
+    return (
+      <>
+        <form className="fg-search" onSubmit={e => { e.preventDefault(); load() }}>
+          <input value={groupSearch} onChange={e => setGroupSearch(e.target.value)} placeholder="Group, member name or email" />
+          <button type="submit">Search</button>
+        </form>
+        <div className="fg-list">
+          {circles.map(c => (
+            <button key={c.id} className="fg-row" onClick={() => openGroup(c.id)}>
+              <div>
+                <strong>{c.name}</strong>
+                <span className="fg-meta">{c.members} member{c.members === 1 ? '' : 's'} · owner {c.owner_name || c.owner_email || '—'}</span>
+                <span className="fg-meta">Created {when(c.created_at)}</span>
+              </div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </button>
+          ))}
+          {!circles.length && <p className="fg-note">No groups found.</p>}
+        </div>
+      </>
+    )
+  }
+
+  function renderGroup() {
+    const { circle, members = [], places = [] } = group
+    return (
+      <>
+        <h3 className="fg-h">Rename</h3>
+        <div className="fg-inline">
+          <input value={renameDraft} maxLength={40} onChange={e => setRenameDraft(e.target.value)} />
+          <button disabled={busy || !renameDraft.trim() || renameDraft.trim() === circle.name} onClick={async () => {
+            if (await act('Renamed.', () => call(`/circles/${circle.id}`, { method: 'PATCH', body: JSON.stringify({ name: renameDraft }) }))) openGroup(circle.id)
+          }}>Save</button>
+        </div>
+
+        <h3 className="fg-h">Members ({members.length})</h3>
+        <div className="fg-list">
+          {members.map(m => (
+            <div key={m.user_id} className="fg-card">
+              <button className="fg-row flat" onClick={() => { setGroup(null); openProfile(m.user_id) }}>
+                <div>
+                  <strong>{m.display_name || m.email}</strong>
+                  <span className="fg-meta">{m.email}</span>
+                  <span className="fg-meta">{m.role} · sharing {m.sharing} · last location {ago(m.last_location_at)}</span>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </button>
+              <button className="warn" disabled={busy} onClick={async () => {
+                if (await act(`${m.display_name || m.email} removed from ${circle.name}.`, () => call(`/circles/${circle.id}/members/${m.user_id}`, { method: 'DELETE' }))) {
+                  if (members.length === 1) { setGroup(null); load() } else openGroup(circle.id)
+                }
+              }}>Remove from group</button>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="fg-h">Places</h3>
+        <div className="fg-card">{places.length ? places.map(p => p.name).join(', ') : <span className="fg-note">None</span>}</div>
+
+        <h3 className="fg-h">Delete</h3>
+        {!deletingGroup ? (
+          <button className="danger" onClick={() => setDeletingGroup(true)}>Delete group…</button>
+        ) : (
+          <div className="fg-card danger">
+            <p>Deletes {circle.name}, its places and invites. The members keep their accounts.</p>
+            <button className="danger" disabled={busy} onClick={async () => {
+              if (await act('Group deleted.', () => call(`/circles/${circle.id}`, { method: 'DELETE' }))) { setGroup(null); load() }
+            }}>Delete for good</button>
+          </div>
+        )}
+        <p className="fg-note">Created {when(circle.created_at)}</p>
       </>
     )
   }
@@ -459,7 +569,7 @@ const FG_CSS = `
   .fg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .fg-head h1 { margin: 0; flex: 1; font-size: 22px; font-weight: 700; color: var(--mobile-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fg-back { background: none; border: none; padding: 6px; color: var(--mobile-accent); cursor: pointer; display: grid; place-items: center; }
-  .fg-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+  .fg-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
   .fg-tabs button, .fg-seg button {
     min-width: 0; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--mobile-border);
     background: var(--mobile-card); font-size: 12.5px; font-weight: 600; color: var(--mobile-text-secondary); cursor: pointer;
@@ -477,6 +587,11 @@ const FG_CSS = `
     background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 12px 14px; cursor: pointer; color: var(--mobile-text); }
   .fg-row > div { min-width: 0; }
   .fg-row strong { display: block; font-size: 15px; }
+  .fg .fg-row.flat { border: none; padding: 6px 0; background: none; }
+  .fg-device { border-bottom: 1px solid var(--mobile-border); padding-bottom: 8px; margin-bottom: 8px; }
+  .fg-device:last-child { border-bottom: none; margin-bottom: 0; }
+  .fg-device button { width: 100%; }
+  .fg-card > button.warn { width: 100%; margin-top: 6px; }
   .fg-meta { display: block; font-size: 12.5px; color: var(--mobile-text-secondary); overflow-wrap: anywhere; margin: 2px 0; }
   .fg-card { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 12px 14px; color: var(--mobile-text); }
   .fg-card.off { opacity: 0.55; }
