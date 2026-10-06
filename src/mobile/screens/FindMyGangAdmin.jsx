@@ -362,7 +362,8 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         <div className="fg-list">
           {reports.map(r => (
             <div key={r.id} className={`fg-card ${r.kind === 'person' ? 'danger' : ''}`}>
-              <strong>{r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}` : 'Problem'}</strong>
+              <strong>{r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}`
+                : r.kind === 'support' ? 'Support request' : r.kind === 'feature' ? 'Feature request' : 'Problem'}</strong>
               <p className="fg-meta">From {r.user_name || r.user_email || 'deleted account'} · {when(r.created_at)}{r.app_build ? ` · build ${r.app_build}` : ''}{r.circle_name ? ` · ${r.circle_name}` : ''}</p>
               <p style={{ whiteSpace: 'pre-wrap', margin: '8px 0' }}>{r.message}</p>
               {r.status === 'open' ? (
