@@ -115,7 +115,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
       }
     }
     const payload = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(payload?.error?.message || `FindMyGang said no (${response.status}).`)
+    if (!response.ok) throw new Error(payload?.error?.message || `Fam & a Half said no (${response.status}).`)
     return payload
   }
 
@@ -133,12 +133,12 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         <style>{FG_CSS}</style>
         <div className="fg-head">
           <button className="fg-back" onClick={goBack} aria-label="Back"><Icon name="chevron-left" size={22} /></button>
-          <h1>FindMyGang</h1>
+          <h1>Fam &amp; a Half</h1>
         </div>
         <div className="fg-form">
           <p className="fg-note">
             This screen can ban and delete accounts, so it is behind a real secret rather than
-            a code in the app. Enter the FindMyGang admin key once; it stays on this phone.
+            a code in the app. Enter the Fam & a Half admin key once; it stays on this phone.
           </p>
           <input value={keyDraft} onChange={e => { setKeyDraft(e.target.value); setKeyError('') }} placeholder="Admin key"
             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
@@ -253,7 +253,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         <button className="fg-back" onClick={profile ? () => setProfile(null) : group ? () => setGroup(null) : goBack} aria-label="Back">
           <Icon name="chevron-left" size={22} />
         </button>
-        <h1>{profile ? (profile.user.display_name || profile.user.email) : group ? group.circle.name : 'FindMyGang'}</h1>
+        <h1>{profile ? (profile.user.display_name || profile.user.email) : group ? group.circle.name : 'Fam & a Half'}</h1>
         <button className="fg-back" onClick={profile ? reloadProfile : group ? () => openGroup(group.circle.id) : load} aria-label="Refresh">
           <Icon name="refresh" size={18} />
         </button>
@@ -739,7 +739,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
 
         <h3 className="fg-h">Oldest build allowed</h3>
         <label>Build number<input inputMode="numeric" value={settings.min_build} onChange={e => setSettings({ ...settings, min_build: e.target.value.replace(/\D/g, '') })} /></label>
-        <p className="fg-note">Anyone on an older build sees "Update FindMyGang" with an App Store button instead of the app. 0 lets every build in. Only raise this once the new build is live on the App Store.</p>
+        <p className="fg-note">Anyone on an older build sees "Update Fam & a Half" with an App Store button instead of the app. 0 lets every build in. Only raise this once the new build is live on the App Store.</p>
 
         <button className="fg-primary" disabled={busy} onClick={save}>Save</button>
       </div>

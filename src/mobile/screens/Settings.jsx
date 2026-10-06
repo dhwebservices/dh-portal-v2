@@ -216,7 +216,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 <div className="setting-info">
                   <Icon name="mapPin" size={20} color="var(--mobile-accent)" />
                   <div>
-                    <div className="setting-label">FindMyGang</div>
+                    <div className="setting-label">Fam &amp; a Half</div>
                     <div className="setting-description">Users, messages, banners and app settings</div>
                   </div>
                 </div>
