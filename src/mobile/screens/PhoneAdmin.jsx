@@ -24,7 +24,7 @@ import SectionHeader from '../components/SectionHeader'
 const API = 'https://dh-phone.aged-silence-66a7.workers.dev'
 const KEY_STORAGE = 'dhphone.adminKey'
 
-export default function MobilePhoneAdmin({ goBack, isAdmin }) {
+export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
   const [keyDraft, setKeyDraft] = useState('')
   const [keyError, setKeyError] = useState('')
@@ -63,6 +63,12 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
   const [holdFile, setHoldFile] = useState(null)
   const [uploading, setUploading] = useState(false)
 
+  // Dialling out. `dialAs` is the phone-system user whose mobile rings first;
+  // it defaults to whoever is signed in to the portal, matched by email.
+  const [dialAs, setDialAs] = useState('')
+  const [dialTo, setDialTo] = useState('')
+  const [pinDraft, setPinDraft] = useState('')
+
   useEffect(() => { if (key) load() }, [key])
 
   if (!isAdmin) return <div className="ph"><p className="ph-note">Managers only.</p></div>
@@ -99,6 +105,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
       setStats(s)
       setCalls(Array.isArray(c) ? c : [])
       setUsers(Array.isArray(u) ? u : [])
+      const me = (Array.isArray(u) ? u : []).find(x =>
+        x.email && user?.email && x.email.toLowerCase() === user.email.toLowerCase())
+      setDialAs(prev => prev || me?.id || '')
       setFlows(f?.flows ?? [])
       setOptions(f?.options ?? [])
       setHours(f?.hours ?? [])
@@ -381,6 +390,69 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
     }
   }
 
+  /**
+   * Click-to-call. The Worker rings the chosen person's own mobile from the
+   * office number; they answer, press 1, and the customer sees the office.
+   * Nothing is dialled from this device, so it works the same from a laptop.
+   */
+  const placeCall = async () => {
+    if (busy || !dialAs || !dialTo.trim()) return
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const r = await call('/api/dialout', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: dialAs, to: dialTo }),
+      })
+      setOutcome({
+        ok: true,
+        text: `Ringing your mobile now. Answer, then press 1 to be connected to ${dialTo.trim() || r.to}.`,
+      })
+      setDialTo('')
+      // The row exists straight away; reloading shows it as "calling".
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Dial-in PIN: setting one also clears a lockout. */
+  const savePin = async () => {
+    if (busy || !dialAs || !pinDraft) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/api/users/${encodeURIComponent(dialAs)}/dialout-pin`, {
+        method: 'POST',
+        body: JSON.stringify({ pin: pinDraft }),
+      })
+      setPinDraft('')
+      setOutcome({ ok: true, text: 'PIN saved. Ring the office from that mobile to use it.' })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removePin = async () => {
+    if (busy || !dialAs) return
+    setBusy(true)
+    try {
+      await call(`/api/users/${encodeURIComponent(dialAs)}/dialout-pin`, { method: 'DELETE' })
+      setOutcome({ ok: true, text: 'PIN removed. That mobile now hears the normal menu.' })
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const toggleUser = async (user) => {
     try {
       await call(`/api/users/${user.id}`, {
@@ -465,7 +537,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
       </div>
 
       <div className="ph-tabs">
-        {[['calls', 'Calls'], ['menu', 'Menu'], ['team', 'Team'],
+        {[['calls', 'Calls'], ['dial', 'Dial'], ['menu', 'Menu'], ['team', 'Team'],
           ['hours', 'Hours'], ['setup', 'Setup']].map(([id, label]) => (
           <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
             {label}
@@ -501,8 +573,14 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
               </div>
               <div className="ph-stat">
                 <strong>{stats.total ?? 0}</strong>
-                <span>total calls</span>
+                <span>incoming</span>
               </div>
+              {stats.outgoing != null && (
+                <div className="ph-stat">
+                  <strong>{stats.outgoing ?? 0}</strong>
+                  <span>outgoing</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -511,7 +589,17 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
               <p className="ph-note">No calls yet.</p>
             )}
             {calls.map(c => (
-              <div key={c.id} className={`ph-call ${c.status === 'missed' ? 'missed' : ''}`}>
+              <div key={c.id} className={`ph-call ${c.status === 'missed' ? 'missed' : ''}${c.direction === 'outbound' ? ' out' : ''}`}>
+                {c.direction === 'outbound' ? (
+                  <div className="ph-call-main">
+                    <strong>↗ {c.to_number || 'No number dialled'}</strong>
+                    <span className="ph-call-meta">
+                      Outgoing{c.placed_by_name ? ` · ${c.placed_by_name}` : ''}
+                      {c.via === 'dial-in' ? ' · dialled in' : ''}
+                      {c.duration ? ` · ${c.duration}s` : ''}
+                    </span>
+                  </div>
+                ) : (
                 <div className="ph-call-main">
                   <strong>{c.from_number || 'Unknown'}</strong>
                   <span className="ph-call-meta">
@@ -520,6 +608,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
                     {c.duration ? ` · ${c.duration}s` : ''}
                   </span>
                 </div>
+                )}
                 <div className="ph-call-side">
                   <span className={`ph-pill ${c.status}`}>{c.status}</span>
                   <span className="ph-when">{when(c.started_at)}</span>
@@ -543,6 +632,91 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
           </div>
         </>
       )}
+
+      {/* ----------------------------------------------------------- dial */}
+      {tab === 'dial' && (() => {
+        const me = users.find(u => u.id === dialAs)
+        return (
+          <div className="ph-list">
+            <MobileCard>
+              <SectionHeader title="Call as the business" />
+              <p className="ph-note">
+                Your mobile rings from 01443 805303. Answer, press 1, and you
+                are connected — the customer sees the office number, never
+                yours. Outgoing calls are not recorded.
+              </p>
+              <div className="ph-labelled ph-gap">
+                <label>Ring this mobile first</label>
+                <select
+                  className="ph-field"
+                  value={dialAs}
+                  onChange={e => setDialAs(e.target.value)}
+                >
+                  <option value="">Choose who is calling…</option>
+                  {users.filter(u => u.active && u.forward_to).map(u => (
+                    <option key={u.id} value={u.id}>{u.name} — {u.forward_to}</option>
+                  ))}
+                </select>
+              </div>
+              <input
+                className="ph-field ph-dial"
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                value={dialTo}
+                onChange={e => setDialTo(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') placeCall() }}
+                placeholder="Number to call, e.g. 07700 900123"
+              />
+              <button
+                className="ph-primary"
+                onClick={placeCall}
+                disabled={busy || !dialAs || !dialTo.trim()}
+              >
+                {busy ? 'Ringing you…' : 'Call'}
+              </button>
+              <p className="ph-note">
+                UK landlines, mobiles, 03 and 0800 only. Premium-rate,
+                international and 999 can’t be called from here — for an
+                emergency, dial 999 from your own phone.
+              </p>
+            </MobileCard>
+
+            {me && (
+              <MobileCard>
+                <SectionHeader title="Dial in from your mobile" />
+                <p className="ph-note">
+                  With a PIN set, ringing 01443 805303 from {me.forward_to} says
+                  “Staff line”. Key the PIN and #, then the number and #. Do
+                  nothing and you get the normal menu.
+                </p>
+                <p className={`ph-pin-state${me.dialout_locked ? ' bad' : ''}`}>
+                  {me.dialout_locked
+                    ? 'Locked after too many wrong PINs. Set a new one to unlock.'
+                    : me.has_dialout_pin ? 'PIN set.' : 'No PIN — dial-in is off for this mobile.'}
+                </p>
+                <input
+                  className="ph-field"
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  value={pinDraft}
+                  onChange={e => setPinDraft(e.target.value.replace(/\D/g, ''))}
+                  placeholder="New PIN, 6 to 12 digits"
+                />
+                <button className="ph-primary" onClick={savePin} disabled={busy || pinDraft.length < 6}>
+                  {me.has_dialout_pin ? 'Change PIN' : 'Set PIN'}
+                </button>
+                {me.has_dialout_pin && (
+                  <button className="ph-secondary" onClick={removePin} disabled={busy}>
+                    Remove PIN
+                  </button>
+                )}
+              </MobileCard>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ---------------------------------------------------------- hours */}
       {tab === 'hours' && week && (
@@ -710,6 +884,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin }) {
                 <strong>{u.name}</strong>
                 <span className="ph-call-meta">
                   {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
+                  {u.has_dialout_pin ? ' · dial-in PIN' : ''}
                 </span>
               </div>
               <button className="ph-toggle" onClick={() => toggleUser(u)}>
@@ -881,7 +1056,7 @@ const PHONE_CSS = `
     cursor: pointer; display: grid; place-items: center;
   }
 
-  /* Five tabs now rather than three, so they are allowed to shrink and the
+  /* Six tabs now rather than three, so they are allowed to shrink and the
      labels are kept short enough to survive a small phone. */
   .ph-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
   .ph-tabs button {
@@ -940,6 +1115,17 @@ const PHONE_CSS = `
   .ph-pill.answered { background: #e3efe8; color: #1f7a4d; }
   .ph-pill.missed { background: #fbe9e7; color: #c0392b; }
   .ph-pill.ringing { background: var(--mobile-accent-soft); color: var(--mobile-accent); }
+  /* Outgoing calls: the row is marked by its arrow and a left rule in the
+     accent colour, so in and out can be told apart at a glance. */
+  .ph-call.out { border-left: 3px solid var(--mobile-accent); }
+  .ph-pill.calling, .ph-pill.connecting { background: var(--mobile-accent-soft); color: var(--mobile-accent); }
+  .ph-pill.busy, .ph-pill.no-answer, .ph-pill.cancelled, .ph-pill.failed {
+    background: var(--mobile-border); color: var(--mobile-text-secondary);
+  }
+  .ph-gap { margin-top: 14px; }
+  .ph-dial { font-size: 20px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  .ph-pin-state { margin: 10px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--mobile-text); }
+  .ph-pin-state.bad { color: #c0392b; }
 
   .ph-user.off { opacity: 0.5; }
   .ph-toggle {
