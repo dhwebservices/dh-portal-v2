@@ -8,9 +8,15 @@ import Icon from '../components/Icon'
 /**
  * Running FindMyGang from the staff portal.
  *
- * Everything goes through `/api/findmygang/*`, which checks the Entra token,
- * adds the operator key (a Pages secret, never on this device) and passes
- * the staff member's email on, so FindMyGang's admin_log says who did what.
+ * On the web, everything goes through `/api/findmygang/*`, which checks the
+ * Entra token, adds the operator key (a Pages secret) and passes the staff
+ * member's email on, so FindMyGang's admin_log says who did what.
+ *
+ * The native app has no Entra token to send: its sign-in keeps only the
+ * name and email, deliberately (see nativeSession.js). So on the phone this
+ * works like the Phone and Fish Tank screens: the operator key is entered
+ * once and kept on this device, and calls go straight to FindMyGang's admin
+ * function with the signed-in email as X-Operator.
  *
  * **What people see in the app.** A "banner" sits at the top of the app
  * until it is closed; a "pop-up" appears once and needs OK. Both come from
@@ -22,6 +28,9 @@ import Icon from '../components/Icon'
  * app. That is why it needs the word DELETE typed, not a tap.
  */
 
+const DIRECT = 'https://sarrvfzboorqzsfbuiws.supabase.co/functions/v1/admin'
+const KEY_STORAGE = 'findmygang.adminKey'
+
 const TABS = [
   ['overview', 'Overview'],
   ['people', 'People'],
@@ -32,8 +41,12 @@ const TABS = [
   ['log', 'Log'],
 ]
 
-export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
+export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   const { instance, accounts } = useMsal()
+  const viaPortal = !!accounts?.[0]
+  const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
+  const [keyDraft, setKeyDraft] = useState('')
+  const [keyError, setKeyError] = useState('')
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -64,21 +77,68 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin }) {
   const [settings, setSettings] = useState({ min_build: '0', maintenanceOn: false, maintenanceMessage: '' })
   const [log, setLog] = useState([])
 
-  useEffect(() => { load() }, [tab])
+  useEffect(() => { if (viaPortal || key) load() }, [tab, key])
 
   if (!isAdmin) return <div className="fg"><p className="fg-note">Managers only.</p></div>
 
   async function call(path, options = {}) {
-    const account = accounts?.[0]
-    if (!account) throw new Error('Sign in to the portal again, then retry.')
-    const token = await getPortalIdToken(instance, account)
-    const response = await fetch(apiUrl(`/api/findmygang${path}`), {
-      ...options,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
-    })
+    let response
+    if (viaPortal) {
+      const token = await getPortalIdToken(instance, accounts[0])
+      response = await fetch(apiUrl(`/api/findmygang${path}`), {
+        ...options,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
+      })
+    } else {
+      response = await fetch(`${DIRECT}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+          'X-Operator': (user?.email || '').toLowerCase(),
+          ...(options.headers || {}),
+        },
+      })
+      if (response.status === 401) {
+        localStorage.removeItem(KEY_STORAGE)
+        setKey('')
+        setKeyError('That key was not accepted. Check it and try again.')
+        throw new Error('That key was not accepted.')
+      }
+    }
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(payload?.error?.message || `FindMyGang said no (${response.status}).`)
     return payload
+  }
+
+  if (!viaPortal && !key) {
+    const saveKey = () => {
+      const candidate = keyDraft.replace(/\s+/g, '')
+      if (!candidate) return
+      localStorage.setItem(KEY_STORAGE, candidate)
+      setKeyDraft('')
+      setKeyError('')
+      setKey(candidate)
+    }
+    return (
+      <div className="fg">
+        <style>{FG_CSS}</style>
+        <div className="fg-head">
+          <button className="fg-back" onClick={goBack} aria-label="Back"><Icon name="chevron-left" size={22} /></button>
+          <h1>FindMyGang</h1>
+        </div>
+        <div className="fg-form">
+          <p className="fg-note">
+            This screen can ban and delete accounts, so it is behind a real secret rather than
+            a code in the app. Enter the FindMyGang admin key once; it stays on this phone.
+          </p>
+          <input value={keyDraft} onChange={e => { setKeyDraft(e.target.value); setKeyError('') }} placeholder="Admin key"
+            autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
+          {keyError && <div className="fg-outcome bad">{keyError}</div>}
+          <button className="fg-primary" disabled={!keyDraft.trim()} onClick={saveKey}>Unlock</button>
+        </div>
+      </div>
+    )
   }
 
   async function load() {
