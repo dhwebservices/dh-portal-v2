@@ -37,6 +37,8 @@ const TABS = [
   ['groups', 'Groups'],
   ['message', 'Message'],
   ['banners', 'Banners'],
+  ['reports', 'Reports'],
+  ['crashes', 'Crashes'],
   ['settings', 'Settings'],
   ['log', 'Log'],
 ]
@@ -54,6 +56,12 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   const [busy, setBusy] = useState(false)
 
   const [overview, setOverview] = useState(null)
+  const [stats, setStats] = useState(null)
+  const [reports, setReports] = useState([])
+  const [reportStatus, setReportStatus] = useState('open')
+  const [replies, setReplies] = useState({})
+  const [crashes, setCrashes] = useState([])
+  const [crash, setCrash] = useState(null)
   const [users, setUsers] = useState([])
   const [search, setSearch] = useState('')
   const [profile, setProfile] = useState(null)       // { user, circles, devices, uploads, history }
@@ -145,7 +153,13 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
     setLoading(true)
     setError('')
     try {
-      if (tab === 'overview') setOverview(await call('/overview'))
+      if (tab === 'overview') {
+        const [o, st] = await Promise.all([call('/overview'), call('/stats')])
+        setOverview(o)
+        setStats(st)
+      }
+      if (tab === 'reports') setReports((await call(`/reports?status=${reportStatus}`)).reports || [])
+      if (tab === 'crashes') setCrashes((await call('/crashes')).crashes || [])
       if (tab === 'people' || tab === 'message') setUsers((await call(`/users?q=${encodeURIComponent(search)}`)).users || [])
       if (tab === 'groups') setCircles((await call(`/circles?q=${encodeURIComponent(groupSearch)}`)).circles || [])
       if (tab === 'banners') setAnnouncements((await call('/announcements')).announcements || [])
@@ -243,6 +257,8 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
       {!loading && tab === 'groups' && renderGroups()}
       {!loading && tab === 'message' && renderMessage()}
       {!loading && tab === 'banners' && renderBanners()}
+      {!loading && tab === 'reports' && renderReports()}
+      {!loading && tab === 'crashes' && renderCrashes()}
       {!loading && tab === 'settings' && renderSettings()}
       {!loading && tab === 'log' && renderLog()}
     </div>
@@ -265,7 +281,120 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
           {stat(overview.push_pending, 'Push waiting')}
           {stat(overview.push_failed_24h, 'Push failed (24 h)', overview.push_failed_24h > 0)}
         </div>
+        {stats && renderFunnel()}
       </>
+    )
+  }
+
+  function renderFunnel() {
+    const f = stats.funnel || {}
+    const h = stats.health || {}
+    const top = f.signed_up || 0
+    const steps = [
+      ['Signed up', f.signed_up], ['Confirmed email', f.email_confirmed], ['Set up profile', f.profile_done],
+      ['Shared a location', f.shared_location], ['In a circle', f.in_a_circle], ['In a circle with others', f.circle_with_others],
+    ]
+    const pct = (n, of) => (of ? Math.round((100 * (n || 0)) / of) : 0)
+    return (
+      <>
+        <h3 className="fg-h">Getting set up</h3>
+        <div className="fg-card">
+          {steps.map(([label, n]) => (
+            <div key={label} className="fg-bar">
+              <div className="fg-bar-label"><span>{label}</span><strong>{n ?? 0} · {pct(n, top)}%</strong></div>
+              <div className="fg-bar-track"><div className="fg-bar-fill" style={{ width: `${pct(n, top)}%` }} /></div>
+            </div>
+          ))}
+          <p className="fg-meta">Invites: {f.invites_used ?? 0} used of {f.invites_created ?? 0} created · {f.joined_by_invite_30d ?? 0} joins in the last 30 days</p>
+        </div>
+        <h3 className="fg-h">Phone health</h3>
+        <div className="fg-card">
+          <Info label="Location: Always" value={`${h.always ?? 0} of ${h.phones ?? 0} (${pct(h.always, h.phones)}%)`} />
+          <Info label="Precise location" value={`${h.precise ?? 0} of ${h.phones ?? 0}`} />
+          <Info label="Only while using" value={h.when_in_use ?? 0} />
+          <Info label="Location off/denied" value={h.denied ?? 0} />
+          <Info label="Notifications on" value={`${h.push ?? 0} people`} />
+          <Info label="Low Power Mode on" value={h.low_power ?? 0} />
+          <p className="fg-meta">Phones without Always or Precise quietly stop updating when the app is closed.</p>
+        </div>
+      </>
+    )
+  }
+
+  function renderReports() {
+    const resolve = r => act(replies[r.id] ? 'Resolved and replied.' : 'Resolved.', async () => {
+      await call(`/reports/${r.id}/resolve`, { method: 'POST', body: JSON.stringify({ reply: replies[r.id] || '' }) })
+      setReports(list => list.filter(x => x.id !== r.id))
+    })
+    return (
+      <>
+        <div className="fg-seg" style={{ marginBottom: 12 }}>
+          {['open', 'resolved'].map(st => (
+            <button key={st} className={reportStatus === st ? 'active' : ''} onClick={async () => {
+              setReportStatus(st)
+              try { setReports((await call(`/reports?status=${st}`)).reports || []) } catch (e) { setError(e.message) }
+            }}>{st === 'open' ? 'Open' : 'Resolved'}</button>
+          ))}
+        </div>
+        <div className="fg-list">
+          {reports.map(r => (
+            <div key={r.id} className={`fg-card ${r.kind === 'person' ? 'danger' : ''}`}>
+              <strong>{r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}` : 'Problem'}</strong>
+              <p className="fg-meta">From {r.user_name || r.user_email || 'deleted account'} · {when(r.created_at)}{r.app_build ? ` · build ${r.app_build}` : ''}{r.circle_name ? ` · ${r.circle_name}` : ''}</p>
+              <p style={{ whiteSpace: 'pre-wrap', margin: '8px 0' }}>{r.message}</p>
+              {r.status === 'open' ? (
+                <>
+                  <textarea rows={2} placeholder="Reply (sent as a notification, optional)" maxLength={300}
+                    value={replies[r.id] || ''} onChange={e => setReplies({ ...replies, [r.id]: e.target.value })} />
+                  <div className="fg-inline">
+                    {r.kind === 'person' && r.subject_user_id && (
+                      <button className="warn" onClick={() => openProfile(r.subject_user_id)}>Open their account</button>
+                    )}
+                    {r.user_id && <button onClick={() => openProfile(r.user_id)}>Open reporter</button>}
+                  </div>
+                  <button className="fg-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={() => resolve(r)}>
+                    {replies[r.id] ? 'Reply and resolve' : 'Resolve'}
+                  </button>
+                </>
+              ) : (
+                <p className="fg-meta">Resolved by {r.resolved_by} · {when(r.resolved_at)}{r.reply ? ` · replied: "${r.reply}"` : ''}</p>
+              )}
+            </div>
+          ))}
+          {!reports.length && <p className="fg-note">{reportStatus === 'open' ? 'No open reports.' : 'Nothing resolved yet.'}</p>}
+        </div>
+      </>
+    )
+  }
+
+  function renderCrashes() {
+    if (crash) {
+      return (
+        <div className="fg-card">
+          <button onClick={() => setCrash(null)}>Back to the list</button>
+          <p className="fg-meta">{crash.summary} · build {crash.app_build} · iOS {crash.os_version} · {when(crash.created_at)}</p>
+          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 11, maxHeight: 500, overflow: 'auto' }}>
+            {JSON.stringify(crash.payload, null, 1)}
+          </pre>
+        </div>
+      )
+    }
+    return (
+      <div className="fg-list">
+        <p className="fg-note">iPhones send crash and freeze reports about once a day. No location is included.</p>
+        {crashes.map(c => (
+          <button key={c.id} className="fg-row" onClick={async () => {
+            try { setCrash((await call(`/crashes/${c.id}`)).crash) } catch (e) { setError(e.message) }
+          }}>
+            <div>
+              <strong>{c.summary || 'Crash'}</strong>
+              <span className="fg-meta">Build {c.app_build} · iOS {c.os_version} · {when(c.created_at)}</span>
+            </div>
+            <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+          </button>
+        ))}
+        {!crashes.length && <p className="fg-note">No crash reports. They start arriving from version 15.</p>}
+      </div>
     )
   }
 
@@ -666,6 +795,11 @@ const FG_CSS = `
   .fg-outcome { padding: 10px 12px; border-radius: 10px; font-size: 13.5px; margin-bottom: 12px; }
   .fg-outcome.ok { background: #e3efe8; color: #1f7a4d; } .fg-outcome.bad { background: #fbe9e7; color: #c0392b; }
   .fg-search { display: flex; gap: 8px; margin-bottom: 12px; }
+  .fg-bar { margin: 6px 0 10px; }
+  .fg-bar-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--mobile-text-secondary); margin-bottom: 4px; }
+  .fg-bar-label strong { color: var(--mobile-text); }
+  .fg-bar-track { height: 8px; border-radius: 999px; background: var(--mobile-border); overflow: hidden; }
+  .fg-bar-fill { height: 100%; border-radius: 999px; background: var(--mobile-accent); }
   .fg-search input { flex: 1; min-width: 0; }
   .fg input, .fg textarea, .fg select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--mobile-border);
     background: var(--mobile-card); color: var(--mobile-text); font-size: 15px; font-family: inherit; }
