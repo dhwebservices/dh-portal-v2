@@ -208,6 +208,29 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
 
   const reloadProfile = () => profile && openProfile(profile.user.id)
 
+  // Asks their phone for a fresh location now, then checks back once.
+  // iOS decides whether the app is allowed to run, so silence afterwards
+  // usually means the app was swiped away or iOS is holding it back.
+  async function forceWake(userId, name) {
+    const result = await act(r => `Sent to ${r.phones} phone${r.phones === 1 ? '' : 's'}. Checking for a reply…`,
+      () => call(`/users/${userId}/wake`, { method: 'POST' }))
+    if (!result) return
+    const before = result.last_location_at ? new Date(result.last_location_at).getTime() : 0
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 5000))
+      try {
+        const { users: list } = await call(`/users?q=`)
+        const u = (list || []).find(x => x.id === userId)
+        if (u?.last_location_at && new Date(u.last_location_at).getTime() > before) {
+          setOutcome({ ok: true, text: `${name || 'Their phone'} replied with a fresh location.` })
+          if (profile?.user?.id === userId) reloadProfile()
+          return
+        }
+      } catch { /* keep waiting */ }
+    }
+    setOutcome({ ok: false, text: `No reply from ${name || 'their phone'} after 30 seconds. iOS isn't letting the app run: usually it was swiped away, or the phone is in Low Power Mode. Ask them to open Fam & a Half once.` })
+  }
+
   async function openGroup(id) {
     setOutcome(null)
     setDeletingGroup(false)
@@ -467,6 +490,9 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
           <button disabled={busy} onClick={() => act(r => `Password reset code sent to ${r.email}.`, () => call(`/users/${u.id}/reset-password`, { method: 'POST' }))}>
             Send password reset
           </button>
+          <button disabled={busy} onClick={() => forceWake(u.id, u.display_name)}>
+            Force location refresh
+          </button>
           <button disabled={busy} onClick={() => { setTab('message'); setAudience('some'); setChosen(new Set([u.id])); setProfile(null) }}>
             Send them a message
           </button>
@@ -557,6 +583,9 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
                   <span className="fg-meta">{m.role} · sharing {m.sharing} · last location {ago(m.last_location_at)}</span>
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </button>
+              <button disabled={busy} onClick={() => forceWake(m.user_id, m.display_name)} style={{ width: '100%', marginTop: 6 }}>
+                Force location refresh
               </button>
               <button className="warn" disabled={busy} onClick={async () => {
                 if (await act(`${m.display_name || m.email} removed from ${circle.name}.`, () => call(`/circles/${circle.id}/members/${m.user_id}`, { method: 'DELETE' }))) {
