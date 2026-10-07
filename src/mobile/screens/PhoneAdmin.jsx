@@ -68,6 +68,10 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [dialAs, setDialAs] = useState('')
   const [dialTo, setDialTo] = useState('')
   const [pinDraft, setPinDraft] = useState('')
+  // Texts sent as "DH Website". One-way: customers can't reply to a name.
+  const [smsTo, setSmsTo] = useState('')
+  const [smsBody, setSmsBody] = useState('')
+  const [smsLog, setSmsLog] = useState([])
 
   useEffect(() => { if (key) load() }, [key])
 
@@ -395,6 +399,36 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
    * office number; they answer, press 1, and the customer sees the office.
    * Nothing is dialled from this device, so it works the same from a laptop.
    */
+  const loadTexts = async () => {
+    try {
+      const rows = await call('/api/sms?limit=50')
+      setSmsLog(Array.isArray(rows) ? rows : [])
+    } catch {
+      // The log is a nice-to-have; sending still works without it.
+    }
+  }
+
+  const sendText = async () => {
+    if (busy || !dialAs || !smsTo.trim() || !smsBody.trim()) return
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call('/api/sms', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: dialAs, to: smsTo, body: smsBody }),
+      })
+      setOutcome({ ok: true, text: `Text sent to ${smsTo.trim()} from DH Website.` })
+      setSmsTo('')
+      setSmsBody('')
+      await loadTexts()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const placeCall = async () => {
     if (busy || !dialAs || !dialTo.trim()) return
     await Haptics.impact({ style: ImpactStyle.Medium })
@@ -537,9 +571,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       </div>
 
       <div className="ph-tabs">
-        {[['calls', 'Calls'], ['dial', 'Dial'], ['menu', 'Menu'], ['team', 'Team'],
+        {[['calls', 'Calls'], ['dial', 'Dial'], ['text', 'Text'], ['menu', 'Menu'], ['team', 'Team'],
           ['hours', 'Hours'], ['setup', 'Setup']].map(([id, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => { setTab(id); if (id === 'text') loadTexts() }}>
             {label}
           </button>
         ))}
@@ -717,6 +751,75 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
           </div>
         )
       })()}
+
+      {/* ----------------------------------------------------------- text */}
+      {tab === 'text' && (
+        <div className="ph-list">
+          <MobileCard>
+            <SectionHeader title="Text as DH Website" />
+            <p className="ph-note">
+              The customer sees the text from “DH Website”. They can’t reply to
+              it, so say how to reach you — ring 01443 805303 or email.
+            </p>
+            <div className="ph-labelled ph-gap">
+              <label>Sent by</label>
+              <select className="ph-field" value={dialAs} onChange={e => setDialAs(e.target.value)}>
+                <option value="">Choose who is sending…</option>
+                {users.filter(u => u.active).map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <input
+              className="ph-field"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={smsTo}
+              onChange={e => setSmsTo(e.target.value)}
+              placeholder="Mobile number, e.g. 07700 900123"
+            />
+            <textarea
+              className="ph-field"
+              rows={4}
+              maxLength={306}
+              value={smsBody}
+              onChange={e => setSmsBody(e.target.value)}
+              placeholder="Your message"
+            />
+            <p className="ph-note">
+              {smsBody.length}/306 · {smsBody.length > 160 ? 'two texts' : 'one text'}
+            </p>
+            <button
+              className="ph-primary"
+              onClick={sendText}
+              disabled={busy || !dialAs || !smsTo.trim() || !smsBody.trim()}
+            >
+              {busy ? 'Sending…' : 'Send text'}
+            </button>
+            <p className="ph-note">UK mobiles only. Up to 50 texts per person a day.</p>
+          </MobileCard>
+
+          <MobileCard>
+            <SectionHeader title="Sent texts" />
+            {smsLog.length === 0 && <p className="ph-note">Nothing sent yet.</p>}
+            {smsLog.map(m => (
+              <div key={m.id} className="ph-row" style={{ display: 'block', padding: '10px 0', borderTop: '1px solid var(--border, #eee)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+                  <strong>{m.to_number.replace(/^\+44/, '0')}</strong>
+                  <span style={{ opacity: 0.7 }}>
+                    {new Date(m.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div style={{ fontSize: 14, margin: '4px 0', whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  {m.sent_by_name || 'Unknown'} · {m.status === 'sent' ? 'Sent' : m.status === 'failed' ? `Failed: ${m.error || ''}` : 'Sending'}
+                </div>
+              </div>
+            ))}
+          </MobileCard>
+        </div>
+      )}
 
       {/* ---------------------------------------------------------- hours */}
       {tab === 'hours' && week && (
@@ -1058,11 +1161,11 @@ const PHONE_CSS = `
 
   /* Six tabs now rather than three, so they are allowed to shrink and the
      labels are kept short enough to survive a small phone. */
-  .ph-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .ph-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
   .ph-tabs button {
-    flex: 1; min-width: 0; padding: 9px 4px; border-radius: 10px;
+    flex: 1; min-width: 0; padding: 9px 2px; border-radius: 10px;
     border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); font-size: 12.5px; font-weight: 600;
+    background: var(--mobile-card); font-size: 12px; font-weight: 600;
     color: var(--mobile-text-secondary); cursor: pointer; white-space: nowrap;
   }
   .ph-tabs button.active {
