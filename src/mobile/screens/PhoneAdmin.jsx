@@ -49,8 +49,10 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
 
   const [editing, setEditing] = useState(null)   // option being edited, or null
   const [addingUser, setAddingUser] = useState(false)
-  const [userForm, setUserForm] = useState({ name: '', email: '', sip_username: '', forward_to: '' })
+  const [userForm, setUserForm] = useState({ name: '', email: '', sip_username: '', forward_to: '', extension: '' })
   const [busy, setBusy] = useState(false)
+  // The extension being edited inline on the Team tab: { id, value } or null.
+  const [extEdit, setExtEdit] = useState(null)
   const [outcome, setOutcome] = useState(null)
 
   // Greeting, out-of-hours message and hold music, edited as one form so the
@@ -222,7 +224,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     try {
       await call('/api/users', { method: 'POST', body: JSON.stringify(userForm) })
       setOutcome({ ok: true, text: `${userForm.name} added.` })
-      setUserForm({ name: '', email: '', sip_username: '', forward_to: '' })
+      setUserForm({ name: '', email: '', sip_username: '', forward_to: '', extension: '' })
       setAddingUser(false)
       await load()
     } catch (err) {
@@ -480,6 +482,26 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       await load()
     } catch (err) {
       setOutcome({ ok: false, text: err.message })
+    }
+  }
+
+  /** A direct extension: callers dial it during the greeting. Blank removes it. */
+  const saveExtension = async () => {
+    if (!extEdit || busy) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/api/users/${extEdit.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ extension: extEdit.value.trim() }),
+      })
+      setOutcome({ ok: true, text: extEdit.value.trim() ? `Extension ${extEdit.value.trim()} saved.` : 'Extension removed.' })
+      setExtEdit(null)
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -959,17 +981,41 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       {tab === 'team' && (
         <div className="ph-list">
           {users.map(u => (
-            <div key={u.id} className={`ph-user ${u.active ? '' : 'off'}`}>
-              <div>
-                <strong>{u.name}</strong>
-                <span className="ph-call-meta">
-                  {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
-                  {u.has_dialout_pin ? ' · dial-in PIN' : ''}
-                </span>
+            <div key={u.id}>
+              <div className={`ph-user ${u.active ? '' : 'off'}`}>
+                <div>
+                  <strong>{u.name}</strong>
+                  <span className="ph-call-meta">
+                    {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
+                    {u.has_dialout_pin ? ' · dial-in PIN' : ''}
+                  </span>
+                </div>
+                <button className="ph-toggle" onClick={() => setExtEdit(extEdit?.id === u.id ? null : { id: u.id, value: u.extension || '' })}>
+                  {u.extension ? `Ext ${u.extension}` : 'Add ext'}
+                </button>
+                <button className="ph-toggle" onClick={() => toggleUser(u)}>
+                  {u.active ? 'On' : 'Off'}
+                </button>
               </div>
-              <button className="ph-toggle" onClick={() => toggleUser(u)}>
-                {u.active ? 'On' : 'Off'}
-              </button>
+              {extEdit?.id === u.id && (
+                <MobileCard>
+                  <input
+                    className="ph-field"
+                    value={extEdit.value}
+                    onChange={e => setExtEdit(x => ({ ...x, value: e.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                    placeholder="Extension, e.g. 201"
+                    inputMode="numeric"
+                  />
+                  <p className="ph-note">
+                    Callers dial it during the greeting, or save the number as
+                    01443 805303,{extEdit.value || '201'} to go straight through.
+                    Leave blank to remove it.
+                  </p>
+                  <button className="ph-primary" onClick={saveExtension} disabled={busy || extEdit.value.length === 1}>
+                    {busy ? 'Saving…' : 'Save'}
+                  </button>
+                </MobileCard>
+              )}
             </div>
           ))}
 
@@ -981,6 +1027,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
                 ['email', 'Email (optional)'],
                 ['sip_username', 'App username, e.g. jack'],
                 ['forward_to', 'Or a mobile, e.g. +447700900123'],
+                ['extension', 'Extension (optional), e.g. 203'],
               ].map(([field, placeholder]) => (
                 <input
                   key={field}
