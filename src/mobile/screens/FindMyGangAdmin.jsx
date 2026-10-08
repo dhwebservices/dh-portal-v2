@@ -90,6 +90,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   const [chatLive, setChatLive] = useState({})
   const [chatDraft, setChatDraft] = useState('')
   const [lastTypingPing, setLastTypingPing] = useState(0)
+  const [chatStart, setChatStart] = useState('')
   // Sign-ups from the website's "Join the beta" form.
   const [beta, setBeta] = useState([])
   const [removingBeta, setRemovingBeta] = useState(null)
@@ -381,7 +382,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   function renderReports() {
     if (chat) return renderChat()
     const title = r => r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}`
-      : r.kind === 'support' ? 'Support' : r.kind === 'feature' ? 'Feature request' : 'Problem'
+      : r.kind === 'support' ? 'Support' : r.kind === 'chat' ? 'Chat you started' : r.kind === 'feature' ? 'Feature request' : 'Problem'
     return (
       <>
         <div className="fg-seg" style={{ marginBottom: 12 }}>
@@ -596,8 +597,27 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
           <button disabled={busy} onClick={() => forceWake(u.id, u.display_name)}>
             Force location refresh
           </button>
+          {/* A two-way chat that lands in their Help & support, with a notification. */}
+          <div className="fg-card">
+            <strong>Chat with {u.display_name || 'them'}</strong>
+            <p className="fg-meta">They get a notification and can reply in the app. You'll see it in Support.</p>
+            <textarea rows={3} maxLength={2000} placeholder={`Message ${u.display_name || ''}…`.trim()}
+              value={chatStart} onChange={e => setChatStart(e.target.value)} />
+            <button className="fg-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || !chatStart.trim()} onClick={async () => {
+              const r = await act(`Chat started with ${u.display_name || u.email}.`,
+                () => call(`/users/${u.id}/chat`, { method: 'POST', body: JSON.stringify({ body: chatStart.trim() }) }))
+              if (r?.report_id) {
+                setChatStart('')
+                setChat({ id: r.report_id, user_id: u.id, user_name: u.display_name, user_email: u.email, kind: 'chat',
+                  status: 'open', created_at: new Date().toISOString() })
+                setChatMessages([]); setChatLive({})
+                setProfile(null)
+                setTab('reports')
+              }
+            }}>Start chat</button>
+          </div>
           <button disabled={busy} onClick={() => { setTab('message'); setAudience('some'); setChosen(new Set([u.id])); setProfile(null) }}>
-            Send them a message
+            Send a one-way notification or banner
           </button>
           {banned ? (
             <button disabled={busy} onClick={async () => { if (await act('Unbanned.', () => call(`/users/${u.id}/unban`, { method: 'POST' }))) reloadProfile() }}>
