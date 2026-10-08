@@ -37,7 +37,7 @@ const TABS = [
   ['groups', 'Groups'],
   ['message', 'Message'],
   ['banners', 'Banners'],
-  ['reports', 'Reports'],
+  ['reports', 'Support'],
   ['crashes', 'Crashes'],
   ['settings', 'Settings'],
   ['beta', 'Beta'],
@@ -60,7 +60,6 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   const [stats, setStats] = useState(null)
   const [reports, setReports] = useState([])
   const [reportStatus, setReportStatus] = useState('open')
-  const [replies, setReplies] = useState({})
   const [crashes, setCrashes] = useState([])
   const [crash, setCrash] = useState(null)
   const [users, setUsers] = useState([])
@@ -85,11 +84,40 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
 
   const [settings, setSettings] = useState({ min_build: '0', maintenanceOn: false, maintenanceMessage: '' })
   const [log, setLog] = useState([])
+  // Support chat: the open conversation, its messages and live state.
+  const [chat, setChat] = useState(null)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatLive, setChatLive] = useState({})
+  const [chatDraft, setChatDraft] = useState('')
+  const [lastTypingPing, setLastTypingPing] = useState(0)
   // Sign-ups from the website's "Join the beta" form.
   const [beta, setBeta] = useState([])
   const [removingBeta, setRemovingBeta] = useState(null)
 
   useEffect(() => { if (viaPortal || key) load() }, [tab, key])
+
+  // Live chat. With a conversation open, re-read it every 3 s (like iPhone
+  // does on the other end); on the list, refresh every 10 s. Either way this
+  // marks you online, which the app shows as "The team is online now".
+  useEffect(() => {
+    if (tab !== 'reports' || !(viaPortal || key)) return
+    let stopped = false
+    const tick = async () => {
+      try {
+        if (chat) {
+          const [m, live] = await Promise.all([call(`/reports/${chat.id}/messages`), call(`/reports/${chat.id}/live`, { method: 'POST', body: '{}' })])
+          if (!stopped) { setChatMessages(m.messages || []); setChatLive(live || {}) }
+        } else {
+          await call('/reports/live', { method: 'POST', body: '{}' })
+          const r = await call(`/reports?status=${reportStatus}`)
+          if (!stopped) setReports(r.reports || [])
+        }
+      } catch { /* keep the last good state; the next tick retries */ }
+    }
+    tick()
+    const t = setInterval(tick, chat ? 3000 : 10000)
+    return () => { stopped = true; clearInterval(t) }
+  }, [tab, chat?.id, reportStatus, key])
 
   if (!isAdmin) return <div className="fg"><p className="fg-note">Managers only.</p></div>
 
@@ -351,10 +379,9 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
   }
 
   function renderReports() {
-    const resolve = r => act(replies[r.id] ? 'Resolved and replied.' : 'Resolved.', async () => {
-      await call(`/reports/${r.id}/resolve`, { method: 'POST', body: JSON.stringify({ reply: replies[r.id] || '' }) })
-      setReports(list => list.filter(x => x.id !== r.id))
-    })
+    if (chat) return renderChat()
+    const title = r => r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}`
+      : r.kind === 'support' ? 'Support' : r.kind === 'feature' ? 'Feature request' : 'Problem'
     return (
       <>
         <div className="fg-seg" style={{ marginBottom: 12 }}>
@@ -367,33 +394,102 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         </div>
         <div className="fg-list">
           {reports.map(r => (
-            <div key={r.id} className={`fg-card ${r.kind === 'person' ? 'danger' : ''}`}>
-              <strong>{r.kind === 'person' ? `Report about ${r.subject_name || r.subject_email || 'someone'}`
-                : r.kind === 'support' ? 'Support request' : r.kind === 'feature' ? 'Feature request' : 'Problem'}</strong>
-              <p className="fg-meta">From {r.user_name || r.user_email || 'deleted account'} · {when(r.created_at)}{r.app_build ? ` · build ${r.app_build}` : ''}{r.circle_name ? ` · ${r.circle_name}` : ''}</p>
-              <p style={{ whiteSpace: 'pre-wrap', margin: '8px 0' }}>{r.message}</p>
-              {r.status === 'open' ? (
-                <>
-                  <textarea rows={2} placeholder="Reply (sent as a notification, optional)" maxLength={300}
-                    value={replies[r.id] || ''} onChange={e => setReplies({ ...replies, [r.id]: e.target.value })} />
-                  <div className="fg-inline">
-                    {r.kind === 'person' && r.subject_user_id && (
-                      <button className="warn" onClick={() => openProfile(r.subject_user_id)}>Open their account</button>
-                    )}
-                    {r.user_id && <button onClick={() => openProfile(r.user_id)}>Open reporter</button>}
-                  </div>
-                  <button className="fg-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={() => resolve(r)}>
-                    {replies[r.id] ? 'Reply and resolve' : 'Resolve'}
-                  </button>
-                </>
-              ) : (
-                <p className="fg-meta">Resolved by {r.resolved_by} · {when(r.resolved_at)}{r.reply ? ` · replied: "${r.reply}"` : ''}</p>
-              )}
-            </div>
+            <button key={r.id} className={`fg-row ${r.kind === 'person' ? 'danger' : ''}`} onClick={() => {
+              setChat(r); setChatMessages([]); setChatLive({}); setChatDraft('')
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong>{r.user_name || r.user_email || 'Deleted account'}</strong>
+                <span className="fg-meta">{title(r)} · {when(r.last_message_at || r.created_at)}</span>
+                <span className="fg-meta" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.last_sender === 'staff' ? 'You: ' : ''}{r.last_message || r.message}
+                </span>
+              </div>
+              {r.staff_unread && <span className="fg-unread">New</span>}
+            </button>
           ))}
-          {!reports.length && <p className="fg-note">{reportStatus === 'open' ? 'No open reports.' : 'Nothing resolved yet.'}</p>}
+          {!reports.length && <p className="fg-note">{reportStatus === 'open' ? 'No open conversations.' : 'Nothing resolved yet.'}</p>}
         </div>
       </>
+    )
+  }
+
+  function renderChat() {
+    const r = chat
+    const lastStaff = [...chatMessages].reverse().find(m => m.sender === 'staff')
+    const quick = [
+      'Thanks for getting in touch! Let me look into this for you.',
+      'Could you tell me which phone and iOS version you have?',
+      'Try signing out and back in: Settings > Sign out.',
+      'Check Location is set to Always: Settings > Fam & a Half > Location.',
+      'That should be sorted now. Let me know if anything else comes up!',
+    ]
+    const send = async () => {
+      const text = chatDraft.trim()
+      if (!text) return
+      setBusy(true)
+      setOutcome(null)
+      try {
+        await call(`/reports/${r.id}/messages`, { method: 'POST', body: JSON.stringify({ body: text }) })
+        setChatDraft('')
+        setChatMessages((await call(`/reports/${r.id}/messages`)).messages || [])
+      } catch (e) {
+        setOutcome({ ok: false, text: e.message })
+      } finally {
+        setBusy(false)
+      }
+    }
+    const typing = text => {
+      setChatDraft(text)
+      if (text && Date.now() - lastTypingPing > 3000) {
+        setLastTypingPing(Date.now())
+        call(`/reports/${r.id}/live`, { method: 'POST', body: JSON.stringify({ typing: true }) }).catch(() => {})
+      }
+    }
+    return (
+      <div className="fg-chat">
+        <button className="fg-link" onClick={() => setChat(null)}>‹ All conversations</button>
+        <div className="fg-card">
+          <strong>{r.user_name || r.user_email || 'Deleted account'}</strong>
+          <p className="fg-meta">
+            {r.kind === 'person' ? `Report about ${r.subject_name || 'someone'}` : r.kind} · started {when(r.created_at)}
+            {r.app_build ? ` · build ${r.app_build}` : ''} · {chatLive.status === 'resolved' || r.status === 'resolved' ? 'Resolved' : 'Open'}
+          </p>
+          <div className="fg-inline">
+            {r.user_id && <button onClick={() => openProfile(r.user_id)}>Open their account</button>}
+            {r.kind === 'person' && r.subject_user_id && <button className="warn" onClick={() => openProfile(r.subject_user_id)}>Open reported account</button>}
+          </div>
+        </div>
+        <div className="fg-thread">
+          {chatMessages.map(m => (
+            <div key={m.id} className={`fg-bubble ${m.sender === 'staff' ? 'mine' : ''}`}>
+              {m.sender === 'staff' && <span className="fg-by">{m.staff_email}</span>}
+              <p>{m.body}</p>
+              <span className="fg-time">{when(m.created_at)}</span>
+              {lastStaff && m.id === lastStaff.id && (chatLive.user_seen_id || 0) >= m.id && <span className="fg-seen">Seen</span>}
+            </div>
+          ))}
+          {chatLive.user_typing && <div className="fg-bubble typing"><p>typing…</p></div>}
+          {!chatMessages.length && <p className="fg-note">Loading conversation…</p>}
+        </div>
+        <div className="fg-quick">
+          {quick.map(q => <button key={q} onClick={() => setChatDraft(q)}>{q}</button>)}
+        </div>
+        <textarea rows={3} placeholder="Reply… (they get a notification)" maxLength={2000} value={chatDraft}
+          onChange={e => typing(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send() }} />
+        <button className="fg-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || !chatDraft.trim()} onClick={send}>Send</button>
+        <div className="fg-inline" style={{ marginTop: 8 }}>
+          {(chatLive.status || r.status) === 'resolved' ? (
+            <button onClick={async () => {
+              if (await act('Reopened.', () => call(`/reports/${r.id}/reopen`, { method: 'POST', body: '{}' }))) setChat({ ...r, status: 'open' })
+            }}>Reopen</button>
+          ) : (
+            <button onClick={async () => {
+              if (await act('Resolved.', () => call(`/reports/${r.id}/resolve`, { method: 'POST', body: JSON.stringify({ reply: '' }) }))) setChat(null)
+            }}>Mark resolved</button>
+          )}
+        </div>
+      </div>
     )
   }
 
@@ -884,6 +980,19 @@ const FG_CSS = `
   .fg-check input { width: 20px; height: 20px; flex: none; }
   .fg-check label { flex-direction: row; font-weight: 500; color: var(--mobile-text); }
   .fg-actions { display: flex; flex-direction: column; gap: 8px; }
+  .fg-unread { background: #d62e36; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
+  .fg-link { background: none; border: none; color: var(--mobile-accent); font-weight: 600; padding: 4px 0 10px; cursor: pointer; }
+  .fg-chat { display: flex; flex-direction: column; gap: 10px; }
+  .fg-thread { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+  .fg-bubble { align-self: flex-start; max-width: 82%; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 16px; padding: 8px 12px; }
+  .fg-bubble.mine { align-self: flex-end; background: var(--mobile-accent); border-color: var(--mobile-accent); color: #fff; }
+  .fg-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; }
+  .fg-bubble.typing p { font-style: italic; color: var(--mobile-text-secondary); }
+  .fg-by { display: block; font-size: 10.5px; opacity: 0.8; margin-bottom: 2px; }
+  .fg-time, .fg-seen { display: block; font-size: 10.5px; opacity: 0.7; margin-top: 3px; }
+  .fg-seen { font-weight: 700; }
+  .fg-quick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .fg-quick button { flex-shrink: 0; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; padding: 6px 10px; border-radius: 999px; }
   .fg-inline { display: flex; gap: 8px; margin-top: 8px; }
   .fg-inline > * { flex: 1; }
   .fg button:not(.fg-back):not(.fg-row) { padding: 11px 14px; border-radius: 10px; border: 1px solid var(--mobile-border);
