@@ -449,36 +449,66 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
     return (
       <div className="fg-chat">
         <button className="fg-link" onClick={() => setChat(null)}>‹ All conversations</button>
-        <div className="fg-card">
-          <strong>{r.user_name || r.user_email || 'Deleted account'}</strong>
-          <p className="fg-meta">
-            {r.kind === 'person' ? `Report about ${r.subject_name || 'someone'}` : r.kind} · started {when(r.created_at)}
-            {r.app_build ? ` · build ${r.app_build}` : ''} · {chatLive.status === 'resolved' || r.status === 'resolved' ? 'Resolved' : 'Open'}
-          </p>
-          <div className="fg-inline">
-            {r.user_id && <button onClick={() => openProfile(r.user_id)}>Open their account</button>}
-            {r.kind === 'person' && r.subject_user_id && <button className="warn" onClick={() => openProfile(r.subject_user_id)}>Open reported account</button>}
+        <div className="fg-chathead">
+          <div className="fg-avatar big">{(r.user_name || r.user_email || '?').trim().slice(0, 1).toUpperCase()}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <strong>{r.user_name || r.user_email || 'Deleted account'}</strong>
+            <span className="fg-meta">
+              {chatLive.user_typing ? 'typing…' : `${r.kind === 'person' ? `Report about ${r.subject_name || 'someone'}` : r.kind === 'chat' ? 'Chat you started' : r.kind}`}
+              {' · '}{(chatLive.status || r.status) === 'resolved' ? 'Resolved' : 'Open'}{r.app_build ? ` · build ${r.app_build}` : ''}
+            </span>
           </div>
         </div>
+        <div className="fg-inline">
+          {r.user_id && <button onClick={() => openProfile(r.user_id)}>Their account</button>}
+          {r.kind === 'person' && r.subject_user_id && <button className="warn" onClick={() => openProfile(r.subject_user_id)}>Reported account</button>}
+        </div>
         <div className="fg-thread">
-          {chatMessages.map(m => (
-            <div key={m.id} className={`fg-bubble ${m.sender === 'staff' ? 'mine' : ''}`}>
-              {m.sender === 'staff' && <span className="fg-by">{m.staff_email}</span>}
-              <p>{m.body}</p>
-              <span className="fg-time">{when(m.created_at)}</span>
-              {lastStaff && m.id === lastStaff.id && (chatLive.user_seen_id || 0) >= m.id && <span className="fg-seen">Seen</span>}
+          {chatMessages.map((m, i) => {
+            const prev = chatMessages[i - 1]
+            const next = chatMessages[i + 1]
+            const day = d => new Date(d).toDateString()
+            const newDay = !prev || day(prev.created_at) !== day(m.created_at)
+            const lastInGroup = !next || next.sender !== m.sender || (new Date(next.created_at) - new Date(m.created_at)) > 300000
+            const mine = m.sender === 'staff'
+            const name = r.user_name || r.user_email || '?'
+            return (
+              <div key={m.id}>
+                {newDay && <div className="fg-day">{new Date(m.created_at).toDateString() === new Date().toDateString() ? 'Today'
+                  : new Date(m.created_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}</div>}
+                <div className={`fg-msg ${mine ? 'mine' : ''} ${lastInGroup ? 'last' : ''}`}>
+                  {!mine && <div className="fg-avatar">{lastInGroup ? name.trim().slice(0, 1).toUpperCase() : ''}</div>}
+                  <div className="fg-msg-col">
+                    <div className="fg-bubble"><p>{m.body}</p></div>
+                    {lastInGroup && (
+                      <span className="fg-time">
+                        {mine ? `${(m.staff_email || '').split('@')[0]} · ` : ''}
+                        {new Date(m.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        {mine && lastStaff && m.id === lastStaff.id && (chatLive.user_seen_id || 0) >= m.id ? ' · Seen' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          {chatLive.user_typing && (
+            <div className="fg-msg last">
+              <div className="fg-avatar">{(r.user_name || '?').slice(0, 1).toUpperCase()}</div>
+              <div className="fg-bubble fg-dots"><span /><span /><span /></div>
             </div>
-          ))}
-          {chatLive.user_typing && <div className="fg-bubble typing"><p>typing…</p></div>}
+          )}
           {!chatMessages.length && <p className="fg-note">Loading conversation…</p>}
         </div>
         <div className="fg-quick">
           {quick.map(q => <button key={q} onClick={() => setChatDraft(q)}>{q}</button>)}
         </div>
-        <textarea rows={3} placeholder="Reply… (they get a notification)" maxLength={2000} value={chatDraft}
-          onChange={e => typing(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send() }} />
-        <button className="fg-primary" style={{ width: '100%', marginTop: 8 }} disabled={busy || !chatDraft.trim()} onClick={send}>Send</button>
+        <div className="fg-composer">
+          <textarea rows={1} placeholder="Reply… (they get a notification)" maxLength={2000} value={chatDraft}
+            onChange={e => { typing(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px' }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
+          <button className="fg-send" aria-label="Send" disabled={busy || !chatDraft.trim()} onClick={send}>↑</button>
+        </div>
         <div className="fg-inline" style={{ marginTop: 8 }}>
           {(chatLive.status || r.status) === 'resolved' ? (
             <button onClick={async () => {
@@ -1003,14 +1033,31 @@ const FG_CSS = `
   .fg-unread { background: #d62e36; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
   .fg-link { background: none; border: none; color: var(--mobile-accent); font-weight: 600; padding: 4px 0 10px; cursor: pointer; }
   .fg-chat { display: flex; flex-direction: column; gap: 10px; }
-  .fg-thread { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
-  .fg-bubble { align-self: flex-start; max-width: 82%; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 16px; padding: 8px 12px; }
-  .fg-bubble.mine { align-self: flex-end; background: var(--mobile-accent); border-color: var(--mobile-accent); color: #fff; }
-  .fg-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; }
-  .fg-bubble.typing p { font-style: italic; color: var(--mobile-text-secondary); }
-  .fg-by { display: block; font-size: 10.5px; opacity: 0.8; margin-bottom: 2px; }
-  .fg-time, .fg-seen { display: block; font-size: 10.5px; opacity: 0.7; margin-top: 3px; }
-  .fg-seen { font-weight: 700; }
+  .fg-chathead { display: flex; align-items: center; gap: 12px; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 14px; padding: 10px 12px; }
+  .fg-thread { display: flex; flex-direction: column; padding: 6px 0; }
+  .fg-day { text-align: center; font-size: 12px; font-weight: 600; color: var(--mobile-text-secondary); margin: 12px 0 8px; }
+  .fg-msg { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
+  .fg-msg.last { margin-bottom: 10px; }
+  .fg-msg.mine { justify-content: flex-end; }
+  .fg-msg-col { display: flex; flex-direction: column; max-width: 78%; }
+  .fg-msg.mine .fg-msg-col { align-items: flex-end; }
+  .fg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--mobile-text-secondary); background: var(--mobile-border); }
+  .fg-avatar:empty { background: transparent; }
+  .fg-avatar.big { width: 40px; height: 40px; font-size: 17px; }
+  .fg-bubble { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 18px; padding: 8px 13px; }
+  .fg-msg.last:not(.mine) .fg-bubble { border-bottom-left-radius: 5px; }
+  .fg-msg.mine .fg-bubble { background: var(--mobile-accent); border-color: var(--mobile-accent); color: #fff; }
+  .fg-msg.mine.last .fg-bubble { border-bottom-right-radius: 5px; }
+  .fg-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.35; }
+  .fg-time { font-size: 10.5px; color: var(--mobile-text-secondary); margin-top: 3px; }
+  .fg-dots { display: flex; gap: 4px; padding: 12px 14px; }
+  .fg-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--mobile-text-secondary); animation: fgdot 1.2s infinite ease-in-out; }
+  .fg-dots span:nth-child(2) { animation-delay: .15s; } .fg-dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes fgdot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  .fg-composer { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; padding: 8px 0; background: var(--mobile-bg); }
+  .fg-composer textarea { flex: 1; resize: none; border-radius: 22px; padding: 11px 16px; border: 1px solid var(--mobile-border); background: var(--mobile-card); color: var(--mobile-text); font: inherit; font-size: 15px; max-height: 140px; }
+  .fg-send { width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--mobile-accent); color: #fff; font-size: 20px; font-weight: 800; flex-shrink: 0; cursor: pointer; }
+  .fg-send:disabled { opacity: .35; }
   .fg-quick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
   .fg-quick button { flex-shrink: 0; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; padding: 6px 10px; border-radius: 999px; }
   .fg-inline { display: flex; gap: 8px; margin-top: 8px; }
