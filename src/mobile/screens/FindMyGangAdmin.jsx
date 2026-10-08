@@ -40,6 +40,7 @@ const TABS = [
   ['reports', 'Reports'],
   ['crashes', 'Crashes'],
   ['settings', 'Settings'],
+  ['beta', 'Beta'],
   ['log', 'Log'],
 ]
 
@@ -84,6 +85,9 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
 
   const [settings, setSettings] = useState({ min_build: '0', maintenanceOn: false, maintenanceMessage: '' })
   const [log, setLog] = useState([])
+  // Sign-ups from the website's "Join the beta" form.
+  const [beta, setBeta] = useState([])
+  const [removingBeta, setRemovingBeta] = useState(null)
 
   useEffect(() => { if (viaPortal || key) load() }, [tab, key])
 
@@ -172,6 +176,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         })
       }
       if (tab === 'log') setLog((await call('/log')).log || [])
+      if (tab === 'beta') setBeta((await call('/beta')).signups || [])
     } catch (e) {
       setError(e.message)
     } finally {
@@ -283,6 +288,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
       {!loading && tab === 'reports' && renderReports()}
       {!loading && tab === 'crashes' && renderCrashes()}
       {!loading && tab === 'settings' && renderSettings()}
+      {!loading && tab === 'beta' && renderBeta()}
       {!loading && tab === 'log' && renderLog()}
     </div>
   )
@@ -742,6 +748,45 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         <p className="fg-note">Anyone on an older build sees "Update Fam & a Half" with an App Store button instead of the app. 0 lets every build in. Only raise this once the new build is live on the App Store.</p>
 
         <button className="fg-primary" disabled={busy} onClick={save}>Save</button>
+      </div>
+    )
+  }
+
+  function renderBeta() {
+    const waiting = beta.filter(b => !b.invited_at).length
+    return (
+      <div className="fg-list">
+        <p className="fg-note">
+          People who signed up at dhwebsiteservices.co.uk/famandahalf. They're sent the TestFlight link
+          (or added as testers) automatically once Apple approves the beta.
+          {' '}{beta.length} signed up · {waiting} waiting.
+        </p>
+        {beta.map(b => (
+          <div key={b.id} className="fg-card">
+            <strong>{b.first_name}</strong>
+            <p className="fg-meta">{b.email}</p>
+            <p className="fg-meta">
+              Signed up {when(b.created_at)} · {b.invited_at ? `invited ${when(b.invited_at)}` : 'waiting for the beta link'}
+              {b.email_error ? ` · last email failed: ${b.email_error}` : ''}
+            </p>
+            {removingBeta === b.id ? (
+              <div className="fg-actions">
+                <button className="danger" disabled={busy} onClick={async () => {
+                  if (await act(`${b.first_name} removed from the beta list.`, () => call(`/beta/${b.id}`, { method: 'DELETE' }))) {
+                    setRemovingBeta(null); load()
+                  }
+                }}>Yes, remove {b.first_name}</button>
+                <button onClick={() => setRemovingBeta(null)}>Cancel</button>
+              </div>
+            ) : (
+              <div className="fg-actions">
+                <a href={`mailto:${b.email}`}>Email</a>
+                <button onClick={() => setRemovingBeta(b.id)}>Remove</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {!beta.length && <p className="fg-note">No sign-ups yet.</p>}
       </div>
     )
   }
