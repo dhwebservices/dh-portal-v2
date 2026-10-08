@@ -7,6 +7,8 @@
 // Supabase-backed logic, which is exactly what AuthContext already reads
 // off the MSAL account object on web (account.username / account.name).
 
+import { clearNativeTokens } from './staffToken'
+
 const STORAGE_KEY = 'dh-native-session'
 export const NATIVE_SESSION_EVENT = 'dh-native-session-changed'
 
@@ -29,10 +31,9 @@ export function saveNativeSession(tokenResponse) {
     username: (claims.preferred_username || claims.email || claims.upn || '').toLowerCase(),
     name: claims.name || claims.preferred_username || '',
     homeAccountId: claims.oid || claims.sub,
-    // Deliberately NOT persisting id/access/refresh tokens. As the header note
-    // says, no native screen needs a Graph token, and nothing reads these back
-    // - AuthContext only uses username/name, App.jsx only checks existence.
-    // Keeping them meant credentials sitting at rest for no benefit.
+    // No tokens here: this is identity only. The ID and refresh tokens the
+    // phone system needs are kept separately by staffToken.js, which is the
+    // one place that reads them.
     expiresAt: Date.now() + (tokenResponse.expires_in || 3600) * 1000,
     savedAt: Date.now(),
   }
@@ -53,5 +54,6 @@ export function getNativeSession() {
 
 export function clearNativeSession() {
   localStorage.removeItem(STORAGE_KEY)
+  clearNativeTokens()
   window.dispatchEvent(new Event(NATIVE_SESSION_EVENT))
 }

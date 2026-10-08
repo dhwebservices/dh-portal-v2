@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useMsal } from '@azure/msal-react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 import SectionHeader from '../components/SectionHeader'
+import { getStaffIdToken, SignInNeeded } from '../../utils/staffToken'
 
 /**
  * The phone system, managed from the phone.
@@ -17,23 +19,26 @@ import SectionHeader from '../components/SectionHeader'
  * nobody reached. At a two-person business each of those is a lost job, so it
  * gets the largest number on the screen rather than being buried in a report.
  *
- * The admin key is a real secret, entered once and kept on this device. It is
- * never shipped in the bundle.
+ * Access is your Microsoft sign-in: every request carries your ID token,
+ * and the phone system lets you in if your email belongs to someone on it.
+ * There is no shared key to type in, lose or hand round.
  */
 
 const API = 'https://dh-phone.aged-silence-66a7.workers.dev'
-const KEY_STORAGE = 'dhphone.adminKey'
+// Where the old shared key used to be kept. Cleared on sight; nothing reads it.
+const OLD_KEY_STORAGE = 'dhphone.adminKey'
 
 export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
-  const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
-  const [keyDraft, setKeyDraft] = useState('')
-  const [keyError, setKeyError] = useState('')
-  const [checkingKey, setCheckingKey] = useState(false)
+  const { instance, accounts } = useMsal()
+  // 'checking' until the first silent attempt, then 'ok' or 'needed'.
+  const [auth, setAuth] = useState('checking')
+  const [authError, setAuthError] = useState('')
+  const [signingIn, setSigningIn] = useState(false)
 
   const [tab, setTab] = useState('calls')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [keyRejected, setKeyRejected] = useState(false)
+  const [notOnSystem, setNotOnSystem] = useState(false)
 
   const [stats, setStats] = useState(null)
   const [calls, setCalls] = useState([])
@@ -54,7 +59,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [week, setWeek] = useState(null)
 
   // Which voicemail is playing, and the blob it is playing from. The audio
-  // cannot be given a plain URL — it needs the admin key in a header — so it
+  // cannot be given a plain URL — it needs your sign-in in a header — so it
   // is fetched, turned into a blob and revoked when the next one starts.
   const [playing, setPlaying] = useState(null)
 
@@ -73,16 +78,24 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [smsBody, setSmsBody] = useState('')
   const [smsLog, setSmsLog] = useState([])
 
-  useEffect(() => { if (key) load() }, [key])
+  useEffect(() => {
+    try { localStorage.removeItem(OLD_KEY_STORAGE) } catch { /* nothing to clear */ }
+    load()
+  }, [])
 
   if (!isAdmin) return <div className="ph"><p className="ph-note">Managers only.</p></div>
+
+  // Fetched per request: the token lasts an hour and is refreshed quietly.
+  const authHeader = async (interactive = false) => ({
+    Authorization: `Bearer ${await getStaffIdToken({ instance, account: accounts?.[0], interactive })}`,
+  })
 
   const call = async (path, options = {}) => {
     const response = await fetch(`${API}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
+        ...(await authHeader()),
         ...(options.headers || {}),
       },
     })
@@ -98,7 +111,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const load = async () => {
     setLoading(true)
     setError('')
-    setKeyRejected(false)
+    setNotOnSystem(false)
     try {
       const [s, c, u, f] = await Promise.all([
         call('/api/stats'),
@@ -112,6 +125,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       const me = (Array.isArray(u) ? u : []).find(x =>
         x.email && user?.email && x.email.toLowerCase() === user.email.toLowerCase())
       setDialAs(prev => prev || me?.id || '')
+      setAuth('ok')
       setFlows(f?.flows ?? [])
       setOptions(f?.options ?? [])
       setHours(f?.hours ?? [])
@@ -138,9 +152,12 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         }
       }
     } catch (err) {
-      if (err.status === 403) {
-        setError('That admin key was not accepted.')
-        setKeyRejected(true)
+      if (err instanceof SignInNeeded) {
+        setAuth('needed')
+      } else if (err.status === 403) {
+        setAuth('ok')
+        setNotOnSystem(true)
+        setError(`${user?.email || 'Your account'} is not on the phone system. Ask David to add you under Team with this email.`)
       } else if (/Load failed|NetworkError|Failed to fetch/i.test(err.message)) {
         setError("Couldn't reach the phone system. Check your connection.")
       } else {
@@ -151,51 +168,18 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     }
   }
 
-  /**
-   * Checks the key before storing it, rather than storing it and finding out
-   * on the next screen. Whitespace is stripped from anywhere in the string —
-   * 64 characters pasted from a wrapped line arrives with a space through the
-   * middle, and that is invisible in a masked field.
-   */
-  const saveKey = async () => {
-    const candidate = keyDraft.replace(/\s+/g, '')
-    if (!candidate) return
-    if (!/^[0-9a-f]{64}$/i.test(candidate)) {
-      setKeyError(
-        candidate.length === 64
-          ? 'Right length, but it contains characters the key cannot have.'
-          : `That is ${candidate.length} character${candidate.length === 1 ? '' : 's'}; the key is 64.`
-      )
-      return
-    }
-    setCheckingKey(true)
-    setKeyError('')
+  /** Opens the Microsoft sign-in, only ever from a tap. */
+  const signIn = async () => {
+    setSigningIn(true)
+    setAuthError('')
     try {
-      const response = await fetch(`${API}/api/stats`, {
-        headers: { Authorization: `Bearer ${candidate}` },
-      })
-      if (response.status === 403 || response.status === 401) {
-        setKeyError('The phone system did not accept that key.')
-        return
-      }
-      if (!response.ok) {
-        setKeyError(`It answered ${response.status}. Try again shortly.`)
-        return
-      }
-      localStorage.setItem(KEY_STORAGE, candidate)
-      setKey(candidate)
-      setKeyDraft('')
-    } catch {
-      setKeyError("Couldn't reach the phone system.")
+      await getStaffIdToken({ instance, account: accounts?.[0], interactive: true })
+      await load()
+    } catch (err) {
+      setAuthError(err?.message || 'Sign-in did not finish. Try again.')
     } finally {
-      setCheckingKey(false)
+      setSigningIn(false)
     }
-  }
-
-  const forgetKey = () => {
-    localStorage.removeItem(KEY_STORAGE)
-    setKey('')
-    setStats(null); setCalls([]); setUsers([]); setOptions([])
   }
 
   // ------------------------------------------------------------- mutations
@@ -330,7 +314,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${key}`,
+            ...(await authHeader()),
             'Content-Type': /\.wav$/i.test(file.name) ? 'audio/wav' : (file.type || 'audio/mpeg'),
             'X-Filename': encodeURIComponent(file.name),
           },
@@ -369,9 +353,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
    * Plays a voicemail.
    *
    * The recording lives on Twilio behind the account credentials, so the
-   * Worker fetches it for us. The admin key travels in a header and the audio
-   * comes back as a blob — putting the key in the URL of an <audio> tag would
-   * leak it into logs and browser history.
+   * Worker fetches it for us. The sign-in travels in a header and the audio
+   * comes back as a blob — putting the token in the URL of an <audio> tag
+   * would leak it into logs and browser history.
    */
   const playRecording = async (callId) => {
     if (playing?.id === callId) {
@@ -383,7 +367,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     setPlaying({ id: callId, url: '', loading: true })
     try {
       const response = await fetch(`${API}/api/recordings/${callId}`, {
-        headers: { Authorization: `Bearer ${key}` },
+        headers: await authHeader(),
       })
       if (!response.ok) throw new Error(`Could not fetch that recording (${response.status}).`)
       const url = URL.createObjectURL(await response.blob())
@@ -517,9 +501,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   }
 
-  // -------------------------------------------------------------- key gate
+  // ------------------------------------------------------------ sign-in gate
 
-  if (!key) {
+  if (auth !== 'ok') {
     return (
       <div className="ph">
         <div className="ph-head">
@@ -529,27 +513,22 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
           <h1>Phone</h1>
         </div>
         <MobileCard>
-          <SectionHeader title="Admin key" />
-          <p className="ph-note">
-            This screen can change who your business number rings, so it is
-            behind a real secret rather than a code stored in the app.
-          </p>
-          <input
-            className="ph-field ph-key"
-            type="text"
-            value={keyDraft}
-            onChange={e => { setKeyDraft(e.target.value); setKeyError('') }}
-            placeholder="Admin key"
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="ph-count">{keyDraft.replace(/\s+/g, '').length} of 64 characters</p>
-          {keyError && <p className="ph-error">{keyError}</p>}
-          <button className="ph-primary" onClick={saveKey} disabled={!keyDraft.trim() || checkingKey}>
-            {checkingKey ? 'Checking…' : 'Unlock'}
-          </button>
+          {auth === 'checking' ? (
+            <p className="ph-note">Checking your sign-in…</p>
+          ) : (
+            <>
+              <SectionHeader title="Confirm it's you" />
+              <p className="ph-note">
+                This screen can change who your business number rings, so the
+                phone system checks your Microsoft sign-in. You'll only be
+                asked once on this device.
+              </p>
+              {(authError || error) && <p className="ph-error">{authError || error}</p>}
+              <button className="ph-primary" onClick={signIn} disabled={signingIn}>
+                {signingIn ? 'Opening Microsoft…' : 'Continue with Microsoft'}
+              </button>
+            </>
+          )}
         </MobileCard>
         <style>{PHONE_CSS}</style>
       </div>
@@ -582,9 +561,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       {error && (
         <div className="ph-failure">
           <p className="ph-error">{error}</p>
-          <button className="ph-retry" onClick={keyRejected ? forgetKey : load}>
-            {keyRejected ? 'Re-enter key' : 'Try again'}
-          </button>
+          {!notOnSystem && <button className="ph-retry" onClick={load}>Try again</button>}
         </div>
       )}
       {loading && <p className="ph-note">Loading…</p>}
@@ -1116,8 +1093,6 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         </>
       )}
 
-      <button className="ph-forget" onClick={forgetKey}>Forget admin key on this device</button>
-
       <style>{PHONE_CSS}</style>
     </div>
   )
@@ -1144,7 +1119,7 @@ function weekFrom(rows, flowId) {
   })
 }
 
-/* Kept out of the component so the key gate and the panel cannot drift apart
+/* Kept out of the component so the sign-in gate and the panel cannot drift apart
    visually — they are the same screen at two moments. */
 const PHONE_CSS = `
   /* Nothing on a phone screen should ever scroll sideways. This is a guard,
@@ -1257,15 +1232,6 @@ const PHONE_CSS = `
     border: 1px solid var(--mobile-border); background: var(--mobile-bg);
     color: var(--mobile-text); font-size: 15px; font-family: inherit;
   }
-  .ph-key {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 13px; word-break: break-all;
-  }
-  .ph-count {
-    margin: 6px 2px 0; font-size: 12.5px; font-variant-numeric: tabular-nums;
-    color: var(--mobile-text-secondary);
-  }
-
   .ph-note { margin: 10px 2px 0; font-size: 13px; line-height: 1.45; color: var(--mobile-text-secondary); }
   .ph-error { margin: 4px 2px; font-size: 13.5px; font-weight: 600; color: #c0392b; }
   .ph-outcome { margin: 4px 2px 12px; font-size: 13.5px; font-weight: 600; }
@@ -1328,11 +1294,6 @@ const PHONE_CSS = `
     flex: none; width: 22px; height: 22px; border-radius: 999px;
     background: var(--mobile-accent); color: var(--mobile-on-accent);
     display: grid; place-items: center; font-size: 12px; font-weight: 700;
-  }
-
-  .ph-forget {
-    width: 100%; margin-top: 26px; padding: 12px; border: none; background: none;
-    font-size: 13px; color: var(--mobile-text-secondary); cursor: pointer;
   }
 
   /* Opening hours ------------------------------------------------------- */

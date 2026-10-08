@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core'
 import { isBiometricAvailable, biometricLogin } from '../../utils/biometricAuth'
 import { loginWithMicrosoftMobile, exchangeCodeForTokens } from '../../utils/mobileAuth'
 import { saveNativeSession } from '../../utils/nativeSession'
+import { saveNativeTokens, NATIVE_SCOPES } from '../../utils/staffToken'
 import { loginRequest } from '../../authConfig'
 import DHLogo from '../components/DHLogo'
 
@@ -53,14 +54,16 @@ export default function MobileLoginProfessional() {
         // code directly against Entra's token endpoint ourselves - MSAL's
         // own acquireTokenByCode doesn't correctly carry a custom-scheme
         // redirect_uri + PKCE verifier through (see mobileAuth.js).
-        const { code, codeVerifier, redirectUri } = await loginWithMicrosoftMobile(loginRequest.scopes)
+        const { code, codeVerifier, redirectUri } = await loginWithMicrosoftMobile(NATIVE_SCOPES)
         const tokenResponse = await exchangeCodeForTokens({
           code,
           codeVerifier,
           redirectUri,
-          scopes: loginRequest.scopes,
+          scopes: NATIVE_SCOPES,
         })
         saveNativeSession(tokenResponse)
+        // Kept so the phone system can check who you are without a key.
+        saveNativeTokens(tokenResponse)
       } else {
         await instance.loginRedirect({ scopes: loginRequest.scopes })
       }
