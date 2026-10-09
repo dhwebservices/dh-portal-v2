@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { Browser } from '@capacitor/browser'
+import { useMsal } from '@azure/msal-react'
 import { supabase } from '../../utils/supabase'
+import { payslipLink } from '../../utils/payrollApi'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 import { SkeletonList } from '../components/SkeletonLoader'
 
-export default function MobilePayslips({ goBack, user, navigate }) {
+export default function MobilePayslips({ goBack, user, navigate, isAdmin, can }) {
+  const { instance, accounts } = useMsal()
+  const [openError, setOpenError] = useState('')
+  const canGenerate = isAdmin || can?.('hr_profiles')
   const [payslips, setPayslips] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedPayslip, setSelectedPayslip] = useState(null)
@@ -66,8 +71,13 @@ export default function MobilePayslips({ goBack, user, navigate }) {
 
   const handleOpenFile = async (payslip) => {
     await Haptics.impact({ style: ImpactStyle.Medium })
-    if (payslip.file_url) {
-      await Browser.open({ url: payslip.file_url })
+    setOpenError('')
+    try {
+      // Payslips made from the rota are private: this fetches a short-lived link.
+      const url = await payslipLink(instance, accounts?.[0], payslip)
+      if (url) await Browser.open({ url })
+    } catch (e) {
+      setOpenError(e.message || 'Could not open the payslip.')
     }
   }
 
@@ -107,17 +117,27 @@ export default function MobilePayslips({ goBack, user, navigate }) {
                     <span className="amount">{formatCurrency(p.gross_pay)}</span>
                   </div>
                 </div>
-              ) : (
+              ) : p.source === 'rota' ? null : (
                 <div className="payslip-section">
                   <div className="section-title">Uploaded Document</div>
                   <p className="file-note">Your payslip has been uploaded as a document by HR.</p>
                 </div>
               )}
 
-              {p.file_url && (
+              {p.source === 'rota' && (
+                <div className="payslip-section">
+                  <div className="section-title">From the rota</div>
+                  <div className="payslip-row"><span>Hours worked</span><span className="amount">{Number(p.hours_worked || 0).toFixed(2)}h</span></div>
+                  <div className="payslip-row"><span>Hourly rate</span><span className="amount">{formatCurrency(p.hourly_rate)}</span></div>
+                  <div className="payslip-row total"><span>Gross pay</span><span className="amount">{formatCurrency(p.gross_pay)}</span></div>
+                  <p className="file-note">Open the payslip for tax, National Insurance, net pay and your shifts.</p>
+                </div>
+              )}
+              {openError && <p style={{ color: '#ff3b30', fontSize: 14 }}>{openError}</p>}
+              {(p.file_url || p.source === 'rota') && (
                 <button className="download-button" onClick={() => handleOpenFile(p)}>
                   <Icon name="download" size={18} color="white" />
-                  {p.source === 'file' ? 'View Payslip' : 'View Document'}
+                  {p.source === 'file' || p.source === 'rota' ? 'View Payslip' : 'View Document'}
                 </button>
               )}
             </div>
@@ -217,7 +237,11 @@ export default function MobilePayslips({ goBack, user, navigate }) {
           <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
         </button>
         <h1>Payslips</h1>
-        <div style={{ width: 60 }} />
+        {canGenerate ? (
+          <button className="mobile-back-btn" style={{ justifyContent: 'flex-end' }} onClick={() => navigate('generate-payslip')} aria-label="Generate a payslip">
+            <Icon name="plus" size={24} color="var(--mobile-accent)" />
+          </button>
+        ) : <div style={{ width: 60 }} />}
       </div>
 
       <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>

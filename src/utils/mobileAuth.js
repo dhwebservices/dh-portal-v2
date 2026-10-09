@@ -131,3 +131,30 @@ export async function exchangeCodeForTokens({ code, codeVerifier, redirectUri, s
 
   return json // { access_token, id_token, refresh_token, expires_in, ... }
 }
+
+/**
+ * Swaps a refresh token for a fresh ID token, the same way as the code
+ * exchange above and for the same reasons (CapacitorHttp, not fetch).
+ * Entra hands back a new refresh token each time; the caller keeps that one.
+ */
+export async function refreshTokens({ refreshToken, scopes }) {
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    redirect_uri: NATIVE_REDIRECT_URI,
+    scope: scopes.join(' '),
+  })
+
+  const response = await CapacitorHttp.post({
+    url: `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: body.toString(),
+  })
+
+  const json = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(json.error_description || json.error || 'Token refresh failed.')
+  }
+  return json
+}

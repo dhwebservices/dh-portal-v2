@@ -2,11 +2,30 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
+import { useMsal } from '@azure/msal-react'
 import { Button, FormField, FormLabel, FormInput, FormSelect, StatusBadge } from '../../components/ds'
+import PayslipGenerator from './PayslipGenerator'
+import { payslipLink } from '../../utils/payrollApi'
 
 export default function HRPayslips() {
   const { user, can } = useAuth()
   const isManager = can('admin')
+  // Making payslips needs HR (hr_profiles); the server checks it too.
+  const canGenerate = isManager || can('hr_profiles')
+  const { instance, accounts } = useMsal()
+  const [openError, setOpenError] = useState('')
+  const openPayslip = async (p) => {
+    setOpenError('')
+    // Open the tab first: browsers block one opened after an await.
+    const tab = window.open('', '_blank')
+    try {
+      const url = await payslipLink(instance, accounts?.[0], p)
+      if (tab) tab.location.href = url; else window.location.href = url
+    } catch (e) {
+      tab?.close()
+      setOpenError(e.message || 'Could not open the payslip.')
+    }
+  }
   const [payslips, setPayslips] = useState([])
   const [loading, setLoading]   = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -133,9 +152,11 @@ export default function HRPayslips() {
         <div style={{ ...cardStyle, padding:20 }}><div style={{ fontSize:24, fontWeight:600, color:'var(--color-text-primary)' }}>{summary.latestUpload ? new Date(summary.latestUpload).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—'}</div><div style={{ fontSize:12, color:'var(--color-text-secondary)', marginTop:4 }}>Latest upload</div></div>
       </div>
 
+      {canGenerate && <PayslipGenerator staff={staff} onIssued={load} />}
+
       {isManager && (
         <div style={{ ...cardStyle, padding:20, marginBottom:20, maxWidth:560 }}>
-          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Upload Payslip</div>
+          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-primary)', marginBottom:12 }}>Upload a payslip PDF instead</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:16, marginBottom:12 }}>
             <FormField>
               <FormLabel>Staff Member</FormLabel>
@@ -201,6 +222,7 @@ export default function HRPayslips() {
         </div>
       </div>
 
+      {openError ? <div style={{ fontSize:13, color:'var(--color-red-500)', marginBottom:12 }}>{openError}</div> : null}
       <div style={{ ...cardStyle, overflow:'hidden' }}>
         {loading ? <div className="spin-wrap"><div className="spin"/></div> : filteredPayslips.length===0 ? <div style={{ padding:'var(--space-3xl)', textAlign:'center', color:'var(--color-text-secondary)' }}>No payslips match this view yet.</div> : (
           <div style={{ display:'grid', gap:12, padding:12 }}>
@@ -216,7 +238,7 @@ export default function HRPayslips() {
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                    <StatusBadge variant="info">{fileTypeLabel(p.file_path || p.file_url)}</StatusBadge>
+                    <StatusBadge variant="info">{p.source === 'rota' ? 'Payslip' : fileTypeLabel(p.file_path || p.file_url)}</StatusBadge>
                     <StatusBadge variant="active">Stored</StatusBadge>
                     <StatusBadge variant="info">Uploaded {new Date(p.uploaded_at).toLocaleDateString('en-GB')}</StatusBadge>
                   </div>
@@ -224,9 +246,9 @@ export default function HRPayslips() {
                 <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'center', flexWrap:'wrap', paddingTop:10, borderTop:'1px solid var(--color-border)' }}>
                   <div style={{ display:'grid', gap:4 }}>
                     {isManager ? <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{p.user_email}</div> : null}
-                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)', fontFamily:'var(--font-mono)' }}>{p.file_path || 'Stored in HR documents'}</div>
+                    <div style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{p.source === 'rota' ? `From the rota · ${Number(p.hours_worked || 0).toFixed(2)} h · gross £${Number(p.gross_pay || 0).toFixed(2)}` : (p.file_path || 'Stored in HR documents')}</div>
                   </div>
-                  <Button variant="secondary" onClick={() => window.open(p.file_url, '_blank', 'noreferrer')}>Open payslip</Button>
+                  <Button variant="secondary" onClick={() => openPayslip(p)}>Open payslip</Button>
                 </div>
               </div>
             ))}
