@@ -8,6 +8,7 @@ import { useAuth } from './contexts/AuthContext'
 import { initCrashReporter } from './utils/crashReporter'
 import { initPushNotifications, consumePendingPushNavigation } from './utils/pushNotifications'
 import ErrorBoundary from './components/ErrorBoundary'
+import MobileLoader from './mobile/components/MobileLoader'
 import { useUserPreferences } from './hooks/useUserPreferences'
 import { isBiometricAvailable, authenticateWithBiometric } from './utils/biometricAuth'
 import { supabase } from './utils/supabase'
@@ -60,6 +61,8 @@ export default function MobileApp() {
       return
     }
     let cancelled = false
+    // Never hold the app on the loader: if the database is slow, carry on.
+    const giveUp = setTimeout(() => { if (!cancelled) setOnboardingChecked(true) }, 5000)
     supabase
       .from('user_permissions')
       .select('onboarding')
@@ -71,8 +74,8 @@ export default function MobileApp() {
         setOnboardingChecked(true)
       })
       .catch(() => { if (!cancelled) setOnboardingChecked(true) })
-    return () => { cancelled = true }
-  }, [user?.email])
+    return () => { cancelled = true; clearTimeout(giveUp) }
+  }, [user?.email, loading])
 
   const activeTheme = preferences.theme === 'auto' ? systemTheme : preferences.theme
 
@@ -295,10 +298,7 @@ export default function MobileApp() {
 
   if (loading || !onboardingChecked) {
     return (
-      <div className="mobile-loading">
-        <div className="mobile-spinner" />
-        <p>Loading...</p>
-      </div>
+      <MobileLoader />
     )
   }
 
