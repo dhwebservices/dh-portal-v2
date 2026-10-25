@@ -40,6 +40,7 @@ import MobileAddShift from './mobile/screens/AddShift'
 import MobileFishTankAdmin from './mobile/screens/FishTankAdmin'
 import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
 import MobileFindMyGangAdmin from './mobile/screens/FindMyGangAdmin'
+import MobileBillPalAdmin from './mobile/screens/BillPalAdmin'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -291,6 +292,9 @@ export default function MobileApp() {
       case 'findmygang':
         // Managers only; the API behind it checks the Entra token again.
         return isAdmin ? <MobileFindMyGangAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'billpal':
+        // Managers only; bills, members, support chat and suppliers.
+        return isAdmin ? <MobileBillPalAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       default:
         return <MobileHome {...screenProps} />
     }

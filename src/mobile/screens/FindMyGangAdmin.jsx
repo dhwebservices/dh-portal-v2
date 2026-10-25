@@ -1071,3 +1071,5 @@ const FG_CSS = `
   .fg button.danger { color: #c0392b; border-color: #c0392b; }
   .fg button:disabled { opacity: 0.45; cursor: default; }
 `
+
+export { FG_CSS }

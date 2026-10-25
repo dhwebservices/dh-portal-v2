@@ -222,6 +222,17 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+
+              <div className="setting-row" onClick={() => navigate('billpal')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="pound" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Bill Pal</div>
+                    <div className="setting-description">Bills, members, support chat and suppliers</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
             </div>
           </MobileCard>
         )}
