@@ -7,7 +7,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Apple's daily crash and hang reports for this app, for remote diagnostics.
+        MetricsSink.shared.start()
         return true
     }
 
@@ -45,6 +46,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
+    // A silent push from the portal asking this phone to run diagnostics
+    // (functions/api/diagnostics). iOS gives about 30 seconds in the
+    // background: run the checks natively and post the report with the
+    // one-time key that came in the push. Does nothing unless the person
+    // switched diagnostics on in Settings > Diagnostics.
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        guard let id = userInfo["diag"] as? String,
+              let key = userInfo["key"] as? String,
+              let api = userInfo["api"] as? String,
+              Diagnostics.consent,
+              Diagnostics.isTrustedUploadURL(api) else {
+            completionHandler(.noData)
+            return
+        }
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = application.beginBackgroundTask(withName: "diagnostics") {
+            application.endBackgroundTask(task)
+        }
+        Diagnostics.collect(trigger: "remote") { report in
+            Diagnostics.upload(report: report, id: id, key: key, to: api) { ok in
+                DispatchQueue.main.async {
+                    completionHandler(ok ? .newData : .failed)
+                    application.endBackgroundTask(task)
+                }
+            }
+        }
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {

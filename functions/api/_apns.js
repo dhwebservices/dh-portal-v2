@@ -124,6 +124,39 @@ export async function sendApnsNotification(deviceToken, notificationData, env) {
   }
 }
 
+/**
+ * A silent push: no alert, no sound. iOS wakes the app in the background for
+ * about 30 seconds to handle it (AppDelegate's didReceiveRemoteNotification).
+ * Apple requires push-type `background` and priority 5 for these, and may
+ * delay or drop them (Low Power Mode, app swiped away, heavy use), so callers
+ * need a visible fallback.
+ */
+export async function sendApnsBackground(deviceToken, data, env) {
+  const { APNS_BUNDLE_ID, APNS_ENVIRONMENT } = env
+  if (!APNS_BUNDLE_ID) return { success: false, error: 'APNS_BUNDLE_ID not configured' }
+  try {
+    const jwt = await getApnsJwt(env)
+    const host = APNS_ENVIRONMENT === 'production' ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com'
+    const response = await fetch(`${host}/3/device/${deviceToken}`, {
+      method: 'POST',
+      headers: {
+        'authorization': `bearer ${jwt}`,
+        'apns-topic': APNS_BUNDLE_ID,
+        'apns-push-type': 'background',
+        'apns-priority': '5',
+        'apns-expiration': String(Math.floor(Date.now() / 1000) + 600),
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ aps: { 'content-available': 1 }, ...data }),
+    })
+    if (response.status === 200) return { success: true }
+    const errorBody = await response.json().catch(() => ({}))
+    return { success: false, error: errorBody.reason || `APNs ${response.status}` }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
 // Device tokens are stored in the `fcm_token` column regardless of platform
 // (legacy naming from before the APNs rewrite) - only `device_type=ios`
 // tokens are valid APNs device tokens.

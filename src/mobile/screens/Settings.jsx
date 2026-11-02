@@ -250,6 +250,17 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
               </div>
               <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
             </div>
+
+            <div className="setting-row" onClick={() => navigate('diagnostics')} style={{ cursor: 'pointer' }}>
+              <div className="setting-info">
+                <Icon name="barChart" size={20} color="var(--mobile-accent)" />
+                <div>
+                  <div className="setting-label">Diagnostics</div>
+                  <div className="setting-description">{isAdmin ? 'Check this iPhone, or run checks on staff phones' : 'Check this iPhone and let DH help when it misbehaves'}</div>
+                </div>
+              </div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </div>
           </div>
         </MobileCard>
 

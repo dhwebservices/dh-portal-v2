@@ -41,6 +41,7 @@ import MobileFishTankAdmin from './mobile/screens/FishTankAdmin'
 import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
 import MobileFindMyGangAdmin from './mobile/screens/FindMyGangAdmin'
 import MobileBillPalAdmin from './mobile/screens/BillPalAdmin'
+import MobileDiagnostics from './mobile/screens/Diagnostics'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -147,11 +148,18 @@ export default function MobileApp() {
   // so the tap handler stores an intent here instead of navigating away).
   useEffect(() => {
     if (loading || locked || !onboardingChecked || onboardingActive) return
-    const targetScreen = consumePendingPushNavigation()
-    if (targetScreen) {
-      setCurrentScreen(targetScreen)
-      setScreenHistory(['home', targetScreen])
+    const openPending = () => {
+      const target = consumePendingPushNavigation()
+      if (target?.screen) {
+        setCurrentScreen(target.screen)
+        setScreenHistory(['home', target.screen])
+        setScreenParams(target.params || {})
+      }
     }
+    openPending()
+    // A notification tapped while the app is already running.
+    window.addEventListener('dh-push-nav', openPending)
+    return () => window.removeEventListener('dh-push-nav', openPending)
   }, [loading, locked, onboardingChecked, onboardingActive])
 
   useEffect(() => {
@@ -292,6 +300,8 @@ export default function MobileApp() {
       case 'findmygang':
         // Managers only; the API behind it checks the Entra token again.
         return isAdmin ? <MobileFindMyGangAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'diagnostics':
+        return <MobileDiagnostics {...screenProps} />
       case 'billpal':
         // Managers only; bills, members, support chat and suppliers.
         return isAdmin ? <MobileBillPalAdmin {...screenProps} /> : <MobileHome {...screenProps} />
