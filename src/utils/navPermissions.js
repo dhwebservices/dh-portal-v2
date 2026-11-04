@@ -72,7 +72,7 @@ export const NAV_TABS = [
     label: 'Admin',
     path: '/settings',
     keys: [
-      'admin', 'audit', 'departments', 'service_admin', 'safeguards',
+      'admin', 'audit', 'departments', 'service_admin', 'workvault_admin', 'safeguards',
       'mailinglist', 'banners', 'emailtemplates', 'maintenance', 'settings',
     ],
   },

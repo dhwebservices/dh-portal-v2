@@ -341,6 +341,7 @@ export default function Settings() {
         { label: 'Portal Settings', active: true, onClick: () => {} },
         can('departments') && { label: 'Departments', onClick: () => navigate('/departments') },
         can('service_admin') && { label: 'Service Admin', onClick: () => navigate('/service-admin') },
+        can('workvault_admin') && { label: 'WorkVault', onClick: () => navigate('/workvault-admin') },
         can('safeguards') && { label: 'Admin Safeguards', onClick: () => navigate('/admin-safeguards') },
         can('mailinglist') && { label: 'Mailing List', onClick: () => navigate('/mailing-list') },
         can('banners') && { label: 'Banners', onClick: () => navigate('/banners') },
