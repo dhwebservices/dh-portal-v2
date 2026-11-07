@@ -10,7 +10,8 @@ The staff app's **Settings > Device management** screen (`src/mobile/screens/Dev
 | Real name, model, serial, iOS, battery, storage | ✅ | ✅ |
 | Passcode / encryption / Find My / iCloud Backup | ✅ | ✅ |
 | Installed apps | ✅ | ✅ |
-| **Lock** (with a message and our number on the Lock Screen) | ✅ | ✅ |
+| **Lock screen** (plain, one tap) | ✅ | ✅ |
+| **Lock with message** (and our number on the Lock Screen) | ✅ | ✅ |
 | Restart / shut down | ❌ Apple refuses | ✅ |
 | Erase | ❌ never: the profile doesn't grant it (AccessRights has no 8) | ❌ |
 | Read messages, photos, location | ❌ not possible over MDM | ❌ |

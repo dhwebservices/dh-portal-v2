@@ -102,7 +102,7 @@ function WhatWeSee() {
   return (
     <details className="mdm-what">
       <summary>What DH can and can't do</summary>
-      <p><b>Can:</b> see the model, iOS version, storage, battery and serial number; check a passcode is set and the phone is encrypted; see which apps are installed; lock the phone if it's lost, with a message to call us.</p>
+      <p><b>Can:</b> see the model, iOS version, storage, battery and serial number; check a passcode is set and the phone is encrypted; see which apps are installed; lock the screen, or lock it with a message to call us if it's lost.</p>
       <p><b>Can't:</b> erase the phone, read messages, email, photos, files or browsing, or see where the phone is. Restart and shut down only work on company phones set up through Apple Business Manager.</p>
       <p>You can remove it any time in Settings &gt; General &gt; VPN &amp; Device Management.</p>
     </details>
@@ -341,7 +341,10 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
           {enrolled && (
             <div className="mdm-actions">
               <button className="mdm-run" onClick={() => send('refresh')} disabled={!!busy}>{busy === 'refresh' ? 'Asking…' : 'Refresh details'}</button>
-              <button className="mdm-run danger" onClick={() => setLockOpen(true)} disabled={!!busy}>Lock iPhone</button>
+              <div className="mdm-two">
+                <button className="mdm-run danger" onClick={() => send('screenlock')} disabled={!!busy}>{busy === 'screenlock' ? 'Locking…' : 'Lock screen'}</button>
+                <button className="mdm-run danger" onClick={() => setLockOpen(true)} disabled={!!busy}>Lock with message</button>
+              </div>
               {canAdmin && (
                 <div className="mdm-two">
                   <button className="mdm-run ghost" onClick={() => setConfirm('restart')} disabled={!!busy || !d.supervised}>Restart</button>
@@ -358,7 +361,7 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
 
           {lockOpen && (
             <div className="mdm-card mdm-confirm">
-              <div className="mdm-label">Lock this iPhone now?</div>
+              <div className="mdm-label">Lock with a message?</div>
               <p className="mdm-sub">The screen locks straight away and needs the passcode to open. The message and our number show on the Lock Screen.</p>
               <textarea className="mdm-input" rows={3} maxLength={200} placeholder="This iPhone belongs to DH Website Services. If found, please call 01443 805303." value={lockMessage} onChange={(e) => setLockMessage(e.target.value)} />
               <div className="mdm-two">

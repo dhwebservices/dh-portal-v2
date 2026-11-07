@@ -414,6 +414,10 @@ async function api(request, env, url, ctx) {
       if (type === 'refresh') {
         await queueRefresh(env, udid, user.email)
         queued = 'Refreshing details'
+      } else if (type === 'screenlock') {
+        // A plain lock: the screen goes off and needs the passcode, nothing on the Lock Screen.
+        await queueCommand(env, udid, 'DeviceLock', {}, user.email)
+        queued = 'Screen lock'
       } else if (type === 'lock') {
         const message = String(body.message || `This iPhone belongs to ${env.ORG_NAME || 'DH Website Services'}. If found, please call ${DEFAULT_LOCK_PHONE}.`).slice(0, 200)
         const phone = String(body.phone || DEFAULT_LOCK_PHONE).replace(/[^\d+ ]/g, '').slice(0, 20)
