@@ -35,7 +35,7 @@ Durable Object alarm, so no cron slot is needed on the free plan).
 ## Setup status
 
 1. ✅ Worker, D1 schema, CA, hourly timer deployed.
-2. ⬜ **MDM push certificate** (needs David: an mdmcert.download account and an Apple ID login):
+2. ✅ **MDM push certificate** issued 7 Nov 2026, **expires 7 Nov 2027** (Cloudflare mTLS cert `dh-mdm-push`). How it was made:
    1. Register at https://mdmcert.download with david@dhwebsiteservices.co.uk and confirm the email.
    2. Submit `~/.config/dh-mdm/push.csr` with the encryption cert `encrypt.pem` (API: `POST /api/v1/signrequest`).
    3. The emailed attachment decrypts with

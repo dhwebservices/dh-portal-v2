@@ -29,9 +29,9 @@ MICROSOFT_CLIENT_ID = "79722400-3699-4f12-a4a1-df71949b5805"
 ALLOWED_ORIGINS = "https://staff.dhwebsiteservices.co.uk,capacitor://localhost,http://localhost:5173"
 
 # Added once Apple has issued the MDM push certificate (README.md, step 2):
-# [[mtls_certificates]]
-# binding = "APNS_MDM"
-# certificate_id = "<id from wrangler mtls-certificate upload>"
+[[mtls_certificates]]
+binding = "APNS_MDM"
+certificate_id = "b8591dfd-7937-406c-ac30-2b23a75ae7af"
 
 # Secrets (wrangler secret put):
 #   MDM_CA_KEY         base64 PKCS#8 of the CA that issues each phone's identity
