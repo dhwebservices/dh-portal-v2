@@ -8,3 +8,6 @@ AppStore/export-*/
 ios/App/build/
 *.ipa
 *.xcarchive/
+workers/mdm/.dev.vars
+.mdm-preview/
+workers/mdm/.wrangler/

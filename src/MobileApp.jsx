@@ -42,6 +42,7 @@ import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
 import MobileFindMyGangAdmin from './mobile/screens/FindMyGangAdmin'
 import MobileBillPalAdmin from './mobile/screens/BillPalAdmin'
 import MobileDiagnostics from './mobile/screens/Diagnostics'
+import MobileDeviceManagement from './mobile/screens/DeviceManagement'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -302,6 +303,9 @@ export default function MobileApp() {
         return isAdmin ? <MobileFindMyGangAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'diagnostics':
         return <MobileDiagnostics {...screenProps} />
+      case 'device-management':
+        // Everyone can enrol their own phone; the Worker decides who is a device admin.
+        return <MobileDeviceManagement {...screenProps} />
       case 'billpal':
         // Managers only; bills, members, support chat and suppliers.
         return isAdmin ? <MobileBillPalAdmin {...screenProps} /> : <MobileHome {...screenProps} />
