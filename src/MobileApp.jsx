@@ -42,6 +42,7 @@ import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
 import MobileFindMyGangAdmin from './mobile/screens/FindMyGangAdmin'
 import MobileBillPalAdmin from './mobile/screens/BillPalAdmin'
 import MobileDiagnostics from './mobile/screens/Diagnostics'
+import { isDirectorEmail } from './utils/orgStructure'
 import MobileDeviceManagement from './mobile/screens/DeviceManagement'
 import Icon from './mobile/components/Icon'
 
@@ -291,21 +292,21 @@ export default function MobileApp() {
         // trusting this gate alone.
         return isAdmin ? <MobileSendNotification {...screenProps} /> : <MobileHome {...screenProps} />
       case 'phone':
-        // Managers only, and the screen wants a real admin key before it will
-        // talk to the phone system at all.
-        return isAdmin ? <MobilePhoneAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+        // Admins, or anyone given the "Phone system" permission. The phone
+        // Worker checks the caller's Microsoft sign-in again.
+        return isAdmin || can('app_phone') ? <MobilePhoneAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'fishtank':
-        // Managers only, and the screen additionally wants a real operator
-        // key before it will talk to the game's backend at all.
-        return isAdmin ? <MobileFishTankAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+        // Admins, or anyone given the "Fish Tank" permission; the proxy in
+        // functions/api/fishtank checks the same permission server-side.
+        return isAdmin || can('app_fishtank') ? <MobileFishTankAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'findmygang':
         // Managers only; the API behind it checks the Entra token again.
         return isAdmin ? <MobileFindMyGangAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'diagnostics':
         return <MobileDiagnostics {...screenProps} />
       case 'device-management':
-        // Everyone can enrol their own phone; the Worker decides who is a device admin.
-        return <MobileDeviceManagement {...screenProps} />
+        // David only. The Worker enforces it too (MDM_ADMINS).
+        return isDirectorEmail(user?.email) ? <MobileDeviceManagement {...screenProps} /> : <MobileHome {...screenProps} />
       case 'billpal':
         // Managers only; bills, members, support chat and suppliers.
         return isAdmin ? <MobileBillPalAdmin {...screenProps} /> : <MobileHome {...screenProps} />

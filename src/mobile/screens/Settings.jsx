@@ -6,8 +6,14 @@ import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
 import { eventsFor } from '../../shared/notificationEvents'
+import { isDirectorEmail } from '../../utils/orgStructure'
 
-export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference, isAdmin }) {
+export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference, isAdmin, can }) {
+  // Admins see every office screen. Anyone else sees only the app screens
+  // they've been given in their permissions (Fish Tank, Phone system).
+  const canFishTank = isAdmin || !!can?.('app_fishtank')
+  const canPhone = isAdmin || !!can?.('app_phone')
+  const isOwner = isDirectorEmail(user?.email)
   /**
    * Per-event push preferences.
    *
@@ -175,10 +181,11 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
           </div>
         </MobileCard>
 
-        {isAdmin && (
+        {(isAdmin || canFishTank || canPhone) && (
           <MobileCard style={{ marginTop: '16px' }}>
             <div style={{ padding: '8px' }}>
               <div className="setting-section-title">Office</div>
+              {isAdmin && (
               <div className="setting-row" onClick={() => navigate('send-notification')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="bell" size={20} color="var(--mobile-accent)" />
@@ -189,7 +196,9 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
 
+              {canPhone && (
               <div className="setting-row" onClick={() => navigate('phone')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="phone" size={20} color="var(--mobile-accent)" />
@@ -200,7 +209,9 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
 
+              {canFishTank && (
               <div className="setting-row" onClick={() => navigate('fishtank')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="gift" size={20} color="var(--mobile-accent)" />
@@ -211,7 +222,9 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
 
+              {isAdmin && (<>
               <div className="setting-row" onClick={() => navigate('findmygang')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="mapPin" size={20} color="var(--mobile-accent)" />
@@ -233,6 +246,7 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              </>)}
             </div>
           </MobileCard>
         )}
@@ -251,16 +265,18 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
               <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
             </div>
 
+            {isOwner && (
             <div className="setting-row" onClick={() => navigate('device-management')} style={{ cursor: 'pointer' }}>
               <div className="setting-info">
                 <Icon name="lock" size={20} color="var(--mobile-accent)" />
                 <div>
                   <div className="setting-label">Device management</div>
-                  <div className="setting-description">{isAdmin ? 'Staff phones: details, security and remote lock' : 'Let DH lock this iPhone if it is lost'}</div>
+                  <div className="setting-description">Staff phones: details, security and remote lock</div>
                 </div>
               </div>
               <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
             </div>
+            )}
 
             <div className="setting-row" onClick={() => navigate('diagnostics')} style={{ cursor: 'pointer' }}>
               <div className="setting-info">

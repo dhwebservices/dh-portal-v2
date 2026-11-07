@@ -48,7 +48,7 @@ export async function onRequest(context) {
 
   let user
   try {
-    user = await requirePortalUser(request, env, 'admin')
+    user = await requirePortalUser(request, env, 'app_fishtank')
   } catch (error) {
     return problem(error.message || 'Not allowed.', error.status || 401)
   }

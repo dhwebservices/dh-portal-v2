@@ -30,7 +30,9 @@ import InfoRow from '../components/InfoRow'
 const API = 'https://fishtank.aged-silence-66a7.workers.dev/v1'
 const KEY_STORAGE = 'fishtank.operatorKey'
 
-export default function MobileFishTankAdmin({ goBack, user, isAdmin }) {
+export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp, can }) {
+  // Admins, or staff given the "app_fishtank" permission.
+  const isAdmin = isAdminProp || !!can?.('app_fishtank')
   const { instance, accounts } = useMsal()
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
   const [keyDraft, setKeyDraft] = useState('')

@@ -28,7 +28,9 @@ const API = 'https://dh-phone.aged-silence-66a7.workers.dev'
 // Where the old shared key used to be kept. Cleared on sight; nothing reads it.
 const OLD_KEY_STORAGE = 'dhphone.adminKey'
 
-export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
+export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, can }) {
+  // Admins, or staff given the "app_phone" permission.
+  const isAdmin = isAdminProp || !!can?.('app_phone')
   const { instance, accounts } = useMsal()
   // 'checking' until the first silent attempt, then 'ok' or 'needed'.
   const [auth, setAuth] = useState('checking')

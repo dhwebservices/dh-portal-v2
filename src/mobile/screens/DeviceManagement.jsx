@@ -229,7 +229,7 @@ function TeamPhones({ call, onOpen }) {
 
       <div className="mdm-card">
         <div className="mdm-label">Enrol a staff member's iPhone</div>
-        <p className="mdm-sub">Makes a one-time link for them to open in Safari on their phone. They can also do it themselves from Settings &gt; Device management.</p>
+        <p className="mdm-sub">Makes a one-time link for them to open in Safari on their phone. Send it to them: it works once, for 24 hours.</p>
         <div className="mdm-inline">
           <input className="mdm-input" type="email" placeholder="name@dhwebsiteservices.co.uk" value={email} onChange={(e) => setEmail(e.target.value)} autoCapitalize="off" autoCorrect="off" />
           <button className="mdm-small" onClick={makeLink} disabled={!email.includes('@')}>Make link</button>

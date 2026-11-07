@@ -116,6 +116,6 @@ export async function requireStaff(request, env) {
 /** A signed-in member of staff on the MDM_ADMINS list. */
 export async function requireAdmin(request, env) {
   const user = await requireStaff(request, env)
-  if (!user.isAdmin) { const e = new Error('Only device admins can do that.'); e.status = 403; throw e }
+  if (!user.isAdmin) { const e = new Error('Device management is only open to DH\'s device admin.'); e.status = 403; throw e }
   return user
 }

@@ -12,12 +12,13 @@
  *   GET /enroll/<token>/profile  the .mobileconfig, downloadable once
  *
  * The staff app and portal use the JSON API (Microsoft sign-in):
- *   GET  /api/me                          who am I, am I an admin, my phones
- *   POST /api/enroll   { email?, name? }  a link for my phone (admins: anyone's)
- *   GET  /api/devices                     admin
- *   GET  /api/devices/<udid>              admin, or the phone's owner
+ * Every /api route is MDM_ADMINS only; anyone else gets 403.
+ *   GET  /api/me                          who am I, my phones
+ *   POST /api/enroll   { email?, name? }  a one-time link for anyone's phone
+ *   GET  /api/devices                     every phone
+ *   GET  /api/devices/<udid>              one phone
  *   POST /api/devices/<udid>/command { type, message?, phone? }
- *        type: refresh | lock (admin or owner), restart | shutdown (admin, supervised phones only)
+ *        type: refresh | screenlock | lock, restart | shutdown (supervised phones only)
  *   POST /api/devices/<udid>/remove       admin: take the phone out of management
  *   GET  /api/audit                       admin
  */
@@ -364,6 +365,10 @@ async function api(request, env, url, ctx) {
   const parts = url.pathname.split('/').filter(Boolean) // ['api', ...]
   const method = request.method
   const body = method === 'POST' ? await request.json().catch(() => ({})) : {}
+
+  // Device management is for MDM_ADMINS only (David). Staff never see or
+  // control phones, not even their own: they enrol from a link an admin sends.
+  await requireAdmin(request, env)
 
   if (parts[1] === 'me' && method === 'GET') {
     const user = await requireStaff(request, env)
