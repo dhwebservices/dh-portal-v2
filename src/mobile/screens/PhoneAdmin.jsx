@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useMsal } from '@azure/msal-react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 import SectionHeader from '../components/SectionHeader'
+import { getStaffIdToken, SignInNeeded } from '../../utils/staffToken'
 
 /**
  * The phone system, managed from the phone.
@@ -17,23 +19,28 @@ import SectionHeader from '../components/SectionHeader'
  * nobody reached. At a two-person business each of those is a lost job, so it
  * gets the largest number on the screen rather than being buried in a report.
  *
- * The admin key is a real secret, entered once and kept on this device. It is
- * never shipped in the bundle.
+ * Access is your Microsoft sign-in: every request carries your ID token,
+ * and the phone system lets you in if your email belongs to someone on it.
+ * There is no shared key to type in, lose or hand round.
  */
 
 const API = 'https://dh-phone.aged-silence-66a7.workers.dev'
-const KEY_STORAGE = 'dhphone.adminKey'
+// Where the old shared key used to be kept. Cleared on sight; nothing reads it.
+const OLD_KEY_STORAGE = 'dhphone.adminKey'
 
-export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
-  const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) || '')
-  const [keyDraft, setKeyDraft] = useState('')
-  const [keyError, setKeyError] = useState('')
-  const [checkingKey, setCheckingKey] = useState(false)
+export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, can }) {
+  // Admins, or staff given the "app_phone" permission.
+  const isAdmin = isAdminProp || !!can?.('app_phone')
+  const { instance, accounts } = useMsal()
+  // 'checking' until the first silent attempt, then 'ok' or 'needed'.
+  const [auth, setAuth] = useState('checking')
+  const [authError, setAuthError] = useState('')
+  const [signingIn, setSigningIn] = useState(false)
 
   const [tab, setTab] = useState('calls')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [keyRejected, setKeyRejected] = useState(false)
+  const [notOnSystem, setNotOnSystem] = useState(false)
 
   const [stats, setStats] = useState(null)
   const [calls, setCalls] = useState([])
@@ -44,8 +51,10 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
 
   const [editing, setEditing] = useState(null)   // option being edited, or null
   const [addingUser, setAddingUser] = useState(false)
-  const [userForm, setUserForm] = useState({ name: '', email: '', sip_username: '', forward_to: '' })
+  const [userForm, setUserForm] = useState({ name: '', email: '', sip_username: '', forward_to: '', extension: '' })
   const [busy, setBusy] = useState(false)
+  // The extension being edited inline on the Team tab: { id, value } or null.
+  const [extEdit, setExtEdit] = useState(null)
   const [outcome, setOutcome] = useState(null)
 
   // Greeting, out-of-hours message and hold music, edited as one form so the
@@ -54,7 +63,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [week, setWeek] = useState(null)
 
   // Which voicemail is playing, and the blob it is playing from. The audio
-  // cannot be given a plain URL — it needs the admin key in a header — so it
+  // cannot be given a plain URL — it needs your sign-in in a header — so it
   // is fetched, turned into a blob and revoked when the next one starts.
   const [playing, setPlaying] = useState(null)
 
@@ -68,17 +77,29 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const [dialAs, setDialAs] = useState('')
   const [dialTo, setDialTo] = useState('')
   const [pinDraft, setPinDraft] = useState('')
+  // Texts sent as "DH Website". One-way: customers can't reply to a name.
+  const [smsTo, setSmsTo] = useState('')
+  const [smsBody, setSmsBody] = useState('')
+  const [smsLog, setSmsLog] = useState([])
 
-  useEffect(() => { if (key) load() }, [key])
+  useEffect(() => {
+    try { localStorage.removeItem(OLD_KEY_STORAGE) } catch { /* nothing to clear */ }
+    load()
+  }, [])
 
   if (!isAdmin) return <div className="ph"><p className="ph-note">Managers only.</p></div>
+
+  // Fetched per request: the token lasts an hour and is refreshed quietly.
+  const authHeader = async (interactive = false) => ({
+    Authorization: `Bearer ${await getStaffIdToken({ instance, account: accounts?.[0], interactive })}`,
+  })
 
   const call = async (path, options = {}) => {
     const response = await fetch(`${API}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
+        ...(await authHeader()),
         ...(options.headers || {}),
       },
     })
@@ -94,7 +115,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
   const load = async () => {
     setLoading(true)
     setError('')
-    setKeyRejected(false)
+    setNotOnSystem(false)
     try {
       const [s, c, u, f] = await Promise.all([
         call('/api/stats'),
@@ -108,6 +129,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       const me = (Array.isArray(u) ? u : []).find(x =>
         x.email && user?.email && x.email.toLowerCase() === user.email.toLowerCase())
       setDialAs(prev => prev || me?.id || '')
+      setAuth('ok')
       setFlows(f?.flows ?? [])
       setOptions(f?.options ?? [])
       setHours(f?.hours ?? [])
@@ -134,9 +156,12 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         }
       }
     } catch (err) {
-      if (err.status === 403) {
-        setError('That admin key was not accepted.')
-        setKeyRejected(true)
+      if (err instanceof SignInNeeded) {
+        setAuth('needed')
+      } else if (err.status === 403) {
+        setAuth('ok')
+        setNotOnSystem(true)
+        setError(`${user?.email || 'Your account'} is not on the phone system. Ask David to add you under Team with this email.`)
       } else if (/Load failed|NetworkError|Failed to fetch/i.test(err.message)) {
         setError("Couldn't reach the phone system. Check your connection.")
       } else {
@@ -147,51 +172,18 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     }
   }
 
-  /**
-   * Checks the key before storing it, rather than storing it and finding out
-   * on the next screen. Whitespace is stripped from anywhere in the string —
-   * 64 characters pasted from a wrapped line arrives with a space through the
-   * middle, and that is invisible in a masked field.
-   */
-  const saveKey = async () => {
-    const candidate = keyDraft.replace(/\s+/g, '')
-    if (!candidate) return
-    if (!/^[0-9a-f]{64}$/i.test(candidate)) {
-      setKeyError(
-        candidate.length === 64
-          ? 'Right length, but it contains characters the key cannot have.'
-          : `That is ${candidate.length} character${candidate.length === 1 ? '' : 's'}; the key is 64.`
-      )
-      return
-    }
-    setCheckingKey(true)
-    setKeyError('')
+  /** Opens the Microsoft sign-in, only ever from a tap. */
+  const signIn = async () => {
+    setSigningIn(true)
+    setAuthError('')
     try {
-      const response = await fetch(`${API}/api/stats`, {
-        headers: { Authorization: `Bearer ${candidate}` },
-      })
-      if (response.status === 403 || response.status === 401) {
-        setKeyError('The phone system did not accept that key.')
-        return
-      }
-      if (!response.ok) {
-        setKeyError(`It answered ${response.status}. Try again shortly.`)
-        return
-      }
-      localStorage.setItem(KEY_STORAGE, candidate)
-      setKey(candidate)
-      setKeyDraft('')
-    } catch {
-      setKeyError("Couldn't reach the phone system.")
+      await getStaffIdToken({ instance, account: accounts?.[0], interactive: true })
+      await load()
+    } catch (err) {
+      setAuthError(err?.message || 'Sign-in did not finish. Try again.')
     } finally {
-      setCheckingKey(false)
+      setSigningIn(false)
     }
-  }
-
-  const forgetKey = () => {
-    localStorage.removeItem(KEY_STORAGE)
-    setKey('')
-    setStats(null); setCalls([]); setUsers([]); setOptions([])
   }
 
   // ------------------------------------------------------------- mutations
@@ -234,7 +226,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     try {
       await call('/api/users', { method: 'POST', body: JSON.stringify(userForm) })
       setOutcome({ ok: true, text: `${userForm.name} added.` })
-      setUserForm({ name: '', email: '', sip_username: '', forward_to: '' })
+      setUserForm({ name: '', email: '', sip_username: '', forward_to: '', extension: '' })
       setAddingUser(false)
       await load()
     } catch (err) {
@@ -326,7 +318,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${key}`,
+            ...(await authHeader()),
             'Content-Type': /\.wav$/i.test(file.name) ? 'audio/wav' : (file.type || 'audio/mpeg'),
             'X-Filename': encodeURIComponent(file.name),
           },
@@ -365,9 +357,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
    * Plays a voicemail.
    *
    * The recording lives on Twilio behind the account credentials, so the
-   * Worker fetches it for us. The admin key travels in a header and the audio
-   * comes back as a blob — putting the key in the URL of an <audio> tag would
-   * leak it into logs and browser history.
+   * Worker fetches it for us. The sign-in travels in a header and the audio
+   * comes back as a blob — putting the token in the URL of an <audio> tag
+   * would leak it into logs and browser history.
    */
   const playRecording = async (callId) => {
     if (playing?.id === callId) {
@@ -379,7 +371,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     setPlaying({ id: callId, url: '', loading: true })
     try {
       const response = await fetch(`${API}/api/recordings/${callId}`, {
-        headers: { Authorization: `Bearer ${key}` },
+        headers: await authHeader(),
       })
       if (!response.ok) throw new Error(`Could not fetch that recording (${response.status}).`)
       const url = URL.createObjectURL(await response.blob())
@@ -395,6 +387,36 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
    * office number; they answer, press 1, and the customer sees the office.
    * Nothing is dialled from this device, so it works the same from a laptop.
    */
+  const loadTexts = async () => {
+    try {
+      const rows = await call('/api/sms?limit=50')
+      setSmsLog(Array.isArray(rows) ? rows : [])
+    } catch {
+      // The log is a nice-to-have; sending still works without it.
+    }
+  }
+
+  const sendText = async () => {
+    if (busy || !dialAs || !smsTo.trim() || !smsBody.trim()) return
+    await Haptics.impact({ style: ImpactStyle.Medium })
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call('/api/sms', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: dialAs, to: smsTo, body: smsBody }),
+      })
+      setOutcome({ ok: true, text: `Text sent to ${smsTo.trim()} from DH Website.` })
+      setSmsTo('')
+      setSmsBody('')
+      await loadTexts()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const placeCall = async () => {
     if (busy || !dialAs || !dialTo.trim()) return
     await Haptics.impact({ style: ImpactStyle.Medium })
@@ -465,6 +487,26 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     }
   }
 
+  /** A direct extension: callers dial it during the greeting. Blank removes it. */
+  const saveExtension = async () => {
+    if (!extEdit || busy) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      await call(`/api/users/${extEdit.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ extension: extEdit.value.trim() }),
+      })
+      setOutcome({ ok: true, text: extEdit.value.trim() ? `Extension ${extEdit.value.trim()} saved.` : 'Extension removed.' })
+      setExtEdit(null)
+      await load()
+    } catch (err) {
+      setOutcome({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // ---------------------------------------------------------------- helpers
 
   const membersOf = (option) => {
@@ -483,9 +525,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   }
 
-  // -------------------------------------------------------------- key gate
+  // ------------------------------------------------------------ sign-in gate
 
-  if (!key) {
+  if (auth !== 'ok') {
     return (
       <div className="ph">
         <div className="ph-head">
@@ -495,27 +537,22 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
           <h1>Phone</h1>
         </div>
         <MobileCard>
-          <SectionHeader title="Admin key" />
-          <p className="ph-note">
-            This screen can change who your business number rings, so it is
-            behind a real secret rather than a code stored in the app.
-          </p>
-          <input
-            className="ph-field ph-key"
-            type="text"
-            value={keyDraft}
-            onChange={e => { setKeyDraft(e.target.value); setKeyError('') }}
-            placeholder="Admin key"
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="ph-count">{keyDraft.replace(/\s+/g, '').length} of 64 characters</p>
-          {keyError && <p className="ph-error">{keyError}</p>}
-          <button className="ph-primary" onClick={saveKey} disabled={!keyDraft.trim() || checkingKey}>
-            {checkingKey ? 'Checking…' : 'Unlock'}
-          </button>
+          {auth === 'checking' ? (
+            <p className="ph-note">Checking your sign-in…</p>
+          ) : (
+            <>
+              <SectionHeader title="Confirm it's you" />
+              <p className="ph-note">
+                This screen can change who your business number rings, so the
+                phone system checks your Microsoft sign-in. You'll only be
+                asked once on this device.
+              </p>
+              {(authError || error) && <p className="ph-error">{authError || error}</p>}
+              <button className="ph-primary" onClick={signIn} disabled={signingIn}>
+                {signingIn ? 'Opening Microsoft…' : 'Continue with Microsoft'}
+              </button>
+            </>
+          )}
         </MobileCard>
         <style>{PHONE_CSS}</style>
       </div>
@@ -537,9 +574,9 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       </div>
 
       <div className="ph-tabs">
-        {[['calls', 'Calls'], ['dial', 'Dial'], ['menu', 'Menu'], ['team', 'Team'],
+        {[['calls', 'Calls'], ['dial', 'Dial'], ['text', 'Text'], ['menu', 'Menu'], ['team', 'Team'],
           ['hours', 'Hours'], ['setup', 'Setup']].map(([id, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => { setTab(id); if (id === 'text') loadTexts() }}>
             {label}
           </button>
         ))}
@@ -548,9 +585,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       {error && (
         <div className="ph-failure">
           <p className="ph-error">{error}</p>
-          <button className="ph-retry" onClick={keyRejected ? forgetKey : load}>
-            {keyRejected ? 'Re-enter key' : 'Try again'}
-          </button>
+          {!notOnSystem && <button className="ph-retry" onClick={load}>Try again</button>}
         </div>
       )}
       {loading && <p className="ph-note">Loading…</p>}
@@ -718,6 +753,75 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         )
       })()}
 
+      {/* ----------------------------------------------------------- text */}
+      {tab === 'text' && (
+        <div className="ph-list">
+          <MobileCard>
+            <SectionHeader title="Text as DH Website" />
+            <p className="ph-note">
+              The customer sees the text from “DH Website”. They can’t reply to
+              it, so say how to reach you — ring 01443 805303 or email.
+            </p>
+            <div className="ph-labelled ph-gap">
+              <label>Sent by</label>
+              <select className="ph-field" value={dialAs} onChange={e => setDialAs(e.target.value)}>
+                <option value="">Choose who is sending…</option>
+                {users.filter(u => u.active).map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <input
+              className="ph-field"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={smsTo}
+              onChange={e => setSmsTo(e.target.value)}
+              placeholder="Mobile number, e.g. 07700 900123"
+            />
+            <textarea
+              className="ph-field"
+              rows={4}
+              maxLength={306}
+              value={smsBody}
+              onChange={e => setSmsBody(e.target.value)}
+              placeholder="Your message"
+            />
+            <p className="ph-note">
+              {smsBody.length}/306 · {smsBody.length > 160 ? 'two texts' : 'one text'}
+            </p>
+            <button
+              className="ph-primary"
+              onClick={sendText}
+              disabled={busy || !dialAs || !smsTo.trim() || !smsBody.trim()}
+            >
+              {busy ? 'Sending…' : 'Send text'}
+            </button>
+            <p className="ph-note">UK mobiles only. Up to 50 texts per person a day.</p>
+          </MobileCard>
+
+          <MobileCard>
+            <SectionHeader title="Sent texts" />
+            {smsLog.length === 0 && <p className="ph-note">Nothing sent yet.</p>}
+            {smsLog.map(m => (
+              <div key={m.id} className="ph-row" style={{ display: 'block', padding: '10px 0', borderTop: '1px solid var(--border, #eee)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+                  <strong>{m.to_number.replace(/^\+44/, '0')}</strong>
+                  <span style={{ opacity: 0.7 }}>
+                    {new Date(m.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <div style={{ fontSize: 14, margin: '4px 0', whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  {m.sent_by_name || 'Unknown'} · {m.status === 'sent' ? 'Sent' : m.status === 'failed' ? `Failed: ${m.error || ''}` : 'Sending'}
+                </div>
+              </div>
+            ))}
+          </MobileCard>
+        </div>
+      )}
+
       {/* ---------------------------------------------------------- hours */}
       {tab === 'hours' && week && (
         <div className="ph-list">
@@ -879,17 +983,41 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
       {tab === 'team' && (
         <div className="ph-list">
           {users.map(u => (
-            <div key={u.id} className={`ph-user ${u.active ? '' : 'off'}`}>
-              <div>
-                <strong>{u.name}</strong>
-                <span className="ph-call-meta">
-                  {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
-                  {u.has_dialout_pin ? ' · dial-in PIN' : ''}
-                </span>
+            <div key={u.id}>
+              <div className={`ph-user ${u.active ? '' : 'off'}`}>
+                <div>
+                  <strong>{u.name}</strong>
+                  <span className="ph-call-meta">
+                    {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
+                    {u.has_dialout_pin ? ' · dial-in PIN' : ''}
+                  </span>
+                </div>
+                <button className="ph-toggle" onClick={() => setExtEdit(extEdit?.id === u.id ? null : { id: u.id, value: u.extension || '' })}>
+                  {u.extension ? `Ext ${u.extension}` : 'Add ext'}
+                </button>
+                <button className="ph-toggle" onClick={() => toggleUser(u)}>
+                  {u.active ? 'On' : 'Off'}
+                </button>
               </div>
-              <button className="ph-toggle" onClick={() => toggleUser(u)}>
-                {u.active ? 'On' : 'Off'}
-              </button>
+              {extEdit?.id === u.id && (
+                <MobileCard>
+                  <input
+                    className="ph-field"
+                    value={extEdit.value}
+                    onChange={e => setExtEdit(x => ({ ...x, value: e.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                    placeholder="Extension, e.g. 201"
+                    inputMode="numeric"
+                  />
+                  <p className="ph-note">
+                    Callers dial it during the greeting, or save the number as
+                    01443 805303,{extEdit.value || '201'} to go straight through.
+                    Leave blank to remove it.
+                  </p>
+                  <button className="ph-primary" onClick={saveExtension} disabled={busy || extEdit.value.length === 1}>
+                    {busy ? 'Saving…' : 'Save'}
+                  </button>
+                </MobileCard>
+              )}
             </div>
           ))}
 
@@ -901,6 +1029,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
                 ['email', 'Email (optional)'],
                 ['sip_username', 'App username, e.g. jack'],
                 ['forward_to', 'Or a mobile, e.g. +447700900123'],
+                ['extension', 'Extension (optional), e.g. 203'],
               ].map(([field, placeholder]) => (
                 <input
                   key={field}
@@ -1013,8 +1142,6 @@ export default function MobilePhoneAdmin({ goBack, isAdmin, user }) {
         </>
       )}
 
-      <button className="ph-forget" onClick={forgetKey}>Forget admin key on this device</button>
-
       <style>{PHONE_CSS}</style>
     </div>
   )
@@ -1041,7 +1168,7 @@ function weekFrom(rows, flowId) {
   })
 }
 
-/* Kept out of the component so the key gate and the panel cannot drift apart
+/* Kept out of the component so the sign-in gate and the panel cannot drift apart
    visually — they are the same screen at two moments. */
 const PHONE_CSS = `
   /* Nothing on a phone screen should ever scroll sideways. This is a guard,
@@ -1058,11 +1185,11 @@ const PHONE_CSS = `
 
   /* Six tabs now rather than three, so they are allowed to shrink and the
      labels are kept short enough to survive a small phone. */
-  .ph-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .ph-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
   .ph-tabs button {
-    flex: 1; min-width: 0; padding: 9px 4px; border-radius: 10px;
+    flex: 1; min-width: 0; padding: 9px 2px; border-radius: 10px;
     border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); font-size: 12.5px; font-weight: 600;
+    background: var(--mobile-card); font-size: 12px; font-weight: 600;
     color: var(--mobile-text-secondary); cursor: pointer; white-space: nowrap;
   }
   .ph-tabs button.active {
@@ -1154,15 +1281,6 @@ const PHONE_CSS = `
     border: 1px solid var(--mobile-border); background: var(--mobile-bg);
     color: var(--mobile-text); font-size: 15px; font-family: inherit;
   }
-  .ph-key {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 13px; word-break: break-all;
-  }
-  .ph-count {
-    margin: 6px 2px 0; font-size: 12.5px; font-variant-numeric: tabular-nums;
-    color: var(--mobile-text-secondary);
-  }
-
   .ph-note { margin: 10px 2px 0; font-size: 13px; line-height: 1.45; color: var(--mobile-text-secondary); }
   .ph-error { margin: 4px 2px; font-size: 13.5px; font-weight: 600; color: #c0392b; }
   .ph-outcome { margin: 4px 2px 12px; font-size: 13.5px; font-weight: 600; }
@@ -1225,11 +1343,6 @@ const PHONE_CSS = `
     flex: none; width: 22px; height: 22px; border-radius: 999px;
     background: var(--mobile-accent); color: var(--mobile-on-accent);
     display: grid; place-items: center; font-size: 12px; font-weight: 700;
-  }
-
-  .ph-forget {
-    width: 100%; margin-top: 26px; padding: 12px; border: none; background: none;
-    font-size: 13px; color: var(--mobile-text-secondary); cursor: pointer;
   }
 
   /* Opening hours ------------------------------------------------------- */

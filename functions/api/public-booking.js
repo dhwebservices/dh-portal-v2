@@ -1,3 +1,5 @@
+import { sendApnsNotification, getIosDeviceTokens, logPushNotification } from './_apns.js'
+
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://staff.dhwebsiteservices.co.uk',
   'http://localhost:5173',
@@ -169,6 +171,33 @@ async function supabaseFetch(env, path, options = {}) {
 
   if (response.status === 204) return null
   return response.json().catch(() => null)
+}
+
+/**
+ * Push the booking to the staff member's phone.
+ *
+ * Email alone is not enough for this one: a booking can be for a slot less than
+ * an hour away, and an email sat unread until lunchtime means a missed call and
+ * a lost lead. Best effort — a push failure must never fail the booking itself,
+ * which is why every caller wraps this in allSettled.
+ */
+async function sendBookingPush(env, staffEmail, { clientName, clientBusiness, date, startTime }) {
+  const tokens = await getIosDeviceTokens(staffEmail, env)
+  if (!tokens?.length) return false
+
+  const notificationData = {
+    title: 'New call booked',
+    body: `${clientName}${clientBusiness ? ` · ${clientBusiness}` : ''} — ${formatDate(date)} at ${startTime}`,
+    data: { type: 'appointment_booked', date, start_time: startTime },
+  }
+
+  const results = await Promise.all(
+    tokens.map(token => sendApnsNotification(token, notificationData, env)),
+  )
+  const delivered = results.some(r => r?.success)
+  await logPushNotification(staffEmail, 'appointment_booked', notificationData, delivered, env)
+    .catch(() => {})
+  return delivered
 }
 
 async function sendWorkerEmail(env, payload) {
@@ -457,6 +486,12 @@ export async function onRequestPost(context) {
     await Promise.allSettled([
       sendWorkerEmail(context.env, staffEmailPayload),
       sendWorkerEmail(context.env, clientEmailPayload),
+      sendBookingPush(context.env, match.email, {
+        clientName,
+        clientBusiness,
+        date,
+        startTime,
+      }),
     ])
 
     return json({ ok: true, appointment })

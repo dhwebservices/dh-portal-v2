@@ -1,0 +1,40 @@
+# DH device management (our own MDM for staff iPhones). See README.md.
+name = "dh-mdm"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dh-mdm"
+database_id = "8a6bcd03-1938-4b34-b146-c8b83ca2acf8"
+
+# The refresh timer: a Durable Object alarm that re-arms itself every hour.
+# (The free plan has no spare cron slots, and alarms don't need one.)
+[[durable_objects.bindings]]
+name = "TICKER"
+class_name = "Ticker"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Ticker"]
+
+[vars]
+PUBLIC_URL = "https://dh-mdm.aged-silence-66a7.workers.dev"
+ORG_NAME = "DH Website Services"
+# Who can see devices and send commands. Anyone else signed in can only enrol their own phone.
+MDM_ADMINS = "david@dhwebsiteservices.co.uk"
+MICROSOFT_TENANT_ID = "c8bd84c5-4ddb-4cb7-8276-0b7d30a42e5f"
+MICROSOFT_CLIENT_ID = "79722400-3699-4f12-a4a1-df71949b5805"
+ALLOWED_ORIGINS = "https://staff.dhwebsiteservices.co.uk,capacitor://localhost,http://localhost:5173"
+
+# Added once Apple has issued the MDM push certificate (README.md, step 2):
+[[mtls_certificates]]
+binding = "APNS_MDM"
+certificate_id = "b8591dfd-7937-406c-ac30-2b23a75ae7af"
+
+# Secrets (wrangler secret put):
+#   MDM_CA_KEY         base64 PKCS#8 of the CA that issues each phone's identity
+#   MDM_CA_CERT        base64 DER of that CA certificate
+#   MDM_PUSH_TOPIC     com.apple.mgmt.External.<uuid> from the push certificate
+# The CA's master copy lives in ~/.config/dh-mdm on David's Mac (never in git).

@@ -6,8 +6,14 @@ import Icon from '../components/Icon'
 import MobileCard from '../components/MobileCard'
 
 import { eventsFor } from '../../shared/notificationEvents'
+import { isDirectorEmail } from '../../utils/orgStructure'
 
-export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference, isAdmin }) {
+export default function MobileSettings({ goBack, user, navigate, preferences, prefsLoading, savePreference, isAdmin, can }) {
+  // Admins see every office screen. Anyone else sees only the app screens
+  // they've been given in their permissions (Fish Tank, Phone system).
+  const canFishTank = isAdmin || !!can?.('app_fishtank')
+  const canPhone = isAdmin || !!can?.('app_phone')
+  const isOwner = isDirectorEmail(user?.email)
   /**
    * Per-event push preferences.
    *
@@ -175,10 +181,11 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
           </div>
         </MobileCard>
 
-        {isAdmin && (
+        {(isAdmin || canFishTank || canPhone) && (
           <MobileCard style={{ marginTop: '16px' }}>
             <div style={{ padding: '8px' }}>
               <div className="setting-section-title">Office</div>
+              {isAdmin && (
               <div className="setting-row" onClick={() => navigate('send-notification')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="bell" size={20} color="var(--mobile-accent)" />
@@ -189,7 +196,9 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
 
+              {canPhone && (
               <div className="setting-row" onClick={() => navigate('phone')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="phone" size={20} color="var(--mobile-accent)" />
@@ -200,7 +209,9 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
 
+              {canFishTank && (
               <div className="setting-row" onClick={() => navigate('fishtank')} style={{ cursor: 'pointer' }}>
                 <div className="setting-info">
                   <Icon name="gift" size={20} color="var(--mobile-accent)" />
@@ -211,6 +222,31 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 </div>
                 <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
               </div>
+              )}
+
+              {isAdmin && (<>
+              <div className="setting-row" onClick={() => navigate('findmygang')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="mapPin" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Fam &amp; a Half</div>
+                    <div className="setting-description">Users, messages, banners and app settings</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
+
+              <div className="setting-row" onClick={() => navigate('billpal')} style={{ cursor: 'pointer' }}>
+                <div className="setting-info">
+                  <Icon name="pound" size={20} color="var(--mobile-accent)" />
+                  <div>
+                    <div className="setting-label">Bill Pal</div>
+                    <div className="setting-description">Bills, members, support chat and suppliers</div>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+              </div>
+              </>)}
             </div>
           </MobileCard>
         )}
@@ -224,6 +260,30 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
                 <div>
                   <div className="setting-label">Your devices</div>
                   <div className="setting-description">Where your notifications are sent</div>
+                </div>
+              </div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </div>
+
+            {isOwner && (
+            <div className="setting-row" onClick={() => navigate('device-management')} style={{ cursor: 'pointer' }}>
+              <div className="setting-info">
+                <Icon name="lock" size={20} color="var(--mobile-accent)" />
+                <div>
+                  <div className="setting-label">Device management</div>
+                  <div className="setting-description">Staff phones: details, security and remote lock</div>
+                </div>
+              </div>
+              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
+            </div>
+            )}
+
+            <div className="setting-row" onClick={() => navigate('diagnostics')} style={{ cursor: 'pointer' }}>
+              <div className="setting-info">
+                <Icon name="barChart" size={20} color="var(--mobile-accent)" />
+                <div>
+                  <div className="setting-label">Diagnostics</div>
+                  <div className="setting-description">{isAdmin ? 'Check this iPhone, or run checks on staff phones' : 'Check this iPhone and let DH help when it misbehaves'}</div>
                 </div>
               </div>
               <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />

@@ -62,14 +62,18 @@ export const ALL_PAGES = [
   {key:'emailtemplates',label:'Email Templates',    group:'Admin'},
   {key:'maintenance',   label:'Maintenance',        group:'Admin'},
   {key:'settings',      label:'Settings',           group:'Admin'},
+  // Staff app admin screens for things we've built. Anything not listed here
+  // (Fam & a Half, Bill Pal, device management...) stays admin-only.
+  {key:'app_fishtank',  label:'Fish Tank',          group:'Apps', category:'Games', desc:'Fish Tank admin in the staff app: players, coins, shop and prizes'},
+  {key:'app_phone',     label:'Phone system',       group:'Apps', category:'Comms', desc:'Phone admin in the staff app: call menu, who answers, missed calls'},
 ]
 
-export const PERMISSION_GROUPS = ['Home', 'Outreach', 'My Work', 'Rotas', 'People', 'Recruiting', 'Websites', 'Support', 'Reports', 'Admin']
+export const PERMISSION_GROUPS = ['Home', 'Outreach', 'My Work', 'Rotas', 'People', 'Recruiting', 'Websites', 'Support', 'Reports', 'Admin', 'Apps']
 
 export const ROLE_DEFAULTS = {
   Director: Object.fromEntries(ALL_PAGES.map(p => [p.key, true])),
-  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
-  Staff:    Object.fromEntries(ALL_PAGES.filter(p => !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_products_view','shop_customers_view','pdf_shared_view','pdf_shared_edit','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
+  DepartmentManager: Object.fromEntries(ALL_PAGES.filter(p => p.group !== 'Apps' && !['admin','audit','departments','banners','emailtemplates','website_editor','mailinglist','safeguards','maintenance','settings','recruiting_settings','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
+  Staff:    Object.fromEntries(ALL_PAGES.filter(p => p.group !== 'Apps' && !['admin','audit','reports','manager_board','staff','departments','my_department','banners','emailtemplates','website_editor','mailinglist','safeguards','hr_documents','contract_queue','recruiting_jobs','recruiting_applications','recruiting_board','recruiting_settings','shop_orders_view','shop_products_view','shop_customers_view','pdf_shared_view','pdf_shared_edit','pdf_shared_admin','service_admin'].includes(p.key)).map(p => [p.key, true])),
   ReadOnly: Object.fromEntries(ALL_PAGES.filter(p => ['dashboard','notifications','my_profile','search','my_team','mytasks','schedule','hr_leave','hr_payslips','hr_policies','pdf_workspace'].includes(p.key)).map(p => [p.key, true])),
 }
 

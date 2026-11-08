@@ -31,6 +31,7 @@ export async function initPushNotifications(userEmail) {
     const registrationDone = new Promise((resolve) => {
       PushNotifications.addListener('registration', async (token) => {
         console.log('Push registration success, token:', token.value)
+        try { localStorage.setItem('dh-push-token', token.value) } catch (_) {}
         await registerDeviceToken(userEmail, token.value)
         resolve({ success: true })
       })
@@ -140,6 +141,7 @@ const NOTIFICATION_TYPE_TO_SCREEN = {
   onboarding_submitted: 'onboarding-review',
   onboarding_approved: 'home',
   onboarding_rejected: 'home',
+  diagnostics: 'diagnostics',
 }
 
 const PENDING_NAV_KEY = 'dh-pending-push-nav'
@@ -162,10 +164,19 @@ function handleNotificationTap(notification) {
   // and calls its own navigate().
   const screen = NOTIFICATION_TYPE_TO_SCREEN[data.type]
   if (screen) {
+    // A diagnostics request carries its id and one-time key to the screen.
+    const params = data.type === 'diagnostics' && data.diag ? { diag: data.diag, diagKey: data.key } : {}
     try {
-      localStorage.setItem(PENDING_NAV_KEY, JSON.stringify({ screen, at: Date.now() }))
+      localStorage.setItem(PENDING_NAV_KEY, JSON.stringify({ screen, params, at: Date.now() }))
     } catch (_) {}
+    // If the app is already open, MobileApp listens for this and goes now.
+    try { window.dispatchEvent(new Event('dh-push-nav')) } catch (_) {}
   }
+}
+
+/** The APNs token this phone registered with, if it has one. */
+export function getRegisteredPushToken() {
+  try { return localStorage.getItem('dh-push-token') || '' } catch (_) { return '' }
 }
 
 export function consumePendingPushNavigation() {
@@ -176,7 +187,7 @@ export function consumePendingPushNavigation() {
     const parsed = JSON.parse(raw)
     // Ignore stale entries (e.g. app relaunched days later for unrelated reasons)
     if (Date.now() - parsed.at > 24 * 60 * 60 * 1000) return null
-    return parsed.screen
+    return { screen: parsed.screen, params: parsed.params || {} }
   } catch (_) {
     return null
   }

@@ -1,0 +1,12 @@
+{
+  "name": "dh-mdm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "node-forge": "1.4.3"
+  }
+}

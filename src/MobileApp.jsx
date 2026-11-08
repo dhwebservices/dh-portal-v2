@@ -8,6 +8,7 @@ import { useAuth } from './contexts/AuthContext'
 import { initCrashReporter } from './utils/crashReporter'
 import { initPushNotifications, consumePendingPushNavigation } from './utils/pushNotifications'
 import ErrorBoundary from './components/ErrorBoundary'
+import MobileLoader from './mobile/components/MobileLoader'
 import { useUserPreferences } from './hooks/useUserPreferences'
 import { isBiometricAvailable, authenticateWithBiometric } from './utils/biometricAuth'
 import { supabase } from './utils/supabase'
@@ -38,6 +39,11 @@ import MobileDeviceHistory from './mobile/screens/DeviceHistory'
 import MobileAddShift from './mobile/screens/AddShift'
 import MobileFishTankAdmin from './mobile/screens/FishTankAdmin'
 import MobilePhoneAdmin from './mobile/screens/PhoneAdmin'
+import MobileFindMyGangAdmin from './mobile/screens/FindMyGangAdmin'
+import MobileBillPalAdmin from './mobile/screens/BillPalAdmin'
+import MobileDiagnostics from './mobile/screens/Diagnostics'
+import { isDirectorEmail } from './utils/orgStructure'
+import MobileDeviceManagement from './mobile/screens/DeviceManagement'
 import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
@@ -59,6 +65,8 @@ export default function MobileApp() {
       return
     }
     let cancelled = false
+    // Never hold the app on the loader: if the database is slow, carry on.
+    const giveUp = setTimeout(() => { if (!cancelled) setOnboardingChecked(true) }, 5000)
     supabase
       .from('user_permissions')
       .select('onboarding')
@@ -70,8 +78,8 @@ export default function MobileApp() {
         setOnboardingChecked(true)
       })
       .catch(() => { if (!cancelled) setOnboardingChecked(true) })
-    return () => { cancelled = true }
-  }, [user?.email])
+    return () => { cancelled = true; clearTimeout(giveUp) }
+  }, [user?.email, loading])
 
   const activeTheme = preferences.theme === 'auto' ? systemTheme : preferences.theme
 
@@ -142,11 +150,18 @@ export default function MobileApp() {
   // so the tap handler stores an intent here instead of navigating away).
   useEffect(() => {
     if (loading || locked || !onboardingChecked || onboardingActive) return
-    const targetScreen = consumePendingPushNavigation()
-    if (targetScreen) {
-      setCurrentScreen(targetScreen)
-      setScreenHistory(['home', targetScreen])
+    const openPending = () => {
+      const target = consumePendingPushNavigation()
+      if (target?.screen) {
+        setCurrentScreen(target.screen)
+        setScreenHistory(['home', target.screen])
+        setScreenParams(target.params || {})
+      }
     }
+    openPending()
+    // A notification tapped while the app is already running.
+    window.addEventListener('dh-push-nav', openPending)
+    return () => window.removeEventListener('dh-push-nav', openPending)
   }, [loading, locked, onboardingChecked, onboardingActive])
 
   useEffect(() => {
@@ -277,13 +292,24 @@ export default function MobileApp() {
         // trusting this gate alone.
         return isAdmin ? <MobileSendNotification {...screenProps} /> : <MobileHome {...screenProps} />
       case 'phone':
-        // Managers only, and the screen wants a real admin key before it will
-        // talk to the phone system at all.
-        return isAdmin ? <MobilePhoneAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+        // Admins, or anyone given the "Phone system" permission. The phone
+        // Worker checks the caller's Microsoft sign-in again.
+        return isAdmin || can('app_phone') ? <MobilePhoneAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       case 'fishtank':
-        // Managers only, and the screen additionally wants a real operator
-        // key before it will talk to the game's backend at all.
-        return isAdmin ? <MobileFishTankAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+        // Admins, or anyone given the "Fish Tank" permission; the proxy in
+        // functions/api/fishtank checks the same permission server-side.
+        return isAdmin || can('app_fishtank') ? <MobileFishTankAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'findmygang':
+        // Managers only; the API behind it checks the Entra token again.
+        return isAdmin ? <MobileFindMyGangAdmin {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'diagnostics':
+        return <MobileDiagnostics {...screenProps} />
+      case 'device-management':
+        // David only. The Worker enforces it too (MDM_ADMINS).
+        return isDirectorEmail(user?.email) ? <MobileDeviceManagement {...screenProps} /> : <MobileHome {...screenProps} />
+      case 'billpal':
+        // Managers only; bills, members, support chat and suppliers.
+        return isAdmin ? <MobileBillPalAdmin {...screenProps} /> : <MobileHome {...screenProps} />
       default:
         return <MobileHome {...screenProps} />
     }
@@ -291,10 +317,7 @@ export default function MobileApp() {
 
   if (loading || !onboardingChecked) {
     return (
-      <div className="mobile-loading">
-        <div className="mobile-spinner" />
-        <p>Loading...</p>
-      </div>
+      <MobileLoader />
     )
   }
 
