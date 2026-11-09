@@ -101,6 +101,7 @@ const Notifications = lazyRetry(() => import('./pages/Notifications'), 'notifica
 const ShopOrders = lazyRetry(() => import('./pages/shop/ShopOrders'), 'shop-orders')
 const ShopProducts = lazyRetry(() => import('./pages/shop/ShopProducts'), 'shop-products')
 const ShopCustomers = lazyRetry(() => import('./pages/shop/ShopCustomers'), 'shop-customers')
+const HQLayout = lazyRetry(() => import('./hq/HQLayout'), 'hq')
 
 const msal = new PublicClientApplication(msalConfig)
 
@@ -819,6 +820,8 @@ function AuthenticatedApp() {
           <Route path="/home"          element={<MaintenanceWall><OnboardingWall><HomeScreen /></OnboardingWall></MaintenanceWall>} />
           <Route path="/web-manager/*" element={<MaintenanceWall><WebManagerGate><WebManager /></WebManagerGate></MaintenanceWall>} />
           <Route path="/website/*" element={<MaintenanceWall><WebManagerGate><Website /></WebManagerGate></MaintenanceWall>} />
+          {/* DH HQ (preview). Gated on "dashboard" until phase 0 adds an "hq" permission. See docs/HQ.md. */}
+          <Route path="/hq/*"          element={<MaintenanceWall><OnboardingWall><PermissionGate permKey="dashboard"><HQLayout /></PermissionGate></OnboardingWall></MaintenanceWall>} />
           <Route path="/*"             element={<MaintenanceWall><OnboardingWall><PortalLayout /></OnboardingWall></MaintenanceWall>} />
         </Routes>
       </Suspense>

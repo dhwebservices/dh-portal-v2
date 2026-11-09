@@ -103,6 +103,28 @@ export default function TopBar() {
             </div>
           )
         })}
+        {can('dashboard') && (
+          <div
+            onClick={() => navigate('/hq')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 16px',
+              fontSize: '15px',
+              fontWeight: 600,
+              color: '#FFFFFF',
+              borderBottom: '3px solid transparent',
+              paddingTop: '3px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            HQ (preview)
+          </div>
+        )}
       </nav>
 
       {/* Right side */}
