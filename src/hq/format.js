@@ -38,5 +38,17 @@ export const sinceLabel = (value, today) => {
   return d.getFullYear() === t.getFullYear() ? shortDate(d) : fullDate(d)
 }
 
+// '2026-11-09' plus n days, as '2026-11-10'.
+export const addDays = (iso, n) => {
+  const d = toDate(iso)
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// The Sunday that ends the week of the given date (weeks run Monday to Sunday).
+export const endOfWeek = (iso) => addDays(iso, (7 - toDate(iso).getDay()) % 7)
+
+export const dayDate = (value) => `${dayShort(value)} ${shortDate(value)}` // "Wed 11 Nov"
+
 export const pounds = (amount) =>
   `£${Number(amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

@@ -408,6 +408,31 @@ export const jobs = [
   },
 ]
 
+// Notes on jobs, by job id. Kept apart so the job list above stays easy to read.
+export const jobNotes = {
+  j1: 'Poster is in Files. Thursdays from 8pm, every week until Christmas.',
+  j2: 'Menu and opening hours came in with the brief. Photos still to come from Megan.',
+  j4: 'Owen wants to start in January. Price the booking calendar as an extra.',
+}
+
+// Templates for repeat work. Each step becomes its own job, one day apart,
+// starting on the day you pick.
+export const jobTemplates = [
+  {
+    id: 'dh-local-7-days',
+    name: 'DH Local build, 7 days',
+    steps: [
+      'Kick-off call and get words and photos',
+      'Domain and Google listing',
+      'Build pages',
+      'Build pages',
+      'Client check',
+      'Changes',
+      'Go live and send the review link',
+    ],
+  },
+]
+
 export const bookings = [
   { id: 'b1', date: '2026-11-09', time: '11:00', title: 'Free call', clientId: 'valley-barbers', clientName: 'Valley Barbers', minutes: 30, assignee: 'jd' },
   { id: 'b2', date: '2026-11-09', time: '14:30', title: 'Handover', clientId: 'cwm-coffee', clientName: 'Cwm Coffee House', minutes: 45, assignee: 'dh' },
