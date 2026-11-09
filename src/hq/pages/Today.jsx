@@ -170,7 +170,7 @@ export default function Today() {
           { label: 'Needs a reply', phoneLabel: 'to reply', value: replies.length, note: overADay ? `${overADay} over a day` : null },
           { label: 'Missed calls', phoneLabel: 'missed calls', value: calls.length, tone: calls.length ? 'bad' : null, note: earliestCall ? `since ${hourDay(earliestCall.receivedAt)}` : null },
           { label: 'Jobs due this week', phoneLabel: 'jobs', value: dueJobs.length, note: overdue ? `${overdue} overdue` : null },
-          { label: `Paid in, ${money.month}`, value: pounds(money.paidIn), note: `of ${pounds(money.due)} due`, hideOnPhone: true },
+          { label: `Paid in, ${money.month}`, value: pounds(money.paidIn()), note: `of ${pounds(money.dueThisMonth())} due`, hideOnPhone: true },
         ]}
       />
       <div className="hq-today-grid">

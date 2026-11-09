@@ -139,6 +139,63 @@ export const clients = [
       { id: 'c7', name: 'Sian Thomas', role: 'owner', email: 'sian@example.com', phone: '01632 960107', clientArea: false },
     ],
   },
+  {
+    id: 'taff-street-tattoo',
+    name: 'Taff Street Tattoo',
+    type: 'Tattoo studio',
+    town: 'Pontypridd',
+    domain: 'taffstreettattoo.example.com',
+    status: 'client',
+    plan: 'dh-local',
+    monthly: 89,
+    clientSince: '2026-08-01',
+    owner: 'jd',
+    site: { status: 'up', checkedMinutesAgo: 3, sslExpires: '2027-02-10' },
+    visitors30d: 531,
+    owes: 220,
+    nextCharge: '2026-12-01',
+    contacts: [
+      { id: 'c8', name: 'Lowri Price', role: 'owner', email: 'lowri@example.com', phone: '01632 960109', clientArea: true },
+    ],
+  },
+  {
+    id: 'cefn-plumbing',
+    name: 'Cefn Plumbing & Heating',
+    type: 'Plumber',
+    town: 'Caerphilly',
+    domain: 'cefnplumbing.example.com',
+    status: 'client',
+    plan: 'care-plan',
+    monthly: 42,
+    clientSince: '2026-04-15',
+    owner: 'dh',
+    site: { status: 'up', checkedMinutesAgo: 5, sslExpires: '2027-04-01' },
+    visitors30d: 189,
+    owes: 120,
+    nextCharge: '2026-12-01',
+    contacts: [
+      { id: 'c9', name: 'Huw Davies', role: 'owner', email: 'huw@example.com', phone: '01632 960110', clientArea: false },
+    ],
+  },
+  {
+    id: 'bracken-florist',
+    name: 'Bracken & Bloom',
+    type: 'Florist',
+    town: 'Aberdare',
+    domain: 'brackenandbloom.example.com',
+    status: 'client',
+    plan: 'care-plan',
+    monthly: 42,
+    clientSince: '2026-11-03',
+    owner: 'jd',
+    site: { status: 'up', checkedMinutesAgo: 2, sslExpires: '2027-11-03' },
+    visitors30d: 74,
+    owes: 0,
+    nextCharge: '2026-12-03',
+    contacts: [
+      { id: 'c10', name: 'Nia Edwards', role: 'owner', email: 'nia@example.com', phone: '01632 960111', clientArea: true },
+    ],
+  },
 ]
 
 // Stage names and colours for client.status. Always shown as a word.
@@ -183,14 +240,22 @@ export const requests = [
   { id: 'r3', clientId: 'glow-beauty', title: 'Add the Christmas gift vouchers page', askedBy: 'Carys Morgan', askedAt: '2026-11-04T15:20:00', status: 'new' },
 ]
 
-// Invoices and receipts. status: 'paid' | 'due' | 'overdue'
+// Invoices and receipts. date: when it was sent. due: when it's due.
+// status: 'paid' | 'due' | 'overdue'
 export const invoices = [
-  { id: 'INV-1042', clientId: 'red-kite-inn', date: '2026-11-02', description: 'Care plan, November', amount: 42, status: 'paid' },
-  { id: 'INV-1031', clientId: 'red-kite-inn', date: '2026-10-23', description: 'Website build, balance', amount: 450, status: 'paid' },
-  { id: 'INV-1019', clientId: 'red-kite-inn', date: '2026-10-01', description: 'Website build, deposit', amount: 300, status: 'paid' },
-  { id: 'INV-1045', clientId: 'glow-beauty', date: '2026-11-05', description: 'DH Local, November', amount: 89, status: 'overdue' },
-  { id: 'INV-1036', clientId: 'glow-beauty', date: '2026-10-05', description: 'DH Local, October', amount: 89, status: 'paid' },
-  { id: 'INV-0870', clientId: 'hilltop-grooming', date: '2025-03-04', description: 'Website build', amount: 600, status: 'paid' },
+  { id: 'INV-1048', clientId: 'cefn-plumbing', date: '2026-11-06', due: '2026-11-13', description: 'Extra page: emergency call-outs', amount: 120, status: 'due' },
+  { id: 'INV-1047', clientId: 'cwm-coffee', date: '2026-11-06', due: '2026-11-16', description: 'DH Local set-up', amount: 199, status: 'due' },
+  { id: 'INV-1046', clientId: 'taff-street-tattoo', date: '2026-11-04', due: '2026-11-18', description: 'Logo and signage artwork', amount: 220, status: 'due' },
+  { id: 'INV-1045', clientId: 'glow-beauty', date: '2026-11-05', due: '2026-11-05', description: 'DH Local, November', amount: 89, status: 'overdue' },
+  { id: 'INV-1044', clientId: 'bracken-florist', date: '2026-11-03', due: '2026-11-03', description: 'Care plan, November', amount: 42, status: 'paid' },
+  { id: 'INV-1043', clientId: 'bracken-florist', date: '2026-11-03', due: '2026-11-03', description: 'Website build, balance', amount: 650, status: 'paid' },
+  { id: 'INV-1042', clientId: 'red-kite-inn', date: '2026-11-02', due: '2026-11-02', description: 'Care plan, November', amount: 42, status: 'paid' },
+  { id: 'INV-1041', clientId: 'taff-street-tattoo', date: '2026-11-01', due: '2026-11-01', description: 'DH Local, November', amount: 89, status: 'paid' },
+  { id: 'INV-1040', clientId: 'cefn-plumbing', date: '2026-11-01', due: '2026-11-01', description: 'Care plan, November', amount: 42, status: 'paid' },
+  { id: 'INV-1036', clientId: 'glow-beauty', date: '2026-10-05', due: '2026-10-05', description: 'DH Local, October', amount: 89, status: 'paid' },
+  { id: 'INV-1031', clientId: 'red-kite-inn', date: '2026-10-23', due: '2026-10-23', description: 'Website build, balance', amount: 450, status: 'paid' },
+  { id: 'INV-1019', clientId: 'red-kite-inn', date: '2026-10-01', due: '2026-10-01', description: 'Website build, deposit', amount: 300, status: 'paid' },
+  { id: 'INV-0870', clientId: 'hilltop-grooming', date: '2025-03-04', due: '2025-03-04', description: 'Website build', amount: 600, status: 'paid' },
 ]
 
 // Files we keep for a client (stored in R2 later).
@@ -227,6 +292,13 @@ export const activity = [
   { id: 'h15', clientId: 'bay-caravans', at: '2026-11-03T11:00:00', source: 'agreement', text: 'Proposal sent' },
   { id: 'h16', clientId: 'hilltop-grooming', at: '2026-08-14T10:00:00', source: 'email', text: 'Sian closed the business; site taken down' },
   { id: 'h17', clientId: 'hilltop-grooming', at: '2025-03-20T10:00:00', source: 'job', text: 'Site launched' },
+  { id: 'h18', clientId: 'taff-street-tattoo', at: '2026-11-04T12:30:00', source: 'email', text: 'Lowri approved the signage artwork' },
+  { id: 'h19', clientId: 'taff-street-tattoo', at: '2026-11-01T06:00:00', source: 'payment', text: 'DH Local paid · £89.00' },
+  { id: 'h20', clientId: 'cefn-plumbing', at: '2026-11-06T10:15:00', source: 'call', text: 'Huw asked for an emergency call-outs page' },
+  { id: 'h21', clientId: 'cefn-plumbing', at: '2026-11-01T06:00:00', source: 'payment', text: 'Care plan paid · £42.00' },
+  { id: 'h22', clientId: 'bracken-florist', at: '2026-11-03T15:00:00', source: 'job', text: 'Site launched on brackenandbloom.example.com' },
+  { id: 'h23', clientId: 'bracken-florist', at: '2026-11-03T15:20:00', source: 'payment', text: 'Build paid in full' },
+  { id: 'h24', clientId: 'bracken-florist', at: '2026-11-02T11:00:00', source: 'email', text: 'Nia signed off the final pages' },
 ]
 
 // Sources that count as talking to the client, for "Last contact".
@@ -442,23 +514,34 @@ export const bookings = [
   { id: 'b3', date: '2026-11-10', time: '10:00', title: 'Free call', clientId: 'bay-caravans', clientName: 'Bayview Caravan Hire', minutes: 30, assignee: 'dh' },
 ]
 
-// Money, in pounds. For the Money screen and the Today strip.
+// Money, in pounds. Everything is worked out from `invoices` above so the
+// Money screen and the Today strip always agree.
+const THIS_MONTH = EXAMPLE_TODAY.slice(0, 7) // '2026-11'
 export const money = {
   month: 'November',
-  paidIn: 1428,
-  due: 2206,
-  lastMonthPaidIn: 1960,
-  subscriptions: { dhLocal: 9, carePlans: 6 },
-  overdue: [{ clientId: 'glow-beauty', amount: 89, reason: 'Card declined' }],
+  // Paid invoices dated this month.
+  paidIn: () => invoices.filter((i) => i.status === 'paid' && i.date.startsWith(THIS_MONTH)).reduce((s, i) => s + i.amount, 0),
+  // Everything due this month, paid or not.
+  dueThisMonth: () => invoices.filter((i) => i.due.startsWith(THIS_MONTH)).reduce((s, i) => s + i.amount, 0),
+  owed: () => invoices.filter((i) => i.status !== 'paid'),
+  overdue: () => invoices.filter((i) => i.status === 'overdue'),
 }
 
-// storeStatus: 'live' | 'waiting' | 'rejected'
+// Monthly plans across clients (not past ones).
+export const monthlyPlans = (plan) => clients.filter((c) => c.status === 'client' && c.plan === plan)
+
+// Our apps. storeStatus: 'live' | 'waiting' | 'rejected'
+//   waitingAt / waitingDays: which store has it and for how long
+//   admin: where it's managed. 'iphone' = a screen in the staff iPhone app;
+//          a path = a web page in the portal.
+//   storeUrl: the public store page. Left empty in the example data: add the
+//          real App Store / Google Play addresses with the real data.
 export const apps = [
-  { id: 'bill-pal', name: 'Bill Pal', version: '2.3.1', storeStatus: 'live', rating: 4.4, newReviews: 1 },
-  { id: 'fam-and-a-half', name: 'Fam & a Half', version: '1.8.0', storeStatus: 'live', rating: 4.7, newReviews: 0 },
-  { id: 'fish-tank', name: 'Fish Tank', version: '1.2.4', storeStatus: 'live', rating: 4.2, newReviews: 0 },
-  { id: 'crossword', name: 'CrossWord', version: '1.0.0', storeStatus: 'waiting', waitingDays: 7, rating: null, newReviews: 0 },
-  { id: 'hush', name: 'Hush', version: '1.1.0', storeStatus: 'live', rating: 4.5, newReviews: 0 },
+  { id: 'bill-pal', name: 'Bill Pal', platforms: 'iPhone and Android', version: '2.3.1', build: 87, builtAt: '2026-11-03', storeStatus: 'live', rating: 4.4, newReviews: 1, admin: 'iphone', storeUrl: null },
+  { id: 'fam-and-a-half', name: 'Fam & a Half', platforms: 'iPhone', version: '1.8.0', build: 52, builtAt: '2026-10-28', storeStatus: 'live', rating: 4.7, newReviews: 0, admin: 'iphone', storeUrl: null },
+  { id: 'fish-tank', name: 'Fish Tank', platforms: 'iPhone', version: '1.2.4', build: 31, builtAt: '2026-10-20', storeStatus: 'live', rating: 4.2, newReviews: 0, admin: 'iphone', storeUrl: null },
+  { id: 'case-files', name: 'Case Files', platforms: 'iPhone', version: '1.0.0', build: 12, builtAt: '2026-11-02', storeStatus: 'waiting', waitingAt: 'Apple', waitingDays: 7, rating: null, newReviews: 0, admin: null, storeUrl: null },
+  { id: 'staff-portal', name: 'Staff Portal', platforms: 'Web and iPhone', version: '3.4.0', build: 214, builtAt: '2026-11-08', storeStatus: 'live', rating: null, newReviews: 0, admin: '/dashboard', storeUrl: null, note: 'Staff only' },
 ]
 
 // ---- Helpers for counts in the menu ----

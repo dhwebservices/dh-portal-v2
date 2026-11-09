@@ -607,6 +607,12 @@
 .hq-spark-read { font-size: 12px; color: var(--hq-muted); margin-top: 4px; }
 .hq-spark-read b { color: var(--hq-ink); font-weight: 600; }
 
+/* ---------- Money and Apps ---------- */
+.hq-toolbar-note { margin: 0; font-size: 13px; }
+.hq-page-foot { margin: 12px 0 0; font-size: 13px; }
+.hq-cell-two { display: flex; flex-direction: column; line-height: 1.35; }
+.hq-cell-two small { font-size: 12px; color: var(--hq-muted); }
+
 /* ---------- Jobs ---------- */
 .hq-job-groups { display: flex; flex-direction: column; gap: 16px; }
 .hq-group-count { font-family: var(--hq-mono); font-size: 12px; font-weight: 400; color: var(--hq-muted); margin-left: 4px; }
