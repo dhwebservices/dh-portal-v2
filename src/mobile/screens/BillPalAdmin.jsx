@@ -68,6 +68,8 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
   const [chatDraft, setChatDraft] = useState('')
   const [chatStart, setChatStart] = useState('')
   const [msg, setMsg] = useState({ title: '', body: '' })
+  const [audience, setAudience] = useState('everyone')
+  const [picked, setPicked] = useState({})
   const [payees, setPayees] = useState([])
   const [signups, setSignups] = useState([])
   const [reports, setReports] = useState([])
@@ -444,6 +446,15 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
           }}>Send</button>
         </div>
 
+        <h3 className="fg-h">Notification</h3>
+        <div className="fg-form">
+          <p className="fg-meta">{u.devices ? 'Sends a notification to their phone only. Nothing is added to their support chat.' : 'They have notifications turned off, so a notification would not reach them. Use the message box above instead.'}</p>
+          <button disabled={!u.devices} onClick={() => {
+            setPicked({ [u.id]: { id: u.id, firstName: u.firstName, email: u.email, devices: u.devices } })
+            setAudience('some'); setProfile(null); setTab('message'); setOutcome(null)
+          }}>Send them a notification</button>
+        </div>
+
         <h3 className="fg-h">Bills</h3>
         {theirBills.map(b => (
           <div key={b.id} className="fg-card">
@@ -488,13 +499,80 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
   }
 
   function renderMessage() {
-    const send = () => act(r => r.note || `Sent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}.`, () => call('/notify', { method: 'POST', body: JSON.stringify(msg) }))
+    const chosen = Object.values(picked)
+    const toggle = u => setPicked(prev => {
+      const next = { ...prev }
+      if (next[u.id]) delete next[u.id]
+      else next[u.id] = u
+      return next
+    })
+    const reachable = users.filter(u => u.devices !== 0)
+    const allShown = reachable.length > 0 && reachable.every(u => picked[u.id])
+    const name = u => u.firstName || u.email || (u.apple ? 'Apple user, email hidden' : '(no name)')
+    const ready = msg.title.trim() && msg.body.trim() && (audience === 'everyone' || chosen.length)
+    const send = async () => {
+      const r = await act(res => {
+        if (res.note) return res.note
+        const sent = `Sent to ${res.sent} ${res.sent === 1 ? 'person' : 'people'}.`
+        return res.noPhone ? `${sent} ${res.noPhone} had notifications turned off.` : sent
+      }, () => call('/notify', {
+        method: 'POST',
+        body: JSON.stringify({ ...msg, ...(audience === 'some' ? { userIds: chosen.map(u => u.id) } : {}) }),
+      }))
+      if (r) { setMsg({ title: '', body: '' }); setPicked({}) }
+    }
     return (
       <div className="fg-form">
-        <p className="fg-note">Sends a notification to everyone who allowed notifications in Bill Pal. To message one person, open them in People.</p>
+        <div className="fg-seg">
+          <button className={audience === 'everyone' ? 'active' : ''} onClick={() => setAudience('everyone')}>Everyone</button>
+          <button className={audience === 'some' ? 'active' : ''} onClick={() => setAudience('some')}>Choose people{chosen.length ? ` (${chosen.length})` : ''}</button>
+        </div>
+        <p className="fg-note">
+          {audience === 'everyone'
+            ? 'Sends a notification to everyone who allowed notifications in Bill Pal.'
+            : 'Sends a notification to the people you tick. People with notifications turned off can\'t be chosen.'}
+        </p>
+
+        {audience === 'some' && (
+          <>
+            {chosen.length > 0 && (
+              <div className="fg-card">
+                <p className="fg-meta" style={{ marginTop: 0 }}>Sending to: {chosen.map(name).join(', ')}</p>
+                <div className="fg-inline"><button onClick={() => setPicked({})}>Clear</button></div>
+              </div>
+            )}
+            <form className="fg-search" onSubmit={e => { e.preventDefault(); load() }}>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name or email" />
+              <button type="submit">Search</button>
+            </form>
+            {reachable.length > 1 && (
+              <div className="fg-inline">
+                <button onClick={() => setPicked(prev => {
+                  const next = { ...prev }
+                  reachable.forEach(u => { if (allShown) delete next[u.id]; else next[u.id] = u })
+                  return next
+                })}>{allShown ? 'Untick everyone shown' : `Tick all ${reachable.length} shown`}</button>
+              </div>
+            )}
+            <div className="fg-list">
+              {users.map(u => (
+                <div key={u.id} className="fg-check">
+                  <input type="checkbox" id={`bp-u-${u.id}`} checked={!!picked[u.id]} disabled={u.devices === 0} onChange={() => toggle(u)} />
+                  <label htmlFor={`bp-u-${u.id}`}>
+                    {name(u)} <span className="fg-meta">{u.devices === 0 ? 'notifications off' : u.email || ''}</span>
+                  </label>
+                </div>
+              ))}
+              {!users.length && <p className="fg-note">Nobody found.</p>}
+            </div>
+          </>
+        )}
+
         <input value={msg.title} maxLength={80} onChange={e => setMsg({ ...msg, title: e.target.value })} placeholder="Title" />
         <textarea rows={3} value={msg.body} maxLength={300} onChange={e => setMsg({ ...msg, body: e.target.value })} placeholder="Message" />
-        <button className="fg-primary" disabled={busy || !msg.title.trim() || !msg.body.trim()} onClick={send}>Send to everyone</button>
+        <button className="fg-primary" disabled={busy || !ready} onClick={send}>
+          {busy ? 'Sending…' : audience === 'everyone' ? 'Send to everyone' : `Send to ${chosen.length || 'no'} ${chosen.length === 1 ? 'person' : 'people'}`}
+        </button>
       </div>
     )
   }
