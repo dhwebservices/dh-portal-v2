@@ -10,26 +10,19 @@ import {
   EXAMPLE_TODAY,
   staff,
   clients,
-  jobs as exampleJobs,
-  jobNotes,
   jobTemplates,
   findClient,
   findStaff,
 } from '../exampleData'
 import { addDays, dayDate, endOfWeek, longDate } from '../format'
+import { useHQStore, setJobs } from '../sessionStore'
 
 // Jobs: work to do, grouped Overdue / This week / Later / Done, for me or everyone.
 // The open job lives in the address (?job=j1) so Today's links open it here.
-// Ticks, notes and new jobs are kept in this page only until it is refreshed
-// (example data; saving comes with the HQ API in phase 0).
+// Ticks, notes and new jobs are kept on screen only until the page is refreshed
+// (see sessionStore.js; saving comes with the HQ API in phase 0).
 
 const WEEK_END = endOfWeek(EXAMPLE_TODAY)
-
-const startingJobs = () => exampleJobs.map((j) => ({
-  ...j,
-  notes: jobNotes[j.id] || '',
-  checklist: j.checklist.map((item) => ({ ...item })),
-}))
 
 const groupOf = (job) => {
   if (job.done) return 'done'
@@ -282,7 +275,8 @@ function NewJob({ me, onClose, onCreate }) {
 export default function Jobs() {
   const me = useMe()
   const [params, setParams] = useSearchParams()
-  const [list, setList] = useState(startingJobs)
+  const { jobs: list } = useHQStore()
+  const setList = setJobs
   const [message, setMessage] = useState('')
 
   const who = params.get('who') === 'everyone' || !me ? 'everyone' : 'mine'
