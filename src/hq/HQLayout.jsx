@@ -7,6 +7,7 @@ import Placeholder from './pages/Placeholder'
 import Today from './pages/Today'
 import Inbox from './pages/Inbox'
 import Clients from './pages/Clients'
+import ClientPage from './pages/ClientPage'
 import Jobs from './pages/Jobs'
 import Money from './pages/Money'
 import Apps from './pages/Apps'
@@ -24,6 +25,7 @@ export default function HQLayout() {
             <Route index element={<Today />} />
             <Route path="inbox" element={<Inbox />} />
             <Route path="clients" element={<Clients />} />
+            <Route path="clients/:id" element={<ClientPage />} />
             <Route path="jobs" element={<Jobs />} />
             <Route path="money" element={<Money />} />
             <Route path="apps" element={<Apps />} />

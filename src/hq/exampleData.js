@@ -11,11 +11,14 @@
 // Dates are set around Monday 9 November 2026, the "today" of the mockups.
 
 export const EXAMPLE_TODAY = '2026-11-09'
+// "Now" for the example data: 9am on EXAMPLE_TODAY. Used for "Over a day" and similar.
+export const EXAMPLE_NOW = '2026-11-09T09:00:00'
 
 // Our side. Ids match the `assignee` fields below.
+// tone picks the avatar colour (see Avatar.jsx).
 export const staff = [
-  { id: 'dh', name: 'David Hooper', initials: 'DH' },
-  { id: 'jd', name: 'Jack Deane', initials: 'JD' },
+  { id: 'dh', name: 'David Hooper', initials: 'DH', tone: 'ink' },
+  { id: 'jd', name: 'Jack Deane', initials: 'JD', tone: 'blue' },
 ]
 
 // status: 'lead' | 'proposal' | 'client' | 'past'
@@ -288,9 +291,9 @@ export const jobs = [
 ]
 
 export const bookings = [
-  { id: 'b1', date: '2026-11-09', time: '11:00', title: 'Free call', clientName: 'Valley Barbers', minutes: 30, assignee: 'jd' },
-  { id: 'b2', date: '2026-11-09', time: '14:30', title: 'Handover', clientName: 'Cwm Coffee House', minutes: 45, assignee: 'dh' },
-  { id: 'b3', date: '2026-11-10', time: '10:00', title: 'Free call', clientName: 'Bayview Caravan Hire', minutes: 30, assignee: 'dh' },
+  { id: 'b1', date: '2026-11-09', time: '11:00', title: 'Free call', clientId: 'valley-barbers', clientName: 'Valley Barbers', minutes: 30, assignee: 'jd' },
+  { id: 'b2', date: '2026-11-09', time: '14:30', title: 'Handover', clientId: 'cwm-coffee', clientName: 'Cwm Coffee House', minutes: 45, assignee: 'dh' },
+  { id: 'b3', date: '2026-11-10', time: '10:00', title: 'Free call', clientId: 'bay-caravans', clientName: 'Bayview Caravan Hire', minutes: 30, assignee: 'dh' },
 ]
 
 // Money, in pounds. For the Money screen and the Today strip.
@@ -325,3 +328,11 @@ export const jobsDueThisWeek = () => jobs.filter((j) => !j.done && j.due <= '202
 
 // Apps that need someone to look: waiting at a store, or new reviews.
 export const appsNeedingAttention = () => apps.filter((a) => a.storeStatus !== 'live' || a.newReviews > 0)
+
+// Waiting more than 24 hours at EXAMPLE_NOW.
+export const isOverADay = (iso) => new Date(EXAMPLE_NOW) - new Date(iso) > 24 * 60 * 60 * 1000
+
+// Missed calls and voicemails still open.
+export const missedCalls = () => openConversations().filter((c) => c.source === 'call' || c.source === 'voicemail')
+
+export const bookingsOn = (date) => bookings.filter((b) => b.date === date).sort((a, b) => a.time.localeCompare(b.time))

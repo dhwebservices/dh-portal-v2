@@ -2,6 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { mainNav, businessNav } from '../nav'
 import Avatar from './Avatar'
+import { staff } from '../exampleData'
 
 function NavItem({ item }) {
   const count = item.count ? item.count() : 0
@@ -23,6 +24,7 @@ function NavItem({ item }) {
 export default function Sidebar() {
   const { user } = useAuth()
   const name = user?.name || user?.email || ''
+  const known = staff.find((s) => s.name.toLowerCase() === String(user?.name || '').trim().toLowerCase())
 
   return (
     <aside className="hq-side" aria-label="HQ menu">
@@ -35,7 +37,7 @@ export default function Sidebar() {
       <div className="hq-side-foot">
         <Link to="/dashboard" className="hq-old-link">Back to the old portal</Link>
         {name ? (
-          <div className="hq-me"><Avatar name={name} /><span>{name}</span></div>
+          <div className="hq-me"><Avatar name={name} tone={known?.tone} /><span>{name}</span></div>
         ) : null}
       </div>
     </aside>

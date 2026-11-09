@@ -348,6 +348,181 @@
   }
 }
 
+/* ---------- Shared pieces: avatar tones, tags, panels, rows, figure strip ---------- */
+.hq-avatar-ink { background: #2E3538; }
+.hq-avatar-blue { background: #24527A; }
+.hq-avatar-brown { background: #6B4E16; }
+.hq-show-phone { display: none; }
+
+.hq-tag {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 18px;
+  border-radius: 4px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+.hq-tag-ok { background: var(--hq-ok-bg); color: var(--hq-ok); }
+.hq-tag-warn { background: var(--hq-warn-bg); color: var(--hq-warn); }
+.hq-tag-bad { background: var(--hq-bad-bg); color: var(--hq-bad); }
+.hq-tag-info { background: var(--hq-info-bg); color: var(--hq-info); }
+.hq-tag-mute { background: var(--hq-bg); color: var(--hq-muted); }
+
+.hq-src {
+  display: inline-block;
+  flex: none;
+  min-width: 62px;
+  text-align: center;
+  font-family: var(--hq-mono);
+  font-size: 10.5px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--hq-line);
+  border-radius: 4px;
+  padding: 0 6px;
+  color: var(--hq-ink2);
+  white-space: nowrap;
+}
+
+.hq-panel {
+  background: var(--hq-paper);
+  border: 1px solid var(--hq-line);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 0;
+}
+.hq-panel-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--hq-line);
+}
+.hq-panel-hd h2 { font-family: var(--hq-sans); font-size: 14px; font-weight: 600; line-height: 1.3; }
+.hq .hq-panel-link { font-size: 12px; color: var(--hq-muted); white-space: nowrap; }
+.hq .hq-panel-link:hover { color: var(--hq-red-ink); }
+.hq-panel-empty { padding: 10px 14px; color: var(--hq-muted); }
+
+.hq-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--hq-line);
+  color: var(--hq-ink);
+}
+.hq-row:last-child { border-bottom: 0; }
+.hq .hq-row.is-link:hover { background: #FAFAF9; }
+.hq-row-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hq-row-text b { font-weight: 600; }
+.hq-row-detail { color: var(--hq-muted); }
+.hq-row-text.is-done, .hq-row-text.is-done b { color: var(--hq-muted); font-weight: 400; text-decoration: line-through; }
+.hq-row-meta { display: flex; align-items: center; gap: 6px; flex: none; }
+.hq-row-when {
+  flex: none;
+  font-family: var(--hq-mono);
+  font-size: 11.5px;
+  color: var(--hq-muted);
+  white-space: nowrap;
+}
+.hq-row-when.is-lead { min-width: 40px; }
+.hq-check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 1.5px solid #9AA0A3;
+  border-radius: 3px;
+}
+.hq-check.is-done { background: var(--hq-ink); border-color: var(--hq-ink); }
+
+.hq-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--hq-strip-n, 4), minmax(0, 1fr));
+  margin: 0 0 16px;
+  background: var(--hq-paper);
+  border: 1px solid var(--hq-line);
+  border-radius: 8px;
+}
+.hq-strip-item { padding: 10px 14px; border-right: 1px solid var(--hq-line); min-width: 0; }
+.hq-strip-item:last-child { border-right: 0; }
+.hq-strip dt { font-size: 12px; color: var(--hq-muted); }
+.hq-strip dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hq-strip-value {
+  font-family: var(--hq-display);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hq-strip dd small { font-size: 12px; color: var(--hq-muted); margin-left: 6px; }
+
+/* ---------- Today ---------- */
+.hq-today-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.hq-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Phones: Today follows "HQ in the staff iPhone app" */
+@media (max-width: 767.98px) {
+  .hq-hide-phone { display: none !important; }
+  .hq-show-phone { display: inline; }
+
+  .hq-ph {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 2px;
+    margin: -16px -16px 14px;
+    padding: 12px 18px 18px;
+    background: var(--hq-ink);
+    color: #FFFFFF;
+  }
+  .hq-ph h1 { color: #FFFFFF; }
+  .hq-ph .hq-sub { color: #FFFFFF; opacity: 0.8; font-size: 12px; }
+
+  .hq-strip {
+    grid-template-columns: repeat(var(--hq-strip-phone-n, 3), minmax(0, 1fr));
+    border-radius: 10px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .hq-strip-item {
+    padding: 9px 4px;
+    display: flex;
+    flex-direction: column-reverse;
+    border-right: 0;
+    border-left: 1px solid var(--hq-line);
+  }
+  .hq-strip-item:first-child { border-left: 0; }
+  .hq-strip dt { font-size: 11px; }
+  .hq-strip-value.is-bad { color: var(--hq-bad); }
+  .hq-strip dd small { display: none; }
+
+  .hq-panel { border-radius: 10px; }
+  .hq-row-detail { display: none; }
+  .hq-compact-phone .hq-row-meta { display: none; }
+  .hq-today-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .hq-stack { gap: 10px; }
+  /* Phone order from the mockup: replies, bookings, then jobs and apps */
+  .hq-today-grid .hq-stack { display: contents; }
+  .hq-today-replies { order: 1; }
+  .hq-today-bookings { order: 2; }
+  .hq-today-jobs { order: 3; }
+  .hq-today-apps { order: 4; }
+  .hq-src { min-width: 46px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hq * { transition: none !important; }
 }
