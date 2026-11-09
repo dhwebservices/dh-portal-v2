@@ -21,5 +21,22 @@ export const hourDay = (value) => {
   return `${label} ${DAYS[d.getDay()]}`
 }
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+export const shortDate = (value) => { const d = toDate(value); return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}` } // "7 Nov"
+export const fullDate = (value) => { const d = toDate(value); return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` } // "7 Nov 2026"
+export const monthYear = (value) => { const d = toDate(value); return `${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` } // "Oct 2026"
+
+// "Today", "Yesterday", "Sat" within the week, then "7 Nov" (or "14 Aug 2025" in another year).
+export const sinceLabel = (value, today) => {
+  const d = toDate(value)
+  const t = toDate(today)
+  const days = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return dayShort(d)
+  return d.getFullYear() === t.getFullYear() ? shortDate(d) : fullDate(d)
+}
+
 export const pounds = (amount) =>
   `£${Number(amount || 0).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

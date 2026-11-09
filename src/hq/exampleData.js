@@ -120,7 +120,125 @@ export const clients = [
       { id: 'c6', name: 'Owen Jenkins', role: 'owner', email: 'owen@example.com', phone: '01632 960106', clientArea: false },
     ],
   },
+  {
+    id: 'hilltop-grooming',
+    name: 'Hilltop Dog Grooming',
+    type: 'Dog groomer',
+    town: 'Llantrisant',
+    domain: 'hilltopgrooming.example.com',
+    status: 'past',
+    plan: null,
+    monthly: null,
+    clientSince: '2025-03-04',
+    owner: 'dh',
+    site: null,
+    visitors30d: null,
+    owes: 0,
+    nextCharge: null,
+    contacts: [
+      { id: 'c7', name: 'Sian Thomas', role: 'owner', email: 'sian@example.com', phone: '01632 960107', clientArea: false },
+    ],
+  },
 ]
+
+// Stage names and colours for client.status. Always shown as a word.
+export const STAGES = [
+  { id: 'lead', label: 'Lead', tone: 'info' },
+  { id: 'proposal', label: 'Proposal sent', tone: 'warn' },
+  { id: 'client', label: 'Client', tone: 'ok' },
+  { id: 'past', label: 'Past', tone: 'mute' },
+]
+export const stageFor = (status) => STAGES.find((s) => s.id === status) || { id: status, label: status, tone: 'mute' }
+
+export const PLAN_LABELS = {
+  'dh-local': 'DH Local',
+  'care-plan': 'Care plan',
+  'build-only': 'Build only',
+}
+
+// Visitors per day for the last 30 days (oldest first), for sites we look after.
+// Made up, but steady enough to look like a small local business.
+const dailyVisitors = (total, seed) => {
+  const raw = Array.from({ length: 30 }, (_, i) => {
+    const weekend = [5, 6].includes((i + 2) % 7) ? 1.35 : 1
+    const wobble = 0.75 + (((i * 37 + seed * 11) % 23) / 23) * 0.5
+    const growth = 0.8 + (i / 29) * 0.4
+    return weekend * wobble * growth
+  })
+  const sum = raw.reduce((a, b) => a + b, 0)
+  const days = raw.map((v) => Math.max(1, Math.round((v / sum) * total)))
+  days[29] += total - days.reduce((a, b) => a + b, 0)
+  return days
+}
+export const visitorsDaily = {
+  'red-kite-inn': dailyVisitors(412, 3),
+  'glow-beauty': dailyVisitors(268, 7),
+}
+
+// Change requests from clients (from the client area, email or a call).
+// status: 'new' | 'being-done' | 'done'
+export const requests = [
+  { id: 'r1', clientId: 'red-kite-inn', title: 'Quiz night on What\'s on', askedBy: 'Ffion Lewis', askedAt: '2026-11-07T11:05:00', status: 'being-done', conversationId: 'm2' },
+  { id: 'r2', clientId: 'red-kite-inn', title: 'New Sunday opening hours', askedBy: 'Gareth Pryce', askedAt: '2026-10-30T09:40:00', status: 'done' },
+  { id: 'r3', clientId: 'glow-beauty', title: 'Add the Christmas gift vouchers page', askedBy: 'Carys Morgan', askedAt: '2026-11-04T15:20:00', status: 'new' },
+]
+
+// Invoices and receipts. status: 'paid' | 'due' | 'overdue'
+export const invoices = [
+  { id: 'INV-1042', clientId: 'red-kite-inn', date: '2026-11-02', description: 'Care plan, November', amount: 42, status: 'paid' },
+  { id: 'INV-1031', clientId: 'red-kite-inn', date: '2026-10-23', description: 'Website build, balance', amount: 450, status: 'paid' },
+  { id: 'INV-1019', clientId: 'red-kite-inn', date: '2026-10-01', description: 'Website build, deposit', amount: 300, status: 'paid' },
+  { id: 'INV-1045', clientId: 'glow-beauty', date: '2026-11-05', description: 'DH Local, November', amount: 89, status: 'overdue' },
+  { id: 'INV-1036', clientId: 'glow-beauty', date: '2026-10-05', description: 'DH Local, October', amount: 89, status: 'paid' },
+  { id: 'INV-0870', clientId: 'hilltop-grooming', date: '2025-03-04', description: 'Website build', amount: 600, status: 'paid' },
+]
+
+// Files we keep for a client (stored in R2 later).
+export const files = [
+  { id: 'f1', clientId: 'red-kite-inn', name: 'red-kite-logo.svg', size: '24 KB', addedAt: '2026-10-02', addedBy: 'Gareth Pryce' },
+  { id: 'f2', clientId: 'red-kite-inn', name: 'quiz-poster.jpg', size: '1.2 MB', addedAt: '2026-11-07', addedBy: 'Ffion Lewis' },
+  { id: 'f3', clientId: 'red-kite-inn', name: 'handover-pack.pdf', size: '860 KB', addedAt: '2026-10-28', addedBy: 'Jack Deane' },
+  { id: 'f4', clientId: 'glow-beauty', name: 'salon-photos.zip', size: '14 MB', addedAt: '2026-06-15', addedBy: 'Carys Morgan' },
+]
+
+// Proposals and agreements. status: 'draft' | 'sent' | 'signed'
+export const agreements = [
+  { id: 'a1', clientId: 'red-kite-inn', title: 'Website proposal and care plan', sentAt: '2026-09-03', status: 'signed', signedBy: 'Gareth Pryce', signedAt: '2026-09-20' },
+  { id: 'a2', clientId: 'glow-beauty', title: 'DH Local agreement', sentAt: '2026-06-08', status: 'signed', signedBy: 'Carys Morgan', signedAt: '2026-06-12' },
+  { id: 'a3', clientId: 'bay-caravans', title: 'Website proposal: booking calendar', sentAt: '2026-11-03', status: 'sent' },
+]
+
+// Client history, newest first per client. source uses the same names as SourceTag.
+export const activity = [
+  { id: 'h1', clientId: 'red-kite-inn', at: '2026-11-07T11:05:00', source: 'client', text: 'Ffion asked for the quiz night on What\'s on' },
+  { id: 'h2', clientId: 'red-kite-inn', at: '2026-11-02T08:00:00', source: 'payment', text: 'Care plan paid · £42.00' },
+  { id: 'h3', clientId: 'red-kite-inn', at: '2026-10-30T09:40:00', source: 'email', text: 'Gareth asked for new Sunday opening hours' },
+  { id: 'h4', clientId: 'red-kite-inn', at: '2026-10-28T16:00:00', source: 'job', text: 'Site launched on redkiteinn.example.com' },
+  { id: 'h5', clientId: 'red-kite-inn', at: '2026-10-23T10:12:00', source: 'payment', text: 'Build paid in full' },
+  { id: 'h6', clientId: 'red-kite-inn', at: '2026-09-20T19:30:00', source: 'agreement', text: 'Proposal accepted, signed online' },
+  { id: 'h7', clientId: 'red-kite-inn', at: '2026-09-03T14:00:00', source: 'email', text: 'Proposal sent' },
+  { id: 'h8', clientId: 'glow-beauty', at: '2026-11-07T09:12:00', source: 'payment', text: 'DH Local payment failed: card declined' },
+  { id: 'h9', clientId: 'glow-beauty', at: '2026-11-04T15:20:00', source: 'client', text: 'Carys asked for a gift vouchers page' },
+  { id: 'h10', clientId: 'glow-beauty', at: '2026-06-20T12:00:00', source: 'job', text: 'Site launched on glowbeautyrooms.example.com' },
+  { id: 'h11', clientId: 'cwm-coffee', at: '2026-11-08T20:14:00', source: 'website', text: 'New brief from the website' },
+  { id: 'h12', clientId: 'valley-barbers', at: '2026-11-09T08:15:00', source: 'text', text: 'Rhys texted to check today\'s free call' },
+  { id: 'h13', clientId: 'valley-barbers', at: '2026-11-02T13:30:00', source: 'call', text: 'Rhys rang about a website, booked a free call' },
+  { id: 'h14', clientId: 'bay-caravans', at: '2026-11-07T16:40:00', source: 'email', text: 'Owen replied to the quote' },
+  { id: 'h15', clientId: 'bay-caravans', at: '2026-11-03T11:00:00', source: 'agreement', text: 'Proposal sent' },
+  { id: 'h16', clientId: 'hilltop-grooming', at: '2026-08-14T10:00:00', source: 'email', text: 'Sian closed the business; site taken down' },
+  { id: 'h17', clientId: 'hilltop-grooming', at: '2025-03-20T10:00:00', source: 'job', text: 'Site launched' },
+]
+
+// Sources that count as talking to the client, for "Last contact".
+const CONTACT_SOURCES = ['client', 'email', 'call', 'voicemail', 'text', 'website', 'booking']
+
+export const historyFor = (clientId) =>
+  activity.filter((a) => a.clientId === clientId).sort((a, b) => b.at.localeCompare(a.at))
+
+export const lastContactFor = (clientId) => {
+  const times = historyFor(clientId).filter((a) => CONTACT_SOURCES.includes(a.source)).map((a) => a.at)
+  return times.sort().pop() || null
+}
 
 // One row per inbox conversation.
 // source: 'call' | 'voicemail' | 'text' | 'email' | 'website' | 'client' | 'app' | 'payment' | 'booking'
