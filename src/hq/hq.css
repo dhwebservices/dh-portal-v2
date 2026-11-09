@@ -436,14 +436,30 @@
   white-space: nowrap;
 }
 .hq-row-when.is-lead { min-width: 40px; }
+/* The tick box. Same look everywhere: Today's rows (.hq-check) and the
+   Jobs screen's clickable box (.hq-check-btn) share the white tick below. */
 .hq-check {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
   width: 14px;
   height: 14px;
   flex: none;
   border: 1.5px solid #9AA0A3;
   border-radius: 3px;
+  background: var(--hq-paper);
 }
 .hq-check.is-done { background: var(--hq-ink); border-color: var(--hq-ink); }
+.hq-check.is-done::after,
+.hq .hq-check-btn.is-done::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 8px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
 
 .hq-strip {
   display: grid;
@@ -639,15 +655,6 @@
   background: var(--hq-paper);
 }
 .hq .hq-check-btn.is-done::before { background: var(--hq-ink); border-color: var(--hq-ink); }
-.hq .hq-check-btn.is-done::after {
-  content: "";
-  position: absolute;
-  width: 4px;
-  height: 8px;
-  border: solid #FFFFFF;
-  border-width: 0 2px 2px 0;
-  transform: translateY(-1px) rotate(45deg);
-}
 .hq .hq-check-btn:hover::before { border-color: var(--hq-ink); }
 .hq .hq-job-open {
   flex: 1;

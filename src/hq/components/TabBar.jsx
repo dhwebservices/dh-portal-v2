@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import { mainNav, businessNav } from '../nav'
+import { useHQStore } from '../sessionStore'
+import useMe from '../useMe'
 
 // Phone only (under 768px): bottom tab bar with Today, Inbox, Clients, Phone, More.
 // "More" opens a list of the rest of the menu above the bar.
@@ -32,10 +34,13 @@ export default function TabBar() {
   const location = useLocation()
   const moreActive = moreMain.some((item) => location.pathname.startsWith(item.to))
 
+  const state = useHQStore()
+  const me = useMe()
+
   useEffect(() => { setMoreOpen(false) }, [location.pathname])
 
   const moreLink = (item) => {
-    const count = item.count ? item.count() : 0
+    const count = item.count ? item.count(state, me) : 0
     const content = <><span>{item.label}</span>{count > 0 ? <span className="hq-count is-quiet" style={{ background: 'var(--hq-bg)', color: 'var(--hq-muted)' }}>{count}</span> : null}</>
     return item.old
       ? <Link key={item.id} to={item.to}>{content}</Link>
@@ -52,7 +57,7 @@ export default function TabBar() {
       </div>
       <nav className="hq-tabbar" aria-label="HQ menu">
         {tabs.map((item) => {
-          const count = item.count ? item.count() : 0
+          const count = item.count ? item.count(state, me) : 0
           return (
             <NavLink key={item.id} to={item.to} end={item.end} className={({ isActive }) => `hq-tab${isActive && !moreOpen ? ' is-active' : ''}`}>
               <Icon id={item.id} />

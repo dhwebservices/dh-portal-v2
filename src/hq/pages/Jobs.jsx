@@ -14,7 +14,8 @@ import {
   findClient,
   findStaff,
 } from '../exampleData'
-import { addDays, dayDate, endOfWeek, longDate } from '../format'
+import { addDays, dayDate, longDate } from '../format'
+import { WEEK_END } from '../counts'
 import { useHQStore, setJobs } from '../sessionStore'
 
 // Jobs: work to do, grouped Overdue / This week / Later / Done, for me or everyone.
@@ -22,7 +23,6 @@ import { useHQStore, setJobs } from '../sessionStore'
 // Ticks, notes and new jobs are kept on screen only until the page is refreshed
 // (see sessionStore.js; saving comes with the HQ API in phase 0).
 
-const WEEK_END = endOfWeek(EXAMPLE_TODAY)
 
 const groupOf = (job) => {
   if (job.done) return 'done'
