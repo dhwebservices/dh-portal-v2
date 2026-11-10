@@ -39,10 +39,10 @@ const columns = [
       </>
     ),
   },
-  { key: 'where', label: 'Type and town', hideOnPhone: true, render: (c) => <span className="hq-muted">{c.type} · {c.town}</span> },
+  { key: 'where', label: 'Type and town', hideOnPhone: true, className: 'hq-cell-wrap', render: (c) => <span className="hq-muted">{c.type} · {c.town}</span> },
   { key: 'stage', label: 'Stage', render: (c) => { const s = stageFor(c.status); return <StatusTag tone={s.tone}>{s.label}</StatusTag> } },
-  { key: 'website', label: 'Website', hideOnPhone: true, className: 'hq-cell-clip', render: (c) => (c.domain ? <span className="hq-mono-sm">{c.domain}</span> : <span className="hq-muted">None yet</span>) },
-  { key: 'plan', label: 'Monthly plan', hideOnPhone: true, render: (c) => planText(c) || <span className="hq-muted">None</span> },
+  { key: 'website', label: 'Website', hideOnPhone: true, render: (c) => (c.domain ? <span className="hq-mono-sm">{c.domain}</span> : <span className="hq-muted">None yet</span>) },
+  { key: 'plan', label: 'Monthly plan', hideOnPhone: true, className: 'hq-cell-wrap', render: (c) => planText(c) || <span className="hq-muted">None</span> },
   {
     key: 'owner',
     label: 'Our side',
