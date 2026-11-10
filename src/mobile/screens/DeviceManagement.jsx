@@ -36,6 +36,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const COMMAND_NAMES = {
   DeviceInformation: 'Device details', SecurityInfo: 'Security check', InstalledApplicationList: 'App list',
   DeviceLock: 'Lock', RestartDevice: 'Restart', ShutDownDevice: 'Shut down', RemoveProfile: 'Remove management',
+  ProfileList: 'Profile check', CertificateList: 'Certificate check',
 }
 const STATUS_NAMES = { queued: 'Waiting for the phone', sent: 'Sent', notnow: 'Phone busy, will retry', done: 'Done', error: 'Failed', cancelled: 'Cancelled' }
 
@@ -340,7 +341,7 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
 
           {enrolled && (
             <div className="mdm-actions">
-              <button className="mdm-run" onClick={() => send('refresh')} disabled={!!busy}>{busy === 'refresh' ? 'Asking…' : 'Refresh details'}</button>
+              <button className="mdm-run" onClick={() => send('refresh')} disabled={!!busy}>{busy === 'refresh' ? 'Asking…' : 'Run health check'}</button>
               <div className="mdm-two">
                 <button className="mdm-run danger" onClick={() => send('screenlock')} disabled={!!busy}>{busy === 'screenlock' ? 'Locking…' : 'Lock screen'}</button>
                 <button className="mdm-run danger" onClick={() => setLockOpen(true)} disabled={!!busy}>Lock with message</button>
@@ -381,6 +382,8 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
               </div>
             </div>
           )}
+
+          {data.health?.checks?.length > 0 && <Health health={data.health} />}
 
           <div className="mdm-card">
             <div className="mdm-section-title">Phone</div>
@@ -446,6 +449,48 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
   )
 }
 
+const HEALTH_HEAD = {
+  ok: 'All good',
+  info: 'All good',
+  warn: 'Needs a look',
+  bad: 'Needs fixing',
+}
+
+function Health({ health }) {
+  const order = { bad: 0, warn: 1, info: 2, ok: 3 }
+  const checks = [...health.checks].sort((a, b) => order[a.status] - order[b.status])
+  const problems = checks.filter((c) => c.status === 'bad' || c.status === 'warn').length
+  return (
+    <div className={`mdm-card mdm-health ${health.worst}`}>
+      <div className="mdm-health-head">
+        <span className={`mdm-dot ${health.worst}`} />
+        <div>
+          <div className="mdm-label">{HEALTH_HEAD[health.worst]}</div>
+          <div className="mdm-sub">{problems ? `${problems} thing${problems > 1 ? 's' : ''} to check` : 'Nothing to fix'}{health.checkedAt ? ` · checked ${ago(health.checkedAt)}` : ''}</div>
+        </div>
+      </div>
+      {checks.map((c) => (
+        <div key={c.key} className="mdm-check">
+          <span className={`mdm-dot ${c.status}`} />
+          <div>
+            <div className="mdm-check-title">{c.title}</div>
+            {c.detail ? <div className="mdm-sub">{c.detail}</div> : null}
+          </div>
+        </div>
+      ))}
+      {health.largestApps?.length > 0 && (
+        <div className="mdm-check">
+          <span className="mdm-dot info" />
+          <div>
+            <div className="mdm-check-title">Biggest apps</div>
+            <div className="mdm-sub">{health.largestApps.map((a) => `${a.name} ${a.sizeMB >= 1000 ? `${(a.sizeMB / 1000).toFixed(1)} GB` : `${a.sizeMB} MB`}`).join(' · ')}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Line({ k, v }) {
   return <div className="mdm-line"><span>{k}</span><span>{v ?? '—'}</span></div>
 }
@@ -499,4 +544,15 @@ const CSS = `
   .mdm-pill { flex: none; display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(127,127,127,.15); color: var(--mobile-text-secondary); white-space: nowrap; }
   .mdm-pill.good { background: rgba(47,179,109,.15); color: #2fb36d; }
   .mdm-pill.bad { background: rgba(221,51,51,.15); color: #dd3333; }
+  .mdm-health.warn { border-color: rgba(217,138,0,.55); }
+  .mdm-health.bad { border-color: rgba(221,51,51,.6); }
+  .mdm-health-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--mobile-border); }
+  .mdm-health-head .mdm-dot { width: 14px; height: 14px; margin: 0; }
+  .mdm-check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--mobile-border); }
+  .mdm-check:nth-of-type(2) { border-top: 0; }
+  .mdm-check-title { font-size: 14.5px; font-weight: 600; }
+  .mdm-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: #2fb36d; box-shadow: 0 0 0 3px rgba(47,179,109,.18); }
+  .mdm-dot.info { background: #7a8794; box-shadow: 0 0 0 3px rgba(122,135,148,.18); }
+  .mdm-dot.warn { background: #d98a00; box-shadow: 0 0 0 3px rgba(217,138,0,.2); }
+  .mdm-dot.bad { background: #dd3333; box-shadow: 0 0 0 3px rgba(221,51,51,.2); }
 `
