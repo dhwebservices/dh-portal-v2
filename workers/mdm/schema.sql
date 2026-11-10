@@ -37,7 +37,11 @@ CREATE TABLE IF NOT EXISTS devices (
   security_json TEXT,
   security_at INTEGER,
   apps_json TEXT,
-  apps_at INTEGER
+  apps_at INTEGER,
+  profiles_json TEXT,                   -- health check: installed configuration profiles
+  profiles_at INTEGER,
+  certs_json TEXT,                      -- health check: trusted certificates
+  certs_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS commands (
@@ -64,3 +68,4 @@ CREATE TABLE IF NOT EXISTS audit (
   detail TEXT
 );
 CREATE INDEX IF NOT EXISTS audit_by_time ON audit (at);
+

@@ -22,6 +22,7 @@
  *   POST /api/devices/<udid>/remove       admin: take the phone out of management
  *   GET  /api/audit                       admin
  */
+import { healthCheck, summarizeProfiles, summarizeCertificates } from './health.js'
 import { parsePlist, buildPlist } from './plist.js'
 import { requireStaff, requireAdmin } from './auth.js'
 import { buildEnrollmentProfile, PROFILE_ID } from './profile.js'
@@ -98,6 +99,8 @@ async function queueRefresh(env, udid, actor) {
   await queueCommand(env, udid, 'DeviceInformation', { Queries: DEVICE_QUERIES }, actor)
   await queueCommand(env, udid, 'SecurityInfo', {}, actor)
   await queueCommand(env, udid, 'InstalledApplicationList', { ManagedAppsOnly: false }, actor)
+  await queueCommand(env, udid, 'ProfileList', {}, actor)
+  await queueCommand(env, udid, 'CertificateList', {}, actor)
   return true
 }
 
@@ -231,6 +234,12 @@ async function absorbResult(env, udid, cmd, msg) {
       sizeMB: a.BundleSize ? Math.round(a.BundleSize / 1e6) : null,
     })).sort((a, b) => String(a.name).localeCompare(String(b.name)))
     await env.DB.prepare('UPDATE devices SET apps_json = ?, apps_at = ? WHERE udid = ?').bind(JSON.stringify(apps), t, udid).run()
+  } else if (cmd.request_type === 'ProfileList' && Array.isArray(msg.ProfileList)) {
+    await env.DB.prepare('UPDATE devices SET profiles_json = ?, profiles_at = ? WHERE udid = ?')
+      .bind(JSON.stringify(summarizeProfiles(msg.ProfileList)), t, udid).run()
+  } else if (cmd.request_type === 'CertificateList' && Array.isArray(msg.CertificateList)) {
+    await env.DB.prepare('UPDATE devices SET certs_json = ?, certs_at = ? WHERE udid = ?')
+      .bind(JSON.stringify(summarizeCertificates(msg.CertificateList)), t, udid).run()
   }
 }
 
@@ -357,6 +366,8 @@ function deviceView(d, { full = false } = {}) {
     out.security = sec
     out.apps = d.apps_json ? JSON.parse(d.apps_json) : []
     out.appsAt = d.apps_at
+    out.profiles = d.profiles_json ? JSON.parse(d.profiles_json) : null
+    out.certificates = d.certs_json ? JSON.parse(d.certs_json) : null
   }
   return out
 }
@@ -409,7 +420,7 @@ async function api(request, env, url, ctx) {
 
     if (!parts[3] && method === 'GET') {
       const { results } = await env.DB.prepare('SELECT uuid, request_type, status, queued_by, queued_at, sent_at, done_at, error FROM commands WHERE udid = ? ORDER BY queued_at DESC LIMIT 30').bind(udid).all()
-      return json(request, env, { device: deviceView(device, { full: true }), commands: results, canAdmin: user.isAdmin, pushReady: pushReady(env) })
+      return json(request, env, { device: deviceView(device, { full: true }), health: await healthCheck(device), commands: results, canAdmin: user.isAdmin, pushReady: pushReady(env) })
     }
 
     if (parts[3] === 'command' && method === 'POST') {
