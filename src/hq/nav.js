@@ -17,7 +17,7 @@ export const mainNav = [
 
 export const businessNav = [
   { id: 'phone', label: 'Phone', to: '/hq/phone' },
-  { id: 'team', label: 'Team', to: '/people', old: true },
+  { id: 'team', label: 'Team', to: '/hq/team' },
   { id: 'library', label: 'Library', to: '/knowledge-base', old: true },
-  { id: 'settings', label: 'Settings', to: '/settings', old: true },
+  { id: 'settings', label: 'Settings', to: '/hq/settings' },
 ]

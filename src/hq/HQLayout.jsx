@@ -12,6 +12,8 @@ import Jobs from './pages/Jobs'
 import Money from './pages/Money'
 import Apps from './pages/Apps'
 import Phone from './pages/Phone'
+import Team from './pages/Team'
+import Settings from './pages/Settings'
 
 // The HQ frame: dark sidebar (desktop), white top bar, and bottom tab bar (phones).
 // Each screen is a placeholder showing its title until it is built.
@@ -31,6 +33,8 @@ export default function HQLayout() {
             <Route path="money" element={<Money />} />
             <Route path="apps" element={<Apps />} />
             <Route path="phone" element={<Phone />} />
+            <Route path="team" element={<Team />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/hq" replace />} />
           </Routes>
         </main>

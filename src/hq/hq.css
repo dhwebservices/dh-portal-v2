@@ -744,6 +744,11 @@
 .hq-call-send { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .hq-call-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
 
+/* ---------- Team and Settings ---------- */
+.hq-link-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.hq-old-tag { font-family: var(--hq-mono); font-size: 11px; color: var(--hq-muted); white-space: nowrap; }
+@media (max-width: 1099.98px) { .hq-link-groups { grid-template-columns: minmax(0, 1fr); } }
+
 /* ---------- Money and Apps ---------- */
 .hq-toolbar-note { margin: 0; font-size: 13px; }
 .hq-page-foot { margin: 12px 0 0; font-size: 13px; }
@@ -1089,6 +1094,11 @@
   .hq-chead { margin: -16px -16px 14px; padding: 12px 16px 0; }
   .hq-grid3 { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
   .hq-when-wide { min-width: 0; }
+
+  /* Team and Settings: keep the "what it's for" line, under the name */
+  .hq-link-groups { gap: 10px; }
+  .hq-link-groups .hq-row-text { white-space: normal; }
+  .hq-link-groups .hq-row-detail { display: block; font-size: 12.5px; }
 
   /* Jobs */
   .hq-job-groups { gap: 10px; }
