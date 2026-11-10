@@ -429,7 +429,7 @@ async function api(request, env, url, ctx) {
       let queued
       if (type === 'refresh') {
         await queueRefresh(env, udid, user.email)
-        queued = 'Refreshing details'
+        queued = 'Health check'
       } else if (type === 'screenlock') {
         // A plain lock: the screen goes off and needs the passcode, nothing on the Lock Screen.
         await queueCommand(env, udid, 'DeviceLock', {}, user.email)
