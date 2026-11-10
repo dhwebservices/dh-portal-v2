@@ -346,9 +346,10 @@ export default function Phone() {
               detail={todayDay === 0 || todayDay === 6 ? '(today)' : null}
             />
           </Panel>
-          <p className="hq-muted hq-small">
-            <Link to="/phone" className="hq-text-link">Open the full phone screen</Link>
-          </p>
+          {/* "Open the full phone screen" (→ /phone) is hidden for now: the web portal
+              has no /phone page yet, so it opened the dashboard. The full DH Phone
+              screen is only in the staff iPhone app. Put the link back here when a
+              web /phone page exists. */}
         </div>
       </div>
 
