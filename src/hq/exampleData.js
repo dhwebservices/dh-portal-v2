@@ -321,7 +321,7 @@ export const conversations = [
     id: 'm1',
     source: 'call',
     clientId: null,
-    from: '01632 960199',
+    from: '01632 9·· ···',
     phone: '01632 960199',
     subject: 'Missed call',
     preview: 'Missed call, 2 rings, no voicemail. Not a known number.',
@@ -415,7 +415,109 @@ export const conversations = [
     assignee: 'jd',
     status: 'done',
   },
+  {
+    id: 'm9',
+    source: 'call',
+    clientId: null,
+    from: '01632 9·· ···',
+    phone: '01632 960150',
+    subject: 'Missed call',
+    preview: 'Missed call, 5 rings, no voicemail. Not a known number.',
+    receivedAt: '2026-11-09T08:12:00',
+    assignee: null,
+    status: 'open',
+  },
+  {
+    id: 'm10',
+    source: 'voicemail',
+    clientId: 'red-kite-inn',
+    from: 'Gareth, The Red Kite Inn',
+    phone: '01632 960101',
+    subject: 'Voicemail, 0:28',
+    preview: '"Morning, it\'s Gareth. The quiz poster has the wrong date on it…"',
+    receivedAt: '2026-11-09T08:40:00',
+    assignee: 'jd',
+    status: 'open',
+  },
+  {
+    id: 'm11',
+    source: 'text',
+    clientId: 'cefn-plumbing',
+    from: 'Huw, Cefn Plumbing & Heating',
+    phone: '01632 960110',
+    subject: 'Text',
+    preview: 'Can you add our new Gas Safe number to the site? It\'s on the van.',
+    receivedAt: '2026-11-09T08:52:00',
+    assignee: 'dh',
+    status: 'open',
+  },
 ]
+
+// ---- DH Phone ----
+// The phone log: calls in and out, voicemails and texts. Numbers are made up
+// (Ofcom's 01632 960xxx drama range) and are always shown part-hidden.
+//   kind: 'call' | 'voicemail' | 'text'
+//   direction: 'in' | 'out'
+//   outcome (calls): 'missed' | 'answered'
+//   by / minutes: who answered or made the call, and how long it took
+//   conversationId: the matching item in the Inbox, kept in step on screen
+//   status: 'open' (still to deal with) | 'done'
+export const phoneCalls = [
+  { id: 'p1', kind: 'call', direction: 'in', number: '01632 960150', at: '2026-11-09T08:12:00', outcome: 'missed', rings: 5, status: 'open', conversationId: 'm9' },
+  {
+    id: 'p2', kind: 'voicemail', direction: 'in', number: '01632 960101', at: '2026-11-09T08:40:00', outcome: 'missed', status: 'open', conversationId: 'm10', seconds: 28,
+    transcript: 'Morning, it\'s Gareth from the Red Kite. The quiz poster on the website has the wrong date on it, it says Wednesday but it\'s every Thursday. Can someone fix it before tonight? Cheers.',
+  },
+  { id: 'p3', kind: 'text', direction: 'in', number: '01632 960110', at: '2026-11-09T08:52:00', body: 'Can you add our new Gas Safe number to the site? It\'s on the van.', status: 'open', conversationId: 'm11' },
+  { id: 'p4', kind: 'text', direction: 'in', number: '01632 960105', at: '2026-11-09T08:15:00', body: 'Still on for 11 today?', status: 'done', conversationId: 'm8', reply: 'Yes, see you at 11. Jack' },
+  { id: 'p5', kind: 'call', direction: 'in', number: '01632 960109', at: '2026-11-07T10:20:00', outcome: 'answered', by: 'jd', minutes: 4, status: 'done' },
+  {
+    id: 'p6', kind: 'voicemail', direction: 'in', number: '01632 960108', at: '2026-11-08T10:31:00', outcome: 'missed', status: 'open', conversationId: 'm4', seconds: 41,
+    transcript: 'Hi, ringing about the eighty-nine pound website, can you call me back? It\'s Dylan, I\'ve got a small gardening business in Treforest. Thanks.',
+  },
+  { id: 'p7', kind: 'call', direction: 'out', number: '01632 960106', at: '2026-11-06T15:05:00', outcome: 'answered', by: 'dh', minutes: 12, status: 'done' },
+  { id: 'p8', kind: 'call', direction: 'in', number: '01632 960199', at: '2026-11-06T17:42:00', outcome: 'missed', rings: 2, status: 'open', conversationId: 'm1' },
+  { id: 'p9', kind: 'call', direction: 'in', number: '01632 960104', at: '2026-11-05T11:48:00', outcome: 'answered', by: 'dh', minutes: 7, status: 'done' },
+  { id: 'p10', kind: 'call', direction: 'in', number: '01632 960170', at: '2026-11-05T09:03:00', outcome: 'missed', rings: 3, status: 'done', note: 'Called back by David, wrong number' },
+]
+
+// Opening hours for the DH line. day: 0 = Sunday … 6 = Saturday.
+export const phoneHours = [
+  { day: 1, label: 'Monday', open: '09:00', close: '17:00' },
+  { day: 2, label: 'Tuesday', open: '09:00', close: '17:00' },
+  { day: 3, label: 'Wednesday', open: '09:00', close: '17:00' },
+  { day: 4, label: 'Thursday', open: '09:00', close: '17:00' },
+  { day: 5, label: 'Friday', open: '09:00', close: '17:00' },
+  { day: 6, label: 'Saturday', open: null, close: null },
+  { day: 0, label: 'Sunday', open: null, close: null },
+]
+
+// Who the line rings. available: true = Available, false = Off.
+export const phoneAnswering = [
+  { staffId: 'dh', available: true },
+  { staffId: 'jd', available: false, note: 'Back at 11:00' },
+]
+
+// "01632 960150" → "01632 9·· ···". Numbers are never shown in full.
+export const maskNumber = (number) => {
+  const digits = String(number || '').replace(/\D/g, '')
+  if (digits.length < 7) return '·· ···'
+  return `${digits.slice(0, 5)} ${digits[5]}·· ···`
+}
+
+// The client a number belongs to, if we know it.
+export const clientForNumber = (number) => {
+  const digits = String(number || '').replace(/\D/g, '')
+  return clients.find((c) => c.contacts.some((p) => String(p.phone).replace(/\D/g, '') === digits)) || null
+}
+export const contactForNumber = (number) => {
+  const digits = String(number || '').replace(/\D/g, '')
+  for (const c of clients) {
+    const person = c.contacts.find((p) => String(p.phone).replace(/\D/g, '') === digits)
+    if (person) return person
+  }
+  return null
+}
 
 // Jobs with checklists. visibleToClient: the client can see progress in the client area.
 export const jobs = [

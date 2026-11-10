@@ -716,6 +716,34 @@
 .hq .hq-newmenu-item { text-align: left; padding: 8px 10px; border-radius: 5px; white-space: nowrap; }
 .hq .hq-newmenu-item:hover, .hq .hq-newmenu-item:focus-visible { background: var(--hq-bg); outline: none; }
 
+/* ---------- Phone ---------- */
+.hq-panel-tabs {
+  display: flex;
+  gap: 18px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--hq-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hq-panel-tabs::-webkit-scrollbar { display: none; }
+.hq .hq-panel-tabs a { padding: 8px 0; color: var(--hq-muted); white-space: nowrap; font-size: 13px; }
+.hq .hq-panel-tabs a:hover { color: var(--hq-ink); }
+.hq .hq-panel-tabs a.is-on { color: var(--hq-ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--hq-red); }
+.hq-small { font-size: 12.5px; margin: 0; }
+.hq-call-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; width: 100%; }
+.hq .hq-play { align-self: flex-start; cursor: not-allowed; color: var(--hq-ink2); }
+.hq-transcript {
+  margin: 0;
+  padding: 10px 12px;
+  background: #FAFAF9;
+  border: 1px solid var(--hq-line);
+  border-radius: 8px;
+  line-height: 1.55;
+}
+.hq-field .hq-bubble { max-width: 100%; }
+.hq-call-send { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.hq-call-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+
 /* ---------- Money and Apps ---------- */
 .hq-toolbar-note { margin: 0; font-size: 13px; }
 .hq-page-foot { margin: 12px 0 0; font-size: 13px; }

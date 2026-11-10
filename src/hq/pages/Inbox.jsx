@@ -11,6 +11,7 @@ import {
   isOverADay,
   invoices,
   PLAN_LABELS,
+  maskNumber,
 } from '../exampleData'
 import { dayTime, addDays } from '../format'
 import { useHQStore, setConversations, setJobs } from '../sessionStore'
@@ -114,7 +115,7 @@ function ReplyBox({ c, client, me }) {
       ? 'Replies to the review on the App Store'
       : 'Sends from clients@dhwebsiteservices.co.uk',
     note: 'Only the team sees notes. Never sent.',
-    text: phone ? `Sends a text to ${phone}` : '',
+    text: phone ? `Sends a text to ${maskNumber(phone)}` : '',
   }[mode]
 
   const send = (event) => {
@@ -240,7 +241,7 @@ function ClientPanel({ c, jobs }) {
         <div>
           <h2 className="hq-ctx-label">From</h2>
           <b>{c.from}</b>
-          {c.phone ? <div className="hq-muted hq-mono-sm">{c.phone}</div> : null}
+          {c.phone ? <div className="hq-muted hq-mono-sm">{maskNumber(c.phone)}</div> : null}
           <p className="hq-muted">Not linked to a client yet.</p>
         </div>
         <div>
