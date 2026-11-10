@@ -4,8 +4,9 @@ import PageHeader from '../components/PageHeader'
 import DataTable from '../components/DataTable'
 import StatusTag from '../components/StatusTag'
 import Avatar from '../components/Avatar'
-import { clients, STAGES, stageFor, PLAN_LABELS, findStaff, lastContactFor, EXAMPLE_TODAY } from '../exampleData'
+import { STAGES, stageFor, PLAN_LABELS, findStaff, lastContactFor, EXAMPLE_TODAY } from '../exampleData'
 import { sinceLabel, pounds } from '../format'
+import { useHQStore } from '../sessionStore'
 
 // Clients: leads and clients in one table, with a filter per stage and a search box.
 // The chosen stage and search live in the address (?stage=lead&q=cafe) so Back works.
@@ -75,7 +76,8 @@ export default function Clients() {
     setParams(next, { replace: key === 'q' })
   }
 
-  const searched = useMemo(() => clients.filter((c) => matches(c, q)), [q])
+  const { clients } = useHQStore()
+  const searched = useMemo(() => clients.filter((c) => matches(c, q)), [q, clients])
   const rows = useMemo(() => {
     const list = stage === 'all' ? searched : searched.filter((c) => c.status === stage)
     // Most recent contact first; never contacted at the end.

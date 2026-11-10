@@ -49,6 +49,7 @@ const HOW = {
   app: 'App Store review',
   payment: 'from Stripe',
   booking: 'booking',
+  note: 'internal note',
 }
 
 const inView = (c, view, me) => {

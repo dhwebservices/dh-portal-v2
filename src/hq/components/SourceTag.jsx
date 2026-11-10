@@ -9,6 +9,7 @@ const LABELS = {
   app: ['App'],
   payment: ['Payment', 'Pay'],
   booking: ['Booking', 'Book'],
+  note: ['Note'],
   job: ['Job'],
   agreement: ['Agreement', 'Agree'],
 }

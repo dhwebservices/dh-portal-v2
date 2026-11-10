@@ -9,7 +9,6 @@ import SidePanel from '../components/SidePanel'
 import {
   EXAMPLE_TODAY,
   staff,
-  clients,
   jobTemplates,
   findClient,
   findStaff,
@@ -172,6 +171,7 @@ function NewJob({ me, onClose, onCreate }) {
   const [date, setDate] = useState(EXAMPLE_TODAY)
   const [error, setError] = useState('')
 
+  const { clients } = useHQStore()
   const template = jobTemplates.find((t) => t.id === templateId) || null
   const client = findClient(clientId)
 

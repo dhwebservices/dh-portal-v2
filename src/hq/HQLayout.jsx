@@ -3,6 +3,7 @@ import './hq.css'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import TabBar from './components/TabBar'
+import QuickCreate from './components/QuickCreate'
 import Placeholder from './pages/Placeholder'
 import Today from './pages/Today'
 import Inbox from './pages/Inbox'
@@ -35,6 +36,7 @@ export default function HQLayout() {
         </main>
       </div>
       <TabBar />
+      <QuickCreate />
     </div>
   )
 }

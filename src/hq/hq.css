@@ -280,6 +280,34 @@
   .hq-side { display: none; }
   .hq-bar { padding: 8px 12px; gap: 8px; }
   .hq-search { max-width: none; }
+
+  /* Search opens full screen on phones */
+  .hq-bar.is-searching { z-index: 50; }
+  .hq-searchwrap { max-width: none; }
+  .hq-searchwrap.is-open {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    background: var(--hq-paper);
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 0;
+  }
+  .hq .hq-searchwrap.is-open .hq-search-cancel { display: inline-block; }
+  .hq-searchwrap.is-open .hq-search { flex: none; border-color: var(--hq-ink2); }
+  .hq-searchwrap.is-open .hq-search-results {
+    position: static;
+    width: auto;
+    max-height: none;
+    flex: 1;
+    border: 0;
+    border-radius: 0;
+    margin: 8px -12px 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .hq-search-item { min-height: 44px; padding: 8px 16px; }
+  .hq-search-head { padding: 10px 16px 4px; }
+  .hq-search-item .hq-row-detail { display: inline; }
   .hq-kbd { display: none; }
   .hq-example-label { font-size: 10px; letter-spacing: 0.04em; }
   .hq-bar-gap { display: none; }
@@ -622,6 +650,71 @@
 .hq-spark-cross { stroke: var(--hq-ink2); stroke-width: 1; }
 .hq-spark-read { font-size: 12px; color: var(--hq-muted); margin-top: 4px; }
 .hq-spark-read b { color: var(--hq-ink); font-weight: 600; }
+
+/* ---------- Top-bar search ---------- */
+.hq-searchwrap { position: relative; flex: 1; max-width: 420px; min-width: 0; }
+.hq-searchwrap .hq-search { max-width: none; width: 100%; }
+.hq .hq-searchwrap .hq-search input:focus-visible { outline: none; }
+.hq-searchwrap .hq-search:focus-within { outline: 2px solid var(--hq-red); outline-offset: 1px; }
+.hq .hq-search-cancel { display: none; font-weight: 600; color: var(--hq-ink2); padding: 6px 2px 6px 8px; }
+.hq-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: max(100%, 480px);
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  background: var(--hq-paper);
+  border: 1px solid var(--hq-line);
+  border-radius: 8px;
+  padding: 4px 0;
+}
+.hq-search-group + .hq-search-group { border-top: 1px solid var(--hq-line); margin-top: 4px; padding-top: 2px; }
+.hq-search-head {
+  font-family: var(--hq-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hq-muted);
+  padding: 8px 12px 4px;
+}
+.hq-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.hq-search-item.is-active { background: #FBF3F4; box-shadow: inset 3px 0 0 var(--hq-red); }
+.hq-search-hint { padding: 12px; margin: 0; color: var(--hq-muted); }
+.hq-search-keys {
+  margin: 4px 0 0;
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--hq-line);
+  font-size: 11.5px;
+  color: var(--hq-muted);
+}
+
+/* ---------- New menu ---------- */
+.hq-newwrap { position: relative; flex: none; }
+.hq-newmenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--hq-paper);
+  border: 1px solid var(--hq-line);
+  border-radius: 8px;
+}
+.hq .hq-newmenu-item { text-align: left; padding: 8px 10px; border-radius: 5px; white-space: nowrap; }
+.hq .hq-newmenu-item:hover, .hq .hq-newmenu-item:focus-visible { background: var(--hq-bg); outline: none; }
 
 /* ---------- Money and Apps ---------- */
 .hq-toolbar-note { margin: 0; font-size: 13px; }
