@@ -18,6 +18,6 @@ export const mainNav = [
 export const businessNav = [
   { id: 'phone', label: 'Phone', to: '/hq/phone' },
   { id: 'team', label: 'Team', to: '/hq/team' },
-  { id: 'library', label: 'Library', to: '/knowledge-base', old: true },
+  { id: 'library', label: 'Library', to: '/hq/library' },
   { id: 'settings', label: 'Settings', to: '/hq/settings' },
 ]

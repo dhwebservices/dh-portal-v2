@@ -667,3 +667,184 @@ export const isOverADay = (iso) => new Date(EXAMPLE_NOW) - new Date(iso) > 24 * 
 export const missedCalls = () => openConversations().filter((c) => c.source === 'call' || c.source === 'voicemail')
 
 export const bookingsOn = (date) => bookings.filter((b) => b.date === date).sort((a, b) => a.time.localeCompare(b.time))
+
+// ---- Library ----
+// How we do things. Example notes, written as general how-tos: no client names,
+// phone numbers, emails, addresses or passwords, because the code is public.
+// Note text uses a small, plain format:
+//   ## Heading     ### Smaller heading
+//   1. Numbered step
+//   - Bullet point
+//   **bold words**
+//   A blank line starts a new paragraph.
+
+export const libraryGroups = [
+  { id: 'build', label: 'How we build' },
+  { id: 'clients', label: 'Clients and support' },
+  { id: 'phone', label: 'Phone and bookings' },
+  { id: 'apps', label: 'Apps' },
+  { id: 'office', label: 'Office' },
+]
+
+export const libraryNotes = [
+  {
+    id: 'n1',
+    groupId: 'build',
+    title: 'DH Local build, step by step',
+    author: 'dh',
+    updatedAt: '2026-11-03T16:20:00',
+    body: `A DH Local site takes seven working days. Each day is its own job, so start it from the **DH Local build, 7 days** template on the Jobs screen.
+
+## Before day 1
+1. Check the agreement is signed and the set-up payment is in.
+2. Book the kick-off call for the morning of day 1.
+
+## The seven days
+1. **Kick-off call.** Agree the pages, then ask for words and photos. If they have none, offer to write the words.
+2. **Domain and Google listing.** Buy or move the domain, and claim or tidy their Google listing.
+3. **Build pages.** Home, About and Contact first.
+4. **Build pages.** The rest of the pages, then forms and the map.
+5. **Client check.** Send the preview link and ask for one list of changes.
+6. **Changes.** Make the changes from their list. Anything new becomes a separate job.
+7. **Go live.** Follow the going-live checklist, then send the review link.
+
+## Good to know
+- Keep the client in the loop: they can see these jobs in the client area.
+- Don't start day 3 until the words are in. Move the dates instead.`,
+  },
+  {
+    id: 'n2',
+    groupId: 'build',
+    title: 'Going live checklist',
+    author: 'jd',
+    updatedAt: '2026-10-28T11:05:00',
+    body: `Do these in order on go-live day. Tick each one off in the job.
+
+1. Point the domain at the site and wait until it loads on your phone using mobile data.
+2. Check the padlock shows (SSL) on the plain address and the www one.
+3. Send a test message through every form and check it arrives.
+4. Turn on visitor numbers so they show on the client's page in HQ.
+5. Add the site to uptime checks.
+6. Click every link on every page, on a phone and a laptop.
+7. Send the client the review link and the handover pack.
+
+## If something goes wrong
+- Domain not loading after an hour: ask David before changing anything else.
+- Form not arriving: check the spam folder first.`,
+  },
+  {
+    id: 'n3',
+    groupId: 'clients',
+    title: 'Handling a change request',
+    author: 'jd',
+    updatedAt: '2026-11-05T09:40:00',
+    body: `Change requests come in through the Inbox: from the client area, email, a text or a call.
+
+## Steps
+1. Assign it to yourself in the Inbox so no one else picks it up.
+2. Reply the same day, even if it's only to say when it will be done.
+3. If it takes more than ten minutes, press **Make a job** so it's on the Jobs screen.
+4. Make the change, check it on a phone, then reply with what you changed.
+5. Mark the Inbox item **Done**.
+
+## What counts as a change
+- Care plan and DH Local: small edits like text, photos, opening hours and events are included.
+- New pages or new features: tell David before agreeing a price.`,
+  },
+  {
+    id: 'n4',
+    groupId: 'clients',
+    title: 'When a card payment fails',
+    author: 'dh',
+    updatedAt: '2026-10-19T14:10:00',
+    body: `Stripe tries a failed card again on its own over a few days. Most sort themselves out.
+
+1. Wait two days after the first failure.
+2. If it's still failing, send the friendly reminder email from the Money screen.
+3. After a week, ring the client. Be kind: it's usually an expired card.
+4. Never turn a site off without David agreeing first.
+
+The client can update their card themselves from the Billing page in the client area.`,
+  },
+  {
+    id: 'n5',
+    groupId: 'phone',
+    title: 'Answering the DH line',
+    author: 'dh',
+    updatedAt: '2026-11-02T10:00:00',
+    body: `The line rings whoever is set to **Available** on the Phone screen, between 9:00 and 17:00 on weekdays.
+
+## Answering
+1. Say "DH Website Services, it's [your name] speaking".
+2. Ask for their name and business, and check the Clients list while you talk.
+3. If you can't help there and then, promise a time to call back and make a job.
+
+## Missed calls and voicemails
+- Missed calls land in the Inbox. Call back the same day.
+- Voicemails are written out for you on the Phone screen. Listen as well if the words look odd.
+- Unknown numbers: call back once. If no answer, send a short text.`,
+  },
+  {
+    id: 'n6',
+    groupId: 'phone',
+    title: 'Booking a free call',
+    author: 'jd',
+    updatedAt: '2026-10-22T15:30:00',
+    body: `Free calls are 30 minutes and are booked through the public booking page.
+
+1. Send the person the booking link instead of picking a time for them.
+2. When it's booked, it shows on Today under **Bookings today**.
+3. Before the call, look the business up and note what their current site (if any) is missing.
+4. After the call, add them as a lead with **New ▾ → New lead** if they're not already in Clients.
+5. Send a short follow-up the same day.`,
+  },
+  {
+    id: 'n7',
+    groupId: 'apps',
+    title: 'Releasing an app update',
+    author: 'dh',
+    updatedAt: '2026-11-01T18:45:00',
+    body: `## Before you build
+1. Put the version number up, and the build number up by one.
+2. Write the "What's new" text in plain words.
+
+## Sending it to Apple
+1. Upload the build and wait for it to finish processing.
+2. Test it on a real phone through TestFlight.
+3. Submit it for review with the "What's new" text.
+4. Apple usually takes one to three days. It shows as **Waiting** on the Apps screen.
+
+## After it's live
+- Check new reviews in the Inbox every day for a week.
+- Reply to every review under three stars, politely, within two days.`,
+  },
+  {
+    id: 'n8',
+    groupId: 'office',
+    title: 'Where logins live',
+    author: 'dh',
+    updatedAt: '2026-10-15T09:00:00',
+    body: `Logins are never written in HQ, in notes, in jobs or in messages.
+
+1. Every login lives in the team password manager.
+2. If you need one you can't see, ask David to share it with you there.
+3. In notes, write **where** the login lives, for example "Domain account: in the password manager, under Domains".
+4. If you think a login has been seen by someone it shouldn't have, tell David straight away so it can be changed.`,
+  },
+  {
+    id: 'n9',
+    groupId: 'office',
+    title: 'Start and end of the day',
+    author: 'jd',
+    updatedAt: '2026-11-04T08:30:00',
+    body: `## Start of the day
+1. Open Today in HQ.
+2. Work through **Needs a reply**, oldest first.
+3. Check **Bookings today** and get ready for each one.
+
+## End of the day
+1. Make sure nothing assigned to you is over a day old in the Inbox.
+2. Tick off finished jobs.
+3. Set yourself to **Off** on the Phone screen.`,
+  },
+]

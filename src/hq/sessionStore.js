@@ -5,6 +5,7 @@ import {
   conversations as exampleConversations,
   clients as exampleClients,
   phoneCalls,
+  libraryNotes,
 } from './exampleData'
 
 // On-screen state shared by HQ pages so that, for example, "Make a job" in the
@@ -35,6 +36,7 @@ let state = {
   conversations: exampleConversations.map((c) => ({ ...c, messages: messagesFor(c) })),
   clients: [...exampleClients],
   calls: phoneCalls.map((c) => ({ ...c, log: [] })),
+  notes: libraryNotes.map((n) => ({ ...n })),
 }
 
 const listeners = new Set()
@@ -115,3 +117,4 @@ export function addNote({ to, from, clientId, body }) {
 }
 
 export const setCalls = (fn) => updateStore((s) => ({ calls: fn(s.calls) }))
+export const setNotes = (fn) => updateStore((s) => ({ notes: fn(s.notes) }))
