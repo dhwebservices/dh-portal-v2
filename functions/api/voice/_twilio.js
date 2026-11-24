@@ -247,7 +247,7 @@ export async function sendWorkerEmail(env, { to, subject, html }) {
   if (!workerUrl || !to) return false
   const response = await fetch(workerUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-dh-email-key': env.EMAIL_WORKER_KEY || '' },
     body: JSON.stringify({ type: 'custom_email', data: { to, subject, html } }),
   })
   return response.ok
