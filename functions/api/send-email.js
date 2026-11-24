@@ -221,7 +221,7 @@ export async function onRequestPost(context) {
   try {
     const response = await fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-dh-email-key': context.env.EMAIL_WORKER_KEY || '' },
       body: JSON.stringify(normalizedPayload),
     })
     const result = await response.json().catch(() => ({}))

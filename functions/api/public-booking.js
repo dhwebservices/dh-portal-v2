@@ -205,7 +205,7 @@ async function sendWorkerEmail(env, payload) {
   if (!workerUrl) return false
   const response = await fetch(workerUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-dh-email-key': env.EMAIL_WORKER_KEY || '' },
     body: JSON.stringify(payload),
   })
   return response.ok
