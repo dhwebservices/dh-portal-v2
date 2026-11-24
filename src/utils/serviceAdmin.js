@@ -1,3 +1,5 @@
+import { authHeaders } from './authHeaders'
+
 const SERVICE_ADMIN_API_PATH = '/api/service-admin'
 
 async function parseJsonSafe(response) {
@@ -11,11 +13,12 @@ async function parseJsonSafe(response) {
 async function request(path = '', options = {}) {
   const response = await fetch(`${SERVICE_ADMIN_API_PATH}${path}`, {
     credentials: 'same-origin',
+    ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(await authHeaders()),
       ...(options.headers || {}),
     },
-    ...options,
   })
 
   const payload = await parseJsonSafe(response)

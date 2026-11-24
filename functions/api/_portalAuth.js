@@ -170,3 +170,31 @@ export async function requirePortalUser(request, env, permissionKey) {
 
   return { ...user, isAdmin }
 }
+
+/**
+ * Server-to-server callers (Fish Tank's signup alerts, other DH Workers) can't
+ * hold an Entra token, so they send `x-dh-internal-key` = PORTAL_INTERNAL_KEY.
+ * Everyone else must be a signed-in portal user.
+ */
+function sameSecret(a, b) {
+  if (!a || !b || a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
+export async function requirePortalUserOrKey(request, env, permissionKey) {
+  const key = request.headers.get('x-dh-internal-key') || ''
+  if (env.PORTAL_INTERNAL_KEY && sameSecret(key, env.PORTAL_INTERNAL_KEY)) {
+    return { email: 'internal', name: 'DH service', internal: true }
+  }
+  return requirePortalUser(request, env, permissionKey)
+}
+
+/** JSON error response for a failed requirePortalUser*(). */
+export function authFailure(error, headers = {}) {
+  return new Response(JSON.stringify({ ok: false, error: error.message || 'Sign-in required.' }), {
+    status: error.status || 401,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  })
+}

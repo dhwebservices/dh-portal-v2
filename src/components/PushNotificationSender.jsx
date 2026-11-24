@@ -1,3 +1,4 @@
+import { authHeaders } from '../utils/authHeaders'
 import { apiUrl } from '../utils/apiBase'
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase'
@@ -79,7 +80,7 @@ export default function PushNotificationSender() {
     try {
       const response = await fetch(apiUrl('/api/send-push-notification'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           ...(toEveryone
             ? { userEmails: withDevices.map((p) => p.email) }

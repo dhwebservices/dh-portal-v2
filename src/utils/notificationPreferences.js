@@ -1,3 +1,4 @@
+import { authHeaders } from './authHeaders'
 import { supabase } from './supabase'
 import { sendEmail } from './email'
 import { buildPortalSmsNotificationMessage, sendPortalSms } from './sms'
@@ -208,7 +209,7 @@ export async function sendManagedNotification({
     if (!pushAllowed) throw new SkipPush()
     const pushResponse = await fetch(apiUrl('/api/send-push-notification'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({
         userEmail: safeEmail,
         title,

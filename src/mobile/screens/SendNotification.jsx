@@ -1,3 +1,4 @@
+import { authHeaders } from '../../utils/authHeaders'
 import { apiUrl } from '../../utils/apiBase'
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
@@ -100,7 +101,7 @@ export default function MobileSendNotification({ goBack, user, isAdmin }) {
       try {
         const response = await fetch(apiUrl('/api/send-push-notification'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
           body: JSON.stringify({
             userEmail: email,
             title: title.trim(),

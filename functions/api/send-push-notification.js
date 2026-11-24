@@ -7,6 +7,7 @@
 // APNs directly now (see ./_apns.js for credentials/config).
 
 import { sendApnsNotification, getIosDeviceTokens, getAllIosDevices, getOptedOutEmails, logPushNotification } from './_apns.js'
+import { requirePortalUserOrKey, authFailure } from './_portalAuth.js'
 
 export async function onRequest(context) {
   const { request, env } = context
@@ -14,7 +15,7 @@ export async function onRequest(context) {
   const corsHeaders = {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-dh-internal-key',
   }
 
   if (request.method === 'OPTIONS') {
@@ -26,6 +27,12 @@ export async function onRequest(context) {
       JSON.stringify({ error: 'Method not allowed' }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+  }
+
+  try {
+    await requirePortalUserOrKey(request, env)
+  } catch (error) {
+    return authFailure(error, corsHeaders)
   }
 
   try {
