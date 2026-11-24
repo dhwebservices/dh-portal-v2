@@ -138,7 +138,25 @@ async function getPaymentStatus(data, env, corsHeaders) {
 async function handleWebhook(request, env, corsHeaders) {
   try {
     const body = await request.text()
-    const event = JSON.parse(body)
+    const claimed = JSON.parse(body)
+
+    // Never trust the posted body: anyone can POST here. Fetch the event back
+    // from Stripe with our own secret key and act only on what Stripe returns.
+    const eventId = typeof claimed?.id === 'string' ? claimed.id : ''
+    if (!/^evt_[A-Za-z0-9]+$/.test(eventId) || !env.STRIPE_SECRET_KEY) {
+      return new Response(JSON.stringify({ error: 'Unverified event' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const verifiedRes = await fetch(`https://api.stripe.com/v1/events/${eventId}`, {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    })
+    if (!verifiedRes.ok) {
+      return new Response(JSON.stringify({ error: 'Unverified event' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const event = await verifiedRes.json()
 
     await logStripeEvent(event, env)
 

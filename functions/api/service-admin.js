@@ -1,3 +1,4 @@
+import { requirePortalUser, authFailure } from './_portalAuth.js'
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://staff.dhwebsiteservices.co.uk',
   'https://dh-portal-v2.pages.dev',
@@ -818,6 +819,11 @@ async function runRecoveryAction(env, body) {
 }
 
 export async function onRequestGet(context) {
+  try {
+    await requirePortalUser(context.request, context.env, 'service_admin')
+  } catch (error) {
+    return authFailure(error)
+  }
   if (!isAllowedOrigin(context.request, context.env)) {
     return json({ ok: false, error: 'Origin is not allowed.' }, 403)
   }
@@ -832,6 +838,11 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
+  try {
+    await requirePortalUser(context.request, context.env, 'service_admin')
+  } catch (error) {
+    return authFailure(error)
+  }
   if (!isAllowedOrigin(context.request, context.env)) {
     return json({ ok: false, error: 'Origin is not allowed.' }, 403)
   }

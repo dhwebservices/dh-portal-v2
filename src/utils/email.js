@@ -1,3 +1,5 @@
+import { authHeaders } from './authHeaders'
+
 const SEND_EMAIL_API_PATH = '/api/send-email'
 
 function sleep(ms) {
@@ -13,7 +15,7 @@ export async function sendEmail(type, data = {}) {
     try {
       const response = await fetch(SEND_EMAIL_API_PATH, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           type,
           data,

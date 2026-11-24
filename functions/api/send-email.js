@@ -1,3 +1,4 @@
+import { requirePortalUserOrKey, authFailure } from './_portalAuth.js'
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://staff.dhwebsiteservices.co.uk',
   'http://localhost:5173',
@@ -189,6 +190,11 @@ async function autoLogOutreachIfNeeded(env, normalizedPayload = {}, originalData
 }
 
 export async function onRequestPost(context) {
+  try {
+    await requirePortalUserOrKey(context.request, context.env)
+  } catch (error) {
+    return authFailure(error)
+  }
   if (!isAllowedOrigin(context.request, context.env)) {
     return json({ error: 'Origin is not allowed.' }, 403)
   }

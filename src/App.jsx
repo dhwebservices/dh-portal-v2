@@ -102,7 +102,7 @@ const ShopOrders = lazyRetry(() => import('./pages/shop/ShopOrders'), 'shop-orde
 const ShopProducts = lazyRetry(() => import('./pages/shop/ShopProducts'), 'shop-products')
 const ShopCustomers = lazyRetry(() => import('./pages/shop/ShopCustomers'), 'shop-customers')
 
-const msal = new PublicClientApplication(msalConfig)
+import { msal } from './msalInstance'
 
 // CRITICAL: Initialize MSAL and handle redirects BEFORE React renders
 // This must happen at module load time to catch auth redirects on mobile
