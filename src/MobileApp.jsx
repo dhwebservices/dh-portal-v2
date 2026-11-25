@@ -1,5 +1,10 @@
 // NATIVE MOBILE APP - Completely separate from web version
 import { useState, useEffect } from 'react'
+import '@fontsource/ibm-plex-sans/latin-400.css'
+import '@fontsource/ibm-plex-sans/latin-500.css'
+import '@fontsource/ibm-plex-sans/latin-600.css'
+import '@fontsource/archivo/latin-700.css'
+import '@fontsource/archivo/latin-800.css'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
@@ -18,7 +23,10 @@ import MobileGeneratePayslip from './mobile/screens/GeneratePayslip'
 import MobileAddStaff from './mobile/screens/AddStaff'
 
 // Mobile-native screens
-import MobileHome from './mobile/screens/HomeProfessional'
+import MobileHome from './mobile/screens/HomeDH'
+import MobileAppsHub from './mobile/screens/AppsHub'
+import MobileClients from './mobile/screens/ClientsDH'
+import MobileMore from './mobile/screens/MoreDH'
 import MobileProfile from './mobile/screens/Profile'
 import MobileAttendance from './mobile/screens/Attendance'
 import MobileClockIn from './mobile/screens/ClockIn'
@@ -227,6 +235,16 @@ export default function MobileApp() {
     setCurrentScreen(newHistory[newHistory.length - 1])
   }
 
+  // Tabs start their own stack: tapping one never piles onto the history.
+  const switchTab = async (screen) => {
+    await Haptics.impact({ style: ImpactStyle.Light })
+    setCurrentScreen(screen)
+    setScreenHistory([screen])
+    setScreenParams({})
+  }
+  const TAB_ROOTS = ['home', 'apps', 'outreach', 'clients', 'more']
+  const activeTab = TAB_ROOTS.includes(screenHistory[0]) ? screenHistory[0] : 'more'
+
   const resetToHome = async () => {
     await Haptics.impact({ style: ImpactStyle.Medium })
     setCurrentScreen('home')
@@ -240,6 +258,12 @@ export default function MobileApp() {
     switch (currentScreen) {
       case 'home':
         return <MobileHome {...screenProps} />
+      case 'apps':
+        return <MobileAppsHub {...screenProps} />
+      case 'clients':
+        return <MobileClients {...screenProps} />
+      case 'more':
+        return <MobileMore {...screenProps} />
       case 'profile':
         return <MobileProfile {...screenProps} />
       case 'attendance':
@@ -414,36 +438,11 @@ export default function MobileApp() {
 
       {/* Bottom Tab Navigation */}
       <nav className="mobile-tabs">
-        <TabButton
-          iconName="home"
-          label="Dashboard"
-          active={currentScreen === 'home'}
-          onPress={() => navigate('home')}
-        />
-        <TabButton
-          iconName="grid"
-          label="Rota"
-          active={currentScreen === 'rota'}
-          onPress={() => navigate('rota')}
-        />
-        <TabButton
-          iconName="clock"
-          label="Shifts"
-          active={currentScreen === 'myshifts'}
-          onPress={() => navigate('myshifts')}
-        />
-        <TabButton
-          iconName="plane"
-          label="Leave"
-          active={currentScreen === 'leave'}
-          onPress={() => navigate('leave')}
-        />
-        <TabButton
-          iconName="calendar"
-          label="Timesheets"
-          active={currentScreen === 'timesheet'}
-          onPress={() => navigate('timesheet')}
-        />
+        <TabButton iconName="home" label="Home" active={activeTab === 'home'} onPress={() => switchTab('home')} />
+        <TabButton iconName="grid" label="Apps" active={activeTab === 'apps'} onPress={() => switchTab('apps')} />
+        <TabButton iconName="barChart" label="Leads" active={activeTab === 'outreach'} onPress={() => switchTab('outreach')} />
+        <TabButton iconName="briefcase" label="Clients" active={activeTab === 'clients'} onPress={() => switchTab('clients')} />
+        <TabButton iconName="moreHorizontal" label="More" active={activeTab === 'more'} onPress={() => switchTab('more')} />
       </nav>
 
       <style>{`
@@ -467,14 +466,14 @@ export default function MobileApp() {
            a literal rgba in four different files, which is how a rebrand
            leaves fragments of the old colour behind. */
         .mobile-app.light {
-          --mobile-bg: #f4f6f8;
+          --mobile-bg: #f3f5f9;
           --mobile-card: #ffffff;
-          --mobile-text: #0d1b2a;
-          --mobile-text-secondary: #5b6b7c;
-          --mobile-border: #dfe5ea;
-          --mobile-accent: #0066cc;
-          --mobile-accent-soft: rgba(0, 102, 204, 0.12);
-          --mobile-accent-strong: #0052a3;
+          --mobile-text: #0e1726;
+          --mobile-text-secondary: #556172;
+          --mobile-border: #e1e6ee;
+          --mobile-accent: #0b5fd0;
+          --mobile-accent-soft: #e3eeff;
+          --mobile-accent-strong: #084ba6;
           --mobile-on-accent: #ffffff;
         }
 
@@ -615,6 +614,15 @@ export default function MobileApp() {
           to { transform: rotate(360deg); }
         }
 
+        .mobile-app { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
+        .mobile-app .mobile-card { border-radius: 20px; box-shadow: none; }
+        .mobile-screen-header h1 { font-family: Archivo, system-ui, sans-serif; }
+        .mobile-screen-header { background: var(--mobile-bg); border-bottom: 0; }
+        .professional-screen-header { padding: 16px 20px 8px; }
+        .professional-screen-header h1 { margin: 0; font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.02em; color: var(--mobile-text); }
+        .professional-screen-header p { margin: 4px 0 0; font-size: 14px; color: var(--mobile-text-secondary); }
+        .professional-section { padding: 8px 20px; }
+
         /* Disable text selection (native feel) */
         .mobile-app {
           -webkit-user-select: none;
@@ -658,7 +666,7 @@ function TabButton({ iconName, label, active, onPress }) {
       className={`mobile-tab-btn ${active ? 'active' : ''}`}
       onClick={handlePress}
     >
-      <Icon name={iconName} size={22} strokeWidth={active ? 2.5 : 2} />
+      <span className="mobile-tab-pill"><Icon name={iconName} size={22} strokeWidth={active ? 2.4 : 1.9} /></span>
       <span className="mobile-tab-label">{label}</span>
 
       <style>{`
@@ -672,7 +680,7 @@ function TabButton({ iconName, label, active, onPress }) {
           padding: 8px 0;
           border: none;
           background: none;
-          color: #86868b;
+          color: var(--mobile-text-secondary);
           cursor: pointer;
           transition: all 0.2s ease;
         }
@@ -682,7 +690,20 @@ function TabButton({ iconName, label, active, onPress }) {
         }
 
         .mobile-tab-btn.active {
-          color: #0066cc;
+          color: var(--mobile-accent);
+        }
+
+        .mobile-tab-pill {
+          width: 56px;
+          height: 30px;
+          border-radius: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .mobile-tab-btn.active .mobile-tab-pill {
+          background: var(--mobile-accent-soft);
         }
 
         .mobile-tab-label {

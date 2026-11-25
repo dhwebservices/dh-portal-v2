@@ -422,8 +422,8 @@ export default function MobileOutreach({ navigate }) {
     <div className="professional-screen">
       {/* Header */}
       <div className="professional-screen-header">
-        <h1>Clients Contacted</h1>
-        <p>Outreach & lead management</p>
+        <h1>Leads</h1>
+        <p>Everyone we're talking to</p>
       </div>
 
       {/* Stats */}
