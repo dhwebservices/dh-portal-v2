@@ -4,8 +4,8 @@ import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
-import { SkeletonList } from '../components/SkeletonLoader'
+import { Chip } from '../components/DH'
+import { Screen, Sec, KV, Field, Pills, Pill, Btn, Btns, Empty, Loading } from '../components/UI'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
 
@@ -154,315 +154,123 @@ export default function MobileOnboardingReview({ goBack, navigate, isAdmin }) {
 
   if (!isAdmin) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Onboarding</h1>
-          <div style={{ width: 60 }} />
-        </div>
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--mobile-text-secondary)' }}>
-          You don't have access to review onboarding.
-        </div>
-      </div>
+      <Screen title="Onboarding" onBack={goBack}>
+        <Empty icon="lock" title="You don't have access to review onboarding." />
+      </Screen>
     )
   }
 
+  const tone = (st) => (st === 'approved' ? 'green' : st === 'rejected' ? 'red' : st === 'submitted' ? 'amber' : 'neutral')
+  const label = (st) => (st === 'submitted' ? 'To review' : st ? st[0].toUpperCase() + st.slice(1) : 'Draft')
+  const initials = (r) => (r.user_name || r.user_email || '?').split(/[ @.]/).filter(Boolean).map(x => x[0]).join('').slice(0, 2).toUpperCase()
+
   if (detail) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={() => setDetail(null)}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Review</h1>
-          <div style={{ width: 60 }} />
+      <Screen title="Review onboarding" onBack={() => setDetail(null)}>
+        <div className="dh-card">
+          <div className="dh-row">
+            <span className="dh-av round">{initials(detail)}</span>
+            <span className="dh-g">
+              <span className="dh-t">{detail.user_name || detail.user_email}</span>
+              <span className="dh-sub">{detail.submitted_at ? `Submitted ${new Date(detail.submitted_at).toLocaleDateString('en-GB')}` : 'Draft'}</span>
+            </span>
+            <Chip tone={tone(detail.status)}>{label(detail.status)}</Chip>
+          </div>
         </div>
 
-        <div style={{ padding: 20, paddingBottom: 100 }}>
-          <MobileCard>
-            <h3 className="review-name">{detail.user_name || detail.user_email}</h3>
-            <div className="review-row"><span>Email</span><span>{detail.user_email}</span></div>
-            <div className="review-row"><span>DOB</span><span>{detail.dob || '—'}</span></div>
-            <div className="review-row"><span>Phone</span><span>{detail.phone || '—'}</span></div>
-            <div className="review-row"><span>Personal Email</span><span>{detail.personal_email || '—'}</span></div>
-            <div className="review-row"><span>Address</span><span>{detail.address || '—'}</span></div>
-          </MobileCard>
+        <Sec>Personal details</Sec>
+        <div className="dh-card">
+          <KV k="Email" v={detail.user_email} />
+          <KV k="Date of birth" v={detail.dob || '—'} />
+          <KV k="Phone" v={detail.phone || '—'} />
+          <KV k="Personal email" v={detail.personal_email || '—'} />
+          <KV k="Address" v={detail.address || '—'} />
+        </div>
 
-          <MobileCard style={{ marginTop: 16 }}>
-            <h3 className="review-section">Emergency Contact</h3>
-            <div className="review-row"><span>Name</span><span>{detail.emergency_contact || '—'}</span></div>
-            <div className="review-row"><span>Phone</span><span>{detail.emergency_phone || '—'}</span></div>
-          </MobileCard>
+        <Sec>Emergency contact</Sec>
+        <div className="dh-card">
+          <KV k="Name" v={detail.emergency_contact || '—'} />
+          <KV k="Phone" v={detail.emergency_phone || '—'} />
+        </div>
 
-          <MobileCard style={{ marginTop: 16 }}>
-            <h3 className="review-section">Bank Details</h3>
-            <div className="review-row"><span>Bank</span><span>{detail.bank_name || '—'}</span></div>
-            <div className="review-row"><span>Account Name</span><span>{detail.account_name || '—'}</span></div>
-            <div className="review-row"><span>Sort Code</span><span>{detail.sort_code || '—'}</span></div>
-            <div className="review-row"><span>Account No.</span><span>{detail.account_number || '—'}</span></div>
-          </MobileCard>
+        <Sec>Bank details</Sec>
+        <div className="dh-card">
+          <KV k="Bank" v={detail.bank_name || '—'} />
+          <KV k="Account name" v={detail.account_name || '—'} />
+          <KV k="Sort code" v={detail.sort_code || '—'} />
+          <KV k="Account number" v={detail.account_number || '—'} />
+        </div>
 
-          <MobileCard style={{ marginTop: 16 }}>
-            <h3 className="review-section">Right to Work</h3>
-            <div className="review-row"><span>Document</span><span>{detail.rtw_type || '—'}</span></div>
-            <div className="review-row"><span>Expiry</span><span>{detail.rtw_expiry || '—'}</span></div>
-            {detail.rtw_doc_url ? (
-              <a className="rtw-view-link" href={detail.rtw_doc_url} target="_blank" rel="noreferrer">
-                📄 View uploaded document
-              </a>
-            ) : (
-              <div className="review-row"><span>Document</span><span>Not uploaded</span></div>
-            )}
-          </MobileCard>
-
-          <MobileCard style={{ marginTop: 16 }}>
-            <h3 className="review-section">Contract</h3>
-            <div className="review-row"><span>Acknowledged</span><span>{detail.contract_acknowledged ? 'Yes' : 'No'}</span></div>
-          </MobileCard>
-
-          {detail.status === 'submitted' && (
-            <>
-              {declining ? (
-                <MobileCard style={{ marginTop: 16 }}>
-                  <h3 className="review-section">Decline Reason</h3>
-                  <textarea
-                    className="decline-textarea"
-                    rows={4}
-                    value={declineReason}
-                    onChange={e => setDeclineReason(e.target.value)}
-                    placeholder="Explain what needs to be corrected..."
-                  />
-                  <div className="review-actions">
-                    <button className="action-btn cancel" onClick={() => setDeclining(false)}>Cancel</button>
-                    <button className="action-btn reject" disabled={busy} onClick={() => handleDecline(detail)}>
-                      {busy ? 'Declining...' : 'Confirm Decline'}
-                    </button>
-                  </div>
-                </MobileCard>
-              ) : (
-                <div className="review-actions" style={{ marginTop: 20 }}>
-                  <button className="action-btn approve" disabled={busy} onClick={() => handleApprove(detail)}>
-                    <Icon name="check" size={18} color="#34c759" />
-                    Approve
-                  </button>
-                  <button className="action-btn reject" disabled={busy} onClick={() => setDeclining(true)}>
-                    <Icon name="x" size={18} color="#ff3b30" />
-                    Decline
-                  </button>
-                </div>
-              )}
-            </>
+        <Sec>Right to work</Sec>
+        <div className="dh-card">
+          <KV k="Document" v={detail.rtw_type || '—'} />
+          <KV k="Expiry" v={detail.rtw_expiry || '—'} />
+          {detail.rtw_doc_url ? (
+            <a className="dh-row" href={detail.rtw_doc_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+              <span className="dh-ic"><Icon name="file" size={18} /></span>
+              <span className="dh-g"><span className="dh-t">View uploaded document</span></span>
+              <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+            </a>
+          ) : (
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">Upload</span></span><Chip tone="red">Not uploaded</Chip></div>
           )}
         </div>
 
-        {reviewStyles}
-      </div>
+        <Sec>Contract</Sec>
+        <div className="dh-card">
+          <div className="dh-row"><span className="dh-g"><span className="dh-t">Acknowledged</span></span><Chip tone={detail.contract_acknowledged ? 'green' : 'amber'}>{detail.contract_acknowledged ? 'Yes' : 'No'}</Chip></div>
+        </div>
+
+        {detail.status === 'submitted' && (
+          declining ? (
+            <>
+              <div className="dh-card">
+                <Field label="Decline reason (sent to them)" htmlFor="or-reason">
+                  <textarea id="or-reason" rows={4} value={declineReason} onChange={e => setDeclineReason(e.target.value)} placeholder="Explain what needs to be corrected..." />
+                </Field>
+              </div>
+              <Btns>
+                <Btn variant="outline" onPress={() => setDeclining(false)}>Cancel</Btn>
+                <Btn variant="danger" className="solid" disabled={busy} onPress={() => handleDecline(detail)}>{busy ? 'Declining…' : 'Confirm decline'}</Btn>
+              </Btns>
+            </>
+          ) : (
+            <Btns>
+              <Btn variant="danger" disabled={busy} onPress={() => setDeclining(true)}>Decline</Btn>
+              <Btn disabled={busy} onPress={() => handleApprove(detail)}>Approve</Btn>
+            </Btns>
+          )
+        )}
+      </Screen>
     )
   }
 
   const filtered = submissions.filter(s => filter === 'all' || s.status === filter)
 
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Onboarding</h1>
-        <div style={{ width: 60 }} />
-      </div>
-
-      <div className="filter-row">
+    <Screen title="Onboarding" onBack={goBack}>
+      <Pills>
         {['submitted', 'approved', 'rejected', 'all'].map(f => (
-          <button
-            key={f}
-            className={`filter-chip ${filter === f ? 'active' : ''}`}
-            onClick={async () => { await Haptics.impact({ style: ImpactStyle.Light }); setFilter(f) }}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
+          <Pill key={f} on={filter === f} onPress={() => setFilter(f)}>{f === 'submitted' ? 'To review' : f.charAt(0).toUpperCase() + f.slice(1)}</Pill>
         ))}
-      </div>
+      </Pills>
 
-      <div style={{ padding: '0 20px 100px' }}>
-        {loading ? (
-          <SkeletonList count={4} lines={3} />
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--mobile-text-secondary)' }}>
-            No {filter !== 'all' ? filter : ''} onboarding submissions
-          </div>
-        ) : (
-          filtered.map(row => (
-            <MobileCard key={row.id} onPress={() => openDetail(row)} style={{ marginBottom: 12 }}>
-              <div className="list-row">
-                <div>
-                  <div className="list-name">{row.user_name || row.user_email}</div>
-                  <div className="list-sub">{row.submitted_at ? new Date(row.submitted_at).toLocaleDateString('en-GB') : 'Draft'}</div>
-                </div>
-                <span className={`status-badge ${row.status}`}>{row.status}</span>
-              </div>
-            </MobileCard>
-          ))
-        )}
-      </div>
-
-      {reviewStyles}
-    </div>
+      {loading ? <Loading /> : filtered.length === 0 ? (
+        <Empty icon="checkCircle" title={`No ${filter === 'submitted' ? 'forms to review' : filter !== 'all' ? `${filter} forms` : 'onboarding forms'}`} />
+      ) : (
+        <div className="dh-card">
+          {filtered.map(row => (
+            <button key={row.id} type="button" className="dh-row" onClick={() => openDetail(row)}>
+              <span className="dh-av round">{initials(row)}</span>
+              <span className="dh-g">
+                <span className="dh-t">{row.user_name || row.user_email}</span>
+                <span className="dh-sub">{row.submitted_at ? `Submitted ${new Date(row.submitted_at).toLocaleDateString('en-GB')}` : 'Draft'}</span>
+              </span>
+              <Chip tone={tone(row.status)}>{label(row.status)}</Chip>
+            </button>
+          ))}
+        </div>
+      )}
+    </Screen>
   )
 }
-
-const reviewStyles = (
-  <style>{`
-    .filter-row {
-      display: flex;
-      gap: 8px;
-      padding: 16px 20px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .filter-chip {
-      padding: 8px 16px;
-      background: var(--mobile-card);
-      border: 1px solid var(--mobile-border);
-      border-radius: 20px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--mobile-text);
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    .filter-chip.active {
-      background: var(--mobile-accent);
-      color: white;
-      border-color: var(--mobile-accent);
-    }
-
-    .list-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .list-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--mobile-text);
-    }
-
-    .list-sub {
-      font-size: 13px;
-      color: var(--mobile-text-secondary);
-      margin-top: 2px;
-    }
-
-    .status-badge {
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: capitalize;
-    }
-
-    .status-badge.submitted { background: rgba(255,149,0,0.15); color: #ff9500; }
-    .status-badge.approved { background: rgba(52,199,89,0.15); color: #34c759; }
-    .status-badge.rejected { background: rgba(255,59,48,0.15); color: #ff3b30; }
-
-    .review-name {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--mobile-text);
-      margin: 0 0 12px 0;
-    }
-
-    .review-section {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--mobile-text);
-      margin: 0 0 12px 0;
-    }
-
-    .review-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--mobile-border);
-      font-size: 14px;
-    }
-
-    .review-row:last-child {
-      border-bottom: none;
-    }
-
-    .review-row span:first-child {
-      color: var(--mobile-text-secondary);
-    }
-
-    .review-row span:last-child {
-      color: var(--mobile-text);
-      font-weight: 500;
-      text-align: right;
-    }
-
-    .rtw-view-link {
-      display: block;
-      margin-top: 8px;
-      color: var(--mobile-accent);
-      font-weight: 600;
-      font-size: 14px;
-      text-decoration: none;
-    }
-
-    .decline-textarea {
-      width: 100%;
-      padding: 12px;
-      font-size: 15px;
-      border: 1px solid var(--mobile-border);
-      border-radius: 8px;
-      background: var(--mobile-bg);
-      color: var(--mobile-text);
-      font-family: inherit;
-      resize: vertical;
-    }
-
-    .review-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .action-btn {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid var(--mobile-border);
-      background: var(--mobile-card);
-      color: var(--mobile-text);
-    }
-
-    .action-btn.approve {
-      color: #34c759;
-      border-color: #34c759;
-    }
-
-    .action-btn.reject {
-      color: #ff3b30;
-      border-color: #ff3b30;
-    }
-
-    .action-btn:disabled {
-      opacity: 0.6;
-    }
-  `}</style>
-)

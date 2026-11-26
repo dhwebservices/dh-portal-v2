@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { getUserDevices, removeDevice } from '../../utils/pushNotifications'
 import Icon from '../components/Icon'
-import InfoRow from '../components/InfoRow'
+import { Screen, Empty, Loading } from '../components/UI'
 
 /**
  * Which phones are signed in and receiving notifications.
@@ -63,85 +63,31 @@ export default function MobileDeviceHistory({ goBack, user }) {
   }
 
   return (
-    <div className="devices-screen">
-      <div className="devices-head">
-        <button className="devices-back" onClick={goBack} aria-label="Back">
-          <Icon name="chevron-left" size={20} />
-        </button>
-        <h1>Your devices</h1>
-      </div>
+    <Screen title="Your devices" onBack={goBack}>
+      <span className="dh-sub">Where your notifications are sent. Remove any you don't use.</span>
 
-      <p className="devices-note">
-        Notifications go to every device listed here. Remove any you no longer
-        use.
-      </p>
-
-      {loading && <p className="devices-note">Loading…</p>}
+      {loading && <Loading />}
 
       {!loading && devices.length === 0 && (
-        <p className="devices-note">
-          No devices registered yet. Allow notifications on a phone and it will
-          appear here.
-        </p>
+        <Empty icon="smartphone" title="No devices yet" sub="Allow notifications on a phone and it will appear here." />
       )}
 
-      <div className="devices-list">
-        {devices.map(device => (
-          <InfoRow
-            key={device.id}
-            icon="smartphone"
-            title={device.device_name || device.device_model || 'This device'}
-            subtitle={[
-              device.device_model,
-              device.app_version ? `v${device.app_version}` : null,
-              lastActive(device.last_active),
-            ].filter(Boolean).join(' · ')}
-            value={busy === device.id ? '…' : undefined}
-            onPress={() => forget(device)}
-          />
-        ))}
-      </div>
-
-      <style>{`
-        .devices-screen { padding: 16px 16px 40px; }
-
-        .devices-head {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-
-        .devices-head h1 {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .devices-back {
-          background: none;
-          border: none;
-          padding: 4px;
-          color: var(--mobile-text);
-          cursor: pointer;
-          display: grid;
-          place-items: center;
-        }
-
-        .devices-note {
-          margin: 0 4px 14px;
-          font-size: 14px;
-          line-height: 1.45;
-          color: var(--mobile-text-secondary);
-        }
-
-        .devices-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-      `}</style>
-    </div>
+      {devices.length > 0 && (
+        <div className="dh-card">
+          {devices.map(device => (
+            <div key={device.id} className="dh-row">
+              <span className="dh-ic"><Icon name="smartphone" size={18} /></span>
+              <span className="dh-g">
+                <span className="dh-t">{device.device_name || device.device_model || 'This device'}</span>
+                <span className="dh-sub">{[device.device_model, device.app_version ? `v${device.app_version}` : null, lastActive(device.last_active)].filter(Boolean).join(' · ')}</span>
+              </span>
+              <button type="button" className="dh-sec-act" style={{ color: '#B42318' }} onClick={() => forget(device)} disabled={busy === device.id}>
+                {busy === device.id ? '…' : 'Remove'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Screen>
   )
 }

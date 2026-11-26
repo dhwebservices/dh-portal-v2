@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { loadActivePortalStaffAudience } from '../../utils/staffAudience'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
-import SectionHeader from '../components/SectionHeader'
+import { Screen, Sec, Field, Toggle, Seg, Btn, Note, Empty } from '../components/UI'
 
 /**
  * Sending a message to staff phones, from a phone.
@@ -57,9 +56,9 @@ export default function MobileSendNotification({ goBack, user, isAdmin }) {
 
   if (!isAdmin) {
     return (
-      <div className="send-screen">
-        <p className="send-note">This is only available to managers.</p>
-      </div>
+      <Screen title="Send a message" onBack={goBack}>
+        <Empty icon="lock" title="This is only available to managers." />
+      </Screen>
     )
   }
 
@@ -149,210 +148,43 @@ export default function MobileSendNotification({ goBack, user, isAdmin }) {
     })
   }
 
+  const initials = (p) => (p.name || p.email || '?').split(/[ @.]/).filter(Boolean).map(x => x[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className="send-screen">
-      <div className="send-head">
-        <button className="send-back" onClick={goBack} aria-label="Back">
-          <Icon name="chevron-left" size={20} />
-        </button>
-        <h1>Send a message</h1>
-      </div>
+    <Screen title="Send a message" onBack={goBack}>
+      <Sec>Who gets it</Sec>
+      <Seg value={audience} onChange={setAudience} options={[{ value: 'everyone', label: 'Everyone' }, { value: 'some', label: 'Choose people' }]} />
 
-      <MobileCard>
-        <SectionHeader title="Who gets it" />
-        <div className="send-audience">
-          <button
-            className={audience === 'everyone' ? 'active' : ''}
-            onClick={() => setAudience('everyone')}
-          >Everyone</button>
-          <button
-            className={audience === 'some' ? 'active' : ''}
-            onClick={() => setAudience('some')}
-          >Choose people</button>
-        </div>
-
-        {audience === 'some' && (
-          <div className="send-people">
-            {staff.map(person => {
-              const on = chosen.has(person.email)
-              return (
-                <button
-                  key={person.email}
-                  className={`send-person${on ? ' on' : ''}`}
-                  onClick={() => toggle(person.email)}
-                >
-                  <span>{person.name || person.email}</span>
-                  {on && <Icon name="check" size={16} />}
-                </button>
-              )
-            })}
-            {staff.length === 0 && <p className="send-note">No staff found.</p>}
+      {audience === 'some' && (
+        staff.length === 0 ? <Note>No staff found.</Note> : (
+          <div className="dh-card">
+            {staff.map((person, i) => (
+              <div key={person.email} className="dh-row">
+                <span className="dh-av round" style={i % 2 ? { background: '#FFE6CC', color: '#8A4A00' } : undefined}>{initials(person)}</span>
+                <span className="dh-g"><span className="dh-t">{person.name || person.email}</span></span>
+                <Toggle on={chosen.has(person.email)} onChange={() => toggle(person.email)} label={person.name || person.email} />
+              </div>
+            ))}
           </div>
-        )}
-      </MobileCard>
-
-      <MobileCard style={{ marginTop: 16 }}>
-        <SectionHeader title="Message" />
-        <input
-          className="send-field"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="Title"
-          maxLength={60}
-        />
-        <textarea
-          className="send-field send-textarea"
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-          placeholder="What do you want to tell them?"
-          rows={4}
-          maxLength={300}
-        />
-        <p className="send-note">
-          This goes out as an announcement, which staff cannot mute. Use it for
-          things they need to know, not for things that can wait.
-        </p>
-      </MobileCard>
-
-      {result && (
-        <p className={`send-result ${result.ok ? 'ok' : 'bad'}`}>{result.text}</p>
+        )
       )}
 
-      <button className="send-button" onClick={send} disabled={!canSend || sending}>
-        {sending ? 'Sending…' : 'Send'}
-      </button>
+      <Sec>Message</Sec>
+      <div className="dh-card">
+        <Field label="Title" htmlFor="msg-title">
+          <input id="msg-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" maxLength={60} />
+        </Field>
+        <Field label="Message" htmlFor="msg-body">
+          <textarea id="msg-body" value={message} onChange={e => setMessage(e.target.value)} placeholder="What do you want to tell them?" rows={5} maxLength={300} />
+        </Field>
+      </div>
+      <span className="dh-sub">
+        It arrives as a notification on their phone straight away. It goes out as an
+        announcement, which staff cannot mute, so use it for things they need to know.
+      </span>
 
-      <style>{`
-        .send-screen {
-          padding: 16px 16px 40px;
-        }
+      {result && <Note tone={result.ok ? 'ok' : 'error'}>{result.text}</Note>}
 
-        .send-head {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 16px;
-        }
-
-        .send-head h1 {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .send-back {
-          background: none;
-          border: none;
-          padding: 4px;
-          color: var(--mobile-text);
-          cursor: pointer;
-          display: grid;
-          place-items: center;
-        }
-
-        .send-audience {
-          display: flex;
-          gap: 8px;
-          padding: 0 4px 4px;
-        }
-
-        .send-audience button {
-          flex: 1;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: none;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
-
-        .send-audience button.active {
-          background: var(--mobile-accent);
-          border-color: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-        }
-
-        .send-people {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin-top: 12px;
-          max-height: 260px;
-          overflow-y: auto;
-        }
-
-        .send-person {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 11px 14px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: none;
-          font-size: 15px;
-          color: var(--mobile-text);
-          cursor: pointer;
-          text-align: left;
-        }
-
-        .send-person.on {
-          border-color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-        }
-
-        .send-field {
-          width: 100%;
-          margin-top: 10px;
-          padding: 12px 14px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-bg);
-          color: var(--mobile-text);
-          font-size: 15px;
-          font-family: inherit;
-        }
-
-        .send-textarea { resize: vertical; }
-
-        .send-note {
-          margin: 10px 4px 0;
-          font-size: 13px;
-          line-height: 1.45;
-          color: var(--mobile-text-secondary);
-        }
-
-        .send-result {
-          margin: 16px 4px 0;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .send-result.ok { color: #1f7a4d; }
-        .send-result.bad { color: #c0392b; }
-
-        .send-button {
-          width: 100%;
-          margin-top: 18px;
-          padding: 15px;
-          border: none;
-          border-radius: 12px;
-          background: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-          font-size: 16px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .send-button:disabled {
-          opacity: 0.45;
-          cursor: default;
-        }
-      `}</style>
-    </div>
+      <Btn onPress={send} disabled={!canSend || sending}>{sending ? 'Sending…' : 'Send'}</Btn>
+    </Screen>
   )
 }

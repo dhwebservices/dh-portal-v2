@@ -4,8 +4,8 @@ import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { normalizeEmail } from '../../utils/hrProfileSync'
-import MobileCard from '../components/MobileCard'
-import MobileButton from '../components/MobileButton'
+import { Chip } from '../components/DH'
+import { Card, Sec, Field, ToggleRow, Btn, Note } from '../components/UI'
 import Icon from '../components/Icon'
 
 const PORTAL_URL = 'https://staff.dhwebsiteservices.co.uk'
@@ -204,330 +204,172 @@ export default function MobileOnboarding({ goBack, user }) {
   }
 
   if (loading) {
-    return (
-      <div className="onboarding-screen">
-        <div className="onboarding-loading">
-          <div className="spinner" />
-        </div>
-      </div>
-    )
+    return <Shell><div className="dh-body"><p className="dh-note2">Loading…</p></div></Shell>
   }
 
   // Waiting for review
   if (submission?.status === 'submitted') {
     return (
-      <div className="onboarding-screen">
-        <div className="onboarding-status">
-          <div className="status-icon submitted">
-            <Icon name="check" size={40} color="var(--mobile-accent)" />
-          </div>
-          <h1>Onboarding Submitted</h1>
-          <p>Thanks, {form.first_name || user.name}. Your onboarding details have been sent for review.</p>
-          <p className="status-sub">
+      <Shell>
+        <div className="dh-body ob-done">
+          <span className="ob-tick"><Icon name="check" size={36} /></span>
+          <h1 className="dh-h1" style={{ fontSize: 26 }}>Onboarding sent</h1>
+          <p className="dh-note2" style={{ fontSize: 15 }}>Thanks, {form.first_name || user.name}. Your onboarding details have been sent for review.</p>
+          <p className="dh-note2">
             {managerInfo?.manager_name ? `${managerInfo.manager_name} will` : 'Your manager will'} review your submission and you'll be notified once it's approved.
           </p>
-          <button className="onboarding-logout" onClick={handleLogout}>Logout</button>
+          <Btn variant="outline" onPress={handleLogout}>Sign out</Btn>
         </div>
-        {onboardingStyles}
-      </div>
+      </Shell>
     )
   }
 
   // Declined - show reason, allow resubmit
   const declined = submission?.status === 'rejected'
+  const steps = [
+    ['Personal information', !!(form.first_name && form.last_name && form.dob && form.phone)],
+    ['Emergency contact', !!(form.emergency_contact && form.emergency_phone)],
+    ['Bank details', !!(form.account_name && form.sort_code && form.account_number)],
+    ['Right to work', !!form.rtw_doc_url],
+    ['Contract and sign-off', !!form.contract_acknowledged],
+  ]
+  const doneCount = steps.filter(([, ok]) => ok).length
 
   return (
-    <div className="onboarding-screen">
-      <div className="onboarding-header">
-        <h1>Complete Your Onboarding</h1>
-        <p>Fill in your details below. This information is used for payroll, right-to-work checks, and your employee record.</p>
-      </div>
+    <Shell>
+      <div className="dh-body">
+        <span className="dh-sub">{doneCount} of {steps.length} done</span>
+        <div className="ob-bar"><div style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
+        <h1 className="dh-h1" style={{ fontSize: 26 }}>Welcome to DH</h1>
+        <p className="dh-note2" style={{ fontSize: 15 }}>A few details for payroll, right-to-work checks and your employee record. It takes about five minutes.</p>
 
-      {declined && (
-        <div className="decline-banner">
-          <strong>Your submission was declined.</strong>
-          {submission.decline_reason && <p>{submission.decline_reason}</p>}
-          <p>Please update your details below and resubmit.</p>
+        {declined && (
+          <Card pad tone="danger">
+            <span className="dh-t">Your submission was declined.</span>
+            {submission.decline_reason && <span className="dh-sub">{submission.decline_reason}</span>}
+            <span className="dh-sub">Please update your details below and resubmit.</span>
+          </Card>
+        )}
+
+        <div className="dh-card">
+          {steps.map(([name, ok], i) => (
+            <div key={name} className="dh-row">
+              <Chip tone={ok ? 'green' : 'neutral'}>{i + 1}</Chip>
+              <span className="dh-g"><span className="dh-t">{name}</span></span>
+              {ok && <span className="dh-sub">Done</span>}
+            </div>
+          ))}
         </div>
-      )}
 
-      {error && <div className="onboarding-error">{error}</div>}
+        <Note tone="error">{error}</Note>
 
-      <div className="onboarding-form">
-        <MobileCard>
-          <h3 className="section-title">Personal Information</h3>
-          <label className="field-label">First Name</label>
-          <input className="field-input" value={form.first_name} onChange={e => updateField('first_name', e.target.value)} />
-          <label className="field-label">Last Name</label>
-          <input className="field-input" value={form.last_name} onChange={e => updateField('last_name', e.target.value)} />
-          <label className="field-label">Date of Birth</label>
-          <input className="field-input" type="date" value={form.dob} onChange={e => updateField('dob', e.target.value)} />
-          <label className="field-label">Personal Email</label>
-          <input className="field-input" type="email" value={form.personal_email} onChange={e => updateField('personal_email', e.target.value)} />
-          <label className="field-label">Phone</label>
-          <input className="field-input" type="tel" value={form.phone} onChange={e => updateField('phone', e.target.value)} />
-          <label className="field-label">Address</label>
-          <textarea className="field-textarea" rows={3} value={form.address} onChange={e => updateField('address', e.target.value)} />
-        </MobileCard>
 
-        <MobileCard style={{ marginTop: 16 }}>
-          <h3 className="section-title">Emergency Contact</h3>
-          <label className="field-label">Contact Name</label>
-          <input className="field-input" value={form.emergency_contact} onChange={e => updateField('emergency_contact', e.target.value)} />
-          <label className="field-label">Contact Phone</label>
-          <input className="field-input" type="tel" value={form.emergency_phone} onChange={e => updateField('emergency_phone', e.target.value)} />
-        </MobileCard>
+        <Sec>Personal information</Sec>
+        <div className="dh-card">
+          <Field label="First name">
+            <input value={form.first_name} onChange={e => updateField('first_name', e.target.value)} />
+          </Field>
+          <Field label="Last name">
+            <input value={form.last_name} onChange={e => updateField('last_name', e.target.value)} />
+          </Field>
+          <Field label="Date of birth">
+            <input type="date" value={form.dob} onChange={e => updateField('dob', e.target.value)} />
+          </Field>
+          <Field label="Personal email">
+            <input type="email" value={form.personal_email} onChange={e => updateField('personal_email', e.target.value)} />
+          </Field>
+          <Field label="Phone">
+            <input type="tel" value={form.phone} onChange={e => updateField('phone', e.target.value)} />
+          </Field>
+          <Field label="Address">
+            <textarea rows={3} value={form.address} onChange={e => updateField('address', e.target.value)} />
+          </Field>
+        </div>
 
-        <MobileCard style={{ marginTop: 16 }}>
-          <h3 className="section-title">Bank Details</h3>
-          <label className="field-label">Bank Name</label>
-          <input className="field-input" value={form.bank_name} onChange={e => updateField('bank_name', e.target.value)} />
-          <label className="field-label">Account Name</label>
-          <input className="field-input" value={form.account_name} onChange={e => updateField('account_name', e.target.value)} />
-          <label className="field-label">Sort Code</label>
-          <input className="field-input" value={form.sort_code} onChange={e => updateField('sort_code', e.target.value)} placeholder="12-34-56" />
-          <label className="field-label">Account Number</label>
-          <input className="field-input" value={form.account_number} onChange={e => updateField('account_number', e.target.value)} placeholder="12345678" />
-        </MobileCard>
+        <Sec>Emergency contact</Sec>
+        <div className="dh-card">
+          <Field label="Contact name">
+            <input value={form.emergency_contact} onChange={e => updateField('emergency_contact', e.target.value)} />
+          </Field>
+          <Field label="Contact phone">
+            <input type="tel" value={form.emergency_phone} onChange={e => updateField('emergency_phone', e.target.value)} />
+          </Field>
+        </div>
 
-        <MobileCard style={{ marginTop: 16 }}>
-          <h3 className="section-title">Right to Work</h3>
-          <p className="section-desc">Under UK law, we're required to check your right to work before employment begins.</p>
-          <label className="field-label">Document Type</label>
-          <select className="field-select" value={form.rtw_type} onChange={e => updateField('rtw_type', e.target.value)}>
-            {RTW_DOCS.map(doc => <option key={doc} value={doc}>{doc}</option>)}
-          </select>
-          <label className="field-label">Document Expiry (if applicable)</label>
-          <input className="field-input" type="date" value={form.rtw_expiry} onChange={e => updateField('rtw_expiry', e.target.value)} />
-          <label className="field-label">Upload Document</label>
-          <label className="rtw-upload">
+        <Sec>Bank details</Sec>
+        <div className="dh-card">
+          <Field label="Bank name">
+            <input value={form.bank_name} onChange={e => updateField('bank_name', e.target.value)} />
+          </Field>
+          <Field label="Account name">
+            <input value={form.account_name} onChange={e => updateField('account_name', e.target.value)} />
+          </Field>
+          <Field label="Sort code">
+            <input value={form.sort_code} onChange={e => updateField('sort_code', e.target.value)} placeholder="12-34-56" />
+          </Field>
+          <Field label="Account number">
+            <input value={form.account_number} onChange={e => updateField('account_number', e.target.value)} placeholder="12345678" />
+          </Field>
+        </div>
+
+        <Sec>Right to work</Sec>
+        <div className="dh-card">
+          <div className="dh-row"><span className="dh-sub">Under UK law, we're required to check your right to work before employment begins.</span></div>
+          <Field label="Document type">
+            <select value={form.rtw_type} onChange={e => updateField('rtw_type', e.target.value)}>
+              {RTW_DOCS.map(doc => <option key={doc} value={doc}>{doc}</option>)}
+            </select>
+          </Field>
+          <Field label="Document expiry (if applicable)">
+            <input type="date" value={form.rtw_expiry} onChange={e => updateField('rtw_expiry', e.target.value)} />
+          </Field>
+          <label className="dh-row" style={{ cursor: 'pointer' }}>
             <input type="file" accept="image/*,application/pdf" capture="environment" onChange={handleRtwFile} hidden />
-            <Icon name="file" size={20} color="var(--mobile-accent)" />
-            <span>{rtwUploading ? 'Uploading...' : rtwFileName || 'Take photo or choose file'}</span>
+            <span className="dh-ic"><Icon name="file" size={18} /></span>
+            <span className="dh-g"><span className="dh-t" style={{ color: 'var(--mobile-accent)' }}>{rtwUploading ? 'Uploading…' : rtwFileName || 'Take a photo or choose a file'}</span><span className="dh-sub">Upload the document</span></span>
+            {form.rtw_doc_url && <Chip tone="green">Uploaded</Chip>}
           </label>
-          {form.rtw_doc_url && <div className="rtw-uploaded">✓ Document uploaded</div>}
-        </MobileCard>
+        </div>
 
-        <MobileCard style={{ marginTop: 16 }}>
-          <h3 className="section-title">Contract & Sign-off</h3>
-          <label className="contract-check">
-            <input
-              type="checkbox"
-              checked={form.contract_acknowledged}
-              onChange={e => updateField('contract_acknowledged', e.target.checked)}
-            />
-            <span>I confirm the details above are accurate and I have read and accept my contract terms.</span>
-          </label>
-        </MobileCard>
+        <Sec>Contract and sign-off</Sec>
+        <div className="dh-card">
+          <ToggleRow
+            title="I confirm"
+            sub="The details above are accurate and I have read and accept my contract terms."
+            on={!!form.contract_acknowledged}
+            onChange={(v) => updateField('contract_acknowledged', v)}
+          />
+        </div>
 
-        <MobileButton
-          variant="primary"
-          fullWidth
-          loading={submitting}
-          onPress={handleSubmit}
-        >
-          {declined ? 'Resubmit Onboarding' : 'Submit Onboarding'}
-        </MobileButton>
-
-        <button className="onboarding-logout" onClick={handleLogout}>Logout</button>
+        <Btn onPress={handleSubmit} disabled={submitting}>{submitting ? 'Sending…' : declined ? 'Resubmit' : 'Send for review'}</Btn>
+        <Btn variant="ghost" onPress={handleLogout}>Sign out</Btn>
       </div>
+    </Shell>
+  )
+}
 
-      {onboardingStyles}
+// Onboarding is shown before the app shell (MobileApp returns it on its own),
+// so it sets the DH colour tokens itself. Module-level so inputs keep focus.
+function Shell({ children }) {
+  return (
+    <div className="ob-root">
+      <style>{OB_CSS}</style>
+      {children}
     </div>
   )
 }
 
-const onboardingStyles = (
-  <style>{`
-    .onboarding-screen {
-      min-height: 100vh;
-      background: var(--mobile-bg);
-      padding-bottom: 60px;
-    }
-
-    .onboarding-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .onboarding-header {
-      padding: 24px 20px 8px;
-    }
-
-    .onboarding-header h1 {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--mobile-text);
-      margin: 0 0 8px 0;
-    }
-
-    .onboarding-header p {
-      font-size: 14px;
-      color: var(--mobile-text-secondary);
-      margin: 0;
-      line-height: 1.5;
-    }
-
-    .decline-banner {
-      margin: 16px 20px 0;
-      padding: 14px 16px;
-      background: rgba(255, 59, 48, 0.1);
-      border: 1px solid #ff3b30;
-      border-radius: 10px;
-      color: var(--mobile-text);
-      font-size: 14px;
-    }
-
-    .decline-banner p {
-      margin: 6px 0 0 0;
-      color: var(--mobile-text-secondary);
-    }
-
-    .onboarding-error {
-      margin: 16px 20px 0;
-      padding: 12px 16px;
-      background: rgba(255, 59, 48, 0.1);
-      border: 1px solid #ff3b30;
-      border-radius: 8px;
-      color: #ff3b30;
-      font-size: 14px;
-    }
-
-    .onboarding-form {
-      padding: 20px;
-    }
-
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--mobile-text);
-      margin: 0 0 12px 0;
-    }
-
-    .section-desc {
-      font-size: 13px;
-      color: var(--mobile-text-secondary);
-      margin: -8px 0 12px 0;
-      line-height: 1.5;
-    }
-
-    .field-label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--mobile-text);
-      margin: 12px 0 6px 0;
-    }
-
-    .field-label:first-of-type {
-      margin-top: 0;
-    }
-
-    .field-input,
-    .field-select,
-    .field-textarea {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 14px;
-      font-size: 16px;
-      border: 1px solid var(--mobile-border);
-      border-radius: 8px;
-      background: var(--mobile-bg);
-      color: var(--mobile-text);
-      font-family: inherit;
-    }
-
-    .field-textarea {
-      resize: vertical;
-    }
-
-    .rtw-upload {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 14px;
-      border: 1px dashed var(--mobile-border);
-      border-radius: 8px;
-      font-size: 14px;
-      color: var(--mobile-text);
-      cursor: pointer;
-    }
-
-    .rtw-uploaded {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #34c759;
-      font-weight: 600;
-    }
-
-    .contract-check {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 14px;
-      color: var(--mobile-text);
-      line-height: 1.5;
-    }
-
-    .contract-check input {
-      margin-top: 3px;
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-    }
-
-    .onboarding-status {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 60px 32px;
-    }
-
-    .status-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 102, 204, 0.1);
-      margin-bottom: 20px;
-    }
-
-    .onboarding-status h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--mobile-text);
-      margin: 0 0 12px 0;
-    }
-
-    .onboarding-status p {
-      font-size: 15px;
-      color: var(--mobile-text-secondary);
-      margin: 0 0 8px 0;
-      line-height: 1.5;
-    }
-
-    .status-sub {
-      font-size: 13px !important;
-    }
-
-    .onboarding-logout {
-      margin-top: 24px;
-      background: none;
-      border: none;
-      color: #ff3b30;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-  `}</style>
-)
+const OB_CSS = `
+  .ob-root {
+    --mobile-bg: #f3f5f9; --mobile-card: #ffffff; --mobile-text: #0e1726; --mobile-text-secondary: #556172;
+    --mobile-border: #e1e6ee; --mobile-accent: #0b5fd0; --mobile-accent-soft: #e3eeff; --mobile-on-accent: #fff;
+    min-height: 100vh; height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: var(--mobile-bg); color: var(--mobile-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding-top: calc(env(safe-area-inset-top) + 12px); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ob-root * { box-sizing: border-box; }
+  .ob-bar { height: 6px; border-radius: 3px; background: var(--mobile-border); overflow: hidden; }
+  .ob-bar > div { height: 6px; border-radius: 3px; background: var(--mobile-accent); transition: width .3s; }
+  .ob-done { align-items: center; text-align: center; padding-top: 60px; }
+  .ob-tick { width: 72px; height: 72px; border-radius: 36px; background: var(--mobile-accent-soft); color: var(--mobile-accent); display: flex; align-items: center; justify-content: center; }
+`

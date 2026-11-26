@@ -4,6 +4,8 @@ import { Capacitor } from '@capacitor/core'
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
 import { getStaffIdToken, SignInNeeded } from '../../utils/staffToken'
 import Icon from '../components/Icon'
+import { Chip } from '../components/DH'
+import { Screen, Card, Sec, KV, Field, Seg, Pills, Pill, Btn, Btns, Hero, Note, Empty, Sheet, Loading } from '../components/UI'
 
 /**
  * Device management: our own MDM (workers/mdm), not Intune.
@@ -31,7 +33,6 @@ function ago(t) {
   return `${Math.round(h / 24)} days ago`
 }
 const gb = (v) => (v == null ? '—' : `${Math.round(v * 10) / 10} GB`)
-const yesNo = (v, good = true) => (v == null ? <span>—</span> : <span className={`mdm-pill ${good === null ? '' : v === good ? 'good' : 'bad'}`}>{v ? 'Yes' : 'No'}</span>)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const COMMAND_NAMES = {
   DeviceInformation: 'Device details', SecurityInfo: 'Security check', InstalledApplicationList: 'App list',
@@ -74,39 +75,29 @@ export default function MobileDeviceManagement({ goBack }) {
   }
 
   return (
-    <div className="mdm-screen">
-      <div className="mdm-head">
-        <button className="mdm-back" onClick={goBack} aria-label="Back"><Icon name="chevronLeft" size={20} /></button>
-        <h1>Device management</h1>
-      </div>
-
+    <Screen title="Device management" onBack={goBack}>
       {me?.isAdmin && (
-        <div className="mdm-tabs">
-          <button className={tab === 'mine' ? 'on' : ''} onClick={() => setTab('mine')}>My iPhone</button>
-          <button className={tab === 'team' ? 'on' : ''} onClick={() => setTab('team')}>Staff phones</button>
-        </div>
+        <Seg value={tab} onChange={setTab} options={[{ value: 'mine', label: 'My iPhone' }, { value: 'team', label: 'Staff phones' }]} />
       )}
 
-      {error && <p className="mdm-error">{error}</p>}
-      {!me && !error && <p className="mdm-note">Loading…</p>}
-      {me && !me.pushReady && <p className="mdm-note warn">Device management is still being set up: commands will queue but phones can't be woken to collect them yet.</p>}
+      <Note tone="error">{error}</Note>
+      {!me && !error && <Loading />}
+      {me && !me.pushReady && <Note tone="warn">Device management is still being set up: commands will queue but phones can't be woken to collect them yet.</Note>}
 
       {me && tab === 'mine' && <MyPhone me={me} call={call} onOpen={setOpenUdid} />}
       {me && tab === 'team' && me.isAdmin && <TeamPhones call={call} onOpen={setOpenUdid} />}
-
-      <style>{CSS}</style>
-    </div>
+    </Screen>
   )
 }
 
 function WhatWeSee() {
   return (
-    <details className="mdm-what">
-      <summary>What DH can and can't do</summary>
-      <p><b>Can:</b> see the model, iOS version, storage, battery and serial number; check a passcode is set and the phone is encrypted; see which apps are installed; lock the screen, or lock it with a message to call us if it's lost.</p>
-      <p><b>Can't:</b> erase the phone, read messages, email, photos, files or browsing, or see where the phone is. Restart and shut down only work on company phones set up through Apple Business Manager.</p>
-      <p>You can remove it any time in Settings &gt; General &gt; VPN &amp; Device Management.</p>
-    </details>
+    <Card pad>
+      <span className="dh-t">What DH can and can't do</span>
+      <span className="dh-sub"><b>Can:</b> see the model, iOS version, storage, battery and serial number; check a passcode is set and the phone is encrypted; see which apps are installed; lock the screen, or lock it with a message to call us if it's lost.</span>
+      <span className="dh-sub"><b>Can't:</b> erase the phone, read messages, email, photos, files or browsing, or see where the phone is. Restart and shut down only work on company phones set up through Apple Business Manager.</span>
+      <span className="dh-sub">You can remove it any time in Settings &gt; General &gt; VPN &amp; Device Management.</span>
+    </Card>
   )
 }
 
@@ -134,25 +125,43 @@ function MyPhone({ me, call, onOpen }) {
 
   return (
     <>
-      {me.devices.map((d) => <DeviceRow key={d.udid} d={d} onOpen={onOpen} />)}
+      {me.devices.length > 0 && (
+        <>
+          <Sec>Your iPhone</Sec>
+          <div className="dh-card">{me.devices.map((d) => <DeviceRow key={d.udid} d={d} onOpen={onOpen} />)}</div>
+        </>
+      )}
 
-      <div className="mdm-card">
-        <div className="mdm-label">{me.devices.length ? 'Enrol another iPhone' : 'Add this iPhone to DH device management'}</div>
-        <p className="mdm-sub">If your phone is lost or stolen, DH can lock it straight away with a message asking whoever finds it to call us. We can also check it's secure and up to date.</p>
-        <WhatWeSee />
-        <button className="mdm-run" onClick={enrol} disabled={busy}>{busy ? 'Getting your link…' : 'Enrol this iPhone'}</button>
-        {link && (
-          <div className="mdm-sub">
-            Safari should have opened. If not, open this link in Safari on the iPhone (it works once, for 24 hours):
-            <div className="mdm-link">{link}</div>
-            <ol className="mdm-steps">
-              <li>Tap <b>Allow</b> to download the profile.</li>
-              <li>Open <b>Settings</b> and tap <b>Profile Downloaded</b>.</li>
-              <li>Tap <b>Install</b>, enter your passcode, and <b>Trust</b> Remote Management.</li>
-            </ol>
-          </div>
-        )}
-        {error && <p className="mdm-error">{error}</p>}
+      <Card pad>
+        <span className="dh-t">{me.devices.length ? 'Enrol another iPhone' : 'Add this iPhone to DH device management'}</span>
+        <span className="dh-sub">If your phone is lost or stolen, DH can lock it straight away with a message asking whoever finds it to call us. We can also check it's secure and up to date.</span>
+        <Btn onPress={enrol} disabled={busy}>{busy ? 'Getting your link…' : 'Enrol this iPhone'}</Btn>
+        <Note tone="error">{error}</Note>
+      </Card>
+
+      {link && <EnrolSteps link={link} />}
+
+      <WhatWeSee />
+    </>
+  )
+}
+
+function EnrolSteps({ link, email, onShare }) {
+  return (
+    <>
+      <Hero>
+        {email && <span className="dh-sub">Link for {email}</span>}
+        <span className="dh-t" style={{ fontSize: 17 }}>{email ? "Open this on the iPhone you're adding" : 'Safari should have opened. If not, open this link in Safari'}</span>
+        <span className="dh-sub">It works once, for 24 hours.</span>
+        <div className="dh-mono" style={{ background: 'rgba(255,255,255,.12)', borderColor: 'rgba(255,255,255,.25)', color: '#fff' }}>{link}</div>
+        {onShare && <Btn variant="outline" onPress={onShare}>Share link</Btn>}
+      </Hero>
+      <Sec>On the iPhone</Sec>
+      <div className="dh-card">
+        <div className="dh-row"><Chip tone="blue">1</Chip><span className="dh-g"><span className="dh-t">Open the link, tap Allow</span><span className="dh-sub">Safari downloads the DH profile</span></span></div>
+        <div className="dh-row"><Chip>2</Chip><span className="dh-g"><span className="dh-t">Settings, Profile Downloaded, Install</span><span className="dh-sub">Enter the phone's passcode</span></span></div>
+        <div className="dh-row"><Chip>3</Chip><span className="dh-g"><span className="dh-t">Trust Remote Management</span><span className="dh-sub">Settings, General, VPN and Device Management</span></span></div>
+        <div className="dh-row"><Chip>4</Chip><span className="dh-g"><span className="dh-t">Back here</span><span className="dh-sub">It shows as enrolled within a minute</span></span></div>
       </div>
     </>
   )
@@ -161,25 +170,19 @@ function MyPhone({ me, call, onOpen }) {
 function DeviceRow({ d, onOpen }) {
   const stale = d.infoAt && Date.now() - d.infoAt > 24 * 3600 * 1000
   return (
-    <button className="mdm-card mdm-device" onClick={() => onOpen(d.udid)}>
-      <div className="mdm-row">
-        <div>
-          <div className="mdm-label">{d.name || d.model || 'iPhone'}</div>
-          <div className="mdm-sub">
-            {[d.owner || d.email, d.model, d.osVersion && `iOS ${d.osVersion}`].filter(Boolean).join(' · ')}
-          </div>
-          <div className="mdm-sub">
-            {d.status === 'enrolled' ? <>Details {d.infoAt ? <span className={stale ? 'mdm-stale' : ''}>{ago(d.infoAt)}</span> : 'not in yet'}</> : d.status === 'enrolling' ? 'Enrolling…' : 'Removed'}
-            {d.battery != null && ` · ${d.battery}% battery`}
-            {d.freeGB != null && ` · ${gb(d.freeGB)} free`}
-          </div>
-        </div>
-        <div className="mdm-badges">
-          {d.status === 'enrolled' && d.passcode === false && <span className="mdm-pill bad">No passcode</span>}
-          {d.supervised && <span className="mdm-pill good">Supervised</span>}
-          <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-        </div>
-      </div>
+    <button type="button" className="dh-row" onClick={() => onOpen(d.udid)}>
+      <span className={`dh-ic${d.status === 'removed' ? ' muted' : ''}`}><Icon name="smartphone" size={18} /></span>
+      <span className="dh-g">
+        <span className="dh-t">{d.name || d.model || 'iPhone'}</span>
+        <span className="dh-sub">{[d.owner || d.email, d.model, d.osVersion && `iOS ${d.osVersion}`].filter(Boolean).join(' · ')}</span>
+        <span className="dh-sub">
+          {d.status === 'enrolled' ? <>Details {d.infoAt ? <span style={stale ? { color: '#8A4A00', fontWeight: 600 } : undefined}>{ago(d.infoAt)}</span> : 'not in yet'}</> : d.status === 'enrolling' ? 'Enrolling…' : 'Removed'}
+          {d.battery != null && ` · ${d.battery}% battery`}
+          {d.freeGB != null && ` · ${gb(d.freeGB)} free`}
+        </span>
+      </span>
+      {d.status === 'enrolled' && d.passcode === false ? <Chip tone="red">No passcode</Chip> : d.supervised ? <Chip tone="green">Supervised</Chip> : null}
+      <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
     </button>
   )
 }
@@ -223,29 +226,28 @@ function TeamPhones({ call, onOpen }) {
 
   return (
     <>
-      {error && <p className="mdm-error">{error}</p>}
-      {!devices && !error && <p className="mdm-note">Loading phones…</p>}
-      {devices && !active.length && <p className="mdm-note">No phones enrolled yet.</p>}
-      {active.map((d) => <DeviceRow key={d.udid} d={d} onOpen={onOpen} />)}
+      <Note tone="error">{error}</Note>
+      {!devices && !error && <Loading>Loading phones…</Loading>}
+      {devices && !active.length && <Empty icon="smartphone" title="No phones enrolled yet" sub="Make a link below for a staff member's iPhone." />}
+      {active.length > 0 && (
+        <>
+          <Sec>Staff phones</Sec>
+          <div className="dh-card">{active.map((d) => <DeviceRow key={d.udid} d={d} onOpen={onOpen} />)}</div>
+        </>
+      )}
 
-      <div className="mdm-card">
-        <div className="mdm-label">Enrol a staff member's iPhone</div>
-        <p className="mdm-sub">Makes a one-time link for them to open in Safari on their phone. Send it to them: it works once, for 24 hours.</p>
-        <div className="mdm-inline">
-          <input className="mdm-input" type="email" placeholder="name@dhwebsiteservices.co.uk" value={email} onChange={(e) => setEmail(e.target.value)} autoCapitalize="off" autoCorrect="off" />
-          <button className="mdm-small" onClick={makeLink} disabled={!email.includes('@')}>Make link</button>
-        </div>
-        {link && (
-          <>
-            <div className="mdm-link">{link}</div>
-            <button className="mdm-small" onClick={share}>Share link</button>
-          </>
-        )}
-      </div>
+      <Card pad>
+        <span className="dh-t">Enrol a staff member's iPhone</span>
+        <span className="dh-sub">Makes a one-time link for them to open in Safari on their phone. Send it to them: it works once, for 24 hours.</span>
+        <input className="dh-input" type="email" placeholder="name@dhwebsiteservices.co.uk" value={email} onChange={(e) => setEmail(e.target.value)} autoCapitalize="off" autoCorrect="off" aria-label="Their work email" />
+        <Btn onPress={makeLink} disabled={!email.includes('@')}>Make link</Btn>
+      </Card>
+
+      {link && <EnrolSteps link={link} email={email.trim().toLowerCase()} onShare={share} />}
 
       {removed.length > 0 && (
-        <details className="mdm-what">
-          <summary>Removed phones ({removed.length})</summary>
+        <details className="dh-card">
+          <summary className="dh-row"><span className="dh-g"><span className="dh-t">Removed phones ({removed.length})</span></span><span className="dh-chev"><Icon name="chevron-down" size={18} /></span></summary>
           {removed.map((d) => <DeviceRow key={d.udid} d={d} onOpen={onOpen} />)}
         </details>
       )}
@@ -261,6 +263,7 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
   const [lockOpen, setLockOpen] = useState(false)
   const [lockMessage, setLockMessage] = useState('')
   const [confirm, setConfirm] = useState(null) // 'restart' | 'shutdown' | 'remove'
+  const [view, setView] = useState('main') // 'main' | 'history' | 'apps'
 
   const load = useCallback(async () => {
     try {
@@ -322,130 +325,174 @@ function DeviceDetail({ udid, call, canAdmin, onBack }) {
 
   const d = data?.device
   const enrolled = d?.status === 'enrolled'
+  const title = d?.name || d?.model || 'iPhone'
+
+  if (view === 'history' && data) {
+    return (
+      <Screen title="History" onBack={() => setView('main')}>
+        <span className="dh-sub">Every command sent to this phone and what it said back.</span>
+        {data.commands?.length ? (
+          <div className="dh-card">
+            {data.commands.map((c) => (
+              <div key={c.uuid} className="dh-row top">
+                <span className="dh-g">
+                  <span className="dh-t">{COMMAND_NAMES[c.request_type] || c.request_type}</span>
+                  <span className="dh-sub">{when(c.queued_at)} · {c.queued_by === 'auto-refresh' || c.queued_by === 'enrolment' ? 'automatic' : c.queued_by}</span>
+                  {c.error && <span className="dh-sub" style={{ color: '#B42318' }}>{c.error}</span>}
+                </span>
+                <Chip tone={c.status === 'done' ? 'green' : c.status === 'error' ? 'red' : c.status === 'sent' ? 'blue' : c.status === 'notnow' || c.status === 'queued' ? 'amber' : 'neutral'}>{STATUS_NAMES[c.status] || c.status}</Chip>
+              </div>
+            ))}
+          </div>
+        ) : <Empty title="Nothing sent yet" />}
+      </Screen>
+    )
+  }
+
+  if (view === 'apps' && d) {
+    return (
+      <Screen title={`Apps (${d.apps?.length || 0})`} onBack={() => setView('main')}>
+        <span className="dh-sub">Installed apps{d.appsAt ? `, as of ${ago(d.appsAt)}` : ''}.</span>
+        {data.health?.largestApps?.length > 0 && (
+          <>
+            <Sec>Biggest apps</Sec>
+            <div className="dh-card">
+              {data.health.largestApps.map((a) => <KV key={a.name} k={a.name} v={a.sizeMB >= 1000 ? `${(a.sizeMB / 1000).toFixed(1)} GB` : `${a.sizeMB} MB`} />)}
+            </div>
+          </>
+        )}
+        <Sec>All apps</Sec>
+        <div className="dh-card">
+          {(d.apps || []).map((a) => <KV key={a.id || a.name} k={a.name || a.id} v={a.version ? `v${a.version}` : ''} />)}
+        </div>
+      </Screen>
+    )
+  }
+
+  const health = data?.health
+  const order = { bad: 0, warn: 1, info: 2, ok: 3 }
+  const checks = health?.checks?.length ? [...health.checks].sort((a, b) => order[a.status] - order[b.status]) : []
+  const healthChip = health?.worst ? <Chip tone={health.worst === 'bad' ? 'red' : health.worst === 'warn' ? 'amber' : 'green'}>{HEALTH_HEAD[health.worst]}</Chip> : null
+  const yn = (v, good = true) => (v == null ? <span className="dh-sub">—</span> : <Chip tone={good === null ? 'neutral' : v === good ? 'green' : 'red'}>{v ? 'Yes' : 'No'}</Chip>)
 
   return (
-    <div className="mdm-screen">
-      <div className="mdm-head">
-        <button className="mdm-back" onClick={onBack} aria-label="Back"><Icon name="chevronLeft" size={20} /></button>
-        <h1>{d?.name || d?.model || 'iPhone'}</h1>
-      </div>
-      {error && <p className="mdm-error">{error}</p>}
-      {!d && !error && <p className="mdm-note">Loading…</p>}
+    <Screen title={title} onBack={onBack}>
+      <Note tone="error">{error}</Note>
+      {!d && !error && <Loading />}
 
       {d && (
         <>
-          <p className="mdm-note">
-            {d.owner || d.email} · {d.status === 'enrolled' ? `details from ${ago(d.infoAt)}` : d.status}
-            {d.lastSeen ? ` · last checked in ${ago(d.lastSeen)}` : ''}
-          </p>
+          <Hero dark>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span className="dh-t">{[d.model || d.product, d.osVersion && `iOS ${d.osVersion}`].filter(Boolean).join(' · ') || title}</span>
+              {healthChip}
+            </div>
+            <span className="dh-sub">
+              {[d.owner || d.email, d.supervised ? 'supervised' : null, d.status === 'enrolled' ? `details from ${ago(d.infoAt)}` : d.status, d.lastSeen ? `last checked in ${ago(d.lastSeen)}` : null].filter(Boolean).join(' · ')}
+            </span>
+          </Hero>
+
+          <div className="dh-tiles t3">
+            <div className="dh-tile"><span className="dh-num">{d.battery != null ? `${d.battery}%` : '–'}</span><span className="dh-sub">Battery</span></div>
+            <div className="dh-tile"><span className="dh-num">{d.freeGB != null ? gb(d.freeGB) : '–'}</span><span className="dh-sub">Storage free</span></div>
+            <div className="dh-tile"><span className="dh-num">{d.lastBackup ? new Date(d.lastBackup).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '–'}</span><span className="dh-sub">Last backup</span></div>
+          </div>
+
+          <Note tone="ok">{note}</Note>
 
           {enrolled && (
-            <div className="mdm-actions">
-              <button className="mdm-run" onClick={() => send('refresh')} disabled={!!busy}>{busy === 'refresh' ? 'Asking…' : 'Run health check'}</button>
-              <div className="mdm-two">
-                <button className="mdm-run danger" onClick={() => send('screenlock')} disabled={!!busy}>{busy === 'screenlock' ? 'Locking…' : 'Lock screen'}</button>
-                <button className="mdm-run danger" onClick={() => setLockOpen(true)} disabled={!!busy}>Lock with message</button>
-              </div>
-              {canAdmin && (
-                <div className="mdm-two">
-                  <button className="mdm-run ghost" onClick={() => setConfirm('restart')} disabled={!!busy || !d.supervised}>Restart</button>
-                  <button className="mdm-run ghost" onClick={() => setConfirm('shutdown')} disabled={!!busy || !d.supervised}>Shut down</button>
-                </div>
-              )}
-              {canAdmin && !d.supervised && (
-                <p className="mdm-sub">Restart and shut down are greyed out because Apple only allows them on supervised phones (company phones set up through Apple Business Manager). Lock works on every enrolled phone.</p>
-              )}
-            </div>
+            <Pills>
+              <Pill onPress={() => send('refresh')} disabled={!!busy}>{busy === 'refresh' ? 'Asking…' : 'Run health check'}</Pill>
+              <Pill onPress={() => send('screenlock')} disabled={!!busy}>{busy === 'screenlock' ? 'Locking…' : 'Lock screen'}</Pill>
+              <Pill onPress={() => setLockOpen(true)} disabled={!!busy}>Lock with message</Pill>
+              {canAdmin && <Pill onPress={() => setConfirm('restart')} disabled={!!busy || !d.supervised}>Restart</Pill>}
+              {canAdmin && <Pill onPress={() => setConfirm('shutdown')} disabled={!!busy || !d.supervised}>Shut down</Pill>}
+              {data.commands?.length > 0 && <Pill onPress={() => setView('history')}>History</Pill>}
+            </Pills>
+          )}
+          {enrolled && canAdmin && !d.supervised && (
+            <Note>Restart and shut down are greyed out because Apple only allows them on supervised phones (company phones set up through Apple Business Manager). Lock works on every enrolled phone.</Note>
           )}
 
-          {note && <p className="mdm-ok">{note}</p>}
-
-          {lockOpen && (
-            <div className="mdm-card mdm-confirm">
-              <div className="mdm-label">Lock with a message?</div>
-              <p className="mdm-sub">The screen locks straight away and needs the passcode to open. The message and our number show on the Lock Screen.</p>
-              <textarea className="mdm-input" rows={3} maxLength={200} placeholder="This iPhone belongs to DH Website Services. If found, please call 01443 805303." value={lockMessage} onChange={(e) => setLockMessage(e.target.value)} />
-              <div className="mdm-two">
-                <button className="mdm-run ghost" onClick={() => setLockOpen(false)}>Cancel</button>
-                <button className="mdm-run danger" onClick={() => send('lock', lockMessage.trim() ? { message: lockMessage.trim() } : {})} disabled={!!busy}>{busy === 'lock' ? 'Locking…' : 'Lock it'}</button>
-              </div>
-            </div>
-          )}
-
-          {confirm && confirm !== 'remove' && (
-            <div className="mdm-card mdm-confirm">
-              <div className="mdm-label">{confirm === 'restart' ? 'Restart' : 'Shut down'} this iPhone?</div>
-              <p className="mdm-sub">{confirm === 'restart' ? 'It restarts straight away, and anything unsaved in open apps is lost.' : 'It turns off and stays off until someone holds the side button.'}</p>
-              <div className="mdm-two">
-                <button className="mdm-run ghost" onClick={() => setConfirm(null)}>Cancel</button>
-                <button className="mdm-run danger" onClick={() => send(confirm)} disabled={!!busy}>{confirm === 'restart' ? 'Restart' : 'Shut down'}</button>
-              </div>
-            </div>
-          )}
-
-          {data.health?.checks?.length > 0 && <Health health={data.health} />}
-
-          <div className="mdm-card">
-            <div className="mdm-section-title">Phone</div>
-            <Line k="Model" v={d.model || d.product} />
-            <Line k="iOS" v={d.osVersion} />
-            <Line k="Serial number" v={d.serial} />
-            <Line k="Battery" v={d.battery != null ? `${d.battery}%` : null} />
-            <Line k="Storage free" v={d.freeGB != null ? `${gb(d.freeGB)} of ${gb(d.capacityGB)}` : null} />
-            <Line k="Supervised" v={yesNo(d.supervised, null)} />
-            <Line k="Enrolled" v={when(d.enrolledAt)} />
-          </div>
-
-          <div className="mdm-card">
-            <div className="mdm-section-title">Security {d.securityAt ? <span className="mdm-when">· {ago(d.securityAt)}</span> : null}</div>
-            <Line k="Passcode set" v={yesNo(d.passcode)} />
-            <Line k="Encrypted" v={yesNo(d.encrypted)} />
-            <Line k="Find My on" v={yesNo(d.findMy)} />
-            <Line k="iCloud Backup on" v={yesNo(d.icloudBackup)} />
-            {d.lastBackup && <Line k="Last iCloud backup" v={when(d.lastBackup)} />}
-          </div>
-
-          {d.apps?.length > 0 && (
-            <details className="mdm-card mdm-apps">
-              <summary className="mdm-section-title">Apps ({d.apps.length}) <span className="mdm-when">· {ago(d.appsAt)}</span></summary>
-              {d.apps.map((a) => <Line key={a.id || a.name} k={a.name || a.id} v={a.version ? `v${a.version}` : ''} />)}
-            </details>
-          )}
-
-          {data.commands?.length > 0 && (
-            <div className="mdm-card">
-              <div className="mdm-section-title">History</div>
-              {data.commands.map((c) => (
-                <div key={c.uuid} className="mdm-hist">
-                  <div>
-                    <div>{COMMAND_NAMES[c.request_type] || c.request_type}</div>
-                    <div className="mdm-sub">{when(c.queued_at)} · {c.queued_by === 'auto-refresh' || c.queued_by === 'enrolment' ? 'automatic' : c.queued_by}</div>
-                    {c.error && <div className="mdm-sub mdm-bad">{c.error}</div>}
+          {checks.length > 0 && (
+            <>
+              <Sec>Health check{health.checkedAt ? ` · ${ago(health.checkedAt)}` : ''}</Sec>
+              <div className="dh-card">
+                {checks.map((c) => (
+                  <div key={c.key} className="dh-row top">
+                    <span className={`dh-dot ${c.status}`} style={{ marginTop: 6 }} />
+                    <span className="dh-g">
+                      <span className="dh-t">{c.title}</span>
+                      {c.detail ? <span className="dh-sub">{c.detail}</span> : null}
+                    </span>
                   </div>
-                  <span className={`mdm-pill ${c.status === 'done' ? 'good' : c.status === 'error' ? 'bad' : ''}`}>{STATUS_NAMES[c.status] || c.status}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
+
+          <Sec>Security check{d.securityAt ? ` · ${ago(d.securityAt)}` : ''}</Sec>
+          <div className="dh-card">
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">Passcode set</span></span>{yn(d.passcode)}</div>
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">Encrypted</span></span>{yn(d.encrypted)}</div>
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">Find My on</span></span>{yn(d.findMy)}</div>
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">iCloud Backup on</span></span>{yn(d.icloudBackup)}</div>
+            {d.apps?.length > 0 && (
+              <button type="button" className="dh-row" onClick={() => setView('apps')}>
+                <span className="dh-g"><span className="dh-t">Apps</span><span className="dh-sub">{d.apps.length} installed{health?.largestApps?.length ? ' · biggest apps' : ''}</span></span>
+                <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+              </button>
+            )}
+          </div>
+
+          <Sec>Phone</Sec>
+          <div className="dh-card">
+            <KV k="Model" v={d.model || d.product} />
+            <KV k="iOS" v={d.osVersion} />
+            <KV k="Serial number" v={d.serial} />
+            <KV k="Storage free" v={d.freeGB != null ? `${gb(d.freeGB)} of ${gb(d.capacityGB)}` : null} />
+            <KV k="Supervised" v={yn(d.supervised, null)} />
+            <KV k="Enrolled" v={when(d.enrolledAt)} />
+          </div>
 
           {canAdmin && d.status !== 'removed' && (
-            confirm === 'remove' ? (
-              <div className="mdm-card mdm-confirm">
-                <div className="mdm-label">Take this iPhone out of DH management?</div>
-                <p className="mdm-sub">The profile is removed from the phone. Nothing else on it changes. They can enrol again later.</p>
-                <div className="mdm-two">
-                  <button className="mdm-run ghost" onClick={() => setConfirm(null)}>Cancel</button>
-                  <button className="mdm-run danger" onClick={remove} disabled={!!busy}>Remove</button>
-                </div>
-              </div>
-            ) : (
-              <button className="mdm-run ghost" onClick={() => setConfirm('remove')}>Remove from management</button>
-            )
+            <Btn variant="danger" onPress={() => setConfirm('remove')}>Remove from management</Btn>
           )}
         </>
       )}
-      <style>{CSS}</style>
-    </div>
+
+      {lockOpen && (
+        <Sheet title="Lock with a message?" sub="The screen locks straight away and needs the passcode to open. The message and our number show on the Lock Screen." onClose={() => setLockOpen(false)}>
+          <div className="dh-card">
+            <Field label="Message on the lock screen" htmlFor="dm-lock">
+              <textarea id="dm-lock" rows={3} maxLength={200} placeholder="This iPhone belongs to DH Website Services. If found, please call 01443 805303." value={lockMessage} onChange={(e) => setLockMessage(e.target.value)} />
+            </Field>
+          </div>
+          <Btns>
+            <Btn variant="outline" onPress={() => setLockOpen(false)}>Cancel</Btn>
+            <Btn onPress={() => send('lock', lockMessage.trim() ? { message: lockMessage.trim() } : {})} disabled={!!busy}>{busy === 'lock' ? 'Locking…' : 'Lock it'}</Btn>
+          </Btns>
+        </Sheet>
+      )}
+
+      {confirm && confirm !== 'remove' && (
+        <Sheet title={`${confirm === 'restart' ? 'Restart' : 'Shut down'} this iPhone?`} sub={confirm === 'restart' ? 'It restarts straight away, and anything unsaved in open apps is lost.' : 'It turns off and stays off until someone holds the side button.'} onClose={() => setConfirm(null)}>
+          <Btns>
+            <Btn variant="outline" onPress={() => setConfirm(null)}>Cancel</Btn>
+            <Btn variant="danger" className="solid" onPress={() => send(confirm)} disabled={!!busy}>{confirm === 'restart' ? 'Restart' : 'Shut down'}</Btn>
+          </Btns>
+        </Sheet>
+      )}
+
+      {confirm === 'remove' && (
+        <Sheet title="Take this iPhone out of DH management?" sub="The profile is removed from the phone. Nothing else on it changes. They can enrol again later." onClose={() => setConfirm(null)}>
+          <Btns>
+            <Btn variant="outline" onPress={() => setConfirm(null)}>Cancel</Btn>
+            <Btn variant="danger" className="solid" onPress={remove} disabled={!!busy}>Remove</Btn>
+          </Btns>
+        </Sheet>
+      )}
+    </Screen>
   )
 }
 
@@ -455,104 +502,3 @@ const HEALTH_HEAD = {
   warn: 'Needs a look',
   bad: 'Needs fixing',
 }
-
-function Health({ health }) {
-  const order = { bad: 0, warn: 1, info: 2, ok: 3 }
-  const checks = [...health.checks].sort((a, b) => order[a.status] - order[b.status])
-  const problems = checks.filter((c) => c.status === 'bad' || c.status === 'warn').length
-  return (
-    <div className={`mdm-card mdm-health ${health.worst}`}>
-      <div className="mdm-health-head">
-        <span className={`mdm-dot ${health.worst}`} />
-        <div>
-          <div className="mdm-label">{HEALTH_HEAD[health.worst]}</div>
-          <div className="mdm-sub">{problems ? `${problems} thing${problems > 1 ? 's' : ''} to check` : 'Nothing to fix'}{health.checkedAt ? ` · checked ${ago(health.checkedAt)}` : ''}</div>
-        </div>
-      </div>
-      {checks.map((c) => (
-        <div key={c.key} className="mdm-check">
-          <span className={`mdm-dot ${c.status}`} />
-          <div>
-            <div className="mdm-check-title">{c.title}</div>
-            {c.detail ? <div className="mdm-sub">{c.detail}</div> : null}
-          </div>
-        </div>
-      ))}
-      {health.largestApps?.length > 0 && (
-        <div className="mdm-check">
-          <span className="mdm-dot info" />
-          <div>
-            <div className="mdm-check-title">Biggest apps</div>
-            <div className="mdm-sub">{health.largestApps.map((a) => `${a.name} ${a.sizeMB >= 1000 ? `${(a.sizeMB / 1000).toFixed(1)} GB` : `${a.sizeMB} MB`}`).join(' · ')}</div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Line({ k, v }) {
-  return <div className="mdm-line"><span>{k}</span><span>{v ?? '—'}</span></div>
-}
-
-const CSS = `
-  .mdm-screen { padding: 16px 16px 48px; color: var(--mobile-text); }
-  .mdm-screen *, .mdm-screen *::before, .mdm-screen *::after { box-sizing: border-box; }
-  .mdm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .mdm-head h1 { margin: 0; font-size: 22px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mdm-back { background: none; border: none; padding: 4px; color: var(--mobile-text); display: grid; place-items: center; }
-  .mdm-tabs { display: flex; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 3px; margin-bottom: 14px; }
-  .mdm-tabs button { flex: 1; border: 0; background: none; padding: 9px 0; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--mobile-text-secondary); }
-  .mdm-tabs button.on { background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); }
-  .mdm-note { margin: 0 4px 14px; font-size: 14px; line-height: 1.45; color: var(--mobile-text-secondary); }
-  .mdm-note.warn { color: #d98a00; }
-  .mdm-card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
-  .mdm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .mdm-badges { display: flex; align-items: center; gap: 6px; flex: none; }
-  .mdm-label { font-size: 15px; font-weight: 600; }
-  .mdm-sub { font-size: 13px; color: var(--mobile-text-secondary); line-height: 1.45; margin: 3px 0 0; }
-  .mdm-stale { color: #d98a00; font-weight: 600; }
-  .mdm-what { margin: 10px 0 4px; font-size: 13px; color: var(--mobile-text-secondary); }
-  .mdm-what summary { cursor: pointer; color: var(--mobile-accent); font-weight: 600; margin-bottom: 6px; }
-  .mdm-what p { margin: 8px 0 0; line-height: 1.45; }
-  .mdm-run { width: 100%; border: 0; border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 700; background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); margin-top: 10px; }
-  .mdm-run.danger { background: #dd3333; color: #fff; }
-  .mdm-run.ghost { background: none; border: 1px solid var(--mobile-border); color: var(--mobile-text); }
-  .mdm-run:disabled { opacity: .45; }
-  .mdm-actions { margin-bottom: 12px; }
-  .mdm-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .mdm-confirm { border-color: #dd3333; }
-  .mdm-error { color: var(--mobile-danger, #d33); font-size: 14px; margin: 0 4px 12px; }
-  .mdm-ok { color: #2fb36d; font-size: 14px; font-weight: 600; margin: 0 4px 12px; }
-  .mdm-bad { color: #dd3333; }
-  .mdm-link { margin: 8px 0; padding: 10px; border-radius: 10px; background: var(--mobile-bg, rgba(0,0,0,.04)); border: 1px solid var(--mobile-border); font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
-  .mdm-steps { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
-  .mdm-inline { display: flex; gap: 8px; margin-top: 10px; }
-  .mdm-input { flex: 1; width: 100%; min-width: 0; border: 1px solid var(--mobile-border); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 15px; background: var(--mobile-bg, transparent); color: var(--mobile-text); margin-top: 8px; }
-  .mdm-inline .mdm-input { margin-top: 0; }
-  .mdm-small { flex: none; border: 0; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 700; background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); }
-  .mdm-small:disabled { opacity: .45; }
-  .mdm-section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mobile-text-secondary); margin-bottom: 6px; }
-  .mdm-when { font-weight: 500; letter-spacing: 0; text-transform: none; }
-  .mdm-apps summary { cursor: pointer; list-style: none; }
-  .mdm-line { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 5px 0; border-top: 1px solid var(--mobile-border); }
-  .mdm-line:first-of-type { border-top: 0; }
-  .mdm-line span:first-child { color: var(--mobile-text-secondary); }
-  .mdm-line span:last-child { text-align: right; font-weight: 500; overflow-wrap: anywhere; }
-  .mdm-hist { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 14px; padding: 8px 0; border-top: 1px solid var(--mobile-border); }
-  .mdm-hist:first-of-type { border-top: 0; }
-  .mdm-pill { flex: none; display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(127,127,127,.15); color: var(--mobile-text-secondary); white-space: nowrap; }
-  .mdm-pill.good { background: rgba(47,179,109,.15); color: #2fb36d; }
-  .mdm-pill.bad { background: rgba(221,51,51,.15); color: #dd3333; }
-  .mdm-health.warn { border-color: rgba(217,138,0,.55); }
-  .mdm-health.bad { border-color: rgba(221,51,51,.6); }
-  .mdm-health-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--mobile-border); }
-  .mdm-health-head .mdm-dot { width: 14px; height: 14px; margin: 0; }
-  .mdm-check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--mobile-border); }
-  .mdm-check:nth-of-type(2) { border-top: 0; }
-  .mdm-check-title { font-size: 14.5px; font-weight: 600; }
-  .mdm-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: #2fb36d; box-shadow: 0 0 0 3px rgba(47,179,109,.18); }
-  .mdm-dot.info { background: #7a8794; box-shadow: 0 0 0 3px rgba(122,135,148,.18); }
-  .mdm-dot.warn { background: #d98a00; box-shadow: 0 0 0 3px rgba(217,138,0,.2); }
-  .mdm-dot.bad { background: #dd3333; box-shadow: 0 0 0 3px rgba(221,51,51,.2); }
-`

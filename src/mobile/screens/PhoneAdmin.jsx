@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useMsal } from '@azure/msal-react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
-import SectionHeader from '../components/SectionHeader'
+import { Chip } from '../components/DH'
+import { Screen, HeaderButton, Card, Sec, Field, Toggle, Seg, Btn, Btns, Hero, Note, Empty, Sheet, Loading } from '../components/UI'
 import { getStaffIdToken, SignInNeeded } from '../../utils/staffToken'
 
 /**
@@ -87,7 +87,7 @@ export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, c
     load()
   }, [])
 
-  if (!isAdmin) return <div className="ph"><p className="ph-note">Managers only.</p></div>
+  if (!isAdmin) return <Screen title="Phone" onBack={goBack}><Note>Managers only.</Note></Screen>
 
   // Fetched per request: the token lasts an hour and is refreshed quietly.
   const authHeader = async (interactive = false) => ({
@@ -529,141 +529,125 @@ export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, c
 
   if (auth !== 'ok') {
     return (
-      <div className="ph">
-        <div className="ph-head">
-          <button className="ph-back" onClick={goBack} aria-label="Back">
-            <Icon name="chevron-left" size={20} />
-          </button>
-          <h1>Phone</h1>
-        </div>
-        <MobileCard>
-          {auth === 'checking' ? (
-            <p className="ph-note">Checking your sign-in…</p>
-          ) : (
-            <>
-              <SectionHeader title="Confirm it's you" />
-              <p className="ph-note">
-                This screen can change who your business number rings, so the
-                phone system checks your Microsoft sign-in. You'll only be
-                asked once on this device.
-              </p>
-              {(authError || error) && <p className="ph-error">{authError || error}</p>}
-              <button className="ph-primary" onClick={signIn} disabled={signingIn}>
-                {signingIn ? 'Opening Microsoft…' : 'Continue with Microsoft'}
-              </button>
-            </>
-          )}
-        </MobileCard>
-        <style>{PHONE_CSS}</style>
-      </div>
+      <Screen title="Phone" onBack={goBack}>
+        {auth === 'checking' ? <Loading>Checking your sign-in…</Loading> : (
+          <Card pad>
+            <span className="dh-t">Confirm it's you</span>
+            <span className="dh-sub">
+              This screen can change who your business number rings, so the
+              phone system checks your Microsoft sign-in. You'll only be
+              asked once on this device.
+            </span>
+            <Note tone="error">{authError || error}</Note>
+            <Btn onPress={signIn} disabled={signingIn}>
+              {signingIn ? 'Opening Microsoft…' : 'Continue with Microsoft'}
+            </Btn>
+          </Card>
+        )}
+      </Screen>
     )
   }
 
   // ------------------------------------------------------------------ panel
 
+  const TITLES = { calls: 'Phone', dial: 'Call as the business', text: 'Text as DH Website', menu: 'What callers hear', team: 'Who answers', hours: 'Opening hours', setup: 'Greetings and hold music' }
+  const open = (id) => { setTab(id); if (id === 'text') loadTexts() }
+  const chev = <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+  const STATUS_TONE = { missed: 'red', completed: 'green', answered: 'green', voicemail: 'amber', 'in-progress': 'blue', ringing: 'blue' }
+  const activeTeam = users.filter(u => u.active)
+
   return (
-    <div className="ph">
-      <div className="ph-head">
-        <button className="ph-back" onClick={goBack} aria-label="Back">
-          <Icon name="chevron-left" size={20} />
-        </button>
-        <h1>Phone</h1>
-        <button className="ph-refresh" onClick={load} aria-label="Refresh">
-          <Icon name="refresh" size={18} />
-        </button>
-      </div>
-
-      <div className="ph-tabs">
-        {[['calls', 'Calls'], ['dial', 'Dial'], ['text', 'Text'], ['menu', 'Menu'], ['team', 'Team'],
-          ['hours', 'Hours'], ['setup', 'Setup']].map(([id, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => { setTab(id); if (id === 'text') loadTexts() }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
+    <Screen
+      title={TITLES[tab] || 'Phone'}
+      onBack={tab === 'calls' ? goBack : () => setTab('calls')}
+      action={tab === 'calls' ? <HeaderButton onPress={load} label="Refresh"><Icon name="refresh" size={18} /></HeaderButton> : null}
+    >
       {error && (
-        <div className="ph-failure">
-          <p className="ph-error">{error}</p>
-          {!notOnSystem && <button className="ph-retry" onClick={load}>Try again</button>}
-        </div>
+        <Card pad tone="danger">
+          <Note tone="error">{error}</Note>
+          {!notOnSystem && <Btn variant="outline" small onPress={load}>Try again</Btn>}
+        </Card>
       )}
-      {loading && <p className="ph-note">Loading…</p>}
-      {outcome && <p className={`ph-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</p>}
+      {loading && <Loading />}
+      <Note tone={outcome?.ok ? 'ok' : 'error'}>{outcome?.text}</Note>
 
       {/* ---------------------------------------------------------- calls */}
       {tab === 'calls' && (
         <>
+          <Hero dark>
+            <span className="dh-sub">Business line</span>
+            <span className="dh-big">01443 805303</span>
+            <Btns>
+              <Btn small className="ph-hero-btn" onPress={() => open('dial')}>Call as the business</Btn>
+              <Btn small variant="ghost" className="ph-hero-btn" onPress={() => open('text')}>Text as DH</Btn>
+            </Btns>
+          </Hero>
+
           {stats && (
-            <div className="ph-stats">
+            <div className={`dh-tiles ${stats.outgoing != null ? '' : 't3'}`}>
               {/* Missed is the headline. It is the number the old system
                   billed for thirty days and never showed. */}
-              <div className={`ph-stat ${Number(stats.missed) > 0 ? 'alarm' : ''}`}>
-                <strong>{stats.missed ?? 0}</strong>
-                <span>missed, 30 days</span>
-              </div>
-              <div className="ph-stat">
-                <strong>{stats.answered ?? 0}</strong>
-                <span>answered</span>
-              </div>
-              <div className="ph-stat">
-                <strong>{stats.total ?? 0}</strong>
-                <span>incoming</span>
-              </div>
-              {stats.outgoing != null && (
-                <div className="ph-stat">
-                  <strong>{stats.outgoing ?? 0}</strong>
-                  <span>outgoing</span>
-                </div>
-              )}
+              <div className="dh-tile"><span className="dh-num" style={Number(stats.missed) > 0 ? { color: '#B42318' } : undefined}>{stats.missed ?? 0}</span><span className="dh-sub">Missed, 30 days</span></div>
+              <div className="dh-tile"><span className="dh-num">{stats.answered ?? 0}</span><span className="dh-sub">Answered</span></div>
+              <div className="dh-tile"><span className="dh-num">{stats.total ?? 0}</span><span className="dh-sub">Incoming</span></div>
+              {stats.outgoing != null && <div className="dh-tile"><span className="dh-num">{stats.outgoing ?? 0}</span><span className="dh-sub">Outgoing</span></div>}
             </div>
           )}
 
-          <div className="ph-list">
-            {calls.length === 0 && !loading && !error && (
-              <p className="ph-note">No calls yet.</p>
-            )}
-            {calls.map(c => (
-              <div key={c.id} className={`ph-call ${c.status === 'missed' ? 'missed' : ''}${c.direction === 'outbound' ? ' out' : ''}`}>
-                {c.direction === 'outbound' ? (
-                  <div className="ph-call-main">
-                    <strong>↗ {c.to_number || 'No number dialled'}</strong>
-                    <span className="ph-call-meta">
-                      Outgoing{c.placed_by_name ? ` · ${c.placed_by_name}` : ''}
-                      {c.via === 'dial-in' ? ' · dialled in' : ''}
-                      {c.duration ? ` · ${c.duration}s` : ''}
-                    </span>
-                  </div>
-                ) : (
-                <div className="ph-call-main">
-                  <strong>{c.from_number || 'Unknown'}</strong>
-                  <span className="ph-call-meta">
-                    {c.option_label || 'no option'}
-                    {c.answered_by_name ? ` · ${c.answered_by_name}` : ''}
-                    {c.duration ? ` · ${c.duration}s` : ''}
+          <Sec>Recent calls</Sec>
+          {calls.length === 0 && !loading && !error && <Empty icon="smartphone" title="No calls yet" />}
+          {calls.length > 0 && (
+            <div className="dh-card">
+              {calls.map(c => (
+                <div key={c.id} className="dh-row top" style={{ flexWrap: 'wrap' }}>
+                  <span className={`dh-ic${c.direction === 'outbound' ? ' muted' : ''}`}>
+                    <Icon name="smartphone" size={18} />
                   </span>
-                </div>
-                )}
-                <div className="ph-call-side">
-                  <span className={`ph-pill ${c.status}`}>{c.status}</span>
-                  <span className="ph-when">{when(c.started_at)}</span>
-                  {c.recording_url && (
-                    <button
-                      className={`ph-play${playing?.id === c.id ? ' on' : ''}`}
-                      onClick={() => playRecording(c.id)}
-                    >
-                      {playing?.id === c.id
-                        ? (playing.loading ? 'Loading…' : 'Close')
-                        : 'Listen'}
-                    </button>
+                  <span className="dh-g">
+                    <span className="dh-t">
+                      {c.direction === 'outbound' ? (c.to_number || 'No number dialled') : (c.from_number || 'Unknown')}
+                    </span>
+                    <span className="dh-sub">
+                      {c.direction === 'outbound'
+                        ? <>Outgoing{c.placed_by_name ? ` · ${c.placed_by_name}` : ''}{c.via === 'dial-in' ? ' · dialled in' : ''}{c.duration ? ` · ${c.duration}s` : ''}</>
+                        : <>{c.option_label || 'no option'}{c.answered_by_name ? ` · ${c.answered_by_name}` : ''}{c.duration ? ` · ${c.duration}s` : ''}</>}
+                    </span>
+                    <span className="dh-sub">{when(c.started_at)}</span>
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <Chip tone={STATUS_TONE[c.status] || 'neutral'}>{c.status ? c.status[0].toUpperCase() + c.status.slice(1) : '—'}</Chip>
+                    {c.recording_url && (
+                      <button type="button" className="dh-sec-act" onClick={() => playRecording(c.id)}>
+                        {playing?.id === c.id ? (playing.loading ? 'Loading…' : 'Close') : 'Listen'}
+                      </button>
+                    )}
+                  </span>
+                  {playing?.id === c.id && playing.url && (
+                    /* eslint-disable-next-line jsx-a11y/media-has-caption */
+                    <audio src={playing.url} controls autoPlay style={{ width: '100%', marginTop: 4 }} />
                   )}
                 </div>
-                {playing?.id === c.id && playing.url && (
-                  /* eslint-disable-next-line jsx-a11y/media-has-caption */
-                  <audio className="ph-audio" src={playing.url} controls autoPlay />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+
+          <Sec>Set-up</Sec>
+          <div className="dh-card">
+            <button type="button" className="dh-row" onClick={() => open('team')}>
+              <span className="dh-g"><span className="dh-t">Who answers</span><span className="dh-sub">{activeTeam.length ? activeTeam.map(u => u.name).join(', ') : 'Nobody switched on'}</span></span>{chev}
+            </button>
+            <button type="button" className="dh-row" onClick={() => open('menu')}>
+              <span className="dh-g"><span className="dh-t">What callers hear</span><span className="dh-sub">Call menu and options</span></span>{chev}
+            </button>
+            <button type="button" className="dh-row" onClick={() => open('hours')}>
+              <span className="dh-g"><span className="dh-t">Opening hours</span><span className="dh-sub">When the phones ring</span></span>{chev}
+            </button>
+            <button type="button" className="dh-row" onClick={() => open('setup')}>
+              <span className="dh-g"><span className="dh-t">Greetings and hold music</span><span className="dh-sub">What callers hear first, and while they wait</span></span>{chev}
+            </button>
+            <button type="button" className="dh-row" onClick={() => open('dial')}>
+              <span className="dh-g"><span className="dh-t">Dial in from your mobile</span><span className="dh-sub">PIN for calling out as the business</span></span>{chev}
+            </button>
           </div>
         </>
       )}
@@ -672,255 +656,233 @@ export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, c
       {tab === 'dial' && (() => {
         const me = users.find(u => u.id === dialAs)
         return (
-          <div className="ph-list">
-            <MobileCard>
-              <SectionHeader title="Call as the business" />
-              <p className="ph-note">
+          <>
+            <Card pad>
+              <span className="dh-t">Call someone from 01443 805303</span>
+              <span className="dh-sub">
                 Your mobile rings from 01443 805303. Answer, press 1, and you
                 are connected — the customer sees the office number, never
                 yours. Outgoing calls are not recorded.
-              </p>
-              <div className="ph-labelled ph-gap">
-                <label>Ring this mobile first</label>
-                <select
-                  className="ph-field"
-                  value={dialAs}
-                  onChange={e => setDialAs(e.target.value)}
-                >
+              </span>
+            </Card>
+            <div className="dh-card">
+              <Field label="Ring this mobile first" htmlFor="ph-as">
+                <select id="ph-as" value={dialAs} onChange={e => setDialAs(e.target.value)}>
                   <option value="">Choose who is calling…</option>
                   {users.filter(u => u.active && u.forward_to).map(u => (
                     <option key={u.id} value={u.id}>{u.name} — {u.forward_to}</option>
                   ))}
                 </select>
-              </div>
-              <input
-                className="ph-field ph-dial"
-                type="tel"
-                inputMode="tel"
-                autoComplete="off"
-                value={dialTo}
-                onChange={e => setDialTo(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') placeCall() }}
-                placeholder="Number to call, e.g. 07700 900123"
-              />
-              <button
-                className="ph-primary"
-                onClick={placeCall}
-                disabled={busy || !dialAs || !dialTo.trim()}
-              >
-                {busy ? 'Ringing you…' : 'Call'}
-              </button>
-              <p className="ph-note">
-                UK landlines, mobiles, 03 and 0800 only. Premium-rate,
-                international and 999 can’t be called from here — for an
-                emergency, dial 999 from your own phone.
-              </p>
-            </MobileCard>
+              </Field>
+              <Field label="Number to call" htmlFor="ph-to">
+                <input
+                  id="ph-to"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  value={dialTo}
+                  onChange={e => setDialTo(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') placeCall() }}
+                  placeholder="e.g. 07700 900123"
+                  style={{ fontSize: 20, fontWeight: 600 }}
+                />
+              </Field>
+            </div>
+            <Btn onPress={placeCall} disabled={busy || !dialAs || !dialTo.trim()}>
+              {busy ? 'Ringing you…' : 'Call'}
+            </Btn>
+            <span className="dh-sub">
+              UK landlines, mobiles, 03 and 0800 only. Premium-rate,
+              international and 999 can’t be called from here — for an
+              emergency, dial 999 from your own phone.
+            </span>
 
             {me && (
-              <MobileCard>
-                <SectionHeader title="Dial in from your mobile" />
-                <p className="ph-note">
-                  With a PIN set, ringing 01443 805303 from {me.forward_to} says
-                  “Staff line”. Key the PIN and #, then the number and #. Do
-                  nothing and you get the normal menu.
-                </p>
-                <p className={`ph-pin-state${me.dialout_locked ? ' bad' : ''}`}>
-                  {me.dialout_locked
-                    ? 'Locked after too many wrong PINs. Set a new one to unlock.'
-                    : me.has_dialout_pin ? 'PIN set.' : 'No PIN — dial-in is off for this mobile.'}
-                </p>
-                <input
-                  className="ph-field"
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="new-password"
-                  value={pinDraft}
-                  onChange={e => setPinDraft(e.target.value.replace(/\D/g, ''))}
-                  placeholder="New PIN, 6 to 12 digits"
-                />
-                <button className="ph-primary" onClick={savePin} disabled={busy || pinDraft.length < 6}>
-                  {me.has_dialout_pin ? 'Change PIN' : 'Set PIN'}
-                </button>
-                {me.has_dialout_pin && (
-                  <button className="ph-secondary" onClick={removePin} disabled={busy}>
-                    Remove PIN
-                  </button>
-                )}
-              </MobileCard>
+              <>
+                <Sec>Dial in from your mobile</Sec>
+                <div className="dh-card">
+                  <div className="dh-row">
+                    <span className="dh-g"><span className="dh-t">{me.name}</span><span className="dh-sub">{me.forward_to}</span></span>
+                    <Chip tone={me.dialout_locked ? 'red' : me.has_dialout_pin ? 'green' : 'neutral'}>
+                      {me.dialout_locked ? 'Locked' : me.has_dialout_pin ? 'PIN set' : 'No PIN'}
+                    </Chip>
+                  </div>
+                  <div className="dh-row">
+                    <span className="dh-g">
+                      <span className="dh-sub">
+                        {me.dialout_locked
+                          ? 'Locked after too many wrong PINs. Set a new one to unlock.'
+                          : <>With a PIN set, ringing 01443 805303 from {me.forward_to} says “Staff line”. Key the PIN and #, then the number and #. Do nothing and you get the normal menu.</>}
+                      </span>
+                    </span>
+                  </div>
+                  <Field label="New PIN" htmlFor="ph-pin">
+                    <input
+                      id="ph-pin"
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="new-password"
+                      value={pinDraft}
+                      onChange={e => setPinDraft(e.target.value.replace(/\D/g, ''))}
+                      placeholder="6 to 12 digits"
+                    />
+                  </Field>
+                </div>
+                <Btns>
+                  {me.has_dialout_pin
+                    ? <Btn variant="danger" onPress={removePin} disabled={busy}>Remove PIN</Btn>
+                    : <span />}
+                  <Btn onPress={savePin} disabled={busy || pinDraft.length < 6}>{me.has_dialout_pin ? 'Change PIN' : 'Set PIN'}</Btn>
+                </Btns>
+              </>
             )}
-          </div>
+          </>
         )
       })()}
 
       {/* ----------------------------------------------------------- text */}
       {tab === 'text' && (
-        <div className="ph-list">
-          <MobileCard>
-            <SectionHeader title="Text as DH Website" />
-            <p className="ph-note">
-              The customer sees the text from “DH Website”. They can’t reply to
-              it, so say how to reach you — ring 01443 805303 or email.
-            </p>
-            <div className="ph-labelled ph-gap">
-              <label>Sent by</label>
-              <select className="ph-field" value={dialAs} onChange={e => setDialAs(e.target.value)}>
+        <>
+          <span className="dh-sub">
+            The customer sees the text from “DH Website”. They can’t reply to
+            it, so say how to reach you — ring 01443 805303 or email.
+          </span>
+          <div className="dh-card">
+            <Field label="Sent by" htmlFor="ph-by">
+              <select id="ph-by" value={dialAs} onChange={e => setDialAs(e.target.value)}>
                 <option value="">Choose who is sending…</option>
                 {users.filter(u => u.active).map(u => (
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
-            </div>
-            <input
-              className="ph-field"
-              type="tel"
-              inputMode="tel"
-              autoComplete="off"
-              value={smsTo}
-              onChange={e => setSmsTo(e.target.value)}
-              placeholder="Mobile number, e.g. 07700 900123"
-            />
-            <textarea
-              className="ph-field"
-              rows={4}
-              maxLength={306}
-              value={smsBody}
-              onChange={e => setSmsBody(e.target.value)}
-              placeholder="Your message"
-            />
-            <p className="ph-note">
-              {smsBody.length}/306 · {smsBody.length > 160 ? 'two texts' : 'one text'}
-            </p>
-            <button
-              className="ph-primary"
-              onClick={sendText}
-              disabled={busy || !dialAs || !smsTo.trim() || !smsBody.trim()}
-            >
-              {busy ? 'Sending…' : 'Send text'}
-            </button>
-            <p className="ph-note">UK mobiles only. Up to 50 texts per person a day.</p>
-          </MobileCard>
+            </Field>
+            <Field label="To" htmlFor="ph-sms-to">
+              <input id="ph-sms-to" type="tel" inputMode="tel" autoComplete="off" value={smsTo} onChange={e => setSmsTo(e.target.value)} placeholder="Mobile number, e.g. 07700 900123" />
+            </Field>
+            <Field label="Your message" htmlFor="ph-sms-body" hint={`${smsBody.length}/306 · ${smsBody.length > 160 ? 'two texts' : 'one text'}`}>
+              <textarea id="ph-sms-body" rows={4} maxLength={306} value={smsBody} onChange={e => setSmsBody(e.target.value)} placeholder="Shows as from DH Website" />
+            </Field>
+          </div>
+          <span className="dh-sub">UK mobiles only. Up to 50 texts per person a day. Replies aren't received.</span>
+          <Btn onPress={sendText} disabled={busy || !dialAs || !smsTo.trim() || !smsBody.trim()}>
+            {busy ? 'Sending…' : 'Send text'}
+          </Btn>
 
-          <MobileCard>
-            <SectionHeader title="Sent texts" />
-            {smsLog.length === 0 && <p className="ph-note">Nothing sent yet.</p>}
-            {smsLog.map(m => (
-              <div key={m.id} className="ph-row" style={{ display: 'block', padding: '10px 0', borderTop: '1px solid var(--border, #eee)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
-                  <strong>{m.to_number.replace(/^\+44/, '0')}</strong>
-                  <span style={{ opacity: 0.7 }}>
-                    {new Date(m.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          <Sec>Sent texts</Sec>
+          {smsLog.length === 0 ? <Empty icon="mail" title="Nothing sent yet" /> : (
+            <div className="dh-card">
+              {smsLog.map(m => (
+                <div key={m.id} className="dh-row top">
+                  <span className="dh-g">
+                    <span className="dh-t">{m.to_number.replace(/^\+44/, '0')}</span>
+                    <span className="dh-sub" style={{ whiteSpace: 'pre-wrap', color: 'var(--mobile-text)' }}>{m.body}</span>
+                    <span className="dh-sub">
+                      {m.sent_by_name || 'Unknown'} · {new Date(m.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {m.status === 'failed' && m.error ? ` · ${m.error}` : ''}
+                    </span>
                   </span>
+                  <Chip tone={m.status === 'sent' ? 'green' : m.status === 'failed' ? 'red' : 'amber'}>{m.status === 'sent' ? 'Sent' : m.status === 'failed' ? 'Failed' : 'Sending'}</Chip>
                 </div>
-                <div style={{ fontSize: 14, margin: '4px 0', whiteSpace: 'pre-wrap' }}>{m.body}</div>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>
-                  {m.sent_by_name || 'Unknown'} · {m.status === 'sent' ? 'Sent' : m.status === 'failed' ? `Failed: ${m.error || ''}` : 'Sending'}
-                </div>
-              </div>
-            ))}
-          </MobileCard>
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ---------------------------------------------------------- hours */}
       {tab === 'hours' && week && (
-        <div className="ph-list">
-          <p className="ph-note">
+        <>
+          <span className="dh-sub">
             Outside these hours callers hear the closed message and go straight
             to voicemail — no mobile rings. Times are UK time and follow the
             clocks, so British Summer Time takes care of itself.
-          </p>
-          {week.map((day, weekday) => (
-            <div key={weekday} className={`ph-day${day.open ? '' : ' shut'}`}>
-              <button
-                className="ph-day-name"
-                onClick={() => setWeek(w => w.map((d, i) => (
-                  i === weekday ? { ...d, open: !d.open } : d
-                )))}
-              >
-                <span>{DAYS[weekday]}</span>
-                <span className="ph-day-state">{day.open ? 'Open' : 'Closed'}</span>
-              </button>
-              {day.open && (
-                <div className="ph-day-times">
-                  {['from', 'to'].map(edge => (
-                    <input
-                      key={edge}
-                      className="ph-field ph-time"
-                      type="time"
-                      value={day[edge]}
-                      onChange={e => setWeek(w => w.map((d, i) => (
-                        i === weekday ? { ...d, [edge]: e.target.value } : d
-                      )))}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          <button className="ph-primary" onClick={saveHours} disabled={busy}>
-            {busy ? 'Saving…' : 'Save opening hours'}
-          </button>
-        </div>
+          </span>
+          <div className="dh-card">
+            {week.map((day, weekday) => (
+              <div key={weekday} className="dh-row" style={{ flexWrap: 'wrap' }}>
+                <span className="dh-g"><span className="dh-t">{DAYS[weekday]}</span></span>
+                {day.open ? (
+                  <span className="ph-times">
+                    {['from', 'to'].map(edge => (
+                      <input
+                        key={edge}
+                        className="dh-input"
+                        type="time"
+                        aria-label={`${DAYS[weekday]} ${edge}`}
+                        value={day[edge]}
+                        onChange={e => setWeek(w => w.map((d, i) => (
+                          i === weekday ? { ...d, [edge]: e.target.value } : d
+                        )))}
+                      />
+                    ))}
+                  </span>
+                ) : <Chip>Closed</Chip>}
+                <Toggle
+                  on={day.open}
+                  label={`${DAYS[weekday]} open`}
+                  onChange={() => setWeek(w => w.map((d, i) => (
+                    i === weekday ? { ...d, open: !d.open } : d
+                  )))}
+                />
+              </div>
+            ))}
+          </div>
+          <Btn onPress={saveHours} disabled={busy}>{busy ? 'Saving…' : 'Save opening hours'}</Btn>
+        </>
       )}
 
       {/* ---------------------------------------------------------- setup */}
       {tab === 'setup' && setup && (
-        <div className="ph-list">
-          <MobileCard>
-            <SectionHeader title="What callers hear" />
+        <>
+          <Sec>Greetings</Sec>
+          <div className="dh-card">
             {[
               ['greeting', 'Greeting', 'Thanks for calling…'],
               ['closed_greeting', 'When closed', 'We are closed at the moment…'],
               ['hold_message', 'Before the hold music', 'Thanks for holding…'],
             ].map(([field, label, placeholder]) => (
-              <div key={field} className="ph-labelled">
-                <label>{label}</label>
+              <Field key={field} label={label} htmlFor={`ph-${field}`}>
                 <textarea
-                  className="ph-field ph-textarea"
+                  id={`ph-${field}`}
                   value={setup[field]}
                   onChange={e => setSetup(s => ({ ...s, [field]: e.target.value }))}
                   placeholder={placeholder}
                   rows={2}
                 />
-              </div>
+              </Field>
             ))}
-            <p className="ph-note">
-              The recording notice is added automatically after the greeting.
-              It is a legal requirement, so it is not editable here.
-            </p>
-          </MobileCard>
+          </div>
+          <span className="dh-sub">
+            The recording notice is added automatically after the greeting.
+            It is a legal requirement, so it is not editable here.
+          </span>
+          <Btn onPress={saveSetup} disabled={busy}>{busy ? 'Saving…' : 'Save greetings'}</Btn>
 
-          <MobileCard>
-            <SectionHeader title="Hold music" />
-
-            {holdFile?.present ? (
-              <div className="ph-file">
-                <div>
-                  <strong>{holdFile.name}</strong>
-                  <span className="ph-call-meta">
-                    {holdFile.size ? `${(holdFile.size / 1048576).toFixed(1)} MB` : ''} · playing on a loop
-                  </span>
-                </div>
-                <button className="ph-toggle" onClick={removeHoldMusic} disabled={uploading}>
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <p className="ph-note">
-                Twilio’s own hold music is playing at the moment. Upload a file
-                to use your own.
-              </p>
-            )}
-
-            <label className={`ph-upload${uploading ? ' busy' : ''}`}>
-              {uploading
-                ? 'Uploading…'
-                : holdFile?.present ? 'Replace file' : 'Choose a file'}
+          <Sec>Hold music</Sec>
+          <div className="dh-card">
+            <div className="dh-row">
+              <span className="dh-g">
+                <span className="dh-t">{holdFile?.present ? holdFile.name : 'Twilio’s own hold music'}</span>
+                <span className="dh-sub">
+                  {holdFile?.present
+                    ? `${holdFile.size ? `${(holdFile.size / 1048576).toFixed(1)} MB · ` : ''}playing on a loop`
+                    : 'Upload a file to use your own'}
+                </span>
+              </span>
+              {holdFile?.present && (
+                <button type="button" className="dh-sec-act" style={{ color: '#B42318' }} onClick={removeHoldMusic} disabled={uploading}>Remove</button>
+              )}
+            </div>
+            <label className="dh-row" style={{ cursor: uploading ? 'default' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+              <span className="dh-ic"><Icon name="download" size={18} /></span>
+              <span className="dh-g"><span className="dh-t" style={{ color: 'var(--mobile-accent)' }}>
+                {uploading ? 'Uploading…' : holdFile?.present ? 'Replace file' : 'Choose a file'}
+              </span><span className="dh-sub">MP3 or WAV, up to 20 MB</span></span>
               <input
                 type="file"
                 accept="audio/mpeg,audio/wav,.mp3,.wav"
                 disabled={uploading}
+                style={{ display: 'none' }}
                 onChange={e => {
                   const file = e.target.files?.[0]
                   // Cleared so picking the same file twice still fires.
@@ -929,221 +891,198 @@ export default function MobilePhoneAdmin({ goBack, isAdmin: isAdminProp, user, c
                 }}
               />
             </label>
-
-            <p className="ph-note">
-              MP3 or WAV, up to 20 MB. Check you are allowed to play it to
-              callers — plenty of music is fine to listen to and not fine to
-              put on a phone line.
-            </p>
-          </MobileCard>
-
-          <button className="ph-primary" onClick={saveSetup} disabled={busy}>
-            {busy ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+          </div>
+          <span className="dh-sub">
+            Check you are allowed to play it to callers — plenty of music is
+            fine to listen to and not fine to put on a phone line.
+          </span>
+        </>
       )}
 
       {/* ----------------------------------------------------------- menu */}
       {tab === 'menu' && (
-        <div className="ph-list">
-          {flows.map(f => (
-            <p key={f.id} className="ph-note">“{f.greeting}”</p>
-          ))}
-          {options.map(o => {
-            const members = membersOf(o)
-            return (
-              <button
-                key={o.id}
-                className="ph-option"
-                onClick={() => setEditing({
-                  ...o,
-                  member_ids: members.sort((a, b) => a.priority - b.priority).map(m => m.id),
-                })}
-              >
-                <div className="ph-digit">{o.digit}</div>
-                <div className="ph-option-body">
-                  <strong>{o.label}</strong>
-                  <span>
-                    {o.strategy === 'sequential' ? 'One at a time' : 'All at once'} · {o.ring_seconds}s
+        <>
+          <Sec>Greeting and menu</Sec>
+          <div className="dh-card">
+            {flows.map(f => (
+              <div key={f.id} className="dh-row top">
+                <span className="dh-g"><span className="dh-t">Greeting</span><span className="dh-sub">“{f.greeting}”</span></span>
+              </div>
+            ))}
+            {options.map(o => {
+              const members = membersOf(o).sort((a, b) => a.priority - b.priority)
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  className="dh-row"
+                  onClick={() => setEditing({ ...o, member_ids: members.map(m => m.id) })}
+                >
+                  <Chip tone="blue">{o.digit}</Chip>
+                  <span className="dh-g">
+                    <span className="dh-t">{o.label}</span>
+                    <span className="dh-sub">{o.strategy === 'sequential' ? 'One at a time' : 'All at once'} · {o.ring_seconds}s</span>
+                    <span className="dh-sub">{members.length ? members.map(m => m.name).join(' → ') : 'Nobody — goes to voicemail'}</span>
                   </span>
-                  <span className="ph-members">
-                    {members.length
-                      ? members.sort((a, b) => a.priority - b.priority).map(m => m.name).join(' → ')
-                      : 'Nobody — goes to voicemail'}
-                  </span>
-                </div>
-                <Icon name="chevron-right" size={18} />
-              </button>
-            )
-          })}
-        </div>
+                  {chev}
+                </button>
+              )
+            })}
+          </div>
+          <span className="dh-sub">Tap an option to change who it rings, how long for, and its voicemail message.</span>
+        </>
       )}
 
       {/* ----------------------------------------------------------- team */}
       {tab === 'team' && (
-        <div className="ph-list">
-          {users.map(u => (
-            <div key={u.id}>
-              <div className={`ph-user ${u.active ? '' : 'off'}`}>
-                <div>
-                  <strong>{u.name}</strong>
-                  <span className="ph-call-meta">
-                    {u.sip_username ? `app: ${u.sip_username}` : u.forward_to ? `rings ${u.forward_to}` : 'no phone set'}
-                    {u.has_dialout_pin ? ' · dial-in PIN' : ''}
-                  </span>
+        <>
+          <span className="dh-sub">Everyone who can take calls. Switch someone off and no option rings them. Which option rings whom is set in What callers hear.</span>
+          {users.length > 0 && (
+            <div className="dh-card">
+              {users.map(u => (
+                <div key={u.id}>
+                  <div className="dh-row">
+                    <span className="dh-av round" style={u.active ? undefined : { opacity: 0.5 }}>{(u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    <span className="dh-g">
+                      <span className="dh-t">{u.name}</span>
+                      <span className="dh-sub">
+                        {u.sip_username ? `App · ${u.sip_username}` : u.forward_to ? `Rings ${u.forward_to}` : 'No phone set'}
+                        {u.has_dialout_pin ? ' · dial-in PIN' : ''}
+                      </span>
+                      <button type="button" className="dh-sec-act" style={{ alignSelf: 'flex-start', marginTop: 2 }} onClick={() => setExtEdit(extEdit?.id === u.id ? null : { id: u.id, value: u.extension || '' })}>
+                        {u.extension ? `Ext ${u.extension}` : 'Add extension'}
+                      </button>
+                    </span>
+                    <Toggle on={u.active} label={`${u.name} takes calls`} onChange={() => toggleUser(u)} />
+                  </div>
+                  {extEdit?.id === u.id && (
+                    <>
+                      <Field label="Extension" htmlFor="ph-ext" hint={`Callers dial it during the greeting, or save the number as 01443 805303,${extEdit.value || '201'} to go straight through. Leave blank to remove it.`}>
+                        <input
+                          id="ph-ext"
+                          value={extEdit.value}
+                          onChange={e => setExtEdit(x => ({ ...x, value: e.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                          placeholder="e.g. 201"
+                          inputMode="numeric"
+                        />
+                      </Field>
+                      <div style={{ padding: '0 16px 14px' }}>
+                        <Btn small onPress={saveExtension} disabled={busy || extEdit.value.length === 1}>{busy ? 'Saving…' : 'Save extension'}</Btn>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <button className="ph-toggle" onClick={() => setExtEdit(extEdit?.id === u.id ? null : { id: u.id, value: u.extension || '' })}>
-                  {u.extension ? `Ext ${u.extension}` : 'Add ext'}
-                </button>
-                <button className="ph-toggle" onClick={() => toggleUser(u)}>
-                  {u.active ? 'On' : 'Off'}
-                </button>
-              </div>
-              {extEdit?.id === u.id && (
-                <MobileCard>
-                  <input
-                    className="ph-field"
-                    value={extEdit.value}
-                    onChange={e => setExtEdit(x => ({ ...x, value: e.target.value.replace(/\D/g, '').slice(0, 3) }))}
-                    placeholder="Extension, e.g. 201"
-                    inputMode="numeric"
-                  />
-                  <p className="ph-note">
-                    Callers dial it during the greeting, or save the number as
-                    01443 805303,{extEdit.value || '201'} to go straight through.
-                    Leave blank to remove it.
-                  </p>
-                  <button className="ph-primary" onClick={saveExtension} disabled={busy || extEdit.value.length === 1}>
-                    {busy ? 'Saving…' : 'Save'}
-                  </button>
-                </MobileCard>
-              )}
+              ))}
             </div>
-          ))}
+          )}
 
           {addingUser ? (
-            <MobileCard>
-              <SectionHeader title="Add someone" />
-              {[
-                ['name', 'Name'],
-                ['email', 'Email (optional)'],
-                ['sip_username', 'App username, e.g. jack'],
-                ['forward_to', 'Or a mobile, e.g. +447700900123'],
-                ['extension', 'Extension (optional), e.g. 203'],
-              ].map(([field, placeholder]) => (
-                <input
-                  key={field}
-                  className="ph-field"
-                  value={userForm[field]}
-                  onChange={e => setUserForm(f => ({ ...f, [field]: e.target.value }))}
-                  placeholder={placeholder}
-                  autoCapitalize={field === 'name' ? 'words' : 'none'}
-                />
-              ))}
-              <p className="ph-note">
+            <>
+              <Sec>Add someone</Sec>
+              <div className="dh-card">
+                {[
+                  ['name', 'Name', 'Name'],
+                  ['email', 'Email', 'Optional'],
+                  ['sip_username', 'App username', 'e.g. jack'],
+                  ['forward_to', 'Or a mobile', 'e.g. +447700900123'],
+                  ['extension', 'Extension', 'Optional, e.g. 203'],
+                ].map(([field, label, placeholder]) => (
+                  <Field key={field} label={label} htmlFor={`ph-new-${field}`}>
+                    <input
+                      id={`ph-new-${field}`}
+                      value={userForm[field]}
+                      onChange={e => setUserForm(f => ({ ...f, [field]: e.target.value }))}
+                      placeholder={placeholder}
+                      autoCapitalize={field === 'name' ? 'words' : 'none'}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <span className="dh-sub">
                 Set an app username for the softphone, or a mobile number to
                 ring instead. A mobile always works, which is why it is there.
-              </p>
-              <button className="ph-primary" onClick={addUser} disabled={busy || !userForm.name.trim()}>
-                {busy ? 'Adding…' : 'Add'}
-              </button>
-              <button className="ph-secondary" onClick={() => setAddingUser(false)}>Cancel</button>
-            </MobileCard>
+              </span>
+              <Btns>
+                <Btn variant="outline" onPress={() => setAddingUser(false)}>Cancel</Btn>
+                <Btn onPress={addUser} disabled={busy || !userForm.name.trim()}>{busy ? 'Adding…' : 'Add'}</Btn>
+              </Btns>
+            </>
           ) : (
-            <button className="ph-primary" onClick={() => setAddingUser(true)}>Add someone</button>
+            <Btn variant="outline" onPress={() => setAddingUser(true)}>Add someone</Btn>
           )}
-        </div>
+        </>
       )}
 
       {/* ------------------------------------------------- edit an option */}
       {editing && (
-        <>
-          <div className="ph-scrim" onClick={() => setEditing(null)} />
-          <div className="ph-sheet">
-            <h2>Press {editing.digit}</h2>
-
-            <input
-              className="ph-field"
-              value={editing.label}
-              onChange={e => setEditing(v => ({ ...v, label: e.target.value }))}
-              placeholder="What this option is for"
-            />
-
-            <div className="ph-kinds">
-              {[['simultaneous', 'All at once'], ['sequential', 'One at a time']].map(([id, label]) => (
-                <button
-                  key={id}
-                  className={editing.strategy === id ? 'on' : ''}
-                  onClick={() => setEditing(v => ({ ...v, strategy: id }))}
-                >{label}</button>
-              ))}
-            </div>
-
-            <input
-              className="ph-field"
-              type="number"
-              inputMode="numeric"
-              value={editing.ring_seconds}
-              onChange={e => setEditing(v => ({ ...v, ring_seconds: e.target.value }))}
-              placeholder="Seconds to ring"
-            />
-
-            <p className="ph-note">
-              {editing.strategy === 'sequential'
-                ? 'Rings in the order below, each getting the full time before the next.'
-                : 'Rings everyone at once. First to answer takes it.'}
-            </p>
-
-            <SectionHeader title="Who answers" />
-            <div className="ph-picker">
-              {users.filter(u => u.active).map(u => {
-                const index = editing.member_ids.indexOf(u.id)
-                const on = index !== -1
-                return (
-                  <button
-                    key={u.id}
-                    className={`ph-pick${on ? ' on' : ''}`}
-                    onClick={() => setEditing(v => ({
-                      ...v,
-                      member_ids: on
-                        ? v.member_ids.filter(id => id !== u.id)
-                        : [...v.member_ids, u.id],
-                    }))}
-                  >
-                    <span>{u.name}</span>
-                    {/* The order is the ring order, so it has to be visible. */}
-                    {on && <span className="ph-order">{index + 1}</span>}
-                  </button>
-                )
-              })}
-            </div>
-            {editing.member_ids.length === 0 && (
-              <p className="ph-note">Nobody selected — callers go straight to voicemail.</p>
-            )}
-
-            <SectionHeader title="Voicemail message" />
-            <textarea
-              className="ph-field ph-textarea"
-              value={editing.voicemail || ''}
-              onChange={e => setEditing(v => ({ ...v, voicemail: e.target.value }))}
-              placeholder="Left empty, callers hear the standard message"
-              rows={2}
-            />
-            <p className="ph-note">
-              What this option says when nobody picks up. Worth setting for
-              accounts, where “leave your invoice number” saves a call back.
-            </p>
-
-            <button className="ph-primary" onClick={saveOption} disabled={busy}>
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-            <button className="ph-secondary" onClick={() => setEditing(null)}>Cancel</button>
+        <Sheet title={`Press ${editing.digit}`} onClose={() => setEditing(null)}>
+          <div className="dh-card">
+            <Field label="What this option is for" htmlFor="ph-opt-label">
+              <input id="ph-opt-label" value={editing.label} onChange={e => setEditing(v => ({ ...v, label: e.target.value }))} placeholder="e.g. Website support" />
+            </Field>
           </div>
-        </>
+
+          <Seg
+            value={editing.strategy}
+            onChange={(id) => setEditing(v => ({ ...v, strategy: id }))}
+            options={[{ value: 'sequential', label: 'One at a time' }, { value: 'simultaneous', label: 'All at once' }]}
+          />
+          <span className="dh-sub">
+            {editing.strategy === 'sequential'
+              ? 'Rings in the order below, each getting the full time before the next.'
+              : 'Rings everyone at once. First to answer takes it.'}
+          </span>
+
+          <Sec>Who answers</Sec>
+          <div className="dh-card">
+            {users.filter(u => u.active).map(u => {
+              const index = editing.member_ids.indexOf(u.id)
+              const on = index !== -1
+              return (
+                <div key={u.id} className="dh-row">
+                  {/* The order is the ring order, so it has to be visible. */}
+                  <span className="dh-num" style={{ fontSize: 18, width: 22 }}>{on ? index + 1 : ''}</span>
+                  <span className="dh-g"><span className="dh-t">{u.name}</span>{u.extension && <span className="dh-sub">Ext {u.extension}</span>}</span>
+                  <Toggle
+                    on={on}
+                    label={`${u.name} answers this option`}
+                    onChange={() => setEditing(v => ({
+                      ...v,
+                      member_ids: on ? v.member_ids.filter(id => id !== u.id) : [...v.member_ids, u.id],
+                    }))}
+                  />
+                </div>
+              )
+            })}
+          </div>
+          {editing.member_ids.length === 0 && <Note tone="warn">Nobody selected — callers go straight to voicemail.</Note>}
+
+          <div className="dh-card">
+            <Field label="Seconds to ring" htmlFor="ph-opt-secs">
+              <input id="ph-opt-secs" type="number" inputMode="numeric" value={editing.ring_seconds} onChange={e => setEditing(v => ({ ...v, ring_seconds: e.target.value }))} placeholder="20" />
+            </Field>
+            <Field
+              label="Voicemail message"
+              htmlFor="ph-opt-vm"
+              hint="What this option says when nobody picks up. Worth setting for accounts, where “leave your invoice number” saves a call back."
+            >
+              <textarea id="ph-opt-vm" value={editing.voicemail || ''} onChange={e => setEditing(v => ({ ...v, voicemail: e.target.value }))} placeholder="Left empty, callers hear the standard message" rows={2} />
+            </Field>
+          </div>
+
+          <Btns>
+            <Btn variant="outline" onPress={() => setEditing(null)}>Cancel</Btn>
+            <Btn onPress={saveOption} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
-      <style>{PHONE_CSS}</style>
-    </div>
+      <style>{`
+        .ph-hero-btn { width: 100%; height: 44px; padding: 0 8px; white-space: nowrap; font-size: 14px; }
+        .ph-times { order: 3; flex-basis: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .ph-times .dh-input { padding: 8px 10px; font-size: 15px; }
+      `}</style>
+    </Screen>
   )
 }
 
@@ -1170,236 +1109,3 @@ function weekFrom(rows, flowId) {
 
 /* Kept out of the component so the sign-in gate and the panel cannot drift apart
    visually — they are the same screen at two moments. */
-const PHONE_CSS = `
-  /* Nothing on a phone screen should ever scroll sideways. This is a guard,
-     not the fix — the widths below are meant to add up on their own. */
-  .ph { padding: 16px 16px 60px; overflow-x: hidden; }
-  .ph * { max-width: 100%; }
-
-  .ph-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .ph-head h1 { margin: 0; flex: 1; font-size: 22px; font-weight: 700; color: var(--mobile-text); }
-  .ph-back, .ph-refresh {
-    background: none; border: none; padding: 6px; color: var(--mobile-accent);
-    cursor: pointer; display: grid; place-items: center;
-  }
-
-  /* Six tabs now rather than three, so they are allowed to shrink and the
-     labels are kept short enough to survive a small phone. */
-  .ph-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
-  .ph-tabs button {
-    flex: 1; min-width: 0; padding: 9px 2px; border-radius: 10px;
-    border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); font-size: 12px; font-weight: 600;
-    color: var(--mobile-text-secondary); cursor: pointer; white-space: nowrap;
-  }
-  .ph-tabs button.active {
-    background: var(--mobile-accent); border-color: var(--mobile-accent);
-    color: var(--mobile-on-accent);
-  }
-
-  .ph-stats { display: flex; gap: 10px; margin-bottom: 14px; }
-  .ph-stat {
-    flex: 1; background: var(--mobile-card); border: 1px solid var(--mobile-border);
-    border-radius: 12px; padding: 14px 12px; text-align: center;
-  }
-  .ph-stat strong {
-    display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
-    color: var(--mobile-text); font-variant-numeric: tabular-nums;
-  }
-  .ph-stat span { font-size: 11.5px; color: var(--mobile-text-secondary); }
-  .ph-stat.alarm { border-color: #c0392b; }
-  .ph-stat.alarm strong { color: #c0392b; }
-
-  .ph-list { display: flex; flex-direction: column; gap: 10px; }
-
-  .ph-call, .ph-user {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    background: var(--mobile-card); border: 1px solid var(--mobile-border);
-    border-radius: 12px; padding: 12px 14px;
-  }
-  .ph-call.missed { border-left: 3px solid #c0392b; }
-  .ph-call-main strong, .ph-user strong {
-    display: block; font-size: 15px; color: var(--mobile-text);
-  }
-  .ph-call-meta { font-size: 12.5px; color: var(--mobile-text-secondary); }
-
-  /* A flex item defaults to min-width:auto, so it refuses to shrink below its
-     longest unbreakable word — and a phone number is one long unbreakable
-     word. Paired with a side column that never shrinks, that made the whole
-     screen wider than the phone and scrollable sideways. The number truncates
-     instead. */
-  .ph-call-main, .ph-user > div { min-width: 0; }
-  .ph-call-main strong, .ph-user > div strong,
-  .ph-call-main .ph-call-meta, .ph-user > div .ph-call-meta {
-    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .ph-call-side { text-align: right; flex: none; }
-  .ph-when { display: block; font-size: 11.5px; color: var(--mobile-text-secondary); }
-  .ph-pill {
-    display: inline-block; padding: 2px 8px; border-radius: 999px;
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .ph-pill.answered { background: #e3efe8; color: #1f7a4d; }
-  .ph-pill.missed { background: #fbe9e7; color: #c0392b; }
-  .ph-pill.ringing { background: var(--mobile-accent-soft); color: var(--mobile-accent); }
-  /* Outgoing calls: the row is marked by its arrow and a left rule in the
-     accent colour, so in and out can be told apart at a glance. */
-  .ph-call.out { border-left: 3px solid var(--mobile-accent); }
-  .ph-pill.calling, .ph-pill.connecting { background: var(--mobile-accent-soft); color: var(--mobile-accent); }
-  .ph-pill.busy, .ph-pill.no-answer, .ph-pill.cancelled, .ph-pill.failed {
-    background: var(--mobile-border); color: var(--mobile-text-secondary);
-  }
-  .ph-gap { margin-top: 14px; }
-  .ph-dial { font-size: 20px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
-  .ph-pin-state { margin: 10px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--mobile-text); }
-  .ph-pin-state.bad { color: #c0392b; }
-
-  .ph-user.off { opacity: 0.5; }
-  .ph-toggle {
-    flex: none; padding: 7px 16px; border-radius: 999px; border: none;
-    background: var(--mobile-accent-soft); color: var(--mobile-accent);
-    font-size: 13px; font-weight: 700; cursor: pointer;
-  }
-
-  .ph-option {
-    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-    background: var(--mobile-card); border: 1px solid var(--mobile-border);
-    border-radius: 12px; padding: 14px; cursor: pointer; color: var(--mobile-text);
-  }
-  .ph-digit {
-    flex: none; width: 38px; height: 38px; border-radius: 10px;
-    background: var(--mobile-accent); color: var(--mobile-on-accent);
-    display: grid; place-items: center; font-size: 18px; font-weight: 700;
-  }
-  .ph-option-body { flex: 1; }
-  .ph-option-body strong { display: block; font-size: 15.5px; }
-  .ph-option-body span { display: block; font-size: 12.5px; color: var(--mobile-text-secondary); }
-  .ph-members { margin-top: 2px; font-weight: 600; }
-
-  .ph-field {
-    width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid var(--mobile-border); background: var(--mobile-bg);
-    color: var(--mobile-text); font-size: 15px; font-family: inherit;
-  }
-  .ph-note { margin: 10px 2px 0; font-size: 13px; line-height: 1.45; color: var(--mobile-text-secondary); }
-  .ph-error { margin: 4px 2px; font-size: 13.5px; font-weight: 600; color: #c0392b; }
-  .ph-outcome { margin: 4px 2px 12px; font-size: 13.5px; font-weight: 600; }
-  .ph-outcome.ok { color: #1f7a4d; }
-  .ph-outcome.bad { color: #c0392b; }
-
-  .ph-failure {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: 10px;
-  }
-  .ph-retry {
-    flex: none; padding: 7px 14px; border-radius: 999px; border: none;
-    background: var(--mobile-accent-soft); color: var(--mobile-accent);
-    font-size: 13.5px; font-weight: 700; cursor: pointer;
-  }
-
-  .ph-primary {
-    width: 100%; margin-top: 14px; padding: 14px; border: none; border-radius: 10px;
-    background: var(--mobile-accent); color: var(--mobile-on-accent);
-    font-size: 15.5px; font-weight: 700; cursor: pointer;
-  }
-  .ph-primary:disabled { opacity: 0.45; cursor: default; }
-  .ph-secondary {
-    width: 100%; margin-top: 8px; padding: 12px; border: none; border-radius: 10px;
-    background: none; color: var(--mobile-text-secondary);
-    font-size: 14.5px; font-weight: 600; cursor: pointer;
-  }
-
-  .ph-scrim { position: fixed; inset: 0; background: rgba(10,20,30,0.4); z-index: 8; }
-  .ph-sheet {
-    position: fixed; left: 12px; right: 12px; bottom: 78px; z-index: 9;
-    background: var(--mobile-card); border-radius: 16px; padding: 20px;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.28); max-height: 80vh; overflow-y: auto;
-  }
-  .ph-sheet h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--mobile-text); }
-
-  .ph-kinds { display: flex; gap: 8px; margin-top: 12px; }
-  .ph-kinds button {
-    flex: 1; padding: 9px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: none; font-size: 13.5px; font-weight: 600;
-    color: var(--mobile-text-secondary); cursor: pointer;
-  }
-  .ph-kinds button.on {
-    border-color: var(--mobile-accent); background: var(--mobile-accent-soft);
-    color: var(--mobile-accent);
-  }
-
-  .ph-picker { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-  .ph-pick {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 11px 14px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: none; font-size: 15px; color: var(--mobile-text);
-    cursor: pointer; text-align: left;
-  }
-  .ph-pick.on {
-    border-color: var(--mobile-accent); background: var(--mobile-accent-soft);
-    color: var(--mobile-accent); font-weight: 600;
-  }
-  .ph-order {
-    flex: none; width: 22px; height: 22px; border-radius: 999px;
-    background: var(--mobile-accent); color: var(--mobile-on-accent);
-    display: grid; place-items: center; font-size: 12px; font-weight: 700;
-  }
-
-  /* Opening hours ------------------------------------------------------- */
-  .ph-day {
-    background: var(--mobile-card); border: 1px solid var(--mobile-border);
-    border-radius: 12px; padding: 4px 14px 12px;
-  }
-  .ph-day.shut { opacity: 0.62; padding-bottom: 4px; }
-  .ph-day-name {
-    width: 100%; display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; padding: 12px 0; background: none; border: none; cursor: pointer;
-    font-size: 15px; font-weight: 600; color: var(--mobile-text); text-align: left;
-  }
-  .ph-day-state { font-size: 12.5px; font-weight: 600; color: var(--mobile-accent); }
-  .ph-day.shut .ph-day-state { color: var(--mobile-text-secondary); }
-  .ph-day-times { display: flex; gap: 10px; }
-  /* Same trap as the call rows: a native time input has a wide intrinsic
-     size and will not shrink under it without this. */
-  .ph-time { flex: 1; min-width: 0; margin: 0; font-variant-numeric: tabular-nums; }
-
-  /* Setup ---------------------------------------------------------------- */
-  .ph-labelled { margin-bottom: 12px; }
-  .ph-labelled label {
-    display: block; margin-bottom: 5px; font-size: 12.5px; font-weight: 600;
-    color: var(--mobile-text-secondary);
-  }
-  .ph-textarea { resize: vertical; min-height: 56px; line-height: 1.4; font: inherit; }
-
-  /* Voicemail playback --------------------------------------------------- */
-  /* The row has to wrap: the player is a second line under the call, not
-     something squeezed in beside the timestamp. */
-  .ph-call { flex-wrap: wrap; }
-  .ph-play {
-    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--mobile-accent);
-    background: none; color: var(--mobile-accent); font-size: 12px; font-weight: 600;
-    cursor: pointer;
-  }
-  .ph-play.on { background: var(--mobile-accent); color: var(--mobile-on-accent); }
-  .ph-audio { width: 100%; margin-top: 10px; height: 34px; }
-
-  /* Hold music upload ---------------------------------------------------- */
-  .ph-file {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 11px 0 13px;
-  }
-  .ph-file strong { display: block; font-size: 15px; color: var(--mobile-text); }
-
-  /* A label wrapping a hidden input, because a bare file input cannot be
-     styled and looks like a form from 2003 next to everything else here. */
-  .ph-upload {
-    /* width:100% plus padding overflows unless the padding is counted in. */
-    box-sizing: border-box;
-    display: block; width: 100%; padding: 12px; border-radius: 10px;
-    border: 1px dashed var(--mobile-border); background: none;
-    font-size: 14.5px; font-weight: 600; color: var(--mobile-accent);
-    text-align: center; cursor: pointer;
-  }
-  .ph-upload.busy { opacity: 0.6; cursor: default; }
-  .ph-upload input { display: none; }
-`

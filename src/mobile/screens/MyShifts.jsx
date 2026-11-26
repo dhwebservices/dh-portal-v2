@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
-import InfoRow from '../components/InfoRow'
-import SectionHeader from '../components/SectionHeader'
+import { Screen, Sec, Empty, Loading } from '../components/UI'
 
 /**
  * Your shifts, in order, as a list.
@@ -15,7 +14,7 @@ import SectionHeader from '../components/SectionHeader'
  * A manager sees the whole team's; everyone else sees their own. The scoping
  * matches `Rota.jsx`, which filters on `employee_email` for non-admins.
  */
-export default function MobileMyShifts({ navigate, user, isAdmin }) {
+export default function MobileMyShifts({ navigate, goBack, user, isAdmin }) {
   const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -84,103 +83,43 @@ export default function MobileMyShifts({ navigate, user, isAdmin }) {
   }
 
   return (
-    <div className="shifts-screen">
-      <div className="shifts-head">
-        <h1>Shifts</h1>
-        <p>{isAdmin ? 'Everyone, from today' : 'Yours, from today'}</p>
-      </div>
+    <Screen title="My shifts" onBack={goBack}>
+      <span className="dh-sub">{isAdmin ? 'Everyone, from today' : 'Yours, from today'}</span>
 
-      {loading && <p className="shifts-note">Loading…</p>}
+      {loading && <Loading />}
 
       {!loading && shifts.length === 0 && (
-        <div className="shifts-empty">
-          <Icon name="calendar-off" size={34} />
-          <p className="shifts-empty-title">Nothing scheduled</p>
-          <p className="shifts-note">
-            {isAdmin
-              ? 'No published shifts from today onwards.'
-              : 'You have no upcoming shifts. They appear here once your rota is published.'}
-          </p>
-        </div>
+        <Empty
+          icon="calendar-off"
+          title="Nothing scheduled"
+          sub={isAdmin
+            ? 'No published shifts from today onwards.'
+            : 'You have no upcoming shifts. They appear here once your rota is published.'}
+        />
       )}
 
       {Object.entries(byDay).map(([date, list]) => (
-        <section key={date} className="shifts-day">
-          <SectionHeader title={dayLabel(date)} />
-          <div className="shifts-stack">
+        <section key={date} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Sec>{dayLabel(date)}</Sec>
+          <div className="dh-card">
             {list.map(shift => (
-              <InfoRow
-                key={shift.id}
-                icon="clock"
-                tone="accent"
-                title={`${shift.start_time} – ${shift.end_time}`}
-                subtitle={[
-                  isAdmin ? shift.employee_name || shift.employee_email : null,
-                  shift.role,
-                  shift.break_minutes ? `${shift.break_minutes}m break` : null,
-                ].filter(Boolean).join(' · ') || undefined}
-                value={length(shift)}
-                onPress={() => navigate('rota', { date: shift.shift_date })}
-              />
+              <button key={shift.id} type="button" className="dh-row" onClick={() => navigate('rota', { date: shift.shift_date })}>
+                <span className="dh-ic"><Icon name="clock" size={18} /></span>
+                <span className="dh-g">
+                  <span className="dh-t">{shift.start_time} – {shift.end_time}</span>
+                  {[isAdmin ? shift.employee_name || shift.employee_email : null, shift.role, shift.break_minutes ? `${shift.break_minutes}m break` : null].filter(Boolean).length > 0 && (
+                    <span className="dh-sub">
+                      {[isAdmin ? shift.employee_name || shift.employee_email : null, shift.role, shift.break_minutes ? `${shift.break_minutes}m break` : null].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </span>
+                <span className="dh-val">{length(shift)}</span>
+                <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+              </button>
             ))}
           </div>
         </section>
       ))}
-
-      <style>{`
-        .shifts-screen {
-          padding: 20px 16px 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 22px;
-        }
-
-        .shifts-head h1 {
-          margin: 0 0 2px;
-          font-size: 26px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          letter-spacing: -0.02em;
-        }
-
-        .shifts-head p {
-          margin: 0;
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .shifts-day { display: block; }
-
-        .shifts-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .shifts-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          padding: 44px 24px;
-          color: var(--mobile-text-secondary);
-          text-align: center;
-        }
-
-        .shifts-empty-title {
-          margin: 4px 0 0;
-          font-size: 17px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .shifts-note {
-          margin: 0;
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          max-width: 34ch;
-        }
-      `}</style>
-    </div>
+    </Screen>
   )
 }

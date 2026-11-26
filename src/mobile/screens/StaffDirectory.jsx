@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
-import MobileCard from '../components/MobileCard'
-import MobileButton from '../components/MobileButton'
+import Icon from '../components/Icon'
+import { Screen, Sec, Pills, Pill, Btn, Empty, Loading } from '../components/UI'
 import { supabase } from '../../utils/supabase'
 
-export default function MobileStaffDirectory({ navigate, user, can, isAdmin }) {
+export default function MobileStaffDirectory({ navigate, goBack, user, can, isAdmin }) {
   const [staff, setStaff] = useState([])
   const [filteredStaff, setFilteredStaff] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -73,213 +73,53 @@ export default function MobileStaffDirectory({ navigate, user, can, isAdmin }) {
     navigate('add-staff')
   }
 
+  const initials = (p) => (p.full_name || p.user_email || '?').split(/[ @.]/).filter(Boolean).map(x => x[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className="mobile-staff-directory">
-      {/* Header */}
-      <div className="mobile-screen-header">
-        <h1>Staff Directory</h1>
-        {isAdmin && (
-          <button className="mobile-add-btn" onClick={handleAddStaff}>
-            + Add
-          </button>
-        )}
+    <Screen title="Staff" onBack={goBack}>
+      <div className="dh-search">
+        <Icon name="search" size={18} />
+        <input type="text" placeholder="Search staff" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="Search staff" />
       </div>
 
-      {/* Search & Filter */}
-      <div className="mobile-search-section">
-        <input
-          type="text"
-          className="mobile-search-input"
-          placeholder="Search staff..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-
-        <div className="mobile-filter-chips">
-          <button
-            className={`mobile-filter-chip ${filterDepartment === 'all' ? 'active' : ''}`}
-            onClick={() => setFilterDepartment('all')}
-          >
-            All
-          </button>
+      {departments.length > 1 && (
+        <Pills>
+          <Pill on={filterDepartment === 'all'} onPress={() => setFilterDepartment('all')}>All</Pill>
           {departments.map(dept => (
-            <button
-              key={dept}
-              className={`mobile-filter-chip ${filterDepartment === dept ? 'active' : ''}`}
-              onClick={() => setFilterDepartment(dept)}
-            >
-              {dept}
+            <Pill key={dept} on={filterDepartment === dept} onPress={() => setFilterDepartment(dept)}>{dept}</Pill>
+          ))}
+        </Pills>
+      )}
+
+      {loading ? <Loading /> : filteredStaff.length === 0 ? (
+        <Empty icon="users" title="No staff found" />
+      ) : (
+        <div className="dh-card">
+          {filteredStaff.map((person, i) => (
+            <button key={person.user_email} type="button" className="dh-row" onClick={() => handleStaffPress(person.user_email)}>
+              <span className="dh-av round" style={i % 2 ? { background: '#FFE6CC', color: '#8A4A00' } : undefined}>{initials(person)}</span>
+              <span className="dh-g">
+                <span className="dh-t">{person.full_name || person.user_email}</span>
+                <span className="dh-sub">{[person.role || 'Staff member', person.department].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
             </button>
           ))}
         </div>
-      </div>
+      )}
 
-      {/* Staff List */}
-      <div className="mobile-staff-list">
-        {loading ? (
-          <div className="mobile-loading">Loading...</div>
-        ) : filteredStaff.length === 0 ? (
-          <div className="mobile-empty">
-            <p>No staff found</p>
+      {isAdmin && (
+        <>
+          <Sec>Onboarding</Sec>
+          <div className="dh-card">
+            <button type="button" className="dh-row" onClick={() => navigate('onboarding-review')}>
+              <span className="dh-ic"><Icon name="checkCircle" size={18} /></span>
+              <span className="dh-g"><span className="dh-t">Onboarding forms</span><span className="dh-sub">Review what new starters have sent</span></span>
+              <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+            </button>
           </div>
-        ) : (
-          filteredStaff.map(person => (
-            <MobileCard
-              key={person.user_email}
-              onPress={() => handleStaffPress(person.user_email)}
-            >
-              <div className="mobile-staff-row">
-                <div className="mobile-staff-avatar">
-                  {person.full_name?.charAt(0) || '?'}
-                </div>
-                <div className="mobile-staff-info">
-                  <h3>{person.full_name || person.user_email}</h3>
-                  <p>{person.role || 'Staff Member'}</p>
-                  {person.department && (
-                    <span className="mobile-staff-dept">{person.department}</span>
-                  )}
-                </div>
-                <span className="mobile-chevron">›</span>
-              </div>
-            </MobileCard>
-          ))
-        )}
-      </div>
-
-      <style>{`
-        .mobile-staff-directory {
-          min-height: 100vh;
-          background: var(--mobile-bg);
-          padding-bottom: 80px;
-        }
-
-                        .mobile-add-btn {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          background: none;
-          border: none;
-          padding: 8px 16px;
-          cursor: pointer;
-        }
-
-        .mobile-search-section {
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-search-input {
-          width: 100%;
-          height: 44px;
-          padding: 0 16px;
-          font-size: 16px;
-          border: 1px solid var(--mobile-border);
-          border-radius: 12px;
-          background: var(--mobile-bg);
-          color: var(--mobile-text);
-          margin-bottom: 12px;
-        }
-
-        .mobile-search-input:focus {
-          outline: none;
-          border-color: var(--mobile-accent);
-        }
-
-        .mobile-filter-chips {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .mobile-filter-chips::-webkit-scrollbar {
-          display: none;
-        }
-
-        .mobile-filter-chip {
-          padding: 8px 16px;
-          border-radius: 20px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-card);
-          color: var(--mobile-text);
-          font-size: 14px;
-          font-weight: 500;
-          white-space: nowrap;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .mobile-filter-chip.active {
-          background: var(--mobile-accent);
-          color: white;
-          border-color: var(--mobile-accent);
-        }
-
-        .mobile-staff-list {
-          padding: 16px 20px;
-        }
-
-        .mobile-staff-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .mobile-staff-avatar {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: var(--mobile-accent);
-          color: white;
-          font-size: 20px;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .mobile-staff-info {
-          flex: 1;
-        }
-
-        .mobile-staff-info h3 {
-          font-size: 16px;
-          font-weight: 600;
-          margin: 0 0 4px 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-staff-info p {
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          margin: 0;
-        }
-
-        .mobile-staff-dept {
-          display: inline-block;
-          margin-top: 4px;
-          padding: 2px 8px;
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-          font-size: 12px;
-          font-weight: 600;
-          border-radius: 4px;
-        }
-
-        .mobile-chevron {
-          font-size: 24px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-loading,
-        .mobile-empty {
-          text-align: center;
-          padding: 40px 20px;
-          color: var(--mobile-text-secondary);
-        }
-      `}</style>
-    </div>
+          <Btn onPress={handleAddStaff}>Add staff</Btn>
+        </>
+      )}
+    </Screen>
   )
 }

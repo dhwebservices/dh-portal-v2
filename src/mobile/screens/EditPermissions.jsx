@@ -4,7 +4,8 @@ import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { ALL_PAGES, PERMISSION_GROUPS, ROLE_DEFAULTS, countEnabledPermissions } from '../../utils/permissionCatalog'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Chip } from '../components/DH'
+import { Screen, HeaderButton, Sec, Pills, Pill, ToggleRow, Btn, Empty, Loading } from '../components/UI'
 
 export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
   const { user } = useAuth()
@@ -82,238 +83,63 @@ export default function MobileEditPermissions({ goBack, isAdmin, staffEmail }) {
 
   if (!isAdmin) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Permissions</h1>
-          <div style={{ width: 60 }} />
-        </div>
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--mobile-text-secondary)' }}>
-          You don't have access to edit permissions.
-        </div>
-      </div>
+      <Screen title="Permissions" onBack={goBack}>
+        <Empty icon="lock" title="You don't have access to edit permissions." />
+      </Screen>
     )
   }
 
   const enabledCount = countEnabledPermissions(perms)
+  const firstRaw = (profile?.full_name || staffEmail || '').split(/[ @]/)[0]
+  const firstName = firstRaw ? firstRaw[0].toUpperCase() + firstRaw.slice(1) : ''
 
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Permissions</h1>
-        <button
-          className="mobile-save-btn"
-          onClick={handleSave}
-          disabled={saving || !dirty}
-        >
-          {saving ? '...' : 'Save'}
-        </button>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div className="spinner" />
-        </div>
-      ) : (
-        <div style={{ padding: '20px', paddingBottom: '100px' }}>
-          <div className="perm-subject">
-            <div className="perm-subject-name">{profile?.full_name || staffEmail}</div>
-            <div className="perm-subject-email">{staffEmail}</div>
-            <div className="perm-subject-count">{enabledCount} of {ALL_PAGES.length} permissions enabled</div>
+    <Screen
+      title={firstName ? `${firstName}'s permissions` : 'Permissions'}
+      onBack={goBack}
+      action={<HeaderButton onPress={handleSave} disabled={saving || !dirty}>{saving ? '…' : 'Save'}</HeaderButton>}
+    >
+      {loading ? <Loading /> : (
+        <>
+          <div className="dh-card">
+            <div className="dh-row">
+              <span className="dh-g">
+                <span className="dh-t">{profile?.full_name || staffEmail}</span>
+                <span className="dh-sub">{staffEmail}</span>
+              </span>
+              <Chip tone="blue">{enabledCount} of {ALL_PAGES.length}</Chip>
+            </div>
           </div>
 
-          <div className="preset-row">
-            <button className="preset-chip" onClick={() => applyPreset('Director')}>Director</button>
-            <button className="preset-chip" onClick={() => applyPreset('DepartmentManager')}>Manager</button>
-            <button className="preset-chip" onClick={() => applyPreset('Staff')}>Staff</button>
-            <button className="preset-chip" onClick={() => applyPreset('ReadOnly')}>Read-only</button>
-            <button className="preset-chip clear" onClick={clearAll}>Clear all</button>
-          </div>
+          <Sec>Start from a role</Sec>
+          <Pills>
+            <Pill onPress={() => applyPreset('Director')}>Director</Pill>
+            <Pill onPress={() => applyPreset('DepartmentManager')}>Manager</Pill>
+            <Pill onPress={() => applyPreset('Staff')}>Staff</Pill>
+            <Pill onPress={() => applyPreset('ReadOnly')}>Read-only</Pill>
+            <Pill tone="danger" onPress={clearAll}>Clear all</Pill>
+          </Pills>
 
           {PERMISSION_GROUPS.map(group => {
             const items = ALL_PAGES.filter(p => p.group === group)
             const groupEnabled = items.filter(p => perms?.[p.key]).length
             return (
-              <MobileCard key={group} style={{ marginTop: 16 }}>
-                <div style={{ padding: '8px' }}>
-                  <div className="group-header">
-                    <h3 className="section-title">{group}</h3>
-                    <span className="group-count">{groupEnabled}/{items.length}</span>
-                  </div>
-
-                  {items.map(page => (
-                    <div className="perm-row" key={page.key}>
-                      <div className="perm-info">
-                        <div className="perm-label">{page.label}</div>
-                        {page.desc && <div className="perm-desc">{page.desc}</div>}
-                      </div>
-                      <button
-                        className={`toggle-button ${perms?.[page.key] ? 'active' : ''}`}
-                        onClick={() => togglePermission(page.key)}
-                      >
-                        <div className="toggle-slider" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </MobileCard>
+              <details key={group} className="dh-card">
+                <summary className="dh-row">
+                  <span className="dh-g"><span className="dh-t">{group}</span><span className="dh-sub">{items.map(i => i.label).slice(0, 4).join(', ')}{items.length > 4 ? '…' : ''}</span></span>
+                  <Chip tone={groupEnabled === 0 ? 'neutral' : groupEnabled === items.length ? 'green' : 'blue'}>{groupEnabled} of {items.length}</Chip>
+                  <span className="dh-chev"><Icon name="chevron-down" size={18} /></span>
+                </summary>
+                {items.map(page => (
+                  <ToggleRow key={page.key} title={page.label} sub={page.desc} on={!!perms?.[page.key]} onChange={() => togglePermission(page.key)} />
+                ))}
+              </details>
             )
           })}
-        </div>
+          <span className="dh-sub">Tap a group to switch each page on or off.</span>
+          <Btn onPress={handleSave} disabled={saving || !dirty}>{saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}</Btn>
+        </>
       )}
-
-      <style>{`
-        .mobile-save-btn {
-          background: none;
-          border: none;
-          color: var(--mobile-accent);
-          font-size: 16px;
-          font-weight: 600;
-          padding: 8px 12px;
-          cursor: pointer;
-        }
-
-        .mobile-save-btn:disabled {
-          opacity: 0.4;
-        }
-
-        .perm-subject {
-          padding: 4px 4px 16px;
-        }
-
-        .perm-subject-name {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .perm-subject-email {
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          margin-top: 2px;
-        }
-
-        .perm-subject-count {
-          font-size: 13px;
-          color: var(--mobile-accent);
-          margin-top: 8px;
-          font-weight: 600;
-        }
-
-        .preset-row {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-          padding-bottom: 4px;
-        }
-
-        .preset-chip {
-          padding: 8px 16px;
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-border);
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          white-space: nowrap;
-          cursor: pointer;
-        }
-
-        .preset-chip.clear {
-          color: #ff3b30;
-          border-color: #ff3b30;
-        }
-
-        .group-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-
-        .section-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          margin: 0;
-        }
-
-        .group-count {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-        }
-
-        .perm-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 0;
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .perm-row:last-child {
-          border-bottom: none;
-        }
-
-        .perm-info {
-          flex: 1;
-        }
-
-        .perm-label {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .perm-desc {
-          font-size: 12px;
-          color: var(--mobile-text-secondary);
-          margin-top: 2px;
-        }
-
-        .toggle-button {
-          width: 51px;
-          height: 31px;
-          border-radius: 31px;
-          background: var(--mobile-border);
-          border: none;
-          cursor: pointer;
-          position: relative;
-          transition: background 0.2s;
-          flex-shrink: 0;
-        }
-
-        .toggle-button.active {
-          background: #34c759;
-        }
-
-        .toggle-slider {
-          width: 27px;
-          height: 27px;
-          border-radius: 50%;
-          background: white;
-          position: absolute;
-          top: 2px;
-          left: 2px;
-          transition: left 0.2s;
-        }
-
-        .toggle-button.active .toggle-slider {
-          left: 22px;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+    </Screen>
   )
 }

@@ -3,7 +3,9 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { useAuth } from '../../contexts/AuthContext'
 import { getUserDevices, removeDevice, initPushNotifications } from '../../utils/pushNotifications'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Chip } from '../components/DH'
+import { Screen, Sec, KV, Toggle, ToggleRow, Seg, Btn, Note, Loading } from '../components/UI'
 
 import { eventsFor } from '../../shared/notificationEvents'
 import { isDirectorEmail } from '../../utils/orgStructure'
@@ -32,6 +34,11 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
   const [devices, setDevices] = useState([])
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [checkingPush, setCheckingPush] = useState(false)
+  const [appInfo, setAppInfo] = useState(null)
+
+  useEffect(() => {
+    CapacitorApp.getInfo().then(setAppInfo).catch(() => {})
+  }, [])
 
   useEffect(() => {
     loadDevices()
@@ -116,605 +123,111 @@ export default function MobileSettings({ goBack, user, navigate, preferences, pr
 
   if (loading) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={goBack}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Settings</h1>
-          <div style={{ width: 60 }} />
-        </div>
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div className="spinner" />
-        </div>
-      </div>
+      <Screen title="Settings" onBack={goBack}>
+        <Loading />
+      </Screen>
     )
   }
 
+  const go = (screen) => () => navigate(screen)
+  const chev = <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
+  const LinkRow = ({ icon, title, sub, to }) => (
+    <button type="button" className="dh-row" onClick={go(to)}>
+      <span className="dh-ic"><Icon name={icon} size={18} /></span>
+      <span className="dh-g"><span className="dh-t">{title}</span>{sub && <span className="dh-sub">{sub}</span>}</span>
+      {chev}
+    </button>
+  )
+
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Settings</h1>
-        <div style={{ width: 60 }} />
+    <Screen title="Settings" onBack={goBack}>
+      <Sec>Notifications</Sec>
+      <div className="dh-card">
+        <ToggleRow title="Push notifications" sub="On this phone" on={!!preferences.pushNotifications} onChange={() => handleToggle('pushNotifications')} />
+        <ToggleRow title="Also by email" sub="A copy of each notification by email" on={!!preferences.emailNotifications} onChange={() => handleToggle('emailNotifications')} />
       </div>
 
-      <div style={{ padding: '20px', paddingBottom: '100px' }}>
-        {/* Notifications */}
-        <MobileCard>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">Notifications</h3>
-
-            <div className="setting-row">
-              <div className="setting-info">
-                <Icon name="bell" size={20} color="var(--mobile-accent)" />
-                <div>
-                  <div className="setting-label">Push Notifications</div>
-                  <div className="setting-description">Receive notifications on your device</div>
-                </div>
-              </div>
-              <button
-                className={`toggle-button ${preferences.pushNotifications ? 'active' : ''}`}
-                onClick={() => handleToggle('pushNotifications')}
-              >
-                <div className="toggle-slider" />
-              </button>
+      {/* What you get told about. Dimmed rather than hidden when the master
+          switch is off, so it is obvious why they have stopped mattering. */}
+      <Sec>Tell me about</Sec>
+      {!preferences.pushNotifications && (
+        <Note tone="warn">
+          Push notifications are off, so none of these will reach your phone.
+          They still appear in your inbox.
+        </Note>
+      )}
+      <div className="dh-card" style={preferences.pushNotifications ? undefined : { opacity: 0.5 }}>
+        {eventsFor({ isManager: !!isAdmin }).map(event => {
+          const on = eventPrefs[event.key] !== false
+          return (
+            <div className="dh-row" key={event.key}>
+              <span className="dh-g"><span className="dh-t">{event.label}</span><span className="dh-sub">{event.description}</span></span>
+              {event.required
+                ? <Chip>Always</Chip>
+                : <Toggle on={on} onChange={() => toggleEvent(event.key, on)} label={`${event.label}: ${on ? 'on' : 'off'}`} />}
             </div>
-
-            <div className="setting-row">
-              <div className="setting-info">
-                <Icon name="mail" size={20} color="var(--mobile-accent)" />
-                <div>
-                  <div className="setting-label">Email Notifications</div>
-                  <div className="setting-description">Receive notifications via email</div>
-                </div>
-              </div>
-              <button
-                className={`toggle-button ${preferences.emailNotifications ? 'active' : ''}`}
-                onClick={() => handleToggle('emailNotifications')}
-              >
-                <div className="toggle-slider" />
-              </button>
-            </div>
-          </div>
-        </MobileCard>
-
-        {(isAdmin || canFishTank || canPhone) && (
-          <MobileCard style={{ marginTop: '16px' }}>
-            <div style={{ padding: '8px' }}>
-              <div className="setting-section-title">Office</div>
-              {isAdmin && (
-              <div className="setting-row" onClick={() => navigate('send-notification')} style={{ cursor: 'pointer' }}>
-                <div className="setting-info">
-                  <Icon name="bell" size={20} color="var(--mobile-accent)" />
-                  <div>
-                    <div className="setting-label">Send a message</div>
-                    <div className="setting-description">Notify staff on their phones</div>
-                  </div>
-                </div>
-                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-              </div>
-              )}
-
-              {canPhone && (
-              <div className="setting-row" onClick={() => navigate('phone')} style={{ cursor: 'pointer' }}>
-                <div className="setting-info">
-                  <Icon name="phone" size={20} color="var(--mobile-accent)" />
-                  <div>
-                    <div className="setting-label">Phone</div>
-                    <div className="setting-description">Call menu, who answers, missed calls</div>
-                  </div>
-                </div>
-                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-              </div>
-              )}
-
-              {canFishTank && (
-              <div className="setting-row" onClick={() => navigate('fishtank')} style={{ cursor: 'pointer' }}>
-                <div className="setting-info">
-                  <Icon name="gift" size={20} color="var(--mobile-accent)" />
-                  <div>
-                    <div className="setting-label">Fish Tank</div>
-                    <div className="setting-description">Players, coins, shop items and prizes</div>
-                  </div>
-                </div>
-                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-              </div>
-              )}
-
-              {isAdmin && (<>
-              <div className="setting-row" onClick={() => navigate('findmygang')} style={{ cursor: 'pointer' }}>
-                <div className="setting-info">
-                  <Icon name="mapPin" size={20} color="var(--mobile-accent)" />
-                  <div>
-                    <div className="setting-label">Fam &amp; a Half</div>
-                    <div className="setting-description">Users, messages, banners and app settings</div>
-                  </div>
-                </div>
-                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-              </div>
-
-              <div className="setting-row" onClick={() => navigate('billpal')} style={{ cursor: 'pointer' }}>
-                <div className="setting-info">
-                  <Icon name="pound" size={20} color="var(--mobile-accent)" />
-                  <div>
-                    <div className="setting-label">Bill Pal</div>
-                    <div className="setting-description">Bills, members, support chat and suppliers</div>
-                  </div>
-                </div>
-                <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-              </div>
-              </>)}
-            </div>
-          </MobileCard>
-        )}
-
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <div className="setting-section-title">Devices</div>
-            <div className="setting-row" onClick={() => navigate('devices')} style={{ cursor: 'pointer' }}>
-              <div className="setting-info">
-                <Icon name="smartphone" size={20} color="var(--mobile-accent)" />
-                <div>
-                  <div className="setting-label">Your devices</div>
-                  <div className="setting-description">Where your notifications are sent</div>
-                </div>
-              </div>
-              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-            </div>
-
-            {isOwner && (
-            <div className="setting-row" onClick={() => navigate('device-management')} style={{ cursor: 'pointer' }}>
-              <div className="setting-info">
-                <Icon name="lock" size={20} color="var(--mobile-accent)" />
-                <div>
-                  <div className="setting-label">Device management</div>
-                  <div className="setting-description">Staff phones: details, security and remote lock</div>
-                </div>
-              </div>
-              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-            </div>
-            )}
-
-            <div className="setting-row" onClick={() => navigate('diagnostics')} style={{ cursor: 'pointer' }}>
-              <div className="setting-info">
-                <Icon name="barChart" size={20} color="var(--mobile-accent)" />
-                <div>
-                  <div className="setting-label">Diagnostics</div>
-                  <div className="setting-description">{isAdmin ? 'Check this iPhone, or run checks on staff phones' : 'Check this iPhone and let DH help when it misbehaves'}</div>
-                </div>
-              </div>
-              <Icon name="chevron-right" size={18} color="var(--mobile-text-secondary)" />
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* What you get told about. Dimmed rather than hidden when the master
-            switch is off, so it is obvious why they have stopped mattering. */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <div className="setting-section-title">What you're told about</div>
-
-            {!preferences.pushNotifications && (
-              <p className="setting-muted-note">
-                Push notifications are off, so none of these will reach your phone.
-                They still appear in your inbox.
-              </p>
-            )}
-
-            <div className={preferences.pushNotifications ? '' : 'setting-dimmed'}>
-              {eventsFor({ isManager: !!isAdmin }).map(event => {
-                const on = eventPrefs[event.key] !== false
-                return (
-                  <div className="setting-row" key={event.key}>
-                    <div className="setting-info">
-                      <div>
-                        <div className="setting-label">{event.label}</div>
-                        <div className="setting-description">{event.description}</div>
-                      </div>
-                    </div>
-                    {event.required ? (
-                      <span className="setting-always">Always</span>
-                    ) : (
-                      <button
-                        className={`toggle-button ${on ? 'active' : ''}`}
-                        onClick={() => toggleEvent(event.key, on)}
-                        aria-label={`${event.label}: ${on ? 'on' : 'off'}`}
-                      >
-                        <div className="toggle-slider" />
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* Appearance */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">Appearance</h3>
-
-            <div className="setting-row">
-              <div className="setting-info">
-                <Icon name="sun" size={20} color="#ff9500" />
-                <div>
-                  <div className="setting-label">Theme</div>
-                  <div className="setting-description">Choose app appearance</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="theme-options">
-              <button
-                className={`theme-button ${preferences.theme === 'light' ? 'active' : ''}`}
-                onClick={() => handleThemeChange('light')}
-              >
-                <Icon name="sun" size={20} color={preferences.theme === 'light' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
-                Light
-              </button>
-              <button
-                className={`theme-button ${preferences.theme === 'dark' ? 'active' : ''}`}
-                onClick={() => handleThemeChange('dark')}
-              >
-                <Icon name="moon" size={20} color={preferences.theme === 'dark' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
-                Dark
-              </button>
-              <button
-                className={`theme-button ${preferences.theme === 'auto' ? 'active' : ''}`}
-                onClick={() => handleThemeChange('auto')}
-              >
-                <Icon name="smartphone" size={20} color={preferences.theme === 'auto' ? 'var(--mobile-accent)' : 'var(--mobile-text-secondary)'} />
-                Auto
-              </button>
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* Security */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">Security</h3>
-
-            <div className="setting-row">
-              <div className="setting-info">
-                <Icon name="lock" size={20} color="#34c759" />
-                <div>
-                  <div className="setting-label">Biometric Authentication</div>
-                  <div className="setting-description">Use Face ID / Touch ID</div>
-                </div>
-              </div>
-              <button
-                className={`toggle-button ${preferences.biometricAuth ? 'active' : ''}`}
-                onClick={() => handleToggle('biometricAuth')}
-              >
-                <div className="toggle-slider" />
-              </button>
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* My Devices */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">My Devices</h3>
-            <p className="section-description">Devices registered to receive push notifications for your account.</p>
-
-            {devicesLoading ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div className="spinner" />
-              </div>
-            ) : devices.length === 0 ? (
-              <p className="devices-empty">No devices registered</p>
-            ) : (
-              devices.map(device => (
-                <div className="device-row" key={device.id}>
-                  <Icon name="smartphone" size={20} color="var(--mobile-accent)" />
-                  <div className="device-info">
-                    <div className="device-name">{device.device_name || device.device_model || 'Unknown device'}</div>
-                    <div className="device-meta">
-                      {device.device_type === 'ios' ? 'iOS' : device.device_type} · {device.os_version || 'Unknown version'}
-                    </div>
-                  </div>
-                  <button className="device-remove" onClick={() => handleRemoveDevice(device)}>
-                    <Icon name="trash" size={18} color="#ff3b30" />
-                  </button>
-                </div>
-              ))
-            )}
-
-            <button className="check-push-btn" onClick={handleCheckPushStatus} disabled={checkingPush}>
-              {checkingPush ? 'Checking...' : 'Check Push Notification Status'}
-            </button>
-          </div>
-        </MobileCard>
-
-        {/* About */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">About</h3>
-
-            <div className="info-row">
-              <div className="info-label">App Version</div>
-              <div className="info-value">1.0.0</div>
-            </div>
-
-            <div className="info-row">
-              <div className="info-label">Build</div>
-              <div className="info-value">{new Date().toISOString().split('T')[0]}</div>
-            </div>
-
-            <div className="info-row">
-              <div className="info-label">Developer</div>
-              <div className="info-value">DH Website Services</div>
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* Support */}
-        <MobileCard style={{ marginTop: '16px' }}>
-          <div style={{ padding: '8px' }}>
-            <h3 className="section-title">Support</h3>
-
-            <div className="info-row">
-              <div className="info-label">Email</div>
-              <div className="info-value">david@dhwebsiteservices.co.uk</div>
-            </div>
-
-            <div className="info-row">
-              <div className="info-label">Phone</div>
-              <div className="info-value">07364166285 / 02920024218 (opt 5)</div>
-            </div>
-          </div>
-        </MobileCard>
-
-        {/* Logout */}
-        <button className="logout-button" onClick={handleLogout}>
-          <Icon name="logOut" size={20} color="#ff3b30" />
-          Logout
-        </button>
+          )
+        })}
       </div>
 
-      <style>{`
-        /* Presentation only. Every toggle still writes the same preference
-           through the same savePreference call. */
-        .setting-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          padding: 13px 8px;
-          border-bottom: 1px solid var(--mobile-border);
-        }
+      <Sec>Appearance</Sec>
+      <Seg
+        value={preferences.theme || 'auto'}
+        onChange={handleThemeChange}
+        options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'auto', label: 'Auto' }]}
+      />
 
-        .setting-row:last-child { border-bottom: none; }
+      {(isAdmin || canFishTank || canPhone) && (
+        <>
+          <Sec>Office</Sec>
+          <div className="dh-card">
+            {isAdmin && <LinkRow icon="bell" title="Send a message" sub="Notify staff on their phones" to="send-notification" />}
+            {canPhone && <LinkRow icon="smartphone" title="Phone" sub="Call menu, who answers, missed calls" to="phone" />}
+            {canFishTank && <LinkRow icon="gift" title="Fish Tank" sub="Players, coins, shop items and prizes" to="fishtank" />}
+            {isAdmin && <LinkRow icon="mapPin" title="Fam & a Half" sub="Users, messages, banners and app settings" to="findmygang" />}
+            {isAdmin && <LinkRow icon="pound" title="Bill Pal" sub="Bills, members, support chat and suppliers" to="billpal" />}
+          </div>
+        </>
+      )}
 
-        .setting-info {
-          display: flex;
-          align-items: center;
-          gap: 13px;
-          min-width: 0;
-          flex: 1;
-        }
+      <Sec>Security and devices</Sec>
+      <div className="dh-card">
+        <ToggleRow icon="lock" title="Face ID" sub="Ask for Face ID or Touch ID when the app opens" on={!!preferences.biometricAuth} onChange={() => handleToggle('biometricAuth')} />
+        <LinkRow icon="smartphone" title="Your devices" sub="Where your notifications are sent" to="devices" />
+        {isOwner && <LinkRow icon="lock" title="Device management" sub="Staff phones: details, security and remote lock" to="device-management" />}
+        <LinkRow icon="barChart" title="Diagnostics" sub={isAdmin ? 'Check this iPhone, or run checks on staff phones' : 'Check this iPhone and let DH help when it misbehaves'} to="diagnostics" />
+      </div>
 
-        .setting-label {
-          font-size: 15.5px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
+      <Sec>Push on this account</Sec>
+      <div className="dh-card">
+        {devicesLoading ? (
+          <div className="dh-row"><span className="dh-sub">Loading…</span></div>
+        ) : devices.length === 0 ? (
+          <div className="dh-row"><span className="dh-g"><span className="dh-sub">No devices registered</span></span></div>
+        ) : devices.map(device => (
+          <div className="dh-row" key={device.id}>
+            <span className="dh-ic muted"><Icon name="smartphone" size={18} /></span>
+            <span className="dh-g">
+              <span className="dh-t">{device.device_name || device.device_model || 'Unknown device'}</span>
+              <span className="dh-sub">{device.device_type === 'ios' ? 'iOS' : device.device_type} · {device.os_version || 'Unknown version'}</span>
+            </span>
+            <button type="button" className="dh-sec-act" style={{ color: '#B42318' }} onClick={() => handleRemoveDevice(device)}>Remove</button>
+          </div>
+        ))}
+      </div>
+      <Btn variant="outline" onPress={handleCheckPushStatus} disabled={checkingPush}>
+        {checkingPush ? 'Checking…' : 'Check push notification status'}
+      </Btn>
 
-        .setting-description {
-          margin-top: 1px;
-          font-size: 13px;
-          line-height: 1.35;
-          color: var(--mobile-text-secondary);
-        }
+      <Sec>About</Sec>
+      <div className="dh-card">
+        <KV k="Version" v={appInfo ? `${appInfo.version} (${appInfo.build})` : '1.1'} />
+        <KV k="Developer" v="DH Website Services" />
+        <KV k="Support" v="01443 805303" />
+        <KV k="Email" v="david@dhwebsiteservices.co.uk" />
+      </div>
 
-        /* A proper switch: the track carries the state, so it reads at a
-           glance rather than needing the label to explain it. */
-        .toggle-button {
-          flex: 0 0 auto;
-          position: relative;
-          width: 50px;
-          height: 30px;
-          border-radius: 999px;
-          border: none;
-          background: var(--mobile-border);
-          cursor: pointer;
-          transition: background 0.18s ease;
-          padding: 0;
-        }
-
-        .toggle-button.active { background: var(--mobile-accent); }
-
-        .toggle-slider {
-          position: absolute;
-          top: 3px;
-          left: 3px;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: #ffffff;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-          transition: transform 0.18s ease;
-        }
-
-        .toggle-button.active .toggle-slider { transform: translateX(20px); }
-
-        .theme-options {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-          padding: 8px;
-        }
-
-        .theme-button {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          padding: 14px 8px;
-          border-radius: 12px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-card);
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
-
-        .theme-button.active {
-          border-color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-        }
-
-        .info-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 11px 8px;
-          border-bottom: 1px solid var(--mobile-border);
-          font-size: 14.5px;
-        }
-
-        .info-row:last-child { border-bottom: none; }
-
-        .info-label { color: var(--mobile-text-secondary); }
-
-        .info-value {
-          color: var(--mobile-text);
-          font-weight: 600;
-          text-align: right;
-        }
-
-        .logout-button {
-          width: 100%;
-          margin-top: 20px;
-          padding: 15px;
-          border-radius: 12px;
-          border: 1px solid rgba(192, 57, 43, 0.35);
-          background: none;
-          font-size: 15.5px;
-          font-weight: 600;
-          color: #c0392b;
-          cursor: pointer;
-        }
-
-        .section-title {
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--mobile-text-secondary);
-          padding: 4px 8px 10px;
-        }
-
-        /* Used three times on this screen and defined nowhere, so every
-           section heading rendered as unstyled body text. */
-        .setting-section-title {
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--mobile-text-secondary);
-          padding: 4px 8px 10px;
-        }
-
-        .setting-muted-note {
-          margin: 4px 8px 12px;
-          font-size: 13px;
-          line-height: 1.4;
-          color: var(--mobile-text-secondary);
-        }
-
-        .setting-dimmed {
-          opacity: 0.45;
-          pointer-events: none;
-        }
-
-        .setting-always {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          padding: 4px 10px;
-          border-radius: 999px;
-          background: var(--mobile-accent-soft);
-        }
-
-        .section-description {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          margin: -8px 0 12px 0;
-        }
-
-        .devices-empty {
-          text-align: center;
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          padding: 12px 0;
-        }
-
-        .device-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 0;
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .device-row:last-child {
-          border-bottom: none;
-        }
-
-        .device-info {
-          flex: 1;
-        }
-
-        .device-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .device-meta {
-          font-size: 12px;
-          color: var(--mobile-text-secondary);
-          margin-top: 2px;
-        }
-
-        .device-remove {
-          background: none;
-          border: none;
-          padding: 6px;
-          cursor: pointer;
-        }
-
-        .check-push-btn {
-          width: 100%;
-          margin-top: 12px;
-          padding: 12px;
-          background: var(--mobile-bg);
-          border: 1px solid var(--mobile-border);
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          cursor: pointer;
-        }
-
-        .check-push-btn:disabled {
-          opacity: 0.6;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      <Btn variant="danger" onPress={handleLogout}>Sign out</Btn>
+    </Screen>
   )
 }

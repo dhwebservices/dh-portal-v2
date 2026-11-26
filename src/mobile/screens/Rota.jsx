@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Chip } from '../components/DH'
+import { Screen, HeaderButton, Sec, KV, Seg, Pills, Pill, Btn, Note, Empty, Loading } from '../components/UI'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -204,695 +205,161 @@ export default function MobileRota({ goBack, navigate, user, isAdmin, date: init
   // so the phone has to be able to show that it exists and is unfilled.
   const openCount = dayShifts.filter(s => !String(s.employee_email || '').trim()).length
 
+  function ShiftRow({ shift, who }) {
+    const Tag = isAdmin ? 'button' : 'div'
+    return (
+      <Tag type={isAdmin ? 'button' : undefined} className="dh-row" onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}>
+        <span className="rota-bar" />
+        <span className="dh-g">
+          <span className="dh-t">{fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}</span>
+          <span className="dh-sub">
+            {[
+              who ? (shift.employee_name || shift.employee_email || 'Open shift') : null,
+              shift.role,
+              shift.break_minutes ? `${shift.break_minutes}m break` : null,
+            ].filter(Boolean).join(' · ')}
+          </span>
+          {shift.note && <span className="dh-sub">{shift.note}</span>}
+        </span>
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          <span className="dh-val">{shiftHours(shift).toFixed(1)}h</span>
+          {isAdmin && !shift.published && <Chip tone="amber">Draft</Chip>}
+          {who && payFor(shift) > 0 && <span className="dh-sub">£{payFor(shift).toFixed(2)}</span>}
+        </span>
+      </Tag>
+    )
+  }
+
   function DayView() {
     return (
-      <div className="rota-day">
-        <div className="rota-day-stats">
-          <div className="rota-stat">
-            <span className="rota-stat-value">{openCount}</span>
-            <span className="rota-stat-label">Open shift{openCount === 1 ? '' : 's'}</span>
-          </div>
-          <div className="rota-stat">
-            <span className="rota-stat-value">{onLeave.length}</span>
-            <span className="rota-stat-label">On leave</span>
-          </div>
+      <>
+        <div className={`dh-tiles${isAdmin ? ' t3' : ''}`}>
+          <div className="dh-tile"><span className="dh-num">{openCount}</span><span className="dh-sub">Open shift{openCount === 1 ? '' : 's'}</span></div>
+          <div className="dh-tile"><span className="dh-num">{onLeave.length}</span><span className="dh-sub">On leave</span></div>
+          {isAdmin && <div className="dh-tile"><span className="dh-num">£{dayCost.toFixed(0)}</span><span className="dh-sub">Cost</span></div>}
         </div>
 
-        {isAdmin && (
-          <div className="rota-cost">
-            <span>Cost summary</span>
-            <strong>£{dayCost.toFixed(2)}</strong>
-          </div>
-        )}
-
         {dayShifts.length === 0 ? (
-          <div className="mobile-rota-empty">
-            {isAdmin ? 'Nobody is scheduled on this day' : 'You are not scheduled on this day'}
-          </div>
+          <Empty icon="calendar" title={isAdmin ? 'Nobody is scheduled on this day' : 'You are not scheduled on this day'} />
         ) : (
-          <div className="rota-day-list">
-            {dayShifts.map(shift => (
-              <div
-                key={shift.id}
-                className={`rota-day-card${isAdmin ? ' rota-day-card-editable' : ''}`}
-                onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}
-              >
-                <span className="rota-day-bar" />
-                <div className="rota-day-body">
-                  <div className="rota-day-top">
-                    <strong>{fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}</strong>
-                    <span className="rota-day-hours">
-                      {shiftHours(shift).toFixed(1)}h
-                      {payFor(shift) > 0 && <em> · £{payFor(shift).toFixed(2)}</em>}
-                    </span>
-                  </div>
-                  <div className="rota-day-meta">
-                    {[
-                      isAdmin
-                        ? (shift.employee_name || shift.employee_email || 'Open shift')
-                        : null,
-                      shift.role,
-                      shift.break_minutes ? `${shift.break_minutes}m break` : null,
-                    ].filter(Boolean).join(' · ')}
-                  </div>
-                  {isAdmin && !shift.published && (
-                    <div className="rota-day-draft">Draft — not yet sent to them</div>
-                  )}
-                  {shift.note && <div className="rota-day-note">{shift.note}</div>}
-                </div>
-              </div>
-            ))}
+          <div className="dh-card">
+            {dayShifts.map(shift => <ShiftRow key={shift.id} shift={shift} who={isAdmin} />)}
           </div>
         )}
 
         {onLeave.length > 0 && (
-          <div className="rota-leave">
-            {onLeave.map(p => p.user_name).filter(Boolean).join(', ')} on leave
-          </div>
+          <Note>{onLeave.map(p => p.user_name).filter(Boolean).join(', ')} on leave</Note>
         )}
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="mobile-rota">
-      {/* No back button: this is a root tab now, not a screen you arrive at
-          from somewhere. */}
-      <div className="mobile-rota-header">
-        <h1>Rota</h1>
-        <div className="mobile-rota-header-right">
-        {isAdmin && (
-          <button
-            className="mobile-rota-add"
-            onClick={() => navigate('add-shift', { date: focusDate })}
-            aria-label="Add a shift"
-          >
-            <Icon name="plus" size={18} />
-          </button>
-        )}
-        <div className="mobile-rota-modes">
-          <button
-            className={mode === 'day' ? 'active' : ''}
-            onClick={() => switchMode('day')}
-            aria-pressed={mode === 'day'}
-          >Day</button>
-          <button
-            className={mode === 'week' ? 'active' : ''}
-            onClick={() => switchMode('week')}
-            aria-pressed={mode === 'week'}
-          >Week</button>
-        </div>
-        </div>
-      </div>
+    <Screen
+      title="Rota"
+      onBack={goBack}
+      action={isAdmin ? <HeaderButton onPress={() => navigate('add-shift', { date: focusDate })} label="Add a shift"><Icon name="plus" size={20} /></HeaderButton> : null}
+    >
+      <Seg value={mode} onChange={switchMode} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]} />
 
       {isAdmin && mode === 'week' && (
-        <div className="mobile-rota-segment">
-          <button className={view === 'mine' ? 'active' : ''} onClick={() => switchView('mine')}>My Shifts</button>
-          <button className={view === 'team' ? 'active' : ''} onClick={() => switchView('team')}>Team Rota</button>
-        </div>
+        <Pills>
+          <Pill on={view === 'team'} onPress={() => switchView('team')}>Team rota</Pill>
+          <Pill on={view === 'mine'} onPress={() => switchView('mine')}>My shifts</Pill>
+        </Pills>
       )}
 
-      <div className="mobile-rota-week-nav">
-        <button
-          onClick={() => (mode === 'day' ? changeDay(-1) : changeWeek(-1))}
-          aria-label={mode === 'day' ? 'Previous day' : 'Previous week'}
-        ><Icon name="chevronLeft" size={18} /></button>
-        <span>{mode === 'day' ? fmtDay(focusDate) : fmtWeek(weekStart)}</span>
-        <button
-          onClick={() => (mode === 'day' ? changeDay(1) : changeWeek(1))}
-          aria-label={mode === 'day' ? 'Next day' : 'Next week'}
-        ><Icon name="chevronRight" size={18} /></button>
+      <div className="rota-nav">
+        <button type="button" className="dh-back" onClick={() => (mode === 'day' ? changeDay(-1) : changeWeek(-1))} aria-label={mode === 'day' ? 'Previous day' : 'Previous week'}>
+          <Icon name="chevronLeft" size={22} />
+        </button>
+        <span className="dh-h2" style={{ fontSize: 17 }}>{mode === 'day' ? fmtDay(focusDate) : fmtWeek(weekStart)}</span>
+        <button type="button" className="dh-back" onClick={() => (mode === 'day' ? changeDay(1) : changeWeek(1))} aria-label={mode === 'day' ? 'Next day' : 'Next week'}>
+          <Icon name="chevronRight" size={22} />
+        </button>
       </div>
 
       {mode === 'day' && !loading && <DayView />}
 
-      {loading ? (
-        <div className="mobile-rota-loading"><div className="mobile-spinner" /></div>
-      ) : mode === 'day' ? null : view === 'mine' ? (
-        <div className="rota-week">
-          <div className="rota-week-total">
-            <span>Scheduled this week</span>
-            <strong>{myWeekTotal.toFixed(1)}h</strong>
+      {loading ? <Loading /> : mode === 'day' ? null : view === 'mine' ? (
+        <>
+          <div className="dh-card">
+            {DAYS.map((day, i) => {
+              const dateKey = shiftWeek(weekStart, i)
+              const dayShifts = shiftsOn(myShifts, dateKey)
+              const date = new Date(dateKey + 'T12:00:00')
+              const isToday = dateKey === todayISO()
+              return (
+                <div key={day} className={`dh-row top rota-week-row${isToday ? ' today' : ''}`}>
+                  <span className="rota-date"><span className="dh-t">{day.slice(0, 3)}</span><span className="dh-sub">{date.getDate()}</span></span>
+                  <span className="dh-g">
+                    {dayShifts.length ? dayShifts.map(shift => (
+                      <span
+                        key={shift.id}
+                        className={`rota-chip${isAdmin ? ' edit' : ''}`}
+                        onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}
+                      >
+                        <b>{fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}</b>
+                        <span>{[`${shiftHours(shift).toFixed(1)}h`, shift.role, shift.note].filter(Boolean).join(' · ')}</span>
+                      </span>
+                    )) : <span className="dh-sub">Not scheduled</span>}
+                  </span>
+                </div>
+              )
+            })}
           </div>
-
-          {DAYS.map((day, i) => {
-            const dateKey = shiftWeek(weekStart, i)
-            const dayShifts = shiftsOn(myShifts, dateKey)
-            const date = new Date(dateKey + 'T12:00:00')
-            const isToday = dateKey === todayISO()
-            return (
-              <div key={day} className={`rota-week-day${isToday ? ' is-today' : ''}`}>
-                <div className="rota-week-date">
-                  <span className="rota-week-dow">{day.slice(0, 3)}</span>
-                  <span className="rota-week-num">{date.getDate()}</span>
-                </div>
-
-                <div className="rota-week-body">
-                  {dayShifts.length ? dayShifts.map((shift) => (
-                    <div
-                      key={shift.id}
-                      className={`rota-week-shift${isAdmin ? ' rota-editable' : ''}`}
-                      onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}
-                    >
-                      <span className="rota-week-bar" />
-                      <div className="rota-week-shift-body">
-                        <div className="rota-week-shift-top">
-                          <strong>{fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}</strong>
-                          <span className="rota-week-hours">{shiftHours(shift).toFixed(1)}h</span>
-                        </div>
-                        {(shift.role || shift.note) && (
-                          <div className="rota-week-meta">
-                            {[shift.role, shift.note].filter(Boolean).join(' · ')}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="rota-week-off">Not scheduled</div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+          <div className="dh-card">
+            <div className="dh-row"><span className="dh-g"><span className="dh-t">Scheduled this week</span></span><span className="dh-val">{myWeekTotal.toFixed(1)}h</span></div>
+          </div>
+        </>
       ) : (
-        <div className="rota-team">
-          {teamRows.length === 0 ? (
-            <div className="mobile-rota-empty">No published shifts for this week</div>
-          ) : (
-            <div className="rota-team-scroll">
-              <table className="rota-table">
-                <thead>
-                  <tr>
-                    <th className="mobile-rota-sticky-col">Staff</th>
-                    {DAYS.map((d, i) => (
-                      <th key={d}>{d.slice(0, 3)} {new Date(shiftWeek(weekStart, i) + 'T12:00:00').getDate()}</th>
-                    ))}
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teamRows.map((row) => (
-                    <tr key={row.email}>
-                      <td className="mobile-rota-sticky-col mobile-rota-staff-name">
-                        {row.name.split('(')[0].trim()}
-                      </td>
-                      {DAYS.map((day, i) => {
-                        const dayShifts = shiftsOn(row.shifts, shiftWeek(weekStart, i))
-                        return (
-                          <td key={day}>
-                            {dayShifts.length ? (
-                              dayShifts.map((shift) => (
-                                <div
-                                key={shift.id}
-                                className={`mobile-rota-cell-shift${isAdmin ? ' rota-editable' : ''}`}
-                                onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}
-                              >
-                                  {fmtTime(shift.start_time)}–{fmtTime(shift.end_time)}
-                                </div>
-                              ))
-                            ) : (
-                              <span className="mobile-rota-cell-off">–</span>
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="mobile-rota-cell-total">{totalHours(row.shifts).toFixed(1)}h</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        teamRows.length === 0 ? <Empty icon="calendar" title="No published shifts for this week" /> : (
+          <>
+            <div className="dh-card">
+              {DAYS.map((day, i) => {
+                const dateKey = shiftWeek(weekStart, i)
+                const date = new Date(dateKey + 'T12:00:00')
+                const isToday = dateKey === todayISO()
+                const entries = teamRows.flatMap(row => shiftsOn(row.shifts, dateKey).map(shift => ({ row, shift })))
+                return (
+                  <div key={day} className={`dh-row top rota-week-row${isToday ? ' today' : ''}`}>
+                    <span className="rota-date"><span className="dh-t">{day.slice(0, 3)}</span><span className="dh-sub">{date.getDate()}</span></span>
+                    <span className="dh-g">
+                      {entries.length ? entries.map(({ row, shift }) => (
+                        <span
+                          key={shift.id}
+                          className={`rota-chip${isAdmin ? ' edit' : ''}`}
+                          onClick={isAdmin ? () => navigate('add-shift', { shift }) : undefined}
+                        >
+                          <b>{row.name.split('(')[0].trim()}</b>
+                          <span>{fmtTime(shift.start_time)} – {fmtTime(shift.end_time)}{shift.role ? ` · ${shift.role}` : ''}</span>
+                        </span>
+                      )) : <span className="dh-sub">No published shifts</span>}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-          )}
-        </div>
+            <Sec>Hours this week</Sec>
+            <div className="dh-card">
+              {teamRows.map(row => <KV key={row.email} k={row.name.split('(')[0].trim()} v={`${totalHours(row.shifts).toFixed(1)}h`} />)}
+            </div>
+          </>
+        )
       )}
 
+      {isAdmin && <Btn onPress={() => navigate('add-shift', { date: focusDate })}>Add a shift</Btn>}
+
       <style>{`
-        .rota-day {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 0 16px 20px;
-        }
-
-        .rota-day-stats {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        .rota-stat {
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        .rota-stat-value {
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-stat-label {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .rota-cost {
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-          font-size: 15px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .rota-cost strong {
-          font-size: 18px;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-day-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .rota-day-card {
-          display: flex;
-          gap: 12px;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        /* The coloured spine RotaCloud puts down the left of every shift. */
-        .rota-day-bar {
-          flex: 0 0 auto;
-          width: 4px;
-          border-radius: 2px;
-          background: var(--mobile-accent);
-        }
-
-        .rota-day-body { flex: 1; min-width: 0; }
-
-        .rota-day-top {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .rota-day-top strong {
-          font-size: 16px;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-day-hours em {
-          font-style: normal;
-          color: var(--mobile-accent);
-        }
-
-        .rota-day-hours {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-day-meta {
-          margin-top: 2px;
-          font-size: 13.5px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-rota-header-right {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .mobile-rota-add {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: none;
-          background: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-          display: grid;
-          place-items: center;
-          cursor: pointer;
-        }
-
-        .rota-editable { cursor: pointer; }
-
-        .rota-day-card-editable { cursor: pointer; }
-        .rota-day-card-editable:active { transform: scale(0.995); }
-
-        .rota-day-draft {
-          margin-top: 6px;
-          display: inline-block;
-          font-size: 11.5px;
-          font-weight: 600;
-          color: #b8690c;
-          background: rgba(214, 122, 20, 0.14);
-          padding: 3px 8px;
-          border-radius: 999px;
-        }
-
-        .rota-day-note {
-          margin-top: 6px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          opacity: 0.85;
-        }
-
-        .rota-leave {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          padding: 2px 4px;
-        }
-
-        .rota-week {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          padding: 0 16px 20px;
-        }
-
-        .rota-week-total {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-          font-size: 15px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .rota-week-total strong {
-          font-size: 18px;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-week-day {
-          display: flex;
-          gap: 12px;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 12px 14px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        /* Today gets a quiet marker rather than a colour wash — you should be
-           able to find it without it shouting. */
-        .rota-week-day.is-today {
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), inset 3px 0 0 var(--mobile-accent);
-        }
-
-        .rota-week-date {
-          flex: 0 0 42px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 1px;
-        }
-
-        .rota-week-dow {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          color: var(--mobile-text-secondary);
-        }
-
-        .rota-week-num {
-          font-size: 19px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-week-body {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          justify-content: center;
-        }
-
-        .rota-week-shift {
-          display: flex;
-          gap: 10px;
-        }
-
-        .rota-week-bar {
-          flex: 0 0 auto;
-          width: 3px;
-          border-radius: 2px;
-          background: var(--mobile-accent);
-        }
-
-        .rota-week-shift-body { flex: 1; min-width: 0; }
-
-        .rota-week-shift-top {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .rota-week-shift-top strong {
-          font-size: 15px;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-week-hours {
-          font-size: 12.5px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .rota-week-meta {
-          margin-top: 1px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .rota-week-off {
-          font-size: 13.5px;
-          color: var(--mobile-text-secondary);
-          opacity: 0.7;
-        }
-
-        .rota-team { padding: 0 16px 20px; }
-
-        .rota-team-scroll {
-          overflow-x: auto;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .rota-table {
-          border-collapse: collapse;
-          width: 100%;
-          font-size: 13px;
-        }
-
-        .rota-table th {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: var(--mobile-text-secondary);
-          text-align: left;
-          padding: 12px 10px;
-          white-space: nowrap;
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .rota-table td {
-          padding: 11px 10px;
-          border-bottom: 1px solid var(--mobile-border);
-          vertical-align: middle;
-          color: var(--mobile-text);
-        }
-
-        .rota-table tr:last-child td { border-bottom: none; }
-
-        /* The name column stays put while the days scroll under it. */
-        .mobile-rota-sticky-col {
-          position: sticky;
-          left: 0;
-          background: var(--mobile-card);
-          z-index: 1;
-        }
-
-        .mobile-rota-staff-name {
-          font-weight: 600;
-          white-space: nowrap;
-          padding-right: 14px;
-        }
-
-        .mobile-rota-cell-shift {
-          font-size: 12.5px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          border-radius: 7px;
-          padding: 5px 8px;
-          white-space: nowrap;
-          margin-bottom: 4px;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .mobile-rota-cell-off {
-          color: var(--mobile-text-secondary);
-          opacity: 0.45;
-        }
-
-        .mobile-rota-cell-total {
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          white-space: nowrap;
-        }
-
-        .mobile-rota-empty {
-          text-align: center;
-          padding: 40px 20px;
-          color: var(--mobile-text-secondary);
-          font-size: 14px;
-        }
-
-        .mobile-rota-modes {
-          display: inline-flex;
-          background: var(--mobile-accent-soft);
-          border-radius: 10px;
-          padding: 3px;
-          gap: 2px;
-        }
-
-        .mobile-rota-modes button {
-          border: none;
-          background: none;
-          padding: 6px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          cursor: pointer;
-        }
-
-        .mobile-rota-modes button.active {
-          background: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-        }
-
-        .mobile-rota {
-          padding: 16px;
-        }
-
-        .mobile-rota-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-        }
-
-        .mobile-rota-header h1 {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          margin: 0;
-        }
-
-        .mobile-rota-back {
-          background: none;
-          border: none;
-          color: var(--mobile-text);
-          padding: 4px;
-        }
-
-        .mobile-rota-segment {
-          display: flex;
-          background: var(--mobile-border);
-          border-radius: 10px;
-          padding: 3px;
-          margin-bottom: 16px;
-        }
-
-        .mobile-rota-segment button {
-          flex: 1;
-          padding: 8px 0;
-          border: none;
-          background: transparent;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-rota-segment button.active {
-          background: var(--mobile-card);
-          color: var(--mobile-text);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .mobile-rota-week-nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          padding: 0 4px;
-        }
-
-        .mobile-rota-week-nav button {
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-border);
-          border-radius: 8px;
-          width: 34px;
-          height: 34px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--mobile-text);
-        }
-
-        .mobile-rota-week-nav span {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-rota-loading {
-          display: flex;
-          justify-content: center;
-          padding: 40px 0;
-        }
-
-        /* A day can hold more than one shift now that these come from the
-           shifts table rather than a single slot per day. */
+        .rota-nav { display: flex; align-items: center; justify-content: space-between; margin: -4px -12px; }
+        .rota-bar { width: 4px; align-self: stretch; border-radius: 2px; background: var(--mobile-accent); flex: none; }
+        .rota-date { width: 44px; flex: none; display: flex; flex-direction: column; gap: 2px; }
+        .rota-week-row.today { background: var(--mobile-accent-soft); }
+        .rota-week-row .dh-g { gap: 6px; }
+        .rota-chip { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border-radius: 10px; background: var(--mobile-bg); border-left: 3px solid var(--mobile-accent); font-size: 13px; color: var(--mobile-text-secondary); }
+        .rota-chip b { font-size: 14px; color: var(--mobile-text); font-weight: 600; }
+        .rota-chip.edit { cursor: pointer; }
       `}</style>
-    </div>
+    </Screen>
   )
 }

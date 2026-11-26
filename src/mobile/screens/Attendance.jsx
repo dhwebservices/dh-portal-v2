@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Screen, Sec, Seg, Empty, Loading } from '../components/UI'
 
 export default function MobileAttendance({ goBack, user, navigate }) {
   const [records, setRecords] = useState([])
@@ -97,245 +97,36 @@ export default function MobileAttendance({ goBack, user, navigate }) {
   }
 
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Attendance</h1>
-        <div style={{ width: 60 }} />
+    <Screen title="Attendance" onBack={goBack}>
+      <Seg
+        value={period}
+        onChange={setPeriod}
+        options={[{ value: 'week', label: 'Last 7 days' }, { value: 'month', label: 'Last 30 days' }, { value: 'all', label: 'All time' }]}
+      />
+
+      <div className="dh-tiles t3">
+        <div className="dh-tile"><span className="dh-num">{stats.totalDays}</span><span className="dh-sub">Days worked</span></div>
+        <div className="dh-tile"><span className="dh-num">{stats.totalHours}h</span><span className="dh-sub">Total hours</span></div>
+        <div className="dh-tile"><span className="dh-num">{stats.avgHours}h</span><span className="dh-sub">Avg per day</span></div>
       </div>
 
-      {/* Period Selector */}
-      <div style={{ padding: '16px 20px', background: 'var(--mobile-bg)', borderBottom: '1px solid var(--mobile-border)' }}>
-        <div className="period-chips">
-          {['week', 'month', 'all'].map(p => (
-            <button
-              key={p}
-              className={`period-chip ${period === p ? 'active' : ''}`}
-              onClick={async () => {
-                await Haptics.impact({ style: ImpactStyle.Light })
-                setPeriod(p)
-              }}
-            >
-              {p === 'week' ? 'Last 7 Days' : p === 'month' ? 'Last 30 Days' : 'All Time'}
-            </button>
+      <Sec>Clock-ins</Sec>
+      {loading ? <Loading /> : records.length === 0 ? (
+        <Empty icon="clock" title="No attendance records" sub="Clock-ins show here." />
+      ) : (
+        <div className="dh-card">
+          {records.map(record => (
+            <div key={record.id} className="dh-row">
+              <span className="dh-g" style={{ flex: 'none', width: 92 }}><span className="dh-t">{formatDate(record.date)}</span></span>
+              <span className="dh-g">
+                <span className="dh-sub">In {formatTime(record.clock_in)} · out {formatTime(record.clock_out)}</span>
+                {record.office_location && <span className="dh-sub">{record.office_location}</span>}
+              </span>
+              <span className="dh-val">{calculateDuration(record.clock_in, record.clock_out)}</span>
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>
-        <div className="stats-grid">
-          <MobileCard small>
-            <div className="stat-card">
-              <Icon name="clock" size={24} color="var(--mobile-accent)" />
-              <div>
-                <div className="stat-value">{stats.totalHours}h</div>
-                <div className="stat-label">Total Hours</div>
-              </div>
-            </div>
-          </MobileCard>
-
-          <MobileCard small>
-            <div className="stat-card">
-              <Icon name="calendar" size={24} color="#34c759" />
-              <div>
-                <div className="stat-value">{stats.totalDays}</div>
-                <div className="stat-label">Days Worked</div>
-              </div>
-            </div>
-          </MobileCard>
-
-          <MobileCard small>
-            <div className="stat-card">
-              <Icon name="barChart" size={24} color="#ff9500" />
-              <div>
-                <div className="stat-value">{stats.avgHours}h</div>
-                <div className="stat-label">Avg Per Day</div>
-              </div>
-            </div>
-          </MobileCard>
-        </div>
-      </div>
-
-      {/* Attendance Records */}
-      <div style={{ padding: '20px', paddingBottom: '100px' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div className="spinner" />
-          </div>
-        ) : records.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Icon name="clock" size={48} color="var(--mobile-border)" />
-            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
-              No attendance records
-            </p>
-          </div>
-        ) : (
-          <div className="records-list">
-            {records.map(record => (
-              <MobileCard key={record.id}>
-                <div className="record-item">
-                  <div className="record-header">
-                    <div className="record-date">{formatDate(record.date)}</div>
-                    <div className="record-duration">{calculateDuration(record.clock_in, record.clock_out)}</div>
-                  </div>
-
-                  <div className="record-times">
-                    <div className="time-block">
-                      <div className="time-label">Clock In</div>
-                      <div className="time-value">
-                        <Icon name="arrowRight" size={16} color="#34c759" />
-                        {formatTime(record.clock_in)}
-                      </div>
-                    </div>
-
-                    <div className="time-block">
-                      <div className="time-label">Clock Out</div>
-                      <div className="time-value">
-                        <Icon name="arrowLeft" size={16} color="#ff3b30" />
-                        {formatTime(record.clock_out)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {record.office_location && (
-                    <div className="record-location">
-                      <Icon name="mapPin" size={14} color="var(--mobile-text-secondary)" />
-                      <span>{record.office_location}</span>
-                    </div>
-                  )}
-                </div>
-              </MobileCard>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        .period-chips {
-          display: flex;
-          gap: 8px;
-        }
-
-        .period-chip {
-          flex: 1;
-          padding: 8px 12px;
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-border);
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--mobile-text);
-          cursor: pointer;
-        }
-
-        .period-chip.active {
-          background: var(--mobile-accent);
-          color: white;
-          border-color: var(--mobile-accent);
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-        }
-
-        .stat-card {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 4px;
-        }
-
-        .stat-value {
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          margin-bottom: 2px;
-        }
-
-        .stat-label {
-          font-size: 11px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .records-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .record-item {
-          padding: 4px;
-        }
-
-        .record-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-
-        .record-date {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .record-duration {
-          font-size: 16px;
-          font-weight: 700;
-          color: var(--mobile-accent);
-        }
-
-        .record-times {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-
-        .time-block {
-          background: var(--mobile-bg);
-          padding: 12px;
-          border-radius: 8px;
-        }
-
-        .time-label {
-          font-size: 11px;
-          color: var(--mobile-text-secondary);
-          margin-bottom: 6px;
-          text-transform: uppercase;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-        }
-
-        .time-value {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .record-location {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          padding-top: 8px;
-          border-top: 1px solid var(--mobile-border);
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      )}
+    </Screen>
   )
 }
