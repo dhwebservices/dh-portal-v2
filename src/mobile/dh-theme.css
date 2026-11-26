@@ -1,0 +1,161 @@
+/*
+ * The November 2026 DH look, applied to every screen that predates it.
+ *
+ * Home, Apps, Clients and More are built from components/DH.jsx. The other
+ * screens each carry their own markup and class names (fta-*, mdm-*, ph-*,
+ * fg-*...), so rather than rewrite 27 screens' JSX, this sheet restyles the
+ * shared patterns they all use: the screen header and its back button, the
+ * cards, section labels, form fields and buttons. Everything is scoped under
+ * .mobile-app .mobile-screen with two classes, which beats the one-class rules
+ * each screen injects, whatever order the style tags land in.
+ *
+ * Tokens come from MobileApp.jsx (--mobile-*), so dark mode follows.
+ */
+
+/* Page titles: big, left-aligned Archivo, like Home and More. */
+.mobile-app .mobile-screen h1 {
+  font-family: Archivo, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--mobile-text);
+  text-align: left;
+  margin: 0;
+}
+
+/* Any header row that holds the page title sits on the page, not on a white
+   bar: no border, no shadow, the title takes the free space. */
+.mobile-app .mobile-screen div:has(> h1),
+.mobile-app .mobile-screen header:has(> h1) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 12px 20px 8px;
+  min-height: 60px;
+}
+.mobile-app .mobile-screen div:has(> h1) > h1,
+.mobile-app .mobile-screen header:has(> h1) > h1 { flex: 1; min-width: 0; }
+.mobile-app .mobile-screen .mobile-screen-header { position: sticky; top: 0; z-index: 3; background: var(--mobile-bg) !important; }
+
+/* Back buttons: one round button everywhere. */
+.mobile-app .mobile-screen .mobile-back-btn,
+.mobile-app .mobile-screen [class$="-back"] {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  flex: none;
+  padding: 0;
+  border-radius: 20px;
+  border: 1px solid var(--mobile-border);
+  background: var(--mobile-card);
+  color: var(--mobile-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-app .mobile-screen .mobile-back-btn svg,
+.mobile-app .mobile-screen [class$="-back"] svg { color: var(--mobile-accent); stroke: currentColor; }
+
+/* Cards: the DH card is flat white with a 20px radius. */
+.mobile-app .mobile-screen .mobile-card {
+  border-radius: 20px;
+  box-shadow: none;
+  border: 0;
+}
+.mobile-app .mobile-screen .mobile-card h2,
+.mobile-app .mobile-screen .mobile-card h3,
+.mobile-app .mobile-screen .mobile-card-title {
+  font-family: Archivo, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--mobile-text);
+}
+
+/* Section labels: small caps, like "THIS WEEK" on Home. */
+.mobile-app .mobile-screen .mobile-section-header h2 {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mobile-text-secondary);
+}
+.mobile-app .mobile-screen .mobile-card .mobile-section-header h2 {
+  font-family: Archivo, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--mobile-text);
+}
+
+/* Form fields. */
+.mobile-app .mobile-screen input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+.mobile-app .mobile-screen textarea,
+.mobile-app .mobile-screen select {
+  font: inherit;
+  font-size: 15px;
+  color: var(--mobile-text);
+  background: var(--mobile-bg);
+  border: 1px solid var(--mobile-border);
+  border-radius: 12px;
+  min-height: 46px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.mobile-app .mobile-screen textarea { min-height: 92px; line-height: 1.45; resize: vertical; width: 100%; }
+.mobile-app .mobile-screen input:focus,
+.mobile-app .mobile-screen textarea:focus,
+.mobile-app .mobile-screen select:focus {
+  outline: none;
+  border-color: var(--mobile-accent);
+  box-shadow: 0 0 0 3px var(--mobile-accent-soft);
+}
+
+/* Main buttons: accent fill, 14px radius, 48px tall. Matched by name so
+   each screen's own primary/secondary classes pick it up. */
+.mobile-app .mobile-screen button[class$="-primary"],
+.mobile-app .mobile-screen button[class*="-primary "],
+.mobile-app .mobile-screen .mobile-btn-primary {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--mobile-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mobile-app .mobile-screen button[class$="-secondary"],
+.mobile-app .mobile-screen button[class*="-secondary "],
+.mobile-app .mobile-screen .mobile-btn-secondary {
+  min-height: 48px;
+  border-radius: 14px;
+  background: var(--mobile-card);
+  border: 1px solid var(--mobile-border);
+  color: var(--mobile-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mobile-app .mobile-screen button:disabled { opacity: 0.5; }
+
+/* Stat boxes on the old screens (Fish Tank, Leave, Rota...): tile look. */
+.mobile-app .mobile-screen .fta-stat,
+.mobile-app .mobile-screen [class$="-stat"] {
+  border-radius: 16px;
+}
+.mobile-app .mobile-screen .fta-stat strong,
+.mobile-app .mobile-screen [class$="-stat"] strong {
+  font-family: Archivo, system-ui, sans-serif;
+  font-weight: 800;
+}
+
+/* Fish Tank's maintenance message: multi-line, never cut off. */
+.mobile-app .mobile-screen .fta-textarea { display: block; width: 100%; white-space: pre-wrap; }
