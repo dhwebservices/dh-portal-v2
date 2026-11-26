@@ -62,6 +62,33 @@ export function Tile({ label, value, sub, onPress }) {
   )
 }
 
+/**
+ * A 7-day bar chart, sized for a card. Values are drawn as they are: an empty
+ * day is an empty slot, and the axis starts at zero.
+ */
+export function MiniBars({ title, days, valueKey = 'value', total, note }) {
+  const max = Math.max(1, ...days.map(d => d[valueKey] || 0))
+  const label = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'narrow' })
+  return (
+    <div className="dh-chart">
+      <div className="dh-chart-head">
+        <span className="dh-t">{title}</span>
+        {total !== undefined && <span className="dh-chart-total">{total}</span>}
+      </div>
+      <div className="dh-bars" role="img" aria-label={`${title}: ${days.map(d => `${d.date} ${d[valueKey] || 0}`).join(', ')}`}>
+        {days.map((d, i) => (
+          <div key={d.date} className="dh-bar-col">
+            <span className="dh-bar-n">{d[valueKey] || ''}</span>
+            <span className={`dh-bar ${i === days.length - 1 ? 'today' : ''}`} style={{ height: `${Math.max(2, ((d[valueKey] || 0) / max) * 64)}px` }} />
+            <span className="dh-bar-d">{label(d.date)}</span>
+          </div>
+        ))}
+      </div>
+      {note && <p className="dh-note">{note}</p>}
+    </div>
+  )
+}
+
 export function DHStyles() {
   return (
     <style>{`
@@ -94,7 +121,18 @@ export function DHStyles() {
       .dh-num { font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 28px; }
       .dh-hero { background: var(--mobile-accent); color: #fff; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
       .dh-hero .dh-sec { color: rgba(255,255,255,.8); }
-      .dh-hero-title { font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.02em; margin: 0; }
+      .dh-chart { background: var(--mobile-card); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .dh-chart-head { display: flex; justify-content: space-between; align-items: baseline; }
+      .dh-chart-total { font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 20px; color: var(--mobile-text); }
+      .dh-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 104px; }
+      .dh-bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+      .dh-bar { width: 100%; max-width: 28px; border-radius: 6px 6px 3px 3px; background: var(--mobile-accent-soft); }
+      .dh-bar.today { background: var(--mobile-accent); }
+      .dh-bar-n { font-size: 11px; font-weight: 600; color: var(--mobile-text-secondary); min-height: 14px; }
+      .dh-bar-d { font-size: 11px; color: var(--mobile-text-secondary); }
+      .dh-stack { display: flex; flex-direction: column; gap: 10px; }
+      .dh-tile .dh-num.sm { font-size: 22px; }
+      .dh-hero-title { color: #fff; font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.02em; margin: 0; }
       .dh-hero-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; background: rgba(255,255,255,.14); border: 0; border-radius: 14px; padding: 12px 14px; color: #fff; font: inherit; text-align: left; }
       .dh-hero-item small { display: block; font-size: 12px; color: rgba(255,255,255,.85); margin-top: 2px; }
       .dh-btn { height: 48px; border: 0; border-radius: 14px; background: var(--mobile-accent); color: #fff; font: inherit; font-size: 15px; font-weight: 600; width: 100%; }

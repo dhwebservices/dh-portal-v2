@@ -908,3 +908,6 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(Ctx)
+
+// Dev-only screen previews (mobile-preview.html) supply a stand-in user.
+export const AuthContextForPreview = Ctx

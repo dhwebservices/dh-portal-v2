@@ -5,6 +5,7 @@ import '@fontsource/ibm-plex-sans/latin-500.css'
 import '@fontsource/ibm-plex-sans/latin-600.css'
 import '@fontsource/archivo/latin-700.css'
 import '@fontsource/archivo/latin-800.css'
+import './mobile/dh-theme.css'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
@@ -56,7 +57,8 @@ import Icon from './mobile/components/Icon'
 
 export default function MobileApp() {
   const { user, can, loading, isAdmin } = useAuth()
-  const [currentScreen, setCurrentScreen] = useState('home')
+  // ?screen= opens a screen directly, in dev previews only.
+  const [currentScreen, setCurrentScreen] = useState(() => (import.meta.env.DEV && new URLSearchParams(window.location.search).get('screen')) || 'home')
   const [screenHistory, setScreenHistory] = useState(['home'])
   const [screenParams, setScreenParams] = useState({})
   const { preferences, loading: prefsLoading, savePreference } = useUserPreferences(user?.email)

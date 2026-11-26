@@ -1117,13 +1117,15 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp
                 ? 'The game is CLOSED. Every player sees the wall until you lift it.'
                 : 'The game is open. Closing it walls every player on the next launch or resume.'}
             </p>
-            <input
-              className="fta-field"
+            <textarea
+              className="fta-field fta-textarea"
+              rows={3}
               value={maintenanceDraft}
               onChange={e => setMaintenanceDraft(e.target.value)}
               placeholder="What the wall says (optional)"
               maxLength={200}
             />
+            <span className="fta-note">{maintenanceDraft.length} of 200</span>
             <button
               className={maintenance.on ? 'fta-primary' : 'fta-maintenance-close'}
               disabled={busy}
