@@ -4,6 +4,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { getPortalIdToken } from '../../utils/portalApi'
 import { apiUrl } from '../../utils/apiBase'
 import Icon from '../components/Icon'
+import { Screen, HeaderButton, Pill, Note } from '../components/UI'
 
 /**
  * Running FindMyGang from the staff portal.
@@ -120,7 +121,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
     return () => { stopped = true; clearInterval(t) }
   }, [tab, chat?.id, reportStatus, key])
 
-  if (!isAdmin) return <div className="fg"><p className="fg-note">Managers only.</p></div>
+  if (!isAdmin) return <Screen title="Fam & a Half" onBack={goBack}><Note>Managers only.</Note></Screen>
 
   async function call(path, options = {}) {
     let response
@@ -162,13 +163,9 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
       setKey(candidate)
     }
     return (
-      <div className="fg">
+      <Screen title="Fam & a Half" onBack={goBack}>
         <style>{FG_CSS}</style>
-        <div className="fg-head">
-          <button className="fg-back" onClick={goBack} aria-label="Back"><Icon name="chevron-left" size={22} /></button>
-          <h1>Fam &amp; a Half</h1>
-        </div>
-        <div className="fg-form">
+        <div className="fg"><div className="fg-form">
           <p className="fg-note">
             This screen can ban and delete accounts, so it is behind a real secret rather than
             a code in the app. Enter the Fam & a Half admin key once; it stays on this phone.
@@ -177,8 +174,8 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
           {keyError && <div className="fg-outcome bad">{keyError}</div>}
           <button className="fg-primary" disabled={!keyDraft.trim()} onClick={saveKey}>Unlock</button>
-        </div>
-      </div>
+        </div></div>
+      </Screen>
     )
   }
 
@@ -280,33 +277,32 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
 
   // ---------------------------------------------------------------- render
 
-  const header = (
-    <>
+  const shell = (body, { tabs = false } = {}) => (
+    <Screen
+      title={profile ? (profile.user.display_name || profile.user.email) : group ? group.circle.name : 'Fam & a Half'}
+      onBack={profile ? () => setProfile(null) : group ? () => setGroup(null) : goBack}
+      action={<HeaderButton onPress={profile ? reloadProfile : group ? () => openGroup(group.circle.id) : load} label="Refresh"><Icon name="refresh" size={18} /></HeaderButton>}
+    >
       <style>{FG_CSS}</style>
-      <div className="fg-head">
-        <button className="fg-back" onClick={profile ? () => setProfile(null) : group ? () => setGroup(null) : goBack} aria-label="Back">
-          <Icon name="chevron-left" size={22} />
-        </button>
-        <h1>{profile ? (profile.user.display_name || profile.user.email) : group ? group.circle.name : 'Fam & a Half'}</h1>
-        <button className="fg-back" onClick={profile ? reloadProfile : group ? () => openGroup(group.circle.id) : load} aria-label="Refresh">
-          <Icon name="refresh" size={18} />
-        </button>
+      <div className="fg">
+        {tabs && (
+          <div className="fg-tabs">
+            {TABS.map(([key, label]) => (
+              <Pill key={key} on={tab === key} onPress={() => { setTab(key); setOutcome(null) }}>{label}</Pill>
+            ))}
+          </div>
+        )}
+        {outcome && <div className={`fg-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</div>}
+        {body}
       </div>
-      {outcome && <div className={`fg-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</div>}
-    </>
+    </Screen>
   )
 
-  if (profile) return <div className="fg">{header}{renderProfile()}</div>
-  if (group) return <div className="fg">{header}{renderGroup()}</div>
+  if (profile) return shell(renderProfile())
+  if (group) return shell(renderGroup())
 
-  return (
-    <div className="fg">
-      {header}
-      <div className="fg-tabs">
-        {TABS.map(([key, label]) => (
-          <button key={key} className={tab === key ? 'active' : ''} onClick={() => { setTab(key); setOutcome(null) }}>{label}</button>
-        ))}
-      </div>
+  return shell(
+    <>
       {error && <div className="fg-outcome bad">{error}</div>}
       {loading && <p className="fg-note">Loading…</p>}
       {!loading && tab === 'overview' && renderOverview()}
@@ -319,7 +315,8 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
       {!loading && tab === 'settings' && renderSettings()}
       {!loading && tab === 'beta' && renderBeta()}
       {!loading && tab === 'log' && renderLog()}
-    </div>
+    </>,
+    { tabs: true },
   )
 
   function renderOverview() {
@@ -329,6 +326,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
     )
     return (
       <>
+        <div className="fg-statgrid">
         <div className="fg-stats">{stat(overview.users, 'Accounts')}{stat(overview.new_7d, 'New this week')}</div>
         <div className="fg-stats">{stat(overview.active_24h, 'Shared in 24 h')}{stat(overview.circles, 'Circles')}</div>
         <div className="fg-stats">
@@ -338,6 +336,7 @@ export default function MobileFindMyGangAdmin({ goBack, isAdmin, user }) {
         <div className="fg-stats">
           {stat(overview.push_pending, 'Push waiting')}
           {stat(overview.push_failed_24h, 'Push failed (24 h)', overview.push_failed_24h > 0)}
+        </div>
         </div>
         {stats && renderFunnel()}
       </>
@@ -974,66 +973,76 @@ function ago(iso) {
 }
 
 const FG_CSS = `
-  .fg { padding: 16px 16px 60px; overflow-x: hidden; }
+  /* Bill Pal and Fam & a Half share these. The fg-* classes are drawn in the
+     November 2026 board style (see ../dh-ui.css): white 20px cards with no
+     border, list rows with hairline separators, pill buttons, grey segmented
+     controls. The screen shell itself is the shared <Screen>. */
+  .fg { display: flex; flex-direction: column; gap: 14px; overflow-x: hidden; }
   .fg * { max-width: 100%; box-sizing: border-box; }
-  .fg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .fg-head h1 { margin: 0; flex: 1; font-size: 22px; font-weight: 700; color: var(--mobile-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fg-back { background: none; border: none; padding: 6px; color: var(--mobile-accent); cursor: pointer; display: grid; place-items: center; }
-  .fg-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
-  .fg-tabs button, .fg-seg button {
-    min-width: 0; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); font-size: 12.5px; font-weight: 600; color: var(--mobile-text-secondary); cursor: pointer;
-  }
-  .fg-tabs button.active, .fg-seg button.active { background: var(--mobile-accent); border-color: var(--mobile-accent); color: var(--mobile-on-accent); }
-  .fg-seg { display: flex; gap: 6px; }
-  .fg-seg button { flex: 1; }
-  .fg-stats { display: flex; gap: 10px; margin-bottom: 10px; }
-  .fg-stat { flex: 1; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 14px 12px; text-align: center; }
-  .fg-stat strong { display: block; font-size: 26px; font-weight: 700; color: var(--mobile-text); font-variant-numeric: tabular-nums; }
-  .fg-stat span { font-size: 11.5px; color: var(--mobile-text-secondary); }
-  .fg-stat.alarm { border-color: #c0392b; } .fg-stat.alarm strong { color: #c0392b; }
-  .fg-list { display: flex; flex-direction: column; gap: 10px; }
-  .fg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left;
-    background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 12px 14px; cursor: pointer; color: var(--mobile-text); }
+  .fg-tabs { margin: 0 -20px; padding: 0 20px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .fg-tabs::-webkit-scrollbar { display: none; }
+  .fg-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: #e6eaf0; border-radius: 12px; padding: 3px; gap: 3px; }
+  .mobile-app.dark .fg-seg { background: #232b35; }
+  .fg .fg-seg button { border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 500; padding: 8px 4px; border-radius: 9px; color: var(--mobile-text-secondary); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fg .fg-seg button.active { background: var(--mobile-card); color: var(--mobile-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .fg-stats { display: contents; }
+  .fg-statgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .fg-stat { background: var(--mobile-card); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .fg-stat strong { font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 24px; color: var(--mobile-text); font-variant-numeric: tabular-nums; }
+  .fg-stat span { font-size: 12.5px; color: var(--mobile-text-secondary); }
+  .fg-stat.alarm strong { color: #b42318; }
+  .fg-list { display: flex; flex-direction: column; background: var(--mobile-card); border-radius: 20px; overflow: hidden; }
+  .fg-list > .fg-note { padding: 16px; margin: 0; }
+  .fg-list > .fg-card { border-radius: 0; border-bottom: 1px solid var(--mobile-border); }
+  .fg-list > .fg-card:last-child { border-bottom: 0; }
+  .fg .fg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; font: inherit;
+    background: var(--mobile-card); border: 0; border-bottom: 1px solid var(--mobile-border); border-radius: 0; padding: 12px 16px; min-height: 56px; cursor: pointer; color: var(--mobile-text); }
+  .fg .fg-row:last-child { border-bottom: 0; }
+  .fg-list:not(:has(> .fg-row)) { background: transparent; border-radius: 0; gap: 10px; }
+  .fg > .fg-row { border-radius: 20px; border-bottom: 0; }
   .fg-row > div { min-width: 0; }
-  .fg-row strong { display: block; font-size: 15px; }
-  .fg .fg-row.flat { border: none; padding: 6px 0; background: none; }
+  .fg-row strong { display: block; font-size: 15px; font-weight: 600; }
+  .fg .fg-row.flat { padding: 10px 0; background: none; border-bottom: 1px solid var(--mobile-border); min-height: 0; }
   .fg-device { border-bottom: 1px solid var(--mobile-border); padding-bottom: 8px; margin-bottom: 8px; }
   .fg-device:last-child { border-bottom: none; margin-bottom: 0; }
   .fg-device button { width: 100%; }
-  .fg-card > button.warn { width: 100%; margin-top: 6px; }
-  .fg-meta { display: block; font-size: 12.5px; color: var(--mobile-text-secondary); overflow-wrap: anywhere; margin: 2px 0; }
-  .fg-card { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 12px 14px; color: var(--mobile-text); }
+  .fg-meta { display: block; font-size: 12.5px; color: var(--mobile-text-secondary); overflow-wrap: anywhere; margin: 2px 0; line-height: 1.4; }
+  .fg-card { background: var(--mobile-card); border: 0; border-radius: 20px; padding: 16px; color: var(--mobile-text); display: flex; flex-direction: column; gap: 4px; }
+  .fg-card > strong { font-size: 15px; font-weight: 600; }
   .fg-card.off { opacity: 0.55; }
-  .fg-card.danger { border-color: #c0392b; }
-  .fg-info { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13.5px; }
+  .fg-card.danger { box-shadow: inset 0 0 0 1.5px rgba(180, 35, 24, .45); }
+  .fg-info { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 14.5px; border-bottom: 1px solid var(--mobile-border); }
+  .fg-info:last-child { border-bottom: 0; }
   .fg-info span { color: var(--mobile-text-secondary); flex: none; }
   .fg-info strong { text-align: right; overflow-wrap: anywhere; font-weight: 600; }
-  .fg-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mobile-text-secondary); margin: 18px 0 8px; }
-  .fg-note { font-size: 13px; color: var(--mobile-text-secondary); }
-  .fg-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--mobile-border); color: var(--mobile-text-secondary); }
-  .fg-pill.ok { background: #e3efe8; color: #1f7a4d; } .fg-pill.bad { background: #fbe9e7; color: #c0392b; }
-  .fg-outcome { padding: 10px 12px; border-radius: 10px; font-size: 13.5px; margin-bottom: 12px; }
-  .fg-outcome.ok { background: #e3efe8; color: #1f7a4d; } .fg-outcome.bad { background: #fbe9e7; color: #c0392b; }
-  .fg-search { display: flex; gap: 8px; margin-bottom: 12px; }
+  .fg-h { font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mobile-text-secondary); margin: 6px 0 -6px; }
+  .fg-note { font-size: 13.5px; line-height: 1.45; color: var(--mobile-text-secondary); margin: 0; }
+  .fg-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--mobile-bg); color: var(--mobile-text-secondary); vertical-align: middle; }
+  .fg-pill.ok { background: #eaf7ee; color: #1e7b3a; } .fg-pill.bad { background: #fdecec; color: #b42318; }
+  .fg-outcome { font-size: 13.5px; line-height: 1.45; margin: 0; }
+  .fg-outcome.ok { color: #1e7b3a; font-weight: 600; } .fg-outcome.bad { color: #b42318; }
+  .fg-search { display: flex; gap: 8px; }
   .fg-bar { margin: 6px 0 10px; }
   .fg-bar-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--mobile-text-secondary); margin-bottom: 4px; }
   .fg-bar-label strong { color: var(--mobile-text); }
-  .fg-bar-track { height: 8px; border-radius: 999px; background: var(--mobile-border); overflow: hidden; }
+  .fg-bar-track { height: 8px; border-radius: 999px; background: var(--mobile-bg); overflow: hidden; }
   .fg-bar-fill { height: 100%; border-radius: 999px; background: var(--mobile-accent); }
   .fg-search input { flex: 1; min-width: 0; }
-  .fg input, .fg textarea, .fg select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); color: var(--mobile-text); font-size: 15px; font-family: inherit; }
-  .fg-form { display: flex; flex-direction: column; gap: 12px; }
-  .fg-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--mobile-text-secondary); }
-  .fg-check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--mobile-text); }
-  .fg-check input { width: 20px; height: 20px; flex: none; }
-  .fg-check label { flex-direction: row; font-weight: 500; color: var(--mobile-text); }
+  .fg input:not([type=checkbox]), .fg textarea, .fg select { width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--mobile-border);
+    background: var(--mobile-card); color: var(--mobile-text); font-size: 15.5px; font-family: inherit; outline: none; }
+  .fg input:focus, .fg textarea:focus, .fg select:focus { box-shadow: inset 0 0 0 1.5px var(--mobile-accent); }
+  .fg-form { display: flex; flex-direction: column; gap: 12px; background: var(--mobile-card); border-radius: 20px; padding: 16px; }
+  .fg-card .fg-form, .fg-form .fg-form { padding: 0; background: none; border-radius: 0; }
+  .fg-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--mobile-text-secondary); }
+  .fg-check { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--mobile-text); padding: 10px 16px; border-bottom: 1px solid var(--mobile-border); background: var(--mobile-card); }
+  .fg-check:last-child { border-bottom: 0; }
+  .fg-check input { width: 22px; height: 22px; flex: none; accent-color: var(--mobile-accent); }
+  .fg-check label { flex-direction: row; font-weight: 500; font-size: 15px; color: var(--mobile-text); }
   .fg-actions { display: flex; flex-direction: column; gap: 8px; }
-  .fg-unread { background: #d62e36; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
-  .fg-link { background: none; border: none; color: var(--mobile-accent); font-weight: 600; padding: 4px 0 10px; cursor: pointer; }
+  .fg-unread { background: var(--mobile-accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
+  .fg-link { background: none; border: none; color: var(--mobile-accent); font-weight: 600; padding: 4px 0; cursor: pointer; align-self: flex-start; }
   .fg-chat { display: flex; flex-direction: column; gap: 10px; }
-  .fg-chathead { display: flex; align-items: center; gap: 12px; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 14px; padding: 10px 12px; }
+  .fg-chathead { display: flex; align-items: center; gap: 12px; background: var(--mobile-card); border-radius: 20px; padding: 12px 16px; }
   .fg-thread { display: flex; flex-direction: column; padding: 6px 0; }
   .fg-day { text-align: center; font-size: 12px; font-weight: 600; color: var(--mobile-text-secondary); margin: 12px 0 8px; }
   .fg-msg { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
@@ -1041,34 +1050,37 @@ const FG_CSS = `
   .fg-msg.mine { justify-content: flex-end; }
   .fg-msg-col { display: flex; flex-direction: column; max-width: 78%; }
   .fg-msg.mine .fg-msg-col { align-items: flex-end; }
-  .fg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--mobile-text-secondary); background: var(--mobile-border); }
+  .fg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--mobile-accent); background: var(--mobile-accent-soft); }
   .fg-avatar:empty { background: transparent; }
-  .fg-avatar.big { width: 40px; height: 40px; font-size: 17px; }
-  .fg-bubble { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 18px; padding: 8px 13px; }
+  .fg-avatar.big { width: 40px; height: 40px; font-size: 16px; }
+  .fg-bubble { background: var(--mobile-card); border-radius: 18px; padding: 8px 13px; }
   .fg-msg.last:not(.mine) .fg-bubble { border-bottom-left-radius: 5px; }
-  .fg-msg.mine .fg-bubble { background: var(--mobile-accent); border-color: var(--mobile-accent); color: #fff; }
+  .fg-msg.mine .fg-bubble { background: var(--mobile-accent); color: #fff; }
   .fg-msg.mine.last .fg-bubble { border-bottom-right-radius: 5px; }
-  .fg-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.35; }
-  .fg-time { font-size: 10.5px; color: var(--mobile-text-secondary); margin-top: 3px; }
+  .fg-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.35; }
+  .fg-time { font-size: 11px; color: var(--mobile-text-secondary); margin-top: 3px; }
   .fg-dots { display: flex; gap: 4px; padding: 12px 14px; }
   .fg-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--mobile-text-secondary); animation: fgdot 1.2s infinite ease-in-out; }
   .fg-dots span:nth-child(2) { animation-delay: .15s; } .fg-dots span:nth-child(3) { animation-delay: .3s; }
   @keyframes fgdot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
   .fg-composer { position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: 8px; padding: 8px 0; background: var(--mobile-bg); }
-  .fg-composer textarea { flex: 1; resize: none; border-radius: 22px; padding: 11px 16px; border: 1px solid var(--mobile-border); background: var(--mobile-card); color: var(--mobile-text); font: inherit; font-size: 15px; max-height: 140px; }
-  .fg-send { width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--mobile-accent); color: #fff; font-size: 20px; font-weight: 800; flex-shrink: 0; cursor: pointer; }
+  .fg .fg-composer textarea { flex: 1; resize: none; border-radius: 22px; padding: 11px 16px; max-height: 140px; }
+  .fg .fg-send { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--mobile-accent); color: #fff; font-size: 20px; font-weight: 800; flex-shrink: 0; cursor: pointer; padding: 0; }
   .fg-send:disabled { opacity: .35; }
-  .fg-quick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-  .fg-quick button { flex-shrink: 0; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; padding: 6px 10px; border-radius: 999px; }
-  .fg-inline { display: flex; gap: 8px; margin-top: 8px; }
-  .fg-inline > * { flex: 1; }
-  .fg button:not(.fg-back):not(.fg-row) { padding: 11px 14px; border-radius: 10px; border: 1px solid var(--mobile-border);
-    background: var(--mobile-card); color: var(--mobile-text); font-weight: 600; font-size: 14px; cursor: pointer; }
-  .fg .fg-tabs button, .fg .fg-seg button { padding: 9px 4px; font-size: 12.5px; color: var(--mobile-text-secondary); }
-  .fg .fg-tabs button.active, .fg .fg-seg button.active { color: var(--mobile-on-accent); background: var(--mobile-accent); }
-  .fg button.fg-primary { background: var(--mobile-accent); border-color: var(--mobile-accent); color: var(--mobile-on-accent); padding: 14px; font-size: 15px; }
-  .fg button.warn { color: #b9770e; border-color: #b9770e; }
-  .fg button.danger { color: #c0392b; border-color: #c0392b; }
+  .fg-quick { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .fg-quick::-webkit-scrollbar { display: none; }
+  .fg .fg-quick button { flex-shrink: 0; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fg-inline { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  /* Small action buttons: board pills. */
+  .fg button:not(.fg-row):not(.fg-primary):not(.fg-send):not(.fg-link):not(.dh-pill):not(.dh-btn2):not(.dh-back):not(.dh-hd-btn) {
+    height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--mobile-border);
+    background: var(--mobile-card); color: var(--mobile-text); font: inherit; font-weight: 500; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .fg .fg-seg button { height: auto !important; border: 0 !important; border-radius: 9px !important; background: transparent !important; padding: 8px 4px !important; color: var(--mobile-text-secondary) !important; font-size: 13px !important; }
+  .fg .fg-seg button.active { background: var(--mobile-card) !important; color: var(--mobile-text) !important; font-weight: 600 !important; }
+  .fg button.fg-primary { height: 48px; border-radius: 14px; border: 0; background: var(--mobile-accent); color: #fff; font: inherit; font-size: 15.5px; font-weight: 600; width: 100%; cursor: pointer; }
+  .fg button.fg-primary.danger { background: #b42318; color: #fff; }
+  .fg button.warn { color: #8a4a00 !important; }
+  .fg button.danger:not(.fg-primary) { color: #b42318 !important; }
   .fg button:disabled { opacity: 0.45; cursor: default; }
 `
 

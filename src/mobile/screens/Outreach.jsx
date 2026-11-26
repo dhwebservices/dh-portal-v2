@@ -3,7 +3,8 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { PageTitle, Tile, Chip } from '../components/DH'
+import { Screen, HeaderButton, Card, Sec, KV, Field, Pills, Pill, Btn, Btns, Empty, Loading } from '../components/UI'
 import { logAction } from '../../utils/audit'
 
 const STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'follow_up', 'converted']
@@ -418,673 +419,185 @@ export default function MobileOutreach({ navigate }) {
     })
   }, [contacts, search, filter])
 
-  return (
-    <div className="professional-screen">
-      {/* Header */}
-      <div className="professional-screen-header">
-        <h1>Leads</h1>
-        <p>Everyone we're talking to</p>
-      </div>
+  const capLabel = (v) => { const t = labelize(v); return t ? t[0].toUpperCase() + t.slice(1) : t }
+  const STATUS_TONE = { new: 'neutral', contacted: 'blue', interested: 'green', not_interested: 'red', follow_up: 'amber', converted: 'green' }
+  const shortDate = (v) => (v ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '')
 
-      {/* Stats */}
-      <div className="professional-section" style={{ paddingTop: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--mobile-accent)' }}>{contacts.length}</div>
-            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Total Leads</div>
-          </div>
-          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#34c759' }}>{contacts.filter(c => c.status === 'interested').length}</div>
-            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Hot Leads</div>
-          </div>
-          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#ff9500' }}>{contacts.filter(c => c.status === 'follow_up').length}</div>
-            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Follow-ups</div>
-          </div>
-          <div style={{ background: 'var(--mobile-bg)', padding: 16, borderRadius: 12 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#5856d6' }}>{contacts.filter(c => c.status === 'converted').length}</div>
-            <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginTop: 4 }}>Converted</div>
-          </div>
+  if (showForm) {
+    return (
+      <Screen title={editing ? 'Edit lead' : 'Add lead'} onBack={closeForm}>
+        <div className="dh-card">
+          <Field label="Business name" htmlFor="ld-biz">
+            <input id="ld-biz" type="text" value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} placeholder="ABC Company Ltd" />
+          </Field>
+          <Field label="Contact name" htmlFor="ld-name">
+            <input id="ld-name" type="text" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="John Smith" />
+          </Field>
+          <Field label="Email" htmlFor="ld-email">
+            <input id="ld-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="contact@company.com" />
+          </Field>
+          <Field label="Phone" htmlFor="ld-phone">
+            <input id="ld-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="07123 456789" />
+          </Field>
+          <Field label="Website" htmlFor="ld-web">
+            <input id="ld-web" type="url" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://company.com" />
+          </Field>
         </div>
+
+        <Sec>Status</Sec>
+        <Pills>
+          {STATUSES.map(s => <Pill key={s} on={form.status === s} onPress={() => setForm({ ...form, status: s })}>{capLabel(s)}</Pill>)}
+        </Pills>
+
+        <div className="dh-card">
+          <Field label="Outcome" htmlFor="ld-outcome">
+            <select id="ld-outcome" value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })}>
+              {CALL_OUTCOMES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </Field>
+          <Field label="Follow-up date" htmlFor="ld-fu">
+            <input id="ld-fu" type="date" value={form.follow_up_date} onChange={(e) => setForm({ ...form, follow_up_date: e.target.value })} />
+          </Field>
+          <Field label="Notes" htmlFor="ld-notes">
+            <textarea id="ld-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Add notes about this contact..." rows={6} />
+          </Field>
+        </div>
+
+        <Btns>
+          <Btn variant="outline" onPress={closeForm}>Cancel</Btn>
+          <Btn onPress={saveContact}>{editing ? 'Save' : 'Add lead'}</Btn>
+        </Btns>
+      </Screen>
+    )
+  }
+
+  if (showDetail) {
+    const d = showDetail
+    const site = d.website && (/^https?:\/\//.test(d.website) ? d.website : `https://${d.website}`)
+    const actions = [
+      d.phone && <a key="call" className="dh-btn2 outline small ld-act" href={`tel:${d.phone}`}>Call</a>,
+      d.email && <a key="email" className="dh-btn2 outline small ld-act" href={`mailto:${d.email}`}>Email</a>,
+      site && <a key="web" className="dh-btn2 outline small ld-act" href={site} target="_blank" rel="noopener noreferrer">Website</a>,
+    ].filter(Boolean)
+    return (
+      <Screen title="Lead" onBack={() => setShowDetail(null)} action={<HeaderButton onPress={() => openEdit(d)}>Edit</HeaderButton>}>
+        <Card pad>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <span className="dh-h2">{d.business_name}</span>
+            <Chip tone={STATUS_TONE[d.status] || 'neutral'}>{capLabel(d.status)}</Chip>
+          </div>
+          <span className="dh-sub">{[d.contact_name || 'No contact name', d.website && d.website.replace(/^https?:\/\//, '').replace(/\/$/, '')].filter(Boolean).join(' · ')}</span>
+          {actions.length > 0 && <div className="ld-acts" style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>{actions}</div>}
+        </Card>
+
+        <div className="dh-card">
+          {d.email && <KV k="Email" v={d.email} />}
+          {d.phone && <KV k="Phone" v={d.phone} />}
+          {d.outcome && d.outcome !== 'none' && <KV k="Last outcome" v={capLabel(d.outcome)} />}
+          {d.follow_up_date && <KV k="Follow-up date" v={d.follow_up_date} />}
+        </div>
+
+        <Sec>Status</Sec>
+        <Pills>
+          {STATUSES.map(status => (
+            <Pill
+              key={status}
+              on={d.status === status}
+              onPress={() => {
+                if (status === d.status) return
+                quickStatus(d, status)
+                setShowDetail(null)
+              }}
+            >{capLabel(status)}</Pill>
+          ))}
+        </Pills>
+
+        <Sec>Log outcome</Sec>
+        <Pills>
+          {CALL_OUTCOMES.filter(([value]) => value !== 'none' && value !== d.outcome).slice(0, 6).map(([value, label]) => (
+            <Pill key={value} onPress={() => { quickOutcome(d, value); setShowDetail(null) }}>{label}</Pill>
+          ))}
+        </Pills>
+
+        {d.plainNotes && (
+          <>
+            <Sec>Notes</Sec>
+            <Card pad><span style={{ fontSize: 14.5, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{d.plainNotes}</span></Card>
+          </>
+        )}
+
+        {d.history?.length > 0 && (
+          <>
+            <Sec>History</Sec>
+            <div className="dh-card">
+              {d.history.map((h, i) => (
+                <div key={i} className="dh-row">
+                  <span className="dh-g">
+                    <span className="dh-t">{capLabel(h.action || '')}{h.value ? `: ${capLabel(String(h.value))}` : ''}</span>
+                    {h.actor && <span className="dh-sub">{h.actor}</span>}
+                  </span>
+                  <span className="dh-sub">{shortDate(h.at)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <Btn variant="danger" onPress={() => deleteContact(d)}>Delete lead</Btn>
+        <style>{OUT_CSS}</style>
+      </Screen>
+    )
+  }
+
+  const count = (st) => contacts.filter(c => c.status === st).length
+  return (
+    <div className="dh-page">
+      <PageTitle title="Leads" action={<button type="button" className="ld-add" onClick={openAdd} aria-label="Add a lead"><Icon name="plus" size={20} /></button>} />
+
+      <div className="dh-tiles">
+        <Tile label="All leads" value={contacts.length} />
+        <Tile label="Interested" value={count('interested')} />
+        <Tile label="Follow-ups" value={count('follow_up')} />
+        <Tile label="Converted" value={count('converted')} />
       </div>
 
-      {/* Search & Filters */}
-      <div className="professional-section">
-        <input
-          type="search"
-          placeholder="Search contacts..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 10,
-            border: '1px solid var(--mobile-border)',
-            fontSize: 15,
-            marginBottom: 12,
-          }}
-        />
+      <div className="dh-search">
+        <Icon name="search" size={18} />
+        <input type="search" placeholder="Search leads" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+      </div>
 
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {[
-            ['all', 'All'],
-            ['new', 'New'],
-            ['follow_up', 'Follow-up'],
-            ['hot', 'Hot'],
-            ['converted', 'Converted'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                border: 'none',
-                background: filter === value ? 'var(--mobile-accent)' : 'var(--mobile-bg)',
-                color: filter === value ? 'white' : 'var(--mobile-text)',
-                fontSize: 14,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {label}
+      <Pills>
+        {[['all', 'All'], ['new', 'New'], ['follow_up', 'Follow-up'], ['hot', 'Hot'], ['converted', 'Converted']].map(([value, label]) => (
+          <Pill key={value} on={filter === value} onPress={() => setFilter(value)}>{label}</Pill>
+        ))}
+      </Pills>
+
+      {loading ? <Loading /> : filtered.length === 0 ? (
+        <Empty icon="users" title={search ? 'No leads found' : 'No leads yet'} sub={search ? undefined : 'Tap + to add one.'} />
+      ) : (
+        <div className="dh-card">
+          {filtered.map(contact => (
+            <button key={contact.id} type="button" className="dh-row" onClick={() => setShowDetail(contact)}>
+              <span className="dh-g">
+                <span className="dh-t">{contact.business_name}</span>
+                <span className="dh-sub">
+                  {[contact.contact_name || 'No contact name', contact.outcome && contact.outcome !== 'none' ? capLabel(contact.outcome) : null, contact.follow_up_date ? `follow up ${shortDate(contact.follow_up_date)}` : null].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              <Chip tone={STATUS_TONE[contact.status] || 'neutral'}>{capLabel(contact.status)}</Chip>
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Contact List */}
-      <div className="professional-section">
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--mobile-text-secondary)' }}>Loading...</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--mobile-text-secondary)' }}>
-            {search ? 'No contacts found' : 'No contacts yet. Add your first contact!'}
-          </div>
-        ) : (
-          filtered.map(contact => (
-            <MobileCard key={contact.id} onPress={() => setShowDetail(contact)} style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--mobile-text)', marginBottom: 4 }}>
-                    {contact.business_name}
-                  </h3>
-                  <p style={{ fontSize: 14, color: 'var(--mobile-text-secondary)' }}>
-                    {contact.contact_name || 'No contact name'}
-                  </p>
-                </div>
-                <div style={{
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  background: `${statusColor[contact.status]}15`,
-                  border: `1px solid ${statusColor[contact.status]}`,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: statusColor[contact.status],
-                  whiteSpace: 'nowrap',
-                }}>
-                  {labelize(contact.status)}
-                </div>
-              </div>
-
-              {contact.email && (
-                <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginBottom: 4 }}>
-                  <Icon name="user" size={14} /> {contact.email}
-                </div>
-              )}
-
-              {contact.phone && (
-                <div style={{ fontSize: 13, color: 'var(--mobile-text-secondary)', marginBottom: 8 }}>
-                  <Icon name="user" size={14} /> {contact.phone}
-                </div>
-              )}
-
-              {contact.outcome && contact.outcome !== 'none' && (
-                <div style={{ fontSize: 12, color: 'var(--mobile-accent)', marginTop: 8 }}>
-                  Last outcome: {labelize(contact.outcome)}
-                </div>
-              )}
-            </MobileCard>
-          ))
-        )}
-      </div>
-
-      {/* Add Button */}
-      <button
-        onClick={openAdd}
-        style={{
-          position: 'fixed',
-          bottom: 100,
-          right: 20,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          background: 'var(--mobile-accent)',
-          border: 'none',
-          boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 28,
-          color: 'white',
-          fontWeight: 300,
-        }}
-      >
-        +
-      </button>
-
-      {/* Add/Edit Form Modal */}
-      {showForm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'var(--mobile-card)',
-          zIndex: 1000,
-          overflowY: 'auto',
-          paddingBottom: 100,
-        }}>
-          <div className="professional-screen-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={closeForm} style={{ background: 'none', border: 'none', padding: 0 }}>
-                <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-              </button>
-              <div>
-                <h1>{editing ? 'Edit Contact' : 'Add Contact'}</h1>
-                <p>{editing ? 'Update contact details' : 'Create new contact'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="professional-section">
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Business Name *
-              </label>
-              <input
-                type="text"
-                value={form.business_name}
-                onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-                placeholder="ABC Company Ltd"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Contact Name
-              </label>
-              <input
-                type="text"
-                value={form.contact_name}
-                onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-                placeholder="John Smith"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="contact@company.com"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Phone
-              </label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="07123456789"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Website
-              </label>
-              <input
-                type="url"
-                value={form.website}
-                onChange={(e) => setForm({ ...form, website: e.target.value })}
-                placeholder="https://company.com"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                  background: 'var(--mobile-card)',
-                }}
-              >
-                {STATUSES.map(s => (
-                  <option key={s} value={s}>{labelize(s)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Outcome
-              </label>
-              <select
-                value={form.outcome}
-                onChange={(e) => setForm({ ...form, outcome: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                  background: 'var(--mobile-card)',
-                }}
-              >
-                {CALL_OUTCOMES.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Follow-up Date
-              </label>
-              <input
-                type="date"
-                value={form.follow_up_date}
-                onChange={(e) => setForm({ ...form, follow_up_date: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--mobile-text)' }}>
-                Notes
-              </label>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Add notes about this contact..."
-                rows={6}
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--mobile-border)',
-                  fontSize: 15,
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-
-            <button
-              onClick={saveContact}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: 12,
-                border: 'none',
-                background: 'var(--mobile-accent)',
-                color: 'white',
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 12,
-              }}
-            >
-              {editing ? 'Update Contact' : 'Add Contact'}
-            </button>
-
-            <button
-              onClick={closeForm}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: 12,
-                border: '1px solid var(--mobile-border)',
-                background: 'var(--mobile-card)',
-                color: 'var(--mobile-text)',
-                fontSize: 16,
-                fontWeight: 600,
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
 
-      {/* Detail View Modal */}
-      {showDetail && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'var(--mobile-card)',
-          zIndex: 1000,
-          overflowY: 'auto',
-          paddingBottom: 100,
-        }}>
-          <div className="professional-screen-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => setShowDetail(null)} style={{ background: 'none', border: 'none', padding: 0 }}>
-                <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-              </button>
-              <div>
-                <h1>{showDetail.business_name}</h1>
-                <p>{showDetail.contact_name || 'No contact name'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="professional-section">
-            {/* Status Badge */}
-            <div style={{
-              padding: '8px 16px',
-              borderRadius: 12,
-              background: `${statusColor[showDetail.status]}15`,
-              border: `1px solid ${statusColor[showDetail.status]}`,
-              fontSize: 14,
-              fontWeight: 600,
-              color: statusColor[showDetail.status],
-              display: 'inline-block',
-              marginBottom: 20,
-            }}>
-              {labelize(showDetail.status)}
-            </div>
-
-            {/* Contact Info */}
-            {showDetail.email && (
-              <div style={{ marginBottom: 12, fontSize: 15 }}>
-                <strong>Email:</strong>{' '}
-                <a href={`mailto:${showDetail.email}`} style={{ color: 'var(--mobile-accent)' }}>
-                  {showDetail.email}
-                </a>
-              </div>
-            )}
-
-            {showDetail.phone && (
-              <div style={{ marginBottom: 12, fontSize: 15 }}>
-                <strong>Phone:</strong>{' '}
-                <a href={`tel:${showDetail.phone}`} style={{ color: 'var(--mobile-accent)' }}>
-                  {showDetail.phone}
-                </a>
-              </div>
-            )}
-
-            {showDetail.website && (
-              <div style={{ marginBottom: 12, fontSize: 15 }}>
-                <strong>Website:</strong>{' '}
-                <a href={showDetail.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mobile-accent)' }}>
-                  {showDetail.website}
-                </a>
-              </div>
-            )}
-
-            {showDetail.outcome && showDetail.outcome !== 'none' && (
-              <div style={{ marginBottom: 12, fontSize: 15 }}>
-                <strong>Last Outcome:</strong> {labelize(showDetail.outcome)}
-              </div>
-            )}
-
-            {showDetail.follow_up_date && (
-              <div style={{ marginBottom: 12, fontSize: 15 }}>
-                <strong>Follow-up Date:</strong> {showDetail.follow_up_date}
-              </div>
-            )}
-
-            {showDetail.plainNotes && (
-              <div style={{ marginTop: 20, marginBottom: 20 }}>
-                <strong style={{ display: 'block', marginBottom: 8 }}>Notes:</strong>
-                <div style={{
-                  background: 'var(--mobile-bg)',
-                  padding: 12,
-                  borderRadius: 10,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                }}>
-                  {showDetail.plainNotes}
-                </div>
-              </div>
-            )}
-
-            {/* Quick Actions */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 24, marginBottom: 24 }}>
-              {showDetail.phone && (
-                <a
-                  href={`tel:${showDetail.phone}`}
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    background: '#34c759',
-                    color: 'white',
-                    textAlign: 'center',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Icon name="user" size={16} color="white" /> Call
-                </a>
-              )}
-
-              {showDetail.email && (
-                <a
-                  href={`mailto:${showDetail.email}`}
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    background: 'var(--mobile-accent)',
-                    color: 'white',
-                    textAlign: 'center',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Icon name="user" size={16} color="white" /> Email
-                </a>
-              )}
-            </div>
-
-            {/* Status Quick Actions */}
-            <div style={{ marginBottom: 20 }}>
-              <strong style={{ display: 'block', marginBottom: 12 }}>Change Status:</strong>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                {STATUSES.filter(s => s !== showDetail.status).map(status => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      quickStatus(showDetail, status)
-                      setShowDetail(null)
-                    }}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      border: '1px solid var(--mobile-border)',
-                      background: 'var(--mobile-card)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--mobile-text)',
-                    }}
-                  >
-                    {labelize(status)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Outcome Quick Actions */}
-            <div style={{ marginBottom: 20 }}>
-              <strong style={{ display: 'block', marginBottom: 12 }}>Log Outcome:</strong>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                {CALL_OUTCOMES.filter(([value]) => value !== 'none' && value !== showDetail.outcome).slice(0, 6).map(([value, label]) => (
-                  <button
-                    key={value}
-                    onClick={() => {
-                      quickOutcome(showDetail, value)
-                      setShowDetail(null)
-                    }}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      border: '1px solid var(--mobile-border)',
-                      background: 'var(--mobile-card)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--mobile-text)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Main Actions */}
-            <button
-              onClick={() => openEdit(showDetail)}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: 12,
-                border: 'none',
-                background: 'var(--mobile-accent)',
-                color: 'white',
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 12,
-              }}
-            >
-              Edit Contact
-            </button>
-
-            <button
-              onClick={() => deleteContact(showDetail)}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: 12,
-                border: '1px solid #ff3b30',
-                background: 'var(--mobile-card)',
-                color: '#ff3b30',
-                fontSize: 16,
-                fontWeight: 600,
-              }}
-            >
-              Delete Contact
-            </button>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .professional-screen {
-          background: var(--mobile-bg);
-          min-height: 100vh;
-          padding-bottom: 100px;
-        }
-
-        .professional-screen-header {
-          background: var(--mobile-card);
-          padding: 60px 20px 24px;
-          border-bottom: 1px solid var(--mobile-border);
-          margin-bottom: 20px;
-        }
-
-        .professional-screen-header h1 {
-          font-size: 28px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          margin: 0 0 4px 0;
-        }
-
-        .professional-screen-header p {
-          font-size: 16px;
-          color: var(--mobile-text-secondary);
-          margin: 0;
-        }
-
-        .professional-section {
-          padding: 0 20px 20px;
-        }
-
-        @supports (padding: max(0px)) {
-          .professional-screen-header {
-            padding-top: max(60px, env(safe-area-inset-top));
-          }
-        }
-      `}</style>
+      <Btn onPress={openAdd}>Add a lead</Btn>
+      <style>{OUT_CSS}</style>
     </div>
   )
 }
+
+const OUT_CSS = `
+  .ld-add { width: 44px; height: 44px; border-radius: 14px; border: 1px solid var(--mobile-border); background: var(--mobile-card); color: var(--mobile-accent); display: flex; align-items: center; justify-content: center; }
+  .ld-acts { display: grid; gap: 10px; margin-top: 4px; }
+  .ld-act { width: 100%; height: 44px; text-decoration: none; }
+`

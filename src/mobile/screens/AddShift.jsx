@@ -3,9 +3,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { loadActivePortalStaffAudience } from '../../utils/staffAudience'
-import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
-import SectionHeader from '../components/SectionHeader'
+import { Screen, Sec, Field, ToggleRow, Pills, Pill, Btn, Note } from '../components/UI'
 
 /**
  * Putting somebody on the rota, from a phone.
@@ -198,247 +196,84 @@ export default function MobileAddShift({ goBack, user, isAdmin, date: initialDat
   }
 
   return (
-    <div className="add-shift">
-      <div className="add-head">
-        <button className="add-back" onClick={goBack} aria-label="Back">
-          <Icon name="chevron-left" size={20} />
-        </button>
-        <h1>{isEditing ? 'Edit shift' : 'Add shift'}</h1>
+    <Screen title={isEditing ? 'Edit shift' : 'Add shift'} onBack={goBack}>
+      <Sec>Who</Sec>
+      {staff.length > 0 && staff.length <= 6 ? (
+        <Pills>
+          {staff.map(person => (
+            <Pill key={person.email} on={form.employee === person.email} onPress={() => set('employee', form.employee === person.email ? '' : person.email)}>
+              {person.name || person.email}
+            </Pill>
+          ))}
+        </Pills>
+      ) : (
+        <div className="dh-card">
+          <Field label="Staff member" htmlFor="as-who">
+            <select id="as-who" value={form.employee} onChange={e => set('employee', e.target.value)}>
+              <option value="">Choose someone…</option>
+              {staff.map(person => (
+                <option key={person.email} value={person.email}>{person.name || person.email}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      <Sec>When</Sec>
+      <div className="dh-card">
+        <Field label="Date" htmlFor="as-date">
+          <input id="as-date" type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+        </Field>
+        <div className="as-two">
+          <Field label="Start" htmlFor="as-start">
+            <input id="as-start" type="time" value={form.start} onChange={e => set('start', e.target.value)} />
+          </Field>
+          <Field label="Finish" htmlFor="as-end">
+            <input id="as-end" type="time" value={form.end} onChange={e => set('end', e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Unpaid break (minutes)" htmlFor="as-break" hint={`${hours.toFixed(hours % 1 === 0 ? 0 : 2)} hours paid`}>
+          <input id="as-break" type="number" min="0" step="5" inputMode="numeric" value={form.breakMinutes} onChange={e => set('breakMinutes', e.target.value)} />
+        </Field>
       </div>
 
-      <MobileCard>
-        <SectionHeader title="Who" />
-        <select className="add-field" value={form.employee} onChange={e => set('employee', e.target.value)}>
-          <option value="">Choose someone…</option>
-          {staff.map(person => (
-            <option key={person.email} value={person.email}>{person.name || person.email}</option>
+      <Sec>Role</Sec>
+      {roles.length > 0 && (
+        <Pills>
+          {roles.map(role => (
+            <Pill key={role} on={form.role === role} onPress={() => set('role', form.role === role ? '' : role)}>{role}</Pill>
           ))}
-        </select>
-      </MobileCard>
+        </Pills>
+      )}
+      <div className="dh-card">
+        <Field label="Role" htmlFor="as-role">
+          <input id="as-role" placeholder="Or type a role" value={form.role} onChange={e => set('role', e.target.value)} />
+        </Field>
+        <Field label="Note for them" htmlFor="as-note">
+          <input id="as-note" placeholder="Optional" value={form.note} onChange={e => set('note', e.target.value)} />
+        </Field>
+        <ToggleRow title="Publish it" sub="They're told straight away. Off saves a draft." on={!!form.publish} onChange={(v) => set('publish', v)} />
+      </div>
 
-      <MobileCard style={{ marginTop: 14 }}>
-        <SectionHeader title="When" />
-        <input className="add-field" type="date" value={form.date} onChange={e => set('date', e.target.value)} />
-        <div className="add-row">
-          <label>
-            <span>Start</span>
-            <input className="add-field" type="time" value={form.start} onChange={e => set('start', e.target.value)} />
-          </label>
-          <label>
-            <span>End</span>
-            <input className="add-field" type="time" value={form.end} onChange={e => set('end', e.target.value)} />
-          </label>
-        </div>
-        <label className="add-inline">
-          <span>Unpaid break</span>
-          <input
-            className="add-field add-small"
-            type="number"
-            min="0"
-            step="5"
-            value={form.breakMinutes}
-            onChange={e => set('breakMinutes', e.target.value)}
-          />
-          <span className="add-suffix">min</span>
-        </label>
-        <p className="add-note">{hours.toFixed(hours % 1 === 0 ? 0 : 2)} hours paid</p>
-      </MobileCard>
+      <Note tone="error">{error}</Note>
 
-      <MobileCard style={{ marginTop: 14 }}>
-        <SectionHeader title="Role" />
-        {roles.length > 0 && (
-          <div className="add-roles">
-            {roles.map(role => (
-              <button
-                key={role}
-                className={form.role === role ? 'on' : ''}
-                onClick={() => set('role', form.role === role ? '' : role)}
-              >{role}</button>
-            ))}
-          </div>
-        )}
-        <input
-          className="add-field"
-          placeholder="Or type a role"
-          value={form.role}
-          onChange={e => set('role', e.target.value)}
-        />
-        <input
-          className="add-field"
-          placeholder="Note for them (optional)"
-          value={form.note}
-          onChange={e => set('note', e.target.value)}
-        />
-      </MobileCard>
-
-      <label className="add-publish">
-        <input type="checkbox" checked={form.publish} onChange={e => set('publish', e.target.checked)} />
-        <span>
-          <strong>Publish it</strong>
-          <small>They are told straight away. Leave off to save it as a draft.</small>
-        </span>
-      </label>
-
-      {error && <p className="add-error">{error}</p>}
-
-      <button className="add-save" onClick={save} disabled={!valid || saving}>
+      <Btn onPress={save} disabled={!valid || saving}>
         {saving
           ? 'Saving…'
           : isEditing
             ? (form.publish ? 'Save and notify' : 'Save as draft')
             : (form.publish ? 'Add and publish' : 'Save as draft')}
-      </button>
+      </Btn>
 
       {isEditing && (
-        <button className="add-delete" onClick={remove} disabled={deleting}>
-          {deleting ? 'Deleting…' : 'Delete shift'}
-        </button>
+        <Btn variant="danger" onPress={remove} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete shift'}</Btn>
       )}
 
       <style>{`
-        .add-shift { padding: 16px 16px 40px; }
-
-        .add-head {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-
-        .add-head h1 {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .add-back {
-          background: none;
-          border: none;
-          padding: 4px;
-          color: var(--mobile-text);
-          cursor: pointer;
-          display: grid;
-          place-items: center;
-        }
-
-        .add-field {
-          width: 100%;
-          margin-top: 8px;
-          padding: 12px 14px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-bg);
-          color: var(--mobile-text);
-          font-size: 15px;
-          font-family: inherit;
-        }
-
-        .add-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        .add-row label,
-        .add-inline {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          margin-top: 8px;
-        }
-
-        .add-inline {
-          flex-direction: row;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .add-small { width: 96px; margin-top: 0; }
-        .add-suffix { font-size: 13px; }
-
-        .add-note {
-          margin: 10px 4px 0;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .add-roles {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-        }
-
-        .add-roles button {
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid var(--mobile-border);
-          background: none;
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
-
-        .add-roles button.on {
-          border-color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-          font-weight: 600;
-        }
-
-        .add-publish {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin: 18px 4px 0;
-          font-size: 15px;
-          color: var(--mobile-text);
-        }
-
-        .add-publish input { margin-top: 3px; width: 20px; height: 20px; }
-        .add-publish span { display: flex; flex-direction: column; gap: 2px; }
-        .add-publish small { font-size: 13px; color: var(--mobile-text-secondary); }
-
-        .add-error {
-          margin: 14px 4px 0;
-          font-size: 14px;
-          font-weight: 600;
-          color: #c0392b;
-        }
-
-        .add-save {
-          width: 100%;
-          margin-top: 18px;
-          padding: 15px;
-          border: none;
-          border-radius: 12px;
-          background: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-          font-size: 16px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .add-save:disabled { opacity: 0.45; cursor: default; }
-
-        .add-delete {
-          width: 100%;
-          margin-top: 10px;
-          padding: 14px;
-          border: 1px solid rgba(192, 57, 43, 0.35);
-          border-radius: 12px;
-          background: none;
-          color: #c0392b;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .add-delete:disabled { opacity: 0.5; cursor: default; }
+        .as-two { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--mobile-border); }
+        .as-two .dh-fld { border-bottom: 0; }
+        .as-two .dh-fld + .dh-fld { border-left: 1px solid var(--mobile-border); }
       `}</style>
-    </div>
+    </Screen>
   )
 }

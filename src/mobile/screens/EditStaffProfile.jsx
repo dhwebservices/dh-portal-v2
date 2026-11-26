@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Haptics, NotificationType } from '@capacitor/haptics'
-import MobileButton from '../components/MobileButton'
-import MobileCard from '../components/MobileCard'
+import Icon from '../components/Icon'
+import { Screen, HeaderButton, Sec, Field, ToggleRow, Btn, Loading } from '../components/UI'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
@@ -175,402 +175,221 @@ export default function MobileEditStaffProfile({ goBack, navigate, staffEmail })
   }
 
   if (loading) {
-    return <div className="mobile-loading">Loading...</div>
+    return <Screen title="Edit profile" onBack={goBack}><Loading /></Screen>
   }
 
   return (
-    <div className="mobile-edit-profile">
-      {/* Header */}
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          Cancel
-        </button>
-        <h1>Edit Profile</h1>
-        <button
-          className="mobile-save-btn"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+    <Screen
+      title="Edit profile"
+      onBack={goBack}
+      action={<HeaderButton onPress={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</HeaderButton>}
+    >
+        <Sec>Personal info</Sec>
+        <div className="dh-card">
 
-      {/* Form */}
-      <div className="mobile-form">
-        {/* Personal Info */}
-        <MobileCard>
-          <h3 className="mobile-form-section">Personal Info</h3>
+          <Field label="Full name">
+            <input
+              value={profile.full_name || ''}
+              onChange={(e) => updateField('full_name', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Full Name</label>
-          <input
-            className="mobile-input"
-            value={profile.full_name || ''}
-            onChange={(e) => updateField('full_name', e.target.value)}
-          />
+          <Field label="Email">
+            <input
+              type="email"
+              value={profile.user_email || ''}
+              onChange={(e) => updateField('user_email', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Email</label>
-          <input
-            className="mobile-input"
-            type="email"
-            value={profile.user_email || ''}
-            onChange={(e) => updateField('user_email', e.target.value)}
-          />
+          <Field label="Phone">
+            <input
+              type="tel"
+              value={profile.phone || ''}
+              onChange={(e) => updateField('phone', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Phone</label>
-          <input
-            className="mobile-input"
-            type="tel"
-            value={profile.phone || ''}
-            onChange={(e) => updateField('phone', e.target.value)}
-          />
+          <Field label="Personal email">
+            <input
+              type="email"
+              value={profile.personal_email || ''}
+              onChange={(e) => updateField('personal_email', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Personal Email</label>
-          <input
-            className="mobile-input"
-            type="email"
-            value={profile.personal_email || ''}
-            onChange={(e) => updateField('personal_email', e.target.value)}
-          />
-
-          <label className="mobile-label">Address</label>
-          <textarea
-            className="mobile-textarea"
-            rows={3}
-            value={profile.address || ''}
-            onChange={(e) => updateField('address', e.target.value)}
-          />
-        </MobileCard>
+          <Field label="Address">
+            <textarea
+              rows={3}
+              value={profile.address || ''}
+              onChange={(e) => updateField('address', e.target.value)}
+            />
+          </Field>
+        </div>
 
         {/* Employment */}
-        <MobileCard>
-          <h3 className="mobile-form-section">Employment</h3>
+        <Sec>Employment</Sec>
+        <div className="dh-card">
 
-          <label className="mobile-label">Department</label>
-          <select
-            className="mobile-select"
-            value={profile.department || ''}
-            onChange={(e) => updateField('department', e.target.value)}
-          >
-            <option value="">Select department...</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-            <option value="__new__">+ Add New Department</option>
-          </select>
+          <Field label="Department">
+            <select
+              value={profile.department || ''}
+              onChange={(e) => updateField('department', e.target.value)}
+            >
+              <option value="">Select department...</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+              <option value="__new__">+ Add New Department</option>
+            </select>
+          </Field>
 
-          <label className="mobile-label">Role</label>
-          <input
-            className="mobile-input"
-            value={profile.role || ''}
-            onChange={(e) => updateField('role', e.target.value)}
-          />
+          <Field label="Role">
+            <input
+              value={profile.role || ''}
+              onChange={(e) => updateField('role', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Contract Type</label>
-          <select
-            className="mobile-select"
-            value={profile.contract_type || ''}
-            onChange={(e) => updateField('contract_type', e.target.value)}
-          >
-            <option value="">Select...</option>
-            <option value="Full-time">Full-time</option>
-            <option value="Part-time">Part-time</option>
-            <option value="Contract">Contract</option>
-            <option value="Freelance">Freelance</option>
-          </select>
+          <Field label="Contract type">
+            <select
+              value={profile.contract_type || ''}
+              onChange={(e) => updateField('contract_type', e.target.value)}
+            >
+              <option value="">Select...</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+              <option value="Freelance">Freelance</option>
+            </select>
+          </Field>
 
-          <label className="mobile-label">Start Date</label>
-          <input
-            className="mobile-input"
-            type="date"
-            value={profile.start_date || ''}
-            onChange={(e) => updateField('start_date', e.target.value)}
-          />
+          <Field label="Start date">
+            <input
+              type="date"
+              value={profile.start_date || ''}
+              onChange={(e) => updateField('start_date', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Manager</label>
-          <select
-            className="mobile-select"
-            value={profile.manager_email || ''}
-            onChange={(e) => {
-              const manager = managers.find(m => m.user_email === e.target.value)
-              updateField('manager_email', e.target.value)
-              updateField('manager_name', manager?.full_name || '')
-            }}
-          >
-            <option value="">Select manager...</option>
-            {managers.map(mgr => (
-              <option key={mgr.user_email} value={mgr.user_email}>
-                {mgr.full_name}
-              </option>
-            ))}
-          </select>
-        </MobileCard>
+          <Field label="Manager">
+            <select
+              value={profile.manager_email || ''}
+              onChange={(e) => {
+                const manager = managers.find(m => m.user_email === e.target.value)
+                updateField('manager_email', e.target.value)
+                updateField('manager_name', manager?.full_name || '')
+              }}
+            >
+              <option value="">Select manager...</option>
+              {managers.map(mgr => (
+                <option key={mgr.user_email} value={mgr.user_email}>
+                  {mgr.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
 
         {/* Onboarding */}
-        <MobileCard>
-          <h3 className="mobile-form-section">Onboarding</h3>
-          <div className="onboarding-row">
-            <div>
-              <div className="onboarding-label">Onboarding Mode</div>
-              <div className="onboarding-desc">
-                {onboardingMode
-                  ? 'This staff member will see the onboarding form when they open the app.'
-                  : 'Turn on to have this staff member complete onboarding in the app.'}
-              </div>
-            </div>
-            <button
-              className={`onboarding-toggle ${onboardingMode ? 'active' : ''}`}
-              onClick={() => setOnboardingMode(!onboardingMode)}
-            >
-              <div className="onboarding-toggle-slider" />
-            </button>
-          </div>
+        <Sec>Onboarding</Sec>
+        <div className="dh-card">
+          <ToggleRow
+            title="Ask them to onboard"
+            sub={onboardingMode
+              ? 'This staff member will see the onboarding form when they open the app.'
+              : 'Turn on to have this staff member complete onboarding in the app.'}
+            on={onboardingMode}
+            onChange={() => setOnboardingMode(!onboardingMode)}
+          />
           {profile.contract_url && (
-            <a className="contract-link" href={profile.contract_url} target="_blank" rel="noreferrer">
-              📄 View issued contract
+            <a className="dh-row" href={profile.contract_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+              <span className="dh-ic"><Icon name="file" size={18} /></span>
+              <span className="dh-g"><span className="dh-t">View issued contract</span></span>
             </a>
           )}
-        </MobileCard>
+        </div>
 
         {/* Payment Settings */}
-        <MobileCard>
-          <h2 className="mobile-card-title">💰 Payment Settings</h2>
+        <Sec>Pay</Sec>
+        <div className="dh-card">
 
-          <label className="mobile-label">Payment Type</label>
-          <select
-            className="mobile-select"
-            value={profile.payment_type || 'commission_only'}
-            onChange={(e) => updateField('payment_type', e.target.value)}
-          >
-            <option value="commission_only">Commission Only</option>
-            <option value="hourly">Hourly Pay</option>
-            <option value="both">Hourly + Commission</option>
-          </select>
+          <Field label="Payment type">
+            <select
+              value={profile.payment_type || 'commission_only'}
+              onChange={(e) => updateField('payment_type', e.target.value)}
+            >
+              <option value="commission_only">Commission Only</option>
+              <option value="hourly">Hourly Pay</option>
+              <option value="both">Hourly + Commission</option>
+            </select>
+          </Field>
 
           {/* Always shown, not only for hourly payment types.
               The rate now drives what the rota says a day costs and what a
               shift is estimated to pay, and those are useful for somebody on
               commission too. Hiding it behind the payment type is why every
               rate was 0 and the cost summary read £0.00. */}
-          <label className="mobile-label">Hourly Rate (£/hour)</label>
-          <input
-            className="mobile-input"
-            type="number"
-            step="0.01"
-            min="0"
-            value={profile.hourly_rate || ''}
-            onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
-            placeholder="0.00"
-          />
-          <p className="mobile-field-note">
-            Used for rota costs and the estimated pay shown against each shift.
-          </p>
+          <Field label="Hourly rate (£/hour)" hint="Used for rota costs and the estimated pay shown against each shift.">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={profile.hourly_rate || ''}
+              onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
+              placeholder="0.00"
+            />
+          </Field>
 
-          <label className="mobile-label">Commission Rate (%)</label>
-          <input
-            className="mobile-input"
-            type="number"
-            step="0.1"
-            min="0"
-            max="100"
-            value={profile.commission_rate || 10}
-            onChange={(e) => updateField('commission_rate', parseFloat(e.target.value) || 10)}
-          />
-        </MobileCard>
+          <Field label="Commission rate (%)">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              value={profile.commission_rate || 10}
+              onChange={(e) => updateField('commission_rate', parseFloat(e.target.value) || 10)}
+            />
+          </Field>
+        </div>
 
         {/* Banking */}
-        <MobileCard>
-          <h3 className="mobile-form-section">Banking</h3>
+        <Sec>Banking</Sec>
+        <div className="dh-card">
 
-          <label className="mobile-label">Bank Name</label>
-          <input
-            className="mobile-input"
-            value={profile.bank_name || ''}
-            onChange={(e) => updateField('bank_name', e.target.value)}
-          />
+          <Field label="Bank name">
+            <input
+              value={profile.bank_name || ''}
+              onChange={(e) => updateField('bank_name', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Account Name</label>
-          <input
-            className="mobile-input"
-            value={profile.account_name || ''}
-            onChange={(e) => updateField('account_name', e.target.value)}
-          />
+          <Field label="Account name">
+            <input
+              value={profile.account_name || ''}
+              onChange={(e) => updateField('account_name', e.target.value)}
+            />
+          </Field>
 
-          <label className="mobile-label">Sort Code</label>
-          <input
-            className="mobile-input"
-            value={profile.sort_code || ''}
-            onChange={(e) => updateField('sort_code', e.target.value)}
-            placeholder="12-34-56"
-          />
+          <Field label="Sort code">
+            <input
+              value={profile.sort_code || ''}
+              onChange={(e) => updateField('sort_code', e.target.value)}
+              placeholder="12-34-56"
+            />
+          </Field>
 
-          <label className="mobile-label">Account Number</label>
-          <input
-            className="mobile-input"
-            value={profile.account_number || ''}
-            onChange={(e) => updateField('account_number', e.target.value)}
-            placeholder="12345678"
-          />
-        </MobileCard>
+          <Field label="Account number">
+            <input
+              value={profile.account_number || ''}
+              onChange={(e) => updateField('account_number', e.target.value)}
+              placeholder="12345678"
+            />
+          </Field>
+        </div>
 
         {/* Save Button */}
-        <MobileButton
-          variant="primary"
-          fullWidth
-          loading={saving}
-          onPress={handleSave}
-        >
-          Save Changes
-        </MobileButton>
-      </div>
-
-      <style>{`
-        .mobile-field-note {
-          margin: 6px 2px 4px;
-          font-size: 12.5px;
-          line-height: 1.4;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-edit-profile {
-          min-height: 100vh;
-          background: var(--mobile-bg);
-          padding-bottom: 80px;
-        }
-
-                .mobile-back-btn,
-        .mobile-save-btn {
-          font-size: 16px;
-          color: var(--mobile-accent);
-          background: none;
-          border: none;
-          padding: 8px 0;
-          cursor: pointer;
-          font-weight: 600;
-        }
-
-        .mobile-save-btn:disabled {
-          opacity: 0.5;
-        }
-
-                .mobile-form {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .mobile-form-section {
-          font-size: 18px;
-          font-weight: 700;
-          margin: 0 0 16px 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-label {
-          display: block;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          margin: 16px 0 8px 0;
-        }
-
-        .mobile-label:first-of-type {
-          margin-top: 0;
-        }
-
-        .mobile-input,
-        .mobile-select,
-        .mobile-textarea {
-          width: 100%;
-          min-height: 44px;
-          padding: 12px 16px;
-          font-size: 16px;
-          border: 1px solid var(--mobile-border);
-          border-radius: 10px;
-          background: var(--mobile-bg);
-          color: var(--mobile-text);
-          font-family: inherit;
-        }
-
-        .mobile-input:focus,
-        .mobile-select:focus,
-        .mobile-textarea:focus {
-          outline: none;
-          border-color: var(--mobile-accent);
-        }
-
-        .mobile-textarea {
-          resize: vertical;
-          padding-top: 12px;
-        }
-
-        .onboarding-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .onboarding-label {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .onboarding-desc {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          margin-top: 4px;
-        }
-
-        .onboarding-toggle {
-          width: 51px;
-          height: 31px;
-          border-radius: 31px;
-          background: var(--mobile-border);
-          border: none;
-          cursor: pointer;
-          position: relative;
-          flex-shrink: 0;
-          transition: background 0.2s;
-        }
-
-        .onboarding-toggle.active {
-          background: #34c759;
-        }
-
-        .onboarding-toggle-slider {
-          width: 27px;
-          height: 27px;
-          border-radius: 50%;
-          background: white;
-          position: absolute;
-          top: 2px;
-          left: 2px;
-          transition: left 0.2s;
-        }
-
-        .onboarding-toggle.active .onboarding-toggle-slider {
-          left: 22px;
-        }
-
-        .contract-link {
-          display: inline-block;
-          margin-top: 16px;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          text-decoration: none;
-        }
-
-        .mobile-loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          color: var(--mobile-text-secondary);
-        }
-      `}</style>
-    </div>
+        <Btn onPress={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Btn>
+    </Screen>
   )
 }

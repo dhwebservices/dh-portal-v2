@@ -4,6 +4,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { getPortalIdToken } from '../../utils/portalApi'
 import { apiUrl } from '../../utils/apiBase'
 import Icon from '../components/Icon'
+import { Screen, HeaderButton, Pill } from '../components/UI'
 import { FG_CSS } from './FindMyGangAdmin'
 
 /**
@@ -137,13 +138,9 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
       setKey(candidate)
     }
     return (
-      <div className="fg">
+      <Screen title="Bill Pal" onBack={goBack}>
         <style>{FG_CSS}</style>
-        <div className="fg-head">
-          <button className="fg-back" onClick={goBack} aria-label="Back"><Icon name="chevron-left" size={22} /></button>
-          <h1>Bill Pal</h1>
-        </div>
-        <div className="fg-form">
+        <div className="fg"><div className="fg-form">
           <p className="fg-note">
             This screen can remove bills and suspend accounts, so it is behind a real secret.
             Enter the Bill Pal admin key once; it stays on this phone.
@@ -152,8 +149,8 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
           {keyError && <div className="fg-outcome bad">{keyError}</div>}
           <button className="fg-primary" disabled={!keyDraft.trim()} onClick={saveKey}>Unlock</button>
-        </div>
-      </div>
+        </div></div>
+      </Screen>
     )
   }
 
@@ -211,33 +208,32 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
     try { setChatMessages((await call(`/support/${t.id}/messages`)).messages || []) } catch (e) { setError(e.message) }
   }
 
-  const header = (
-    <>
+  const shell = (body, { tabs = false } = {}) => (
+    <Screen
+      title={photo ? 'Bill photo' : profile ? (profile.user.firstName || profile.user.email || 'Member') : 'Bill Pal'}
+      onBack={photo ? () => setPhoto(null) : profile ? () => setProfile(null) : goBack}
+      action={<HeaderButton onPress={profile ? () => openProfile(profile.user.id) : load} label="Refresh"><Icon name="refresh" size={18} /></HeaderButton>}
+    >
       <style>{FG_CSS}</style>
-      <div className="fg-head">
-        <button className="fg-back" onClick={photo ? () => setPhoto(null) : profile ? () => setProfile(null) : goBack} aria-label="Back">
-          <Icon name="chevron-left" size={22} />
-        </button>
-        <h1>{photo ? 'Bill photo' : profile ? (profile.user.firstName || profile.user.email || 'Member') : 'Bill Pal'}</h1>
-        <button className="fg-back" onClick={profile ? () => openProfile(profile.user.id) : load} aria-label="Refresh">
-          <Icon name="refresh" size={18} />
-        </button>
+      <div className="fg">
+        {tabs && (
+          <div className="fg-tabs">
+            {TABS.map(([k, label]) => (
+              <Pill key={k} on={tab === k} onPress={() => { setTab(k); setOutcome(null); setChat(null) }}>{label}</Pill>
+            ))}
+          </div>
+        )}
+        {outcome && <div className={`fg-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</div>}
+        {body}
       </div>
-      {outcome && <div className={`fg-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</div>}
-    </>
+    </Screen>
   )
 
-  if (photo) return <div className="fg">{header}<img src={photo} alt="Uploaded bill" style={{ width: '100%', borderRadius: 12 }} /></div>
-  if (profile) return <div className="fg">{header}{renderProfile()}</div>
+  if (photo) return shell(<img src={photo} alt="Uploaded bill" style={{ width: '100%', borderRadius: 20 }} />)
+  if (profile) return shell(renderProfile())
 
-  return (
-    <div className="fg">
-      {header}
-      <div className="fg-tabs">
-        {TABS.map(([k, label]) => (
-          <button key={k} className={tab === k ? 'active' : ''} onClick={() => { setTab(k); setOutcome(null); setChat(null) }}>{label}</button>
-        ))}
-      </div>
+  return shell(
+    <>
       {error && <div className="fg-outcome bad">{error}</div>}
       {loading && <p className="fg-note">Loading…</p>}
       {!loading && tab === 'overview' && renderOverview()}
@@ -249,7 +245,8 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
       {!loading && tab === 'signups' && renderSignups()}
       {!loading && tab === 'reports' && renderReports()}
       {!loading && tab === 'log' && renderLog()}
-    </div>
+    </>,
+    { tabs: true },
   )
 
   function renderOverview() {
@@ -258,11 +255,13 @@ export default function MobileBillPalAdmin({ goBack, isAdmin, user }) {
     const stat = (value, label, alarm) => <div className={`fg-stat ${alarm ? 'alarm' : ''}`}><strong>{value ?? '–'}</strong><span>{label}</span></div>
     return (
       <>
+        <div className="fg-statgrid">
         <div className="fg-stats">{stat(o.pendingBills, 'Bills to review', o.pendingBills > 0)}{stat(o.unreadChats, 'Unread chats', o.unreadChats > 0)}</div>
         <div className="fg-stats">{stat(o.liveBills, 'Live bills')}{stat(o.clearedBills, 'Bills cleared')}</div>
         <div className="fg-stats">{stat(o.users, 'Members')}{stat(o.suspended, 'Suspended')}</div>
         <div className="fg-stats">{stat(gbp(o.paidPence), `Paid to suppliers (${o.paidCount})`)}{stat(o.reports, 'Bill reports', o.reports > 0)}</div>
         <div className="fg-stats">{stat(o.betaSignups, 'Beta sign-ups')}{stat(o.signups - o.betaSignups, 'Helpers')}</div>
+        </div>
         <p className="fg-meta">Payments: {o.payments}</p>
       </>
     )

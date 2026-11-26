@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import MobileCard from '../components/MobileCard'
+import { Chip } from '../components/DH'
+import { Screen, HeaderButton, Field, Pills, Pill, Btn, Empty, Loading } from '../components/UI'
 import Icon from '../components/Icon'
 import ErrorAlert from '../components/ErrorAlert'
-import SearchBar, { useSearch } from '../components/SearchBar'
+import { useSearch } from '../components/SearchBar'
 import { usePullToRefresh } from '../../hooks/usePullToRefresh'
 import PullToRefresh from '../components/PullToRefresh'
-import { SkeletonList } from '../components/SkeletonLoader'
 import { sendManagedNotification } from '../../utils/notificationPreferences'
 import { loadActivePortalStaffAudience } from '../../utils/staffAudience'
 
@@ -358,27 +358,34 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
 
   if (showAddForm) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={() => setShowAddForm(false)}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>{editingRequest ? 'Edit Leave' : 'Request Leave'}</h1>
-          <div style={{ width: 60 }} />
-        </div>
+      <Screen title={editingRequest ? 'Edit leave' : 'Book time off'} onBack={() => setShowAddForm(false)}>
+        {!editingRequest && isAdmin && (
+          <span className="dh-sub">As an admin you can book leave on behalf of a staff member.</span>
+        )}
 
-        <div style={{ padding: '20px' }}>
+        <div className="dh-card">
+          <Field label="Type" htmlFor="lv-type">
+            <select id="lv-type" value={form.leave_type} onChange={(e) => setForm({ ...form, leave_type: e.target.value })}>
+              {LEAVE_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </Field>
+          <div className="lv-two">
+            <Field label="From" htmlFor="lv-from">
+              <input id="lv-from" type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+            </Field>
+            <Field label="To" htmlFor="lv-to">
+              <input id="lv-to" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="Reason" htmlFor="lv-reason">
+            <textarea id="lv-reason" rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Optional, e.g. family holiday" />
+          </Field>
           {!editingRequest && isAdmin && (
-            <div className="admin-hint">
-              As an admin you can book leave on behalf of a staff member.
-            </div>
-          )}
-
-          {!editingRequest && isAdmin && (
-            <div className="form-group">
-              <label className="form-label">On behalf of (leave blank for yourself)</label>
+            <Field label="On behalf of" htmlFor="lv-who">
               <select
-                className="form-input"
+                id="lv-who"
                 value={form.on_behalf_of_email}
                 onChange={(e) => {
                   const person = staffList.find(s => s.user_email === e.target.value)
@@ -394,129 +401,21 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
                   <option key={s.user_email} value={s.user_email}>{s.full_name || s.user_email}</option>
                 ))}
               </select>
-            </div>
+            </Field>
           )}
-
-          <div className="form-group">
-            <label className="form-label">Leave Type</label>
-            <select
-              className="form-input"
-              value={form.leave_type}
-              onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
-            >
-              {LEAVE_TYPES.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Start Date</label>
-            <input
-              type="date"
-              className="form-input"
-              value={form.start_date}
-              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">End Date</label>
-            <input
-              type="date"
-              className="form-input"
-              value={form.end_date}
-              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Reason (optional)</label>
-            <textarea
-              className="form-input"
-              rows={4}
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="e.g., Family holiday"
-            />
-          </div>
-
           {editingRequest && isAdmin && (
-            <div className="form-group">
-              <label className="form-label">Manager Notes (internal, not shown to staff)</label>
-              <textarea
-                className="form-input"
-                rows={3}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </div>
+            <Field label="Manager notes" htmlFor="lv-notes" hint="Internal, not shown to staff.">
+              <textarea id="lv-notes" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </Field>
           )}
-
-          <button className="btn-primary" onClick={handleSubmit}>
-            {editingRequest ? 'Update Request' : 'Submit Request'}
-          </button>
         </div>
 
-        <style>{`
-
-          .admin-hint {
-            padding: 12px 14px;
-            background: rgba(0,102,204,0.1);
-            border: 1px solid var(--mobile-accent);
-            border-radius: 8px;
-            font-size: 13px;
-            color: var(--mobile-accent);
-            margin-bottom: 16px;
-          }
-
-          .form-group {
-            margin-bottom: 20px;
-          }
-
-          .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--mobile-text);
-            margin-bottom: 8px;
-          }
-
-          .form-input {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid var(--mobile-border);
-            border-radius: 8px;
-            background: var(--mobile-bg);
-            color: var(--mobile-text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          }
-
-          .form-input:focus {
-            outline: none;
-            border-color: var(--mobile-accent);
-          }
-
-          .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: var(--mobile-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-
-          .btn-primary:active {
-            opacity: 0.8;
-          }
-        `}</style>
-      </div>
+        <Btn onPress={handleSubmit}>{editingRequest ? 'Update request' : 'Request leave'}</Btn>
+        <style>{LV_CSS}</style>
+      </Screen>
     )
   }
+
 
   // Filter and search
   const filteredRequests = requests.filter(r => {
@@ -531,343 +430,81 @@ export default function MobileLeave({ goBack, user, isAdmin, navigate }) {
   return (
     <div className="mobile-screen" ref={scrollRef} {...handlers}>
       <PullToRefresh isRefreshing={isRefreshing} pullDistance={pullDistance} />
+      <Screen
+        title="Leave"
+        onBack={goBack}
+        action={<HeaderButton onPress={handleAddPress} label="Book time off"><Icon name="plus" size={20} /></HeaderButton>}
+      >
+        <ErrorAlert error={error} onRetry={loadRequests} onDismiss={() => setError('')} />
 
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Leave Requests</h1>
-        <div style={{ width: 60 }} />
-      </div>
-
-      <ErrorAlert error={error} onRetry={loadRequests} onDismiss={() => setError('')} />
-
-      {/* Search */}
-      <SearchBar
-        value={searchTerm}
-        onChange={setSearchTerm}
-        placeholder="Search by name, type, or reason..."
-      />
-
-      {/* Stats */}
-      <div style={{ padding: '20px', background: 'var(--mobile-bg)' }}>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-label">Total</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#ff9500' }}>{stats.pending}</div>
-            <div className="stat-label">Pending</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#34c759' }}>{stats.approved}</div>
-            <div className="stat-label">Approved</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ color: '#ff3b30' }}>{stats.rejected}</div>
-            <div className="stat-label">Rejected</div>
-          </div>
+        <div className="dh-tiles t3">
+          <div className="dh-tile"><span className="dh-num" style={{ color: stats.pending ? '#8A4A00' : undefined }}>{stats.pending}</span><span className="dh-sub">Pending</span></div>
+          <div className="dh-tile"><span className="dh-num">{stats.approved}</span><span className="dh-sub">Approved</span></div>
+          <div className="dh-tile"><span className="dh-num">{stats.rejected}</span><span className="dh-sub">Rejected</span></div>
         </div>
-      </div>
 
-      {/* Filter Chips */}
-      <div style={{ padding: '0 20px 12px', background: 'var(--mobile-bg)' }}>
-        <div className="filter-chips">
+        <div className="dh-search">
+          <Icon name="search" size={18} />
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name, type or reason" aria-label="Search leave" />
+        </div>
+
+        <Pills>
           {['all', 'pending', 'approved', 'rejected'].map(f => (
-            <button
-              key={f}
-              className={`filter-chip ${filter === f ? 'active' : ''}`}
-              onClick={async () => {
-                await Haptics.impact({ style: ImpactStyle.Light })
-                setFilter(f)
-              }}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
+            <Pill key={f} on={filter === f} onPress={() => setFilter(f)}>
+              {f === 'all' ? `All ${stats.total}` : f.charAt(0).toUpperCase() + f.slice(1)}
+            </Pill>
           ))}
-        </div>
-      </div>
+        </Pills>
 
-      {/* Request List */}
-      <div style={{ padding: '20px', paddingBottom: '100px' }}>
-        {loading ? (
-          <SkeletonList count={5} lines={4} />
-        ) : filteredRequests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <Icon name="calendar" size={48} color="var(--mobile-border)" />
-            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
-              No {filter !== 'all' ? filter : ''} leave requests
-            </p>
-          </div>
+        {loading ? <Loading /> : filteredRequests.length === 0 ? (
+          <Empty icon="calendar" title={`No ${filter !== 'all' ? filter : ''} leave requests`} sub="Tap + to book time off." />
         ) : (
-          <div className="request-list">
+          <div className="dh-card">
             {filteredRequests.map(request => (
-              <MobileCard key={request.id} onPress={() => isAdmin && handleEditPress(request)}>
-                <div className="request-card">
-                  <div className="request-header">
-                    <div>
-                      <div className="request-type">{request.leave_type}</div>
-                      {isAdmin && (
-                        <div className="request-user">{request.user_name}</div>
-                      )}
-                    </div>
-                    <div
-                      className="status-badge"
-                      style={{ background: `${getStatusColor(request.status)}20`, color: getStatusColor(request.status) }}
-                    >
-                      {request.status}
-                    </div>
+              <div key={request.id} className="lv-item">
+                <button type="button" className="dh-row top" onClick={() => isAdmin && handleEditPress(request)} disabled={!isAdmin} style={{ opacity: 1 }}>
+                  <span className="dh-ic"><Icon name="plane" size={18} /></span>
+                  <span className="dh-g">
+                    <span className="dh-t">{isAdmin ? `${request.user_name} · ${request.leave_type}` : request.leave_type}</span>
+                    <span className="dh-sub">{request.start_date} to {request.end_date} · {request.days} {request.days === 1 ? 'day' : 'days'}</span>
+                    {request.reason && <span className="dh-sub">{request.reason}</span>}
+                    {request.approved_by && (
+                      <span className="dh-sub">{request.status === 'approved' ? 'Approved' : 'Rejected'} by {request.approved_by}</span>
+                    )}
+                  </span>
+                  <Chip tone={request.status === 'approved' ? 'green' : request.status === 'pending' ? 'amber' : request.status === 'rejected' ? 'red' : 'neutral'}>
+                    {request.status ? request.status[0].toUpperCase() + request.status.slice(1) : ''}
+                  </Chip>
+                </button>
+                {isAdmin && (
+                  <div className="lv-actions">
+                    {request.status === 'pending' && (
+                      <>
+                        <Pill onPress={() => handleApprove(request)}>Approve</Pill>
+                        <Pill onPress={() => handleReject(request)}>Reject</Pill>
+                      </>
+                    )}
+                    <Pill tone="danger" onPress={() => handleDelete(request)}>Delete</Pill>
                   </div>
-
-                  <div className="request-dates">
-                    <Icon name="calendar" size={16} color="var(--mobile-text-secondary)" />
-                    <span>{request.start_date} to {request.end_date}</span>
-                    <span className="request-days">({request.days} {request.days === 1 ? 'day' : 'days'})</span>
-                  </div>
-
-                  {request.reason && (
-                    <div className="request-reason">{request.reason}</div>
-                  )}
-
-                  {request.approved_by && (
-                    <div className="request-decided-by">
-                      {request.status === 'approved' ? 'Approved' : 'Rejected'} by {request.approved_by}
-                    </div>
-                  )}
-
-                  {isAdmin && (
-                    <div className="request-actions">
-                      {request.status === 'pending' && (
-                        <>
-                          <button
-                            className="action-btn approve"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleApprove(request)
-                            }}
-                          >
-                            <Icon name="check" size={18} color="#34c759" />
-                            Approve
-                          </button>
-                          <button
-                            className="action-btn reject"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReject(request)
-                            }}
-                          >
-                            <Icon name="x" size={18} color="#ff3b30" />
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      <button
-                        className="action-btn delete"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(request)
-                        }}
-                      >
-                        <Icon name="trash" size={18} color="#ff3b30" />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </MobileCard>
+                )}
+              </div>
             ))}
           </div>
         )}
-      </div>
 
-      {/* Floating Add Button */}
-      <button className="floating-add-btn" onClick={handleAddPress}>
-        <Icon name="plus" size={24} color="white" />
-      </button>
-
-      <style>{`
-        /* Presentation only — every handler, query and status value is
-           unchanged. The four-across stat grid, the chips and the request
-           cards are what dated this screen. */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 8px;
-        }
-
-        .stat-card {
-          background: var(--mobile-card);
-          border-radius: 12px;
-          padding: 12px 6px;
-          text-align: center;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        .stat-value {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-          line-height: 1.2;
-        }
-
-        .stat-label {
-          margin-top: 2px;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.03em;
-          color: var(--mobile-text-secondary);
-        }
-
-        .filter-chips {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .filter-chip {
-          flex: 0 0 auto;
-          padding: 8px 16px;
-          border-radius: 999px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-card);
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-          white-space: nowrap;
-        }
-
-        .filter-chip.active {
-          background: var(--mobile-accent);
-          border-color: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-        }
-
-        .request-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .request-card { display: block; }
-
-        .request-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .request-type {
-          font-size: 16px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          text-transform: capitalize;
-        }
-
-        .request-user {
-          margin-top: 1px;
-          font-size: 13.5px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .status-badge {
-          flex: 0 0 auto;
-          font-size: 11.5px;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          text-transform: capitalize;
-          padding: 4px 10px;
-          border-radius: 999px;
-        }
-
-        .request-dates {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          margin-top: 10px;
-          font-size: 13.5px;
-          color: var(--mobile-text-secondary);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .request-days { margin-left: auto; }
-
-        .request-reason {
-          margin-top: 8px;
-          font-size: 13.5px;
-          line-height: 1.45;
-          color: var(--mobile-text-secondary);
-          font-style: italic;
-        }
-
-        .request-decided-by {
-          margin-top: 8px;
-          font-size: 12.5px;
-          color: var(--mobile-text-secondary);
-          opacity: 0.85;
-        }
-
-        .request-actions {
-          display: flex;
-          gap: 8px;
-          margin-top: 14px;
-          padding-top: 12px;
-          border-top: 1px solid var(--mobile-border);
-        }
-
-        .action-btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-card);
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          cursor: pointer;
-        }
-
-        .action-btn.approve { border-color: rgba(52, 199, 89, 0.4); color: #1f7a4d; }
-        .action-btn.reject  { border-color: rgba(255, 59, 48, 0.35); color: #c0392b; }
-        .action-btn.delete  { border-color: rgba(255, 59, 48, 0.3); color: #c0392b; }
-
-
-        .floating-add-btn {
-          position: fixed;
-          bottom: 80px;
-          right: 20px;
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          background: var(--mobile-accent);
-          border: none;
-          box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          z-index: 100;
-        }
-
-        .floating-add-btn:active {
-          transform: scale(0.95);
-        }
-
-        @supports (padding: max(0px)) {
-          .floating-add-btn {
-            bottom: max(80px, calc(80px + env(safe-area-inset-bottom)));
-          }
-        }
-      `}</style>
+        <Btn onPress={handleAddPress}>Book time off</Btn>
+      </Screen>
+      <style>{LV_CSS}</style>
     </div>
   )
 }
+
+const LV_CSS = `
+  .lv-two { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--mobile-border); }
+  .lv-two .dh-fld { border-bottom: 0; }
+  .lv-two .dh-fld + .dh-fld { border-left: 1px solid var(--mobile-border); }
+  .lv-item { border-bottom: 1px solid var(--mobile-border); }
+  .lv-item:last-child { border-bottom: 0; }
+  .lv-item .dh-row { border-bottom: 0; }
+  .lv-actions { display: flex; gap: 8px; padding: 0 16px 14px 62px; flex-wrap: wrap; }
+`

@@ -3,7 +3,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Screen, Card, Sec, KV, Field, Btn, Btns, Loading } from '../components/UI'
 
 export default function MobileProfile({ goBack, user, navigate }) {
   const { logout } = useAuth()
@@ -86,338 +86,71 @@ export default function MobileProfile({ goBack, user, navigate }) {
 
   if (editing) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={() => setEditing(false)}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Edit Profile</h1>
-          <div style={{ width: 60 }} />
+      <Screen title="Edit profile" onBack={() => setEditing(false)}>
+        <div className="dh-card">
+          <Field label="Full name" htmlFor="pf-name">
+            <input id="pf-name" value={form.full_name || ''} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+          </Field>
+          <Field label="Phone" htmlFor="pf-phone">
+            <input id="pf-phone" type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="07XXX XXXXXX" />
+          </Field>
+          <Field label="Personal email" htmlFor="pf-email">
+            <input id="pf-email" type="email" value={form.personal_email || ''} onChange={(e) => setForm({ ...form, personal_email: e.target.value })} placeholder="personal@example.com" />
+          </Field>
+          <Field label="Address" htmlFor="pf-addr">
+            <textarea id="pf-addr" rows={3} value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, town, postcode" />
+          </Field>
         </div>
-
-        <div style={{ padding: '20px', paddingBottom: '100px' }}>
-          <MobileCard>
-            <div style={{ padding: '8px' }}>
-              <div className="form-group">
-                <label className="form-label">Full Name</label>
-                <input
-                  className="form-input"
-                  value={form.full_name || ''}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Phone</label>
-                <input
-                  className="form-input"
-                  type="tel"
-                  value={form.phone || ''}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="07XXX XXXXXX"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Personal Email</label>
-                <input
-                  className="form-input"
-                  type="email"
-                  value={form.personal_email || ''}
-                  onChange={(e) => setForm({ ...form, personal_email: e.target.value })}
-                  placeholder="personal@example.com"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Address</label>
-                <textarea
-                  className="form-input"
-                  rows={3}
-                  value={form.address || ''}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="Street, City, Postcode"
-                />
-              </div>
-
-              <button className="save-button" onClick={handleSave}>
-                <Icon name="check" size={18} color="white" />
-                Save Changes
-              </button>
-            </div>
-          </MobileCard>
-        </div>
-
-        <style>{`
-          .form-group {
-            margin-bottom: 20px;
-          }
-
-          .form-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--mobile-text-secondary);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-
-          .form-input {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid var(--mobile-border);
-            border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          }
-
-          .form-input:focus {
-            outline: none;
-            border-color: var(--mobile-accent);
-          }
-
-          .save-button {
-            width: 100%;
-            padding: 14px;
-            background: var(--mobile-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-          }
-
-          .save-button:active {
-            opacity: 0.8;
-          }
-        `}</style>
-      </div>
+        <Btn onPress={handleSave}>Save changes</Btn>
+      </Screen>
     )
   }
 
+  const name = profile?.full_name || user.name
+  const initials = (name || 'DH').split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>My Profile</h1>
-        <div style={{ width: 60 }} />
-      </div>
+    <Screen title="My profile" onBack={goBack}>
+      {loading ? <Loading /> : (
+        <>
+          <Card pad className="pf-head">
+            <span className="pf-av">{initials}</span>
+            <span className="dh-h2" style={{ fontSize: 20 }}>{name}</span>
+            <span className="dh-sub">{[profile.role, 'DH Website Services'].filter(Boolean).join(' · ')}</span>
+          </Card>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div className="spinner" />
-        </div>
-      ) : (
-        <div style={{ padding: '20px', paddingBottom: '100px' }}>
-          {/* Personal Info */}
-          <MobileCard>
-            <div style={{ padding: '8px' }}>
-              <div className="profile-section-header">
-                <h3>Personal Information</h3>
-                <button className="edit-button" onClick={() => setEditing(true)}>
-                  <Icon name="edit" size={18} color="var(--mobile-accent)" />
-                </button>
-              </div>
+          <Sec>Work</Sec>
+          <div className="dh-card">
+            <KV k="Work email" v={user.email} />
+            {profile.department && <KV k="Department" v={profile.department} />}
+            {profile.manager_name && <KV k="Manager" v={profile.manager_name} />}
+            {profile.start_date && <KV k="Start date" v={new Date(profile.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} />}
+          </div>
 
-              <div className="profile-field">
-                <div className="field-label">Name</div>
-                <div className="field-value">{profile.full_name || user.name}</div>
-              </div>
+          <Sec action="Edit" onAction={() => setEditing(true)}>Personal</Sec>
+          <div className="dh-card">
+            <KV k="Phone" v={profile.phone || 'Not set'} />
+            <KV k="Personal email" v={profile.personal_email || 'Not set'} />
+            <KV k="Address" v={profile.address || 'Not set'} />
+          </div>
 
-              <div className="profile-field">
-                <div className="field-label">Work Email</div>
-                <div className="field-value">{user.email}</div>
-              </div>
-
-              <div className="profile-field">
-                <div className="field-label">Phone</div>
-                <div className="field-value">{profile.phone || 'Not set'}</div>
-              </div>
-
-              <div className="profile-field">
-                <div className="field-label">Personal Email</div>
-                <div className="field-value">{profile.personal_email || 'Not set'}</div>
-              </div>
-
-              <div className="profile-field">
-                <div className="field-label">Address</div>
-                <div className="field-value">{profile.address || 'Not set'}</div>
-              </div>
-            </div>
-          </MobileCard>
-
-          {/* Work Info */}
-          {(profile.role || profile.department) && (
-            <MobileCard style={{ marginTop: '16px' }}>
-              <div style={{ padding: '8px' }}>
-                <h3 className="section-title">Work Information</h3>
-
-                {profile.role && (
-                  <div className="profile-field">
-                    <div className="field-label">Role</div>
-                    <div className="field-value">{profile.role}</div>
-                  </div>
-                )}
-
-                {profile.department && (
-                  <div className="profile-field">
-                    <div className="field-label">Department</div>
-                    <div className="field-value">{profile.department}</div>
-                  </div>
-                )}
-
-                {profile.manager_name && (
-                  <div className="profile-field">
-                    <div className="field-label">Manager</div>
-                    <div className="field-value">{profile.manager_name}</div>
-                  </div>
-                )}
-
-                {profile.start_date && (
-                  <div className="profile-field">
-                    <div className="field-label">Start Date</div>
-                    <div className="field-value">
-                      {new Date(profile.start_date).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </MobileCard>
-          )}
-
-          {/* App Info */}
-          <MobileCard style={{ marginTop: '16px' }}>
-            <div style={{ padding: '8px' }}>
-              <h3 className="section-title">App Information</h3>
-
-              <div className="profile-field">
-                <div className="field-label">Version</div>
-                <div className="field-value">1.0.0</div>
-              </div>
-
-              <div className="profile-field">
-                <div className="field-label">Build</div>
-                <div className="field-value">{new Date().toISOString().split('T')[0]}</div>
-              </div>
-            </div>
-          </MobileCard>
-
-          {/* Actions */}
-          <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <button className="action-button" onClick={() => navigate('settings')}>
-              <Icon name="settings" size={20} color="var(--mobile-accent)" />
-              Settings
-            </button>
-
-            <button className="action-button danger" onClick={handleLogout}>
-              <Icon name="logOut" size={20} color="#ff3b30" />
-              Logout
+          <div className="dh-card">
+            <button type="button" className="dh-row" onClick={() => navigate('settings')}>
+              <span className="dh-ic"><Icon name="settings" size={18} /></span>
+              <span className="dh-g"><span className="dh-t">Settings</span></span>
+              <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
             </button>
           </div>
-        </div>
+
+          <Btns>
+            <Btn variant="outline" onPress={() => setEditing(true)}>Edit</Btn>
+            <Btn variant="danger" onPress={handleLogout}>Sign out</Btn>
+          </Btns>
+        </>
       )}
-
       <style>{`
-        .profile-section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-
-        .profile-section-header h3 {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          margin: 0;
-        }
-
-        .edit-button {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: #e3f2fd;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-
-        .edit-button:active {
-          opacity: 0.7;
-        }
-
-        .section-title {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          margin: 0 0 16px 0;
-        }
-
-        .profile-field {
-          padding: 12px 0;
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .profile-field:last-child {
-          border-bottom: none;
-        }
-
-        .field-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 6px;
-        }
-
-        .field-value {
-          font-size: 15px;
-          color: var(--mobile-text);
-        }
-
-        .action-button {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          padding: 14px;
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-border);
-          border-radius: 8px;
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          cursor: pointer;
-        }
-
-        .action-button.danger {
-          color: #ff3b30;
-          border-color: #ff3b30;
-        }
-
-        .action-button:active {
-          opacity: 0.7;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
+        .pf-head { align-items: center; text-align: center; }
+        .pf-av { width: 80px; height: 80px; border-radius: 40px; background: var(--mobile-accent); color: #fff; font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 26px; display: flex; align-items: center; justify-content: center; }
       `}</style>
-    </div>
+    </Screen>
   )
 }

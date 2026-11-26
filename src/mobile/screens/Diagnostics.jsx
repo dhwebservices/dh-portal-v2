@@ -5,7 +5,8 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
 import { getStaffIdToken, SignInNeeded } from '../../utils/staffToken'
 import { getRegisteredPushToken } from '../../utils/pushNotifications'
 import { apiUrl } from '../../utils/apiBase'
-import Icon from '../components/Icon'
+import { Chip } from '../components/DH'
+import { Screen, Card, Sec, KV, Seg, Btn, Hero, Note, Empty, Loading, ToggleRow } from '../components/UI'
 
 /**
  * Diagnostics: check this iPhone, and (for admins) run checks on staff phones.
@@ -137,74 +138,63 @@ export default function MobileDiagnostics({ goBack, isAdmin, diag, diagKey }) {
     }
   }
 
+  const verdict = report ? ((report.issues || []).length ? `${report.issues.length} thing${report.issues.length === 1 ? '' : 's'} worth a look` : 'All checks passed') : running ? 'Checking this iPhone…' : 'Check this iPhone'
   return (
-    <div className="diag-screen">
-      <div className="diag-head">
-        <button className="diag-back" onClick={goBack} aria-label="Back"><Icon name="chevronLeft" size={20} /></button>
-        <h1>Diagnostics</h1>
-      </div>
-
+    <Screen title="Diagnostics" onBack={goBack}>
       {isAdmin && (
-        <div className="diag-tabs">
-          <button className={tab === 'mine' ? 'on' : ''} onClick={() => setTab('mine')}>This iPhone</button>
-          <button className={tab === 'team' ? 'on' : ''} onClick={() => setTab('team')}>Staff phones</button>
-        </div>
+        <Seg value={tab} onChange={setTab} options={[{ value: 'mine', label: 'This iPhone' }, { value: 'team', label: 'Staff phones' }]} />
       )}
 
       {tab === 'mine' && (
         <>
-          {!isNative && <p className="diag-note">Open the DH Staff Portal app on an iPhone to check that phone.</p>}
+          {!isNative && <Note>Open the DH Staff Portal app on an iPhone to check that phone.</Note>}
 
           {isNative && (
-            <div className="diag-card">
-              <div className="diag-row">
-                <div>
-                  <div className="diag-label">Allow DH to run checks remotely</div>
-                  <div className="diag-sub">{consent ? 'On. DH can ask this iPhone for a check at any time.' : 'Off. Only you can run a check.'}</div>
-                </div>
-                <button className={`diag-toggle ${consent ? 'on' : ''}`} onClick={toggleConsent} disabled={consentBusy} aria-pressed={consent} aria-label="Allow remote checks"><span /></button>
+            <Hero dark>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <span className="dh-t">{verdict}</span>
+                {report && <Chip tone={(report.issues || []).length ? 'amber' : 'green'}>{(report.issues || []).length ? 'Needs a look' : 'Healthy'}</Chip>}
               </div>
-              <details className="diag-what">
-                <summary>What a check looks at</summary>
-                <p>Model and iOS version, battery level and Low Power Mode, temperature, free storage, memory, when the phone last restarted, connection type and speed, whether DH services respond, and this app's own crash and freeze reports from Apple.</p>
-                <p>It can't see your messages, photos, location, other apps or anything you type, and it can't restart or lock the phone. You can switch this off at any time.</p>
-              </details>
-            </div>
+              <span className="dh-sub">
+                {report ? `Ran ${when(report.ranAt)}` : 'Device, power, storage, network, DH services and this app.'}
+                {report && sendState ? ` · ${sendState === 'sending' ? 'sending to DH…' : sendState === 'sent' ? 'report sent to DH' : `not sent: ${sendState}`}` : ''}
+              </span>
+              <Btn onPress={() => runCheck(null)} disabled={running}>{running ? 'Checking…' : report ? 'Run again' : 'Run checks'}</Btn>
+            </Hero>
           )}
 
-          {isNative && (
-            <button className="diag-run" onClick={() => runCheck(null)} disabled={running}>
-              {running ? 'Checking…' : report ? 'Run again' : 'Run diagnostics'}
-            </button>
-          )}
-
-          {(running || report) && (
-            <div className="diag-card diag-steps">
+          {running && (
+            <div className="dh-card">
               {STEPS.map(([k, label], i) => (
-                <div key={k} className={`diag-step ${i < stepDone ? 'done' : i === stepDone && running ? 'now' : ''}`}>
-                  <span className="dot">{i < stepDone ? '✓' : ''}</span>{label}
+                <div key={k} className="dh-row">
+                  <span className="dh-g"><span className="dh-t" style={{ fontWeight: i <= stepDone ? 600 : 500, color: i <= stepDone ? undefined : 'var(--mobile-text-secondary)' }}>{label}</span></span>
+                  {i < stepDone ? <Chip tone="green">OK</Chip> : i === stepDone ? <Chip tone="blue">Checking</Chip> : null}
                 </div>
               ))}
             </div>
           )}
 
-          {error && <p className="diag-error">{error}</p>}
+          <Note tone="error">{error}</Note>
 
-          {report && (
+          {report && !running && <ReportView report={report} />}
+
+          {isNative && (
             <>
-              <p className={`diag-send ${sendState === 'sent' ? 'ok' : ''}`}>
-                {sendState === 'sending' ? 'Sending to DH…' : sendState === 'sent' ? 'Report sent to DH.' : sendState ? `Not sent: ${sendState}` : ''}
-              </p>
-              <ReportView report={report} />
+              <div className="dh-card">
+                <ToggleRow title="Allow remote checks" sub={consent ? 'On. DH can ask this iPhone for a check at any time.' : 'Off. Only you can run a check.'} on={consent} onChange={toggleConsent} disabled={consentBusy} />
+              </div>
+              <Card pad>
+                <span className="dh-t">What a check looks at</span>
+                <span className="dh-sub">Model and iOS version, battery level and Low Power Mode, temperature, free storage, memory, when the phone last restarted, connection type and speed, whether DH services respond, and this app's own crash and freeze reports from Apple.</span>
+                <span className="dh-sub">It can't see your messages, photos, location, other apps or anything you type, and it can't restart or lock the phone. You can switch this off at any time.</span>
+              </Card>
             </>
           )}
         </>
       )}
 
       {tab === 'team' && isAdmin && <TeamDevices call={call} />}
-
-      <style>{CSS}</style>
-    </div>
+    </Screen>
   )
 }
 
@@ -272,43 +262,46 @@ function TeamDevices({ call }) {
     }
   }
 
-  if (error) return <p className="diag-error">{error}</p>
-  if (!devices) return <p className="diag-note">Loading staff phones…</p>
-  if (!devices.length) return <p className="diag-note">No iPhones are registered yet.</p>
+  if (error) return <Note tone="error">{error}</Note>
+  if (!devices) return <Loading>Loading staff phones…</Loading>
+  if (!devices.length) return <Empty icon="smartphone" title="No iPhones registered yet" />
 
+  const initials = (e) => e.split('@')[0].slice(0, 2).toUpperCase()
   return (
-    <div className="diag-team">
-      <p className="diag-note">A check runs in the background when the phone allows it. If it doesn't answer, they get a notification to tap. Phones only appear as ready once their owner switches checks on.</p>
+    <>
+      <span className="dh-sub">A check runs in the background when the phone allows it. If it doesn't answer, they get a notification to tap. Phones only appear as ready once their owner switches checks on.</span>
       {devices.map((d) => {
         const a = active[d.fcm_token] || {}
         const issues = d.last?.summary?.issues || []
+        const busy = a.phase === 'asking' || a.phase === 'waiting'
         return (
-          <div key={d.fcm_token} className="diag-card">
-            <div className="diag-row" onClick={() => showHistory(d)} style={{ cursor: 'pointer' }}>
-              <div style={{ minWidth: 0 }}>
-                <div className="diag-label">{d.user_email.split('@')[0]} · {modelName(d.device_model)}</div>
-                <div className="diag-sub">
-                  iOS {d.os_version || '?'} · {d.diagnostics_consent ? 'Checks allowed' : 'Checks not switched on'}
+          <div key={d.fcm_token} className="dh-card">
+            <button type="button" className="dh-row" onClick={() => showHistory(d)}>
+              <span className="dh-av round">{initials(d.user_email)}</span>
+              <span className="dh-g">
+                <span className="dh-t">{d.user_email.split('@')[0]} · {modelName(d.device_model)}</span>
+                <span className="dh-sub">
+                  iOS {d.os_version || '?'} · {d.diagnostics_consent ? 'checks allowed' : 'checks not switched on'}
                   {d.last?.completed_at ? ` · last ${when(d.last.completed_at)}` : ''}
-                </div>
-                {issues.length > 0 && <div className="diag-pill warn">{issues.length} issue{issues.length === 1 ? '' : 's'} last time</div>}
-              </div>
-              <button className="diag-small" disabled={!d.diagnostics_consent || a.phase === 'asking' || a.phase === 'waiting'}
-                onClick={(e) => { e.stopPropagation(); request(d) }}>
-                {a.phase === 'asking' || a.phase === 'waiting' ? '…' : 'Run check'}
-              </button>
+                </span>
+              </span>
+              {issues.length > 0 ? <Chip tone="amber">{issues.length} issue{issues.length === 1 ? '' : 's'}</Chip> : d.last?.completed_at ? <Chip tone="green">Healthy</Chip> : null}
+            </button>
+            <div className="dh-row">
+              <span className="dh-g"><span className="dh-sub">{a.note || (d.diagnostics_consent ? 'Ready for a check.' : 'They need to switch on remote checks first.')}</span></span>
+              <Btn small disabled={!d.diagnostics_consent || busy} onPress={() => request(d)}>{busy ? '…' : 'Run check'}</Btn>
             </div>
-            {a.note && <p className="diag-sub" style={{ marginTop: 8 }}>{a.note}</p>}
-            {open === d.fcm_token && a.report && <ReportView report={a.report} compact />}
+            {open === d.fcm_token && a.report && <div style={{ padding: '0 16px 16px' }}><ReportView report={a.report} compact /></div>}
           </div>
         )
       })}
-    </div>
+    </>
   )
 }
 
+const TONE = { good: 'green', warn: 'amber', bad: 'red' }
 function Pill({ tone, children }) {
-  return <span className={`diag-pill ${tone}`}>{children}</span>
+  return <Chip tone={TONE[tone] || 'neutral'}>{children}</Chip>
 }
 
 function ReportView({ report: r, compact }) {
@@ -316,103 +309,55 @@ function ReportView({ report: r, compact }) {
   const b = r.battery || {}, s = r.storage || {}, m = r.memory || {}, re = r.restarts || {}, n = r.network || {}, st = r.stability || {}
   const tempTone = r.thermal === 'normal' ? 'good' : r.thermal === 'fair' ? 'warn' : 'bad'
   return (
-    <div className={`diag-report ${compact ? 'compact' : ''}`}>
-      <div className={`diag-verdict ${issues.length ? 'warn' : 'good'}`}>
-        {issues.length ? `${issues.length} thing${issues.length === 1 ? '' : 's'} worth a look` : 'All checks look healthy'}
-      </div>
-      {issues.length > 0 && <ul className="diag-issues">{issues.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {(compact || issues.length > 0) && (
+        <Card pad tone={issues.length ? 'warn' : undefined}>
+          <span className="dh-t" style={{ color: issues.length ? '#8A4A00' : '#1E7B3A' }}>
+            {issues.length ? `${issues.length} thing${issues.length === 1 ? '' : 's'} worth a look` : 'All checks look healthy'}
+          </span>
+          {issues.map((x, i) => <span key={i} className="dh-sub">• {x}</span>)}
+        </Card>
+      )}
 
       <Section title="Device">
-        <Line k="Model" v={modelName(r.device?.model)} />
-        <Line k="iOS" v={r.device?.system} />
-        <Line k="App" v={r.device?.appVersion} />
+        <KV k="Model" v={modelName(r.device?.model)} />
+        <KV k="iOS" v={r.device?.system} />
+        <KV k="App" v={r.device?.appVersion} />
       </Section>
       <Section title="Power">
-        <Line k="Battery" v={b.level == null ? 'Unknown' : `${b.level}% · ${b.state}`} />
-        <Line k="Low Power Mode" v={<Pill tone={b.lowPowerMode ? 'warn' : 'good'}>{b.lowPowerMode ? 'On' : 'Off'}</Pill>} />
-        <Line k="Temperature" v={<Pill tone={tempTone}>{r.thermal}</Pill>} />
+        <KV k="Battery" v={b.level == null ? 'Unknown' : `${b.level}% · ${b.state}`} />
+        <KV k="Low Power Mode" v={<Pill tone={b.lowPowerMode ? 'warn' : 'good'}>{b.lowPowerMode ? 'On' : 'Off'}</Pill>} />
+        <KV k="Temperature" v={<Pill tone={tempTone}>{r.thermal}</Pill>} />
       </Section>
       <Section title="Storage and memory">
-        <Line k="Free storage" v={<Pill tone={s.freeGB < 2 ? 'bad' : s.freeGB < 5 ? 'warn' : 'good'}>{`${s.freeGB} GB of ${s.totalGB} GB`}</Pill>} />
-        <Line k="Memory" v={`${m.physicalGB} GB`} />
+        <KV k="Free storage" v={<Pill tone={s.freeGB < 2 ? 'bad' : s.freeGB < 5 ? 'warn' : 'good'}>{`${s.freeGB} GB of ${s.totalGB} GB`}</Pill>} />
+        <KV k="Memory" v={`${m.physicalGB} GB`} />
       </Section>
       <Section title="Restarts">
-        <Line k="Last restart" v={when(re.lastBoot)} />
-        <Line k="Up for" v={re.uptimeHours != null ? `${re.uptimeHours} h` : '—'} />
-        <Line k="Restarts seen (7 days)" v={<Pill tone={re.seenLast7Days >= 2 ? 'warn' : 'good'}>{String(re.seenLast7Days ?? 0)}</Pill>} />
+        <KV k="Last restart" v={when(re.lastBoot)} />
+        <KV k="Up for" v={re.uptimeHours != null ? `${re.uptimeHours} h` : '—'} />
+        <KV k="Restarts seen (7 days)" v={<Pill tone={re.seenLast7Days >= 2 ? 'warn' : 'good'}>{String(re.seenLast7Days ?? 0)}</Pill>} />
       </Section>
       <Section title="Network">
-        <Line k="Connection" v={n.online ? `${n.type}${n.constrained ? ' (Low Data Mode)' : ''}` : <Pill tone="bad">Offline</Pill>} />
-        <Line k="Download" v={n.speed?.downMbps != null ? `${n.speed.downMbps} Mbps` : '—'} />
+        <KV k="Connection" v={n.online ? `${n.type}${n.constrained ? ' (Low Data Mode)' : ''}` : <Pill tone="bad">Offline</Pill>} />
+        <KV k="Download" v={n.speed?.downMbps != null ? `${n.speed.downMbps} Mbps` : '—'} />
         {(r.services || []).map((x) => (
-          <Line key={x.name} k={x.name} v={<Pill tone={!x.ok ? 'bad' : x.ms > 1500 ? 'warn' : 'good'}>{x.ok ? `${x.ms} ms` : 'Unreachable'}</Pill>} />
+          <KV key={x.name} k={x.name} v={<Pill tone={!x.ok ? 'bad' : x.ms > 1500 ? 'warn' : 'good'}>{x.ok ? `${x.ms} ms` : 'Unreachable'}</Pill>} />
         ))}
       </Section>
       <Section title="This app (last 7 days)">
-        <Line k="Crashes" v={String(st.appCrashes7d ?? 0)} />
-        <Line k="Freezes" v={String(st.appHangs7d ?? 0)} />
-        <Line k="Closed for memory" v={String(st.memoryExits7d ?? 0)} />
+        <KV k="Crashes" v={String(st.appCrashes7d ?? 0)} />
+        <KV k="Freezes" v={String(st.appHangs7d ?? 0)} />
+        <KV k="Closed for memory" v={String(st.memoryExits7d ?? 0)} />
       </Section>
-      <p className="diag-sub" style={{ marginTop: 6 }}>Ran {when(r.ranAt)} · {r.trigger === 'remote' ? 'asked for by DH' : 'run on the phone'}{r.appState === 'background' ? ' · in the background' : ''}</p>
+      <span className="dh-sub">Ran {when(r.ranAt)} · {r.trigger === 'remote' ? 'asked for by DH' : 'run on the phone'}{r.appState === 'background' ? ' · in the background' : ''}</span>
     </div>
   )
 }
 
 const Section = ({ title, children }) => (
-  <div className="diag-section"><div className="diag-section-title">{title}</div>{children}</div>
+  <>
+    <Sec>{title}</Sec>
+    <div className="dh-card">{children}</div>
+  </>
 )
-const Line = ({ k, v }) => (
-  <div className="diag-line"><span>{k}</span><span>{v ?? '—'}</span></div>
-)
-
-const CSS = `
-  .diag-screen { padding: 16px 16px 48px; color: var(--mobile-text); }
-  .diag-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .diag-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
-  .diag-back { background: none; border: none; padding: 4px; color: var(--mobile-text); display: grid; place-items: center; }
-  .diag-tabs { display: flex; background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 12px; padding: 3px; margin-bottom: 14px; }
-  .diag-tabs button { flex: 1; border: 0; background: none; padding: 9px 0; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--mobile-text-secondary); }
-  .diag-tabs button.on { background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); }
-  .diag-note { margin: 0 4px 14px; font-size: 14px; line-height: 1.45; color: var(--mobile-text-secondary); }
-  .diag-card { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
-  .diag-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .diag-label { font-size: 15px; font-weight: 600; }
-  .diag-sub { font-size: 13px; color: var(--mobile-text-secondary); line-height: 1.4; margin: 2px 0 0; }
-  .diag-toggle { flex: none; width: 50px; height: 30px; border-radius: 15px; border: 0; background: var(--mobile-border); position: relative; transition: background .2s; }
-  .diag-toggle span { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
-  .diag-toggle.on { background: var(--mobile-accent); }
-  .diag-toggle.on span { transform: translateX(20px); }
-  .diag-what { margin-top: 10px; font-size: 13px; color: var(--mobile-text-secondary); }
-  .diag-what summary { cursor: pointer; color: var(--mobile-accent); font-weight: 600; }
-  .diag-what p { margin: 8px 0 0; line-height: 1.45; }
-  .diag-run { width: 100%; border: 0; border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 700; background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); margin-bottom: 12px; }
-  .diag-run:disabled { opacity: .7; }
-  .diag-steps { display: grid; gap: 8px; }
-  .diag-step { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--mobile-text-secondary); transition: color .2s; }
-  .diag-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--mobile-border); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; transition: all .2s; }
-  .diag-step.now { color: var(--mobile-text); }
-  .diag-step.now .dot { border-color: var(--mobile-accent); animation: diagPulse 1s infinite; }
-  .diag-step.done { color: var(--mobile-text); }
-  .diag-step.done .dot { background: #2fb36d; border-color: #2fb36d; }
-  @keyframes diagPulse { 50% { transform: scale(1.15); } }
-  .diag-error { color: var(--mobile-danger, #d33); font-size: 14px; margin: 0 4px 12px; }
-  .diag-send { font-size: 13px; color: var(--mobile-text-secondary); margin: 0 4px 10px; }
-  .diag-send.ok { color: #2fb36d; font-weight: 600; }
-  .diag-report { background: var(--mobile-card); border: 1px solid var(--mobile-border); border-radius: 16px; padding: 14px; }
-  .diag-report.compact { border: 0; padding: 10px 0 0; background: none; }
-  .diag-verdict { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-  .diag-verdict.good { color: #2fb36d; }
-  .diag-verdict.warn { color: #d98a00; }
-  .diag-issues { margin: 0 0 10px; padding-left: 18px; font-size: 14px; line-height: 1.5; }
-  .diag-section { border-top: 1px solid var(--mobile-border); padding: 10px 0 4px; }
-  .diag-section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mobile-text-secondary); margin-bottom: 4px; }
-  .diag-line { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 4px 0; }
-  .diag-line span:first-child { color: var(--mobile-text-secondary); }
-  .diag-line span:last-child { text-align: right; font-weight: 500; }
-  .diag-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 700; text-transform: capitalize; }
-  .diag-pill.good { background: rgba(47,179,109,.15); color: #2fb36d; }
-  .diag-pill.warn { background: rgba(217,138,0,.15); color: #d98a00; margin-top: 6px; }
-  .diag-pill.bad { background: rgba(221,51,51,.15); color: #dd3333; }
-  .diag-small { flex: none; border: 0; border-radius: 10px; padding: 9px 13px; font-size: 14px; font-weight: 700; background: var(--mobile-accent); color: var(--mobile-on-accent, #fff); }
-  .diag-small:disabled { opacity: .45; }
-`

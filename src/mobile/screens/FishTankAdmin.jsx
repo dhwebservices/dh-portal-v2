@@ -4,9 +4,8 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { getPortalIdToken } from '../../utils/portalApi'
 import { apiUrl } from '../../utils/apiBase'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
-import SectionHeader from '../components/SectionHeader'
-import InfoRow from '../components/InfoRow'
+import { Chip } from '../components/DH'
+import { Screen, HeaderButton, Card, Sec, KV, Field, ToggleRow, Seg, Pills, Pill, Btn, Btns, Hero, Note, Empty, Sheet, Loading } from '../components/UI'
 
 /**
  * Running Fish Tank from the staff portal.
@@ -106,6 +105,7 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp
   })
   const [catalogue, setCatalogue] = useState({ fish: [], upgrades: [] })
   const [itemSearch, setItemSearch] = useState('')
+  const [playerSearch, setPlayerSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState(null)
 
@@ -831,23 +831,17 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp
 
   if (!key) {
     return (
-      <div className="fta">
-        <div className="fta-head">
-          <button className="fta-back" onClick={goBack} aria-label="Back">
-            <Icon name="chevron-left" size={20} />
-          </button>
-          <h1>Fish Tank</h1>
-        </div>
-
-        <MobileCard>
-          <SectionHeader title="Operator key" />
-          <p className="fta-note">
+      <Screen title="Fish Tank" onBack={goBack}>
+        <Card pad>
+          <span className="dh-t">Operator key</span>
+          <span className="dh-sub">
             These controls can create currency, so they are behind a real
             secret rather than a code stored in the app. Paste the operator key
             once and this device remembers it.
-          </p>
+          </span>
           <input
-            className="fta-field fta-key"
+            className="dh-input"
+            style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 13 }}
             type="text"
             value={keyDraft}
             onChange={e => { setKeyDraft(e.target.value); setKeyError('') }}
@@ -857,430 +851,288 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp
             autoComplete="off"
             spellCheck={false}
           />
-          <p className="fta-count">
-            {keyDraft.replace(/\s+/g, '').length} of 64 characters
-          </p>
-          {keyError && <p className="fta-error">{keyError}</p>}
-          <button
-            className="fta-primary"
-            onClick={saveKey}
-            disabled={!keyDraft.trim() || checkingKey}
-          >
+          <span className="dh-sub">{keyDraft.replace(/\s+/g, '').length} of 64 characters</span>
+          <Note tone="error">{keyError}</Note>
+          <Btn onPress={saveKey} disabled={!keyDraft.trim() || checkingKey}>
             {checkingKey ? 'Checking…' : 'Unlock'}
-          </button>
-        </MobileCard>
-      </div>
+          </Btn>
+        </Card>
+      </Screen>
     )
   }
 
   // ------------------------------------------------------------------ panel
 
-  return (
-    <div className="fta">
-      <div className="fta-head">
-        <button className="fta-back" onClick={goBack} aria-label="Back">
-          <Icon name="chevron-left" size={20} />
-        </button>
-        <h1>Fish Tank</h1>
-        <button className="fta-refresh" onClick={load} aria-label="Refresh">
-          <Icon name="refresh" size={18} />
-        </button>
-      </div>
+  const VIEW_TITLES = {
+    housekeeping: 'Housekeeping',
+    crashes: 'Crashes',
+    leaderboard: 'Leaderboards',
+    blocklist: 'Username blocklist',
+    schedule: 'Scheduled messages',
+    history: 'Grant history',
+  }
+  const inView = !profileId && tab === 'overview' && view !== null
+  const screenTitle = profileId ? 'Player' : inView ? (VIEW_TITLES[view] || 'Fish Tank') : 'Fish Tank'
+  const screenBack = profileId ? closeProfile : inView ? () => setView(null) : goBack
+  const versionLine = (() => {
+    const top = {}
+    for (const v of versions) {
+      if (!v.version || v.version === 'unknown') continue
+      if (!top[v.platform] || v.players > top[v.platform].players) top[v.platform] = v
+    }
+    return Object.values(top).map(v => `${v.platform === 'ios' ? 'iOS' : v.platform === 'android' ? 'Android' : v.platform} ${v.version}`).join(' · ')
+  })()
+  const shownPlayers = playerSearch.trim()
+    ? players.filter(p => (p.username || '').toLowerCase().includes(playerSearch.trim().toLowerCase()))
+    : players
+  const initials = (name) => (name || '?').slice(0, 2).toUpperCase()
+  const chev = <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>
 
-      {!profileId && <div className="fta-tabs">
-        {[['overview', 'Overview'], ['players', 'Players'], ['message', 'Message']].map(([id, label]) => (
-          <button
-            key={id}
-            className={tab === id ? 'active' : ''}
-            onClick={() => { setTab(id); setView(null) }}
-          >{label}</button>
-        ))}
-      </div>}
+  return (
+    <Screen
+      title={screenTitle}
+      onBack={screenBack}
+      action={<HeaderButton onPress={profileId ? refreshProfile : load} label="Refresh"><Icon name="refresh" size={18} /></HeaderButton>}
+    >
+      {!profileId && !inView && (
+        <>
+          <Hero className="ft-hero">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span className="dh-sub">{versionLine || 'iPhone and Android'}</span>
+              <Chip tone={maintenance.on ? 'red' : 'green'}>{maintenance.on ? 'Closed' : 'Live'}</Chip>
+            </div>
+            <div className="ft-hero-nums">
+              <div><span className="dh-num">{overview?.totals?.total ?? '–'}</span><span className="dh-sub">Players</span></div>
+              <div><span className="dh-num">{active?.counts?.today ?? overview?.totals?.active_24h ?? '–'}</span><span className="dh-sub">Played today</span></div>
+              <div><span className="dh-num">{active?.counts?.last_hour ?? '–'}</span><span className="dh-sub">Last hour</span></div>
+            </div>
+          </Hero>
+
+          <Seg
+            value={tab}
+            onChange={(id) => { setTab(id); setView(null) }}
+            options={[{ value: 'overview', label: 'Overview' }, { value: 'players', label: 'Players' }, { value: 'message', label: 'Message' }]}
+          />
+        </>
+      )}
 
       {error && (
-        <div className="fta-failure">
-          <p className="fta-error">{error}</p>
+        <Card pad tone="danger">
+          <Note tone="error">{error}</Note>
           {/* A rejected key cannot be retried into working, so offer the only
               thing that helps: entering a different one. Retrying is right for
               everything else. */}
-          {isKeyRejected ? (
-            <button className="fta-retry" onClick={forgetKey}>Re-enter key</button>
-          ) : (
-            <button className="fta-retry" onClick={load}>Try again</button>
-          )}
-        </div>
+          {isKeyRejected
+            ? <Btn variant="outline" small onPress={forgetKey}>Re-enter key</Btn>
+            : <Btn variant="outline" small onPress={load}>Try again</Btn>}
+        </Card>
       )}
-      {loading && <p className="fta-note">Loading…</p>}
+      {loading && <Loading />}
 
-      {outcome && (
-        <p className={`fta-outcome ${outcome.ok ? 'ok' : 'bad'}`}>{outcome.text}</p>
-      )}
+      {outcome && <Note tone={outcome.ok ? 'ok' : 'error'}>{outcome.text}</Note>}
 
       {profileId && profile && (() => {
         const person = profile.player
-        const stale = looksStale(person)
+        const isStale = looksStale(person)
         return (
-          <div className="fta-profile">
-            <button className="fta-profile-back" onClick={closeProfile}>
-              <Icon name="chevron-left" size={18} /> All players
-            </button>
-
-            <div className="fta-profile-head">
-              <div>
-                <h2>{person.username}</h2>
-                <div className="fta-profile-chips">
-                  <span className="fta-platform">{person.platform}</span>
-                  {person.banned_at && <span className="fta-banned-tag">Banned</span>}
-                  {stale && <span className="fta-stale-tag">Inactive</span>}
-                </div>
+          <>
+            <div className="dh-card">
+              <div className="dh-row">
+                <span className="dh-av round" style={{ width: 52, height: 52, borderRadius: 26, fontSize: 17 }}>{initials(person.username)}</span>
+                <span className="dh-g">
+                  <span className="dh-t" style={{ fontSize: 17 }}>{person.username}</span>
+                  <span className="dh-sub">Joined {fullDate(person.created_at)} · last seen {ago(person.seen_at)}</span>
+                  <span className="dh-sub">{person.platform === 'ios' ? 'iPhone' : person.platform === 'android' ? 'Android' : person.platform}</span>
+                </span>
+                {person.banned_at ? <Chip tone="red">Banned</Chip> : isStale ? <Chip>Inactive</Chip> : null}
               </div>
             </div>
 
-            {profileError && <p className="fta-error">{profileError}</p>}
+            <Note tone="error">{profileError}</Note>
 
-            {stale && (
-              <p className="fta-stale-note">
+            {isStale && (
+              <Note tone="warn">
                 Signed up {ago(person.created_at)} and never played — likely an
                 abandoned or duplicate registration. Removing it frees the name.
-              </p>
+              </Note>
             )}
 
             {person.banned_at && (
-              <p className="fta-stale-note">
+              <Note tone="error">
                 Banned {ago(person.banned_at)}{person.banned_by ? ` by ${person.banned_by}` : ''}.
                 {person.ban_reason ? ` "${person.ban_reason}"` : ' No reason recorded.'}
-              </p>
+              </Note>
             )}
 
-            <MobileCard>
-              <SectionHeader title="Account" />
-              <div className="fta-kv"><span>Joined</span><strong>{fullDate(person.created_at)}</strong></div>
-              <div className="fta-kv"><span>Last seen</span><strong>{ago(person.seen_at)}</strong></div>
-              <div className="fta-kv"><span>Friends</span><strong>{profile.friends}</strong></div>
-              <div className="fta-kv">
-                <span>Device</span>
-                {/* Not "older app": the device is written at signup, so an
-                    account made before device binding shipped stays without
-                    one however new the player's app is. It is adopted the
-                    next time that build registers for push. */}
-                <strong>{person.device_id
-                  ? `…${person.device_id.slice(-8)}`
-                  : 'not recorded (account predates binding)'}</strong>
-              </div>
-              <div className="fta-kv">
-                <span>Notifications</span>
-                <strong>{profile.devices.length
-                  ? `${profile.devices.length} device${profile.devices.length === 1 ? '' : 's'}`
-                  : 'none registered'}</strong>
-              </div>
-            </MobileCard>
+            <div className="dh-tiles">
+              <div className="dh-tile"><span className="dh-num sm">{(person.coins_granted ?? 0).toLocaleString()}</span><span className="dh-sub">Coins granted</span></div>
+              <div className="dh-tile"><span className="dh-num sm">{(person.best_score ?? 0).toLocaleString()}</span><span className="dh-sub">Best score</span></div>
+              <div className="dh-tile"><span className="dh-num sm">{person.wins ?? 0}</span><span className="dh-sub">Matches won</span></div>
+              <div className="dh-tile"><span className="dh-num sm">{person.kills ?? 0}</span><span className="dh-sub">Fish eaten (versus)</span></div>
+            </div>
+
+            <Sec>Their game</Sec>
+            <div className="dh-card">
+              <KV k="Tank reached" v={person.best_container} />
+              <KV k="Friends" v={profile.friends} />
+              {/* Not "older app": the device is written at signup, so an
+                  account made before device binding shipped stays without
+                  one however new the player's app is. It is adopted the
+                  next time that build registers for push. */}
+              <KV k="Device" v={person.device_id ? `…${person.device_id.slice(-8)}` : 'not recorded (account predates binding)'} />
+              <KV k="Notifications" v={profile.devices.length ? `${profile.devices.length} device${profile.devices.length === 1 ? '' : 's'}` : 'none registered'} />
+            </div>
+
+            {profile.daily.length > 0 && (
+              <>
+                <Sec>Recent daily runs</Sec>
+                <div className="dh-card">
+                  {profile.daily.map(day => (
+                    <KV key={day.day} k={day.day} v={`${day.score.toLocaleString()} pts · ${day.tide} tide`} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            <Sec>Actions</Sec>
+            <Pills>
+              {!person.banned_at && <Pill onPress={() => { setGranting(person); setOutcome(null) }}>Give or take</Pill>}
+              <Pill disabled={busy} onPress={() => { setRenaming(person); setRenameDraft(person.username) }}>Rename</Pill>
+              {/* Offered for a banned player too: a ban stops them playing, it
+                  does not take an inflated score off the board. */}
+              <Pill disabled={busy} onPress={() => resetEverything(person.id, person.username)}>Reset their scores</Pill>
+              {person.banned_at && <Pill disabled={busy} onPress={async () => { await unbanPlayer(person); await refreshProfile() }}>Unban</Pill>}
+              <Pill tone="danger" disabled={busy} onPress={() => setRemoving(person)}>Remove account</Pill>
+            </Pills>
+            <span className="dh-sub">
+              Reset clears the score, tank, wins, kills and coin record — everything the boards
+              read. Their account, coins and fish are untouched.
+            </span>
 
             {profile.siblings?.length > 0 && (
-              <MobileCard>
-                <SectionHeader title="Same device" />
-                <p className="fta-note">
+              <>
+                <Sec>Same device</Sec>
+                <span className="dh-sub">
                   These accounts were created on the same physical device.
                   Duplicates from before one-account-per-device are usually
                   safe to remove.
-                </p>
-                {profile.siblings.map(sib => (
-                  <button key={sib.id} className="fta-sibling" onClick={() => openProfile(sib)}>
-                    <span>
-                      <strong>{sib.username}</strong>
-                      {sib.banned_at ? ' · banned' : looksStale(sib) ? ' · inactive' : ''}
-                    </span>
-                    <span className="fta-sibling-when">{ago(sib.created_at)}</span>
-                  </button>
-                ))}
-              </MobileCard>
+                </span>
+                <div className="dh-card">
+                  {profile.siblings.map(sib => (
+                    <button key={sib.id} type="button" className="dh-row" onClick={() => openProfile(sib)}>
+                      <span className="dh-av round">{initials(sib.username)}</span>
+                      <span className="dh-g">
+                        <span className="dh-t">{sib.username}</span>
+                        <span className="dh-sub">Joined {ago(sib.created_at)}</span>
+                      </span>
+                      {sib.banned_at ? <Chip tone="red">Banned</Chip> : looksStale(sib) ? <Chip>Inactive</Chip> : null}
+                      {chev}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
 
-            <MobileCard>
-              <SectionHeader title="Their game" />
-              <div className="fta-kv"><span>Tank reached</span><strong>{person.best_container}</strong></div>
-              <div className="fta-kv"><span>Best score</span><strong>{(person.best_score ?? 0).toLocaleString()}</strong></div>
-              <div className="fta-kv"><span>Matches won</span><strong>{person.wins ?? 0}</strong></div>
-              <div className="fta-kv"><span>Fish eaten (versus)</span><strong>{person.kills ?? 0}</strong></div>
-              <div className="fta-kv"><span>Coins granted</span><strong>{(person.coins_granted ?? 0).toLocaleString()}</strong></div>
-              {profile.daily.length > 0 && (
-                <>
-                  <SectionHeader title="Recent daily runs" />
-                  {profile.daily.map(day => (
-                    <div className="fta-kv" key={day.day}>
-                      <span>{day.day}</span>
-                      <strong>{day.score.toLocaleString()} pts · {day.tide} tide</strong>
-                    </div>
-                  ))}
-                </>
-              )}
-            </MobileCard>
-
-            <MobileCard>
-              <SectionHeader title="Crashes" />
-              {profile.partial ? (
-                <p className="fta-note">Loading…</p>
-              ) : profile.crashes.length === 0 ? (
-                <p className="fta-note">No crashes reported from their game.</p>
-              ) : profile.crashes.map((crash, index) => (
-                <button
-                  key={index}
-                  className="fta-crash"
-                  onClick={() => setExpandedCrash(expandedCrash === index ? null : index)}
-                >
-                  <div className="fta-crash-top">
-                    <span>{ago(crash.created_at)}</span>
-                    <span>{crash.platform}{crash.app_version ? ` · v${crash.app_version}` : ''}</span>
-                  </div>
-                  <div className="fta-crash-message">{crash.message}</div>
-                  {expandedCrash === index && crash.stack && (
-                    <pre className="fta-crash-stack">{crash.stack}</pre>
-                  )}
-                </button>
-              ))}
-            </MobileCard>
+            <Sec>Crashes</Sec>
+            {profile.partial ? <Loading /> : profile.crashes.length === 0 ? (
+              <div className="dh-card"><div className="dh-row"><span className="dh-g"><span className="dh-sub">No crashes reported from their game.</span></span></div></div>
+            ) : (
+              <div className="dh-card">
+                {profile.crashes.map((crash, index) => (
+                  <CrashRow key={index} crash={crash} open={expandedCrash === index} onToggle={() => setExpandedCrash(expandedCrash === index ? null : index)} ago={ago} />
+                ))}
+              </div>
+            )}
 
             {profile.grants.length > 0 && (
-              <MobileCard>
-                <SectionHeader title="Grant history" />
-                {profile.grants.map(grant => (
-                  <div className="fta-kv" key={grant.id}>
-                    <span>
-                      {grant.kind === 'coins'
-                        ? `${grant.amount > 0 ? '+' : ''}${grant.amount.toLocaleString()} coins`
-                        : grant.item_id || grant.kind}
-                    </span>
-                    <strong>{grant.claimed_at ? 'claimed' : 'waiting'} · {ago(grant.created_at)}</strong>
-                  </div>
-                ))}
-              </MobileCard>
+              <>
+                <Sec>Grant history</Sec>
+                <div className="dh-card">
+                  {profile.grants.map(grant => (
+                    <div className="dh-row" key={grant.id}>
+                      <span className="dh-g">
+                        <span className="dh-t">
+                          {grant.kind === 'coins'
+                            ? `${grant.amount > 0 ? '+' : ''}${grant.amount.toLocaleString()} coins`
+                            : grant.item_id || grant.kind}
+                        </span>
+                        <span className="dh-sub">{ago(grant.created_at)}</span>
+                      </span>
+                      <Chip tone={grant.claimed_at ? 'green' : 'amber'}>{grant.claimed_at ? 'Claimed' : 'Waiting'}</Chip>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
-            <div className="fta-profile-actions">
-              {!person.banned_at && (
-                <button
-                  className="fta-primary"
-                  onClick={() => { setGranting(person); setOutcome(null) }}
-                >Give something</button>
-              )}
-              {/* Offered for a banned player too: a ban stops them playing, it
-                  does not take an inflated score off the board. */}
-              <button
-                className="fta-danger"
+            {!person.banned_at && (
+              <Btn
+                variant="danger"
                 disabled={busy}
-                onClick={() => resetEverything(person.id, person.username)}
-              >Reset their scores</button>
-              <p className="fta-note">
-                Clears the score, tank, wins, kills and coin record — everything the boards
-                read. Zeroing the score alone used to leave an inflated tank in place for
-                good. Their account, coins and fish are untouched.
-              </p>
-              {person.banned_at ? (
-                <button
-                  className="fta-unban fta-wide"
-                  disabled={busy}
-                  onClick={async () => { await unbanPlayer(person); await refreshProfile() }}
-                >Unban</button>
-              ) : (
-                <button
-                  className="fta-ban fta-wide"
-                  disabled={busy}
-                  onClick={() => {
-                    setBanning(person)
-                    setBanReason('')
-                    setBanDays(0)
-                    setNotifyOnBan(true)
-                    setOutcome(null)
-                  }}
-                >Ban this player</button>
-              )}
-              <button
-                className="fta-unban fta-wide"
-                disabled={busy}
-                onClick={() => { setRenaming(person); setRenameDraft(person.username) }}
-              >Rename…</button>
-              <button
-                className="fta-remove"
-                disabled={busy}
-                onClick={() => setRemoving(person)}
-              >Remove account…</button>
-            </div>
-          </div>
+                onPress={() => {
+                  setBanning(person)
+                  setBanReason('')
+                  setBanDays(0)
+                  setNotifyOnBan(true)
+                  setOutcome(null)
+                }}
+              >Ban this player</Btn>
+            )}
+          </>
         )
       })()}
 
       {!profileId && tab === 'overview' && view === null && (
-        <div className="fta-list">
-          <MobileCard>
-            <SectionHeader title="Maintenance" />
-            <p className="fta-note">
-              {maintenance.on
-                ? 'The game is CLOSED. Every player sees the wall until you lift it.'
-                : 'The game is open. Closing it walls every player on the next launch or resume.'}
-            </p>
-            <textarea
-              className="fta-field fta-textarea"
-              rows={3}
-              value={maintenanceDraft}
-              onChange={e => setMaintenanceDraft(e.target.value)}
-              placeholder="What the wall says (optional)"
-              maxLength={200}
-            />
-            <span className="fta-note">{maintenanceDraft.length} of 200</span>
-            <button
-              className={maintenance.on ? 'fta-primary' : 'fta-maintenance-close'}
-              disabled={busy}
-              onClick={() => setMaintenanceMode(!maintenance.on)}
-            >
-              {maintenance.on ? 'Lift maintenance — open the game' : 'Close the game for maintenance'}
-            </button>
-          </MobileCard>
-
-          {active && (
-            <MobileCard>
-              <SectionHeader title="Playing" />
-              <div className="fta-kv"><span>Last hour</span><strong>{active.counts?.last_hour ?? 0}</strong></div>
-              <div className="fta-kv"><span>Today</span><strong>{active.counts?.today ?? 0}</strong></div>
-              <div className="fta-kv"><span>This week</span><strong>{active.counts?.this_week ?? 0}</strong></div>
-              <p className="fta-note">
-                Counted from the last time each app checked in — opened the game, not mid-run.
-              </p>
-            </MobileCard>
-          )}
-
-          {versions.length > 0 && (
-            <MobileCard>
-              <SectionHeader title="App versions" />
-              <p className="fta-note">
-                What people are actually running. Set the required version below to something
-                most of them already have, or you are walling the difference.
-              </p>
-              {versions.map(v => (
-                <div className="fta-kv" key={`${v.platform}-${v.version}`}>
-                  <span>{v.platform} {v.version}</span>
-                  <strong>{v.players}</strong>
-                </div>
-              ))}
-              <p className="fta-note">
-                "unknown" is an account that has not opened the game since version reporting
-                shipped — an older build, not a missing player.
-              </p>
-            </MobileCard>
-          )}
-
-          <MobileCard>
-            <SectionHeader title="Switches" />
-            <p className="fta-note">
-              Turn a part of the game off for everyone without shipping a release. Takes effect
-              on each player's next launch or resume.
-            </p>
-            {['multiplayer', 'daily', 'leaderboard'].map(name => (
-              <div className="fta-kv" key={name}>
-                <span>{name === 'daily' ? "Today's Tank" : name}</span>
-                <button
-                  className={flags[name] ? 'fta-chip-on' : 'fta-chip-off'}
-                  disabled={busy}
-                  onClick={() => toggleFlag(name)}
-                >
-                  {flags[name] ? 'On' : 'Off'}
-                </button>
-              </div>
-            ))}
-          </MobileCard>
-
-          {opLog.length > 0 && (
-            <MobileCard>
-              <SectionHeader title="Recent admin actions" />
-              {opLog.slice(0, 12).map(entry => (
-                <div className="fta-log" key={entry.id}>
-                  <div className="fta-log-top">
-                    <strong>{entry.action}</strong>
-                    <span>{ago(entry.created_at)}</span>
-                  </div>
-                  <span className="fta-log-who">{entry.operator}</span>
-                </div>
-              ))}
-              <p className="fta-note">
-                "unknown" means the game's operator key was used directly rather than through
-                a signed-in portal session.
-              </p>
-            </MobileCard>
-          )}
-
-          <MobileCard>
-            <SectionHeader title="Required version" />
-            <p className="fta-note">
-              {minVersion.ios || minVersion.android
-                ? 'Anything older is walled and sent to the store. Blank a field to lift it for that platform.'
-                : 'No gate. Every build can play. Set a version to force older ones to update first.'}
-            </p>
-            <label className="fta-kv"><span>iOS</span>
-              <input
-                className="fta-field fta-field-inline"
-                value={minVersion.ios}
-                onChange={e => setMinVersion(v => ({ ...v, ios: e.target.value }))}
-                placeholder="e.g. 1.5"
-                inputMode="decimal"
-                maxLength={20}
+        <>
+          <Sec>Maintenance</Sec>
+          <div className="dh-card">
+            <div className="dh-row">
+              <span className="dh-g">
+                <span className="dh-t">{maintenance.on ? 'The game is closed' : 'The game is open'}</span>
+                <span className="dh-sub">
+                  {maintenance.on
+                    ? 'Every player sees the wall until you lift it.'
+                    : 'Closing it walls every player on the next launch or resume.'}
+                </span>
+              </span>
+              <Chip tone={maintenance.on ? 'red' : 'green'}>{maintenance.on ? 'Closed' : 'Open'}</Chip>
+            </div>
+            <Field label="What the wall says (optional)" htmlFor="ft-wall" hint={`${maintenanceDraft.length} of 200`}>
+              <textarea
+                id="ft-wall"
+                rows={3}
+                value={maintenanceDraft}
+                onChange={e => setMaintenanceDraft(e.target.value)}
+                placeholder="e.g. We're updating the game. Back in about an hour."
+                maxLength={200}
               />
-            </label>
-            <label className="fta-kv"><span>Android</span>
-              <input
-                className="fta-field fta-field-inline"
-                value={minVersion.android}
-                onChange={e => setMinVersion(v => ({ ...v, android: e.target.value }))}
-                placeholder="e.g. 1.2.1"
-                inputMode="decimal"
-                maxLength={20}
-              />
-            </label>
-            <p className="fta-note">
-              Set each one only to a version that is actually live on that store — a build
-              nobody can download is a wall with no door.
-            </p>
-            <button className="fta-primary" disabled={busy} onClick={saveMinVersion}>
-              Save required version
-            </button>
-          </MobileCard>
+            </Field>
+            <div style={{ padding: '4px 16px 16px' }}>
+              <Btn
+                variant={maintenance.on ? 'primary' : 'danger'}
+                className={maintenance.on ? '' : 'solid'}
+                disabled={busy}
+                onPress={() => setMaintenanceMode(!maintenance.on)}
+              >
+                {maintenance.on ? 'Lift maintenance — open the game' : 'Close the game for maintenance'}
+              </Btn>
+            </div>
+          </div>
 
-          {overview && (
+          {(overview || active) && (
             <>
-              <div className="fta-stat-grid">
-                <div className="fta-stat"><strong>{overview.totals?.total ?? 0}</strong><span>players</span></div>
-                <div className="fta-stat"><strong>{overview.totals?.new_24h ?? 0}</strong><span>new today</span></div>
-                <div className="fta-stat"><strong>{overview.totals?.active_24h ?? 0}</strong><span>played today</span></div>
-                <div className="fta-stat"><strong>{overview.totals?.new_7d ?? 0}</strong><span>new this week</span></div>
-                <div className="fta-stat"><strong>{overview.totals?.active_7d ?? 0}</strong><span>played this week</span></div>
-                <div className="fta-stat"><strong>{overview.push_devices ?? 0}</strong><span>push devices</span></div>
+              <Sec>Players</Sec>
+              <div className="dh-tiles t3">
+                <div className="dh-tile"><span className="dh-num">{overview?.totals?.new_24h ?? 0}</span><span className="dh-sub">New today</span></div>
+                <div className="dh-tile"><span className="dh-num">{overview?.totals?.new_7d ?? 0}</span><span className="dh-sub">New this week</span></div>
+                <div className="dh-tile"><span className="dh-num">{active?.counts?.this_week ?? overview?.totals?.active_7d ?? 0}</span><span className="dh-sub">Played this week</span></div>
               </div>
-
-              <MobileCard>
-                <SectionHeader title="Platforms" />
-                {(overview.platforms || []).map(row => (
-                  <div className="fta-kv" key={row.platform}>
-                    <span>{row.platform}</span><strong>{row.n}</strong>
-                  </div>
-                ))}
-                {(overview.totals?.banned ?? 0) > 0 && (
-                  <div className="fta-kv"><span>banned</span><strong>{overview.totals.banned}</strong></div>
-                )}
-              </MobileCard>
-
-              {(overview.top || []).length > 0 && (
-                <MobileCard>
-                  <SectionHeader title="Top scores" />
-                  {overview.top.map((row, i) => (
-                    <div className="fta-kv" key={row.username}>
-                      <span>{i + 1}. {row.username}</span>
-                      <strong>{row.best_score.toLocaleString()}</strong>
-                    </div>
-                  ))}
-                </MobileCard>
-              )}
+              <span className="dh-sub">Played counts come from the last time each app checked in — opened the game, not mid-run.</span>
             </>
           )}
 
-          <MobileCard>
-            <SectionHeader title="Tools" />
+          <Sec>Tools</Sec>
+          <div className="dh-card">
             {[
               ['housekeeping', 'Housekeeping', overview?.stale
                 ? `${overview.stale} inactive account${overview.stale === 1 ? '' : 's'} to review`
@@ -1293,1300 +1145,551 @@ export default function MobileFishTankAdmin({ goBack, user, isAdmin: isAdminProp
               ['schedule', 'Scheduled messages', 'Written now, sent later'],
               ['history', 'Grant history', 'Everything given, and to whom'],
             ].map(([id, label, hint]) => (
-              <button key={id} className="fta-tool" onClick={() => openView(id)}>
-                <span><strong>{label}</strong><em>{hint}</em></span>
-                <Icon name="chevron-right" size={16} />
+              <button key={id} type="button" className="dh-row" onClick={() => openView(id)}>
+                <span className="dh-g"><span className="dh-t">{label}</span><span className="dh-sub">{hint}</span></span>
+                {id === 'crashes' && overview?.crashes_7d ? <Chip tone="amber">{overview.crashes_7d}</Chip> : null}
+                {chev}
               </button>
             ))}
-          </MobileCard>
+          </div>
 
-          <button
-            className="fta-primary"
-            onClick={() => { setGivingAll(true); setOutcome(null) }}
-          >Give coins to everyone</button>
-        </div>
+          <Btn onPress={() => { setGivingAll(true); setOutcome(null) }}>Give coins to everyone</Btn>
+
+          <Sec>Switches</Sec>
+          <span className="dh-sub">
+            Turn a part of the game off for everyone without shipping a release. Takes effect
+            on each player's next launch or resume.
+          </span>
+          <div className="dh-card">
+            {['multiplayer', 'daily', 'leaderboard'].map(name => (
+              <ToggleRow
+                key={name}
+                title={name === 'daily' ? "Today's Tank" : name === 'multiplayer' ? 'Multiplayer' : 'Leaderboard'}
+                on={!!flags[name]}
+                disabled={busy}
+                onChange={() => toggleFlag(name)}
+              />
+            ))}
+          </div>
+
+          <Sec>Required version</Sec>
+          <div className="dh-card">
+            <div className="dh-row">
+              <span className="dh-g">
+                <span className="dh-sub">
+                  {minVersion.ios || minVersion.android
+                    ? 'Anything older is walled and sent to the store. Blank a field to lift it for that platform.'
+                    : 'No gate. Every build can play. Set a version to force older ones to update first.'}
+                </span>
+              </span>
+              <Chip tone={minVersion.ios || minVersion.android ? 'amber' : 'green'}>{minVersion.ios || minVersion.android ? 'Gate on' : 'Gate lifted'}</Chip>
+            </div>
+            <Field label="iPhone required version" htmlFor="ft-ios">
+              <input id="ft-ios" value={minVersion.ios} onChange={e => setMinVersion(v => ({ ...v, ios: e.target.value }))} placeholder="Any (e.g. 1.5)" inputMode="decimal" maxLength={20} />
+            </Field>
+            <Field label="Android required version" htmlFor="ft-android">
+              <input id="ft-android" value={minVersion.android} onChange={e => setMinVersion(v => ({ ...v, android: e.target.value }))} placeholder="Any (e.g. 1.2.1)" inputMode="decimal" maxLength={20} />
+            </Field>
+            <div style={{ padding: '4px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <span className="dh-sub">
+                Set each one only to a version that is actually live on that store — a build
+                nobody can download is a wall with no door.
+              </span>
+              <Btn variant="outline" disabled={busy} onPress={saveMinVersion}>Save required version</Btn>
+            </div>
+          </div>
+
+          {versions.length > 0 && (
+            <>
+              <Sec>App versions</Sec>
+              <span className="dh-sub">
+                What people are actually running. Set the required version to something
+                most of them already have, or you are walling the difference.
+              </span>
+              <div className="dh-card">
+                {versions.map(v => (
+                  <KV key={`${v.platform}-${v.version}`} k={`${v.platform} ${v.version}`} v={v.players} />
+                ))}
+              </div>
+              <span className="dh-sub">
+                "unknown" is an account that has not opened the game since version reporting
+                shipped — an older build, not a missing player.
+              </span>
+            </>
+          )}
+
+          {overview && (
+            <>
+              <Sec>Platforms</Sec>
+              <div className="dh-card">
+                {(overview.platforms || []).map(row => <KV key={row.platform} k={row.platform} v={row.n} />)}
+                {(overview.totals?.banned ?? 0) > 0 && <KV k="banned" v={overview.totals.banned} />}
+                <KV k="Push devices" v={overview.push_devices ?? 0} />
+              </div>
+
+              {(overview.top || []).length > 0 && (
+                <>
+                  <Sec>Top scores</Sec>
+                  <div className="dh-card">
+                    {overview.top.map((row, i) => (
+                      <div className="dh-row" key={row.username}>
+                        <span className="dh-num" style={{ fontSize: 18, width: 28 }}>{i + 1}</span>
+                        <span className="dh-g"><span className="dh-t">{row.username}</span></span>
+                        <span className="dh-val">{row.best_score.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {opLog.length > 0 && (
+            <>
+              <Sec>Recent admin actions</Sec>
+              <div className="dh-card">
+                {opLog.slice(0, 12).map(entry => (
+                  <div className="dh-row" key={entry.id}>
+                    <span className="dh-g"><span className="dh-t">{entry.action}</span><span className="dh-sub">{entry.operator}</span></span>
+                    <span className="dh-sub">{ago(entry.created_at)}</span>
+                  </div>
+                ))}
+              </div>
+              <span className="dh-sub">
+                "unknown" means the game's operator key was used directly rather than through
+                a signed-in portal session.
+              </span>
+            </>
+          )}
+
+          <div className="dh-card">
+            <div className="dh-row">
+              <span className="dh-g"><span className="dh-t">Operator key</span><span className="dh-sub">Saved on this device</span></span>
+              <button type="button" className="dh-sec-act" style={{ color: '#B42318' }} onClick={forgetKey}>Forget</button>
+            </div>
+          </div>
+        </>
       )}
 
       {!profileId && tab === 'overview' && view === 'housekeeping' && (
-        <div className="fta-list">
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          <p className="fta-note">
+        <>
+          <span className="dh-sub">
             Signed up, never played, older than a day. Removing frees their
             names; nothing else is lost because nothing was ever played.
-          </p>
-          {stale.length === 0 && <p className="fta-note">No ghosts. Clean tank.</p>}
-          {stale.map(person => (
-            <button
-              key={person.id}
-              className={`fta-item${staleChosen.has(person.id) ? ' on' : ''}`}
-              onClick={() => toggleStale(person.id)}
-            >
-              <span>
-                <strong>{person.username}</strong>
-                {' '}· {person.platform} · joined {ago(person.created_at)}
-              </span>
-              {staleChosen.has(person.id) && <Icon name="check" size={16} />}
-            </button>
-          ))}
+          </span>
+          {stale.length === 0 && <Empty icon="checkCircle" title="No ghosts" sub="Clean tank." />}
+          {stale.length > 0 && (
+            <div className="dh-card">
+              {stale.map(person => (
+                <button key={person.id} type="button" className="dh-row" onClick={() => toggleStale(person.id)}>
+                  <span className="dh-g">
+                    <span className="dh-t">{person.username}</span>
+                    <span className="dh-sub">{person.platform} · joined {ago(person.created_at)}</span>
+                  </span>
+                  <span className={`ft-check${staleChosen.has(person.id) ? ' on' : ''}`}>{staleChosen.has(person.id) && <Icon name="check" size={14} />}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {stale.length > 0 && (
             <>
-              <button
-                className="fta-secondary"
-                onClick={() => setStaleChosen(new Set(stale.map(p => p.id)))}
-              >Select all {stale.length}</button>
-              <button
-                className="fta-confirm-ban fta-wide"
-                disabled={busy || staleChosen.size === 0}
-                onClick={removeStale}
-              >
+              <Btn variant="outline" onPress={() => setStaleChosen(new Set(stale.map(p => p.id)))}>Select all {stale.length}</Btn>
+              <Btn variant="danger" className="solid" disabled={busy || staleChosen.size === 0} onPress={removeStale}>
                 {busy ? 'Removing…' : `Remove ${staleChosen.size || ''} selected`}
-              </button>
+              </Btn>
             </>
           )}
-        </div>
+        </>
       )}
 
       {!profileId && tab === 'overview' && view === 'crashes' && (
-        <div className="fta-list">
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          {crashes.length === 0 && <p className="fta-note">No crashes reported. Long may it last.</p>}
-          {crashes.map((crash, index) => (
-            <button
-              key={crash.id}
-              className="fta-crash fta-crash--card"
-              onClick={() => setExpandedCrash(expandedCrash === index ? null : index)}
-            >
-              <div className="fta-crash-top">
-                <span>{crash.username || 'before sign-in'} · {ago(crash.created_at)}</span>
-                <span>{crash.platform}{crash.app_version ? ` · v${crash.app_version}` : ''}</span>
-              </div>
-              <div className="fta-crash-message">{crash.message}</div>
-              {expandedCrash === index && crash.stack && (
-                <pre className="fta-crash-stack">{crash.stack}</pre>
-              )}
-            </button>
-          ))}
-        </div>
+        crashes.length === 0
+          ? <Empty icon="checkCircle" title="No crashes reported" sub="Long may it last." />
+          : (
+            <div className="dh-card">
+              {crashes.map((crash, index) => (
+                <CrashRow key={crash.id} crash={crash} who={crash.username || 'before sign-in'} open={expandedCrash === index} onToggle={() => setExpandedCrash(expandedCrash === index ? null : index)} ago={ago} />
+              ))}
+            </div>
+          )
       )}
 
       {!profileId && tab === 'overview' && view === 'leaderboard' && (
-        <div className="fta-list">
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          <div className="fta-kinds">
-            <button
-              className={board.board === 'alltime' ? 'on' : ''}
-              onClick={async () => setBoard(await call('/operator/leaderboard?board=alltime'))}
-            >All time</button>
-            <button
-              className={board.board === 'daily' ? 'on' : ''}
-              onClick={async () => setBoard(await call('/operator/leaderboard?board=daily'))}
-            >Today's daily</button>
-          </div>
-          <p className="fta-note">Tap a row to remove that score from the board.</p>
-          {board.rows.length === 0 && <p className="fta-note">Empty board.</p>}
-          {board.rows.map((row, i) => (
-            <button key={`${row.id}-${i}`} className="fta-item" onClick={() => removeScore(row)}>
-              <span>
-                <strong>{i + 1}. {row.username || 'deleted player'}</strong>
-                {row.banned_at ? ' · banned' : ''}
-              </span>
-              <span className="fta-price">{(row.best_score ?? row.score ?? 0).toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <Pills>
+            <Pill on={board.board === 'alltime'} onPress={async () => setBoard(await call('/operator/leaderboard?board=alltime'))}>All time</Pill>
+            <Pill on={board.board === 'daily'} onPress={async () => setBoard(await call('/operator/leaderboard?board=daily'))}>Today's daily</Pill>
+          </Pills>
+          <span className="dh-sub">Tap a row to remove that score from the board.</span>
+          {board.rows.length === 0 ? <Empty title="Empty board" /> : (
+            <div className="dh-card">
+              {board.rows.map((row, i) => (
+                <button key={`${row.id}-${i}`} type="button" className="dh-row" onClick={() => removeScore(row)}>
+                  <span className="dh-num" style={{ fontSize: 18, width: 28 }}>{i + 1}</span>
+                  <span className="dh-g">
+                    <span className="dh-t">{row.username || 'deleted player'}</span>
+                    {row.banned_at && <span className="dh-sub">banned</span>}
+                  </span>
+                  <span className="dh-val">{(row.best_score ?? row.score ?? 0).toLocaleString()}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {!profileId && tab === 'overview' && view === 'blocklist' && (
-        <MobileCard>
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          <SectionHeader title="Username blocklist" />
-          <p className="fta-note">
+        <>
+          <span className="dh-sub">
             One word per line. A new name containing any of them is refused at
             signup — the player just sees "that name isn't available". Existing
             names are untouched; rename or ban those from their profile.
-          </p>
-          <textarea
-            className="fta-field fta-textarea"
-            rows={8}
-            value={blockWords}
-            onChange={e => setBlockWords(e.target.value)}
-            placeholder={'one\nword\nper\nline'}
-            autoCapitalize="none"
-          />
-          <button className="fta-primary" disabled={busy} onClick={saveBlocklist}>
-            {busy ? 'Saving…' : 'Save blocklist'}
-          </button>
-        </MobileCard>
+          </span>
+          <div className="dh-card">
+            <Field label="Blocked words" htmlFor="ft-block">
+              <textarea
+                id="ft-block"
+                rows={8}
+                value={blockWords}
+                onChange={e => setBlockWords(e.target.value)}
+                placeholder={'one\nword\nper\nline'}
+                autoCapitalize="none"
+              />
+            </Field>
+          </div>
+          <Btn disabled={busy} onPress={saveBlocklist}>{busy ? 'Saving…' : 'Save blocklist'}</Btn>
+        </>
       )}
 
       {!profileId && tab === 'overview' && view === 'schedule' && (
-        <div className="fta-list">
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          <p className="fta-note">
+        <>
+          <span className="dh-sub">
             Written in the Message tab with "send later". Delivery is checked
             about once a minute.
-          </p>
-          {schedule.length === 0 && <p className="fta-note">Nothing scheduled.</p>}
-          {schedule.map(row => (
-            <div className="fta-player" key={row.id}>
-              <div className="fta-player-top">
-                <div>
-                  <strong>{row.title || '(no title)'}</strong>
+          </span>
+          {schedule.length === 0 ? <Empty icon="bell" title="Nothing scheduled" sub="Scheduled messages show here. Tap Cancel to stop one." /> : (
+            <div className="dh-card">
+              {schedule.map(row => (
+                <div className="dh-row top" key={row.id}>
+                  <span className="dh-g">
+                    <span className="dh-t">{row.title || '(no title)'}</span>
+                    {row.body && <span className="dh-sub">{row.body}</span>}
+                    <span className="dh-sub">
+                      {row.sent_at
+                        ? `went ${ago(row.sent_at)}`
+                        : `due ${new Date(row.send_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}
+                      {' '}· {row.player_ids ? 'chosen players' : 'everyone'}
+                    </span>
+                  </span>
                   {row.sent_at
-                    ? <span className="fta-platform">sent</span>
-                    : <span className="fta-banned-tag" style={{ background: '#1f7a4d' }}>waiting</span>}
+                    ? <Chip>Sent</Chip>
+                    : <button type="button" className="dh-sec-act" style={{ color: '#B42318' }} onClick={() => cancelScheduled(row)}>Cancel</button>}
                 </div>
-                {!row.sent_at && (
-                  <button className="fta-unban" onClick={() => cancelScheduled(row)}>Cancel</button>
-                )}
-              </div>
-              <div className="fta-player-stats">
-                {row.body}
-              </div>
-              <div className="fta-player-stats">
-                {row.sent_at
-                  ? `went ${ago(row.sent_at)}`
-                  : `due ${new Date(row.send_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}
-                {' '}· {row.player_ids ? 'chosen players' : 'everyone'}
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {!profileId && tab === 'players' && (
-        <div className="fta-list">
+        <>
+          <div className="dh-search">
+            <Icon name="search" size={18} />
+            <input value={playerSearch} onChange={e => setPlayerSearch(e.target.value)} placeholder="Search players" autoCapitalize="none" autoCorrect="off" />
+          </div>
           {players.length === 0 && !loading && !error && (
-            <p className="fta-note">
-              No players yet. Somebody appears here once they take a name in the
-              game's multiplayer.
-            </p>
+            <Empty icon="users" title="No players yet" sub="Somebody appears here once they take a name in the game's multiplayer." />
           )}
-          {players.map(person => (
-            <button
-              key={person.id}
-              className={person.banned_at ? 'fta-player fta-player--banned' : 'fta-player'}
-              onClick={() => openProfile(person)}
-            >
-              <div className="fta-player-top">
-                <div>
-                  <strong>{person.username}</strong>
-                  <span className="fta-platform">{person.platform}</span>
-                  {person.banned_at && <span className="fta-banned-tag">Banned</span>}
-                  {looksStale(person) && <span className="fta-stale-tag">Inactive</span>}
-                </div>
-                <span className="fta-chevron"><Icon name="chevron-right" size={18} /></span>
-              </div>
-              <div className="fta-player-stats">
-                Tank {person.best_container} · {person.best_score.toLocaleString()} pts
-                {' '}· last played {ago(person.seen_at)}
-                {person.unclaimed ? ` · ${person.unclaimed} waiting` : ''}
-              </div>
-            </button>
-          ))}
-        </div>
+          {players.length > 0 && shownPlayers.length === 0 && <Note>Nobody matches "{playerSearch}".</Note>}
+          {shownPlayers.length > 0 && (
+            <div className="dh-card">
+              {shownPlayers.map(person => (
+                <button key={person.id} type="button" className="dh-row" onClick={() => openProfile(person)}>
+                  <span className="dh-av round" style={person.platform === 'android' ? { background: '#FFE6CC', color: '#8A4A00' } : undefined}>{initials(person.username)}</span>
+                  <span className="dh-g">
+                    <span className="dh-t">{person.username}</span>
+                    <span className="dh-sub">
+                      Tank {person.best_container} · {(person.best_score ?? 0).toLocaleString()} pts · {person.platform === 'ios' ? 'iPhone' : person.platform === 'android' ? 'Android' : person.platform}
+                    </span>
+                    <span className="dh-sub">Last played {ago(person.seen_at)}{person.unclaimed ? ` · ${person.unclaimed} waiting` : ''}</span>
+                  </span>
+                  {person.banned_at ? <Chip tone="red">Banned</Chip> : looksStale(person) ? <Chip>Inactive</Chip> : null}
+                  {chev}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {!profileId && tab === 'overview' && view === 'history' && (
-        <div className="fta-list">
-          <button className="fta-profile-back" onClick={() => setView(null)}>
-            <Icon name="chevron-left" size={18} /> Overview
-          </button>
-          {grants.length === 0 && !loading && !error && (
-            <p className="fta-note">Nothing given yet.</p>
+        <>
+          {grants.length === 0 && !loading && !error && <Empty icon="gift" title="Nothing given yet" />}
+          {grants.length > 0 && (
+            <>
+              <span className="dh-sub">Tap something still waiting to take it back.</span>
+              <div className="dh-card">
+                {grants.map(grant => {
+                  const Tag = grant.claimed_at ? 'div' : 'button'
+                  return (
+                    <Tag key={grant.id} type={grant.claimed_at ? undefined : 'button'} className="dh-row" onClick={grant.claimed_at ? undefined : () => revoke(grant)}>
+                      <span className={`dh-ic${grant.claimed_at ? ' muted' : ''}`}><Icon name={grant.kind === 'coins' ? 'pound' : grant.kind === 'message' ? 'bell' : 'gift'} size={18} /></span>
+                      <span className="dh-g">
+                        <span className="dh-t">
+                          {grant.kind === 'coins'
+                            ? `${grant.amount > 0 ? '+' : ''}${grant.amount.toLocaleString()} coins`
+                            : grant.kind === 'message'
+                              ? (grant.title || 'Message')
+                              : `${grant.item_id}`}
+                        </span>
+                        <span className="dh-sub">{[grant.username || 'unknown', grant.note].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      <Chip tone={grant.claimed_at ? 'green' : 'amber'}>{grant.claimed_at ? 'Claimed' : 'Waiting'}</Chip>
+                    </Tag>
+                  )
+                })}
+              </div>
+            </>
           )}
-          {grants.map(grant => (
-            <InfoRow
-              key={grant.id}
-              icon={grant.kind === 'coins' ? 'pound' : grant.kind === 'message' ? 'bell' : 'gift'}
-              tone={grant.claimed_at ? 'neutral' : 'accent'}
-              title={grant.kind === 'coins'
-                ? `${grant.amount > 0 ? '+' : ''}${grant.amount.toLocaleString()} coins`
-                : grant.kind === 'message'
-                  ? (grant.title || 'Message')
-                  : `${grant.item_id}`}
-              subtitle={[
-                grant.username || 'unknown',
-                grant.claimed_at ? 'claimed' : 'waiting',
-                grant.note,
-              ].filter(Boolean).join(' · ')}
-              onPress={grant.claimed_at ? undefined : () => revoke(grant)}
-            />
-          ))}
-        </div>
+        </>
       )}
 
       {!profileId && tab === 'message' && (
-        <MobileCard>
-          <SectionHeader title="Who gets it" />
-          <div className="fta-kinds">
-            <button
-              className={audience === 'everyone' ? 'on' : ''}
-              onClick={() => setAudience('everyone')}
-            >Everyone</button>
-            <button
-              className={audience === 'some' ? 'on' : ''}
-              onClick={() => setAudience('some')}
-            >Choose players</button>
-          </div>
-
+        <>
+          <Sec>Who gets it</Sec>
+          <Seg value={audience} onChange={setAudience} options={[{ value: 'everyone', label: 'Everyone' }, { value: 'some', label: 'Choose players' }]} />
           {audience === 'some' && (
-            <div className="fta-catalogue">
-              {players.map(person => (
-                <button
-                  key={person.id}
-                  className={`fta-item${chosen.has(person.id) ? ' on' : ''}`}
-                  onClick={() => toggleRecipient(person.id)}
-                >
-                  <span>{person.username}</span>
-                  {chosen.has(person.id) && <Icon name="check" size={16} />}
-                </button>
-              ))}
-              {players.length === 0 && <p className="fta-note">No players yet.</p>}
-            </div>
+            players.length === 0 ? <Note>No players yet.</Note> : (
+              <div className="dh-card ft-pick">
+                {players.map(person => (
+                  <button key={person.id} type="button" className="dh-row" onClick={() => toggleRecipient(person.id)}>
+                    <span className="dh-av round">{initials(person.username)}</span>
+                    <span className="dh-g"><span className="dh-t">{person.username}</span></span>
+                    <span className={`ft-check${chosen.has(person.id) ? ' on' : ''}`}>{chosen.has(person.id) && <Icon name="check" size={14} />}</span>
+                  </button>
+                ))}
+              </div>
+            )
           )}
 
-          <SectionHeader title="How it reaches them" />
-          <div className="fta-kinds">
-            <button
-              className={channels.push ? 'on' : ''}
-              onClick={() => setChannels(c => ({ ...c, push: !c.push }))}
-            >Phone notification</button>
-            <button
-              className={channels.inGame ? 'on' : ''}
-              onClick={() => setChannels(c => ({ ...c, inGame: !c.inGame }))}
-            >In the game</button>
+          <Sec>How it reaches them</Sec>
+          <div className="dh-card">
+            <ToggleRow title="Phone notification" sub="Arrives now, for anyone who allowed them" on={channels.push} onChange={() => setChannels(c => ({ ...c, push: !c.push }))} />
+            <ToggleRow title="In the game" sub="Waits until they next open Fish Tank" on={channels.inGame} onChange={() => setChannels(c => ({ ...c, inGame: !c.inGame }))} />
           </div>
-          <p className="fta-note">
-            {/* Said plainly because the two behave differently, and the
-                difference decides which one is the right choice. */}
-            A phone notification arrives now, for anyone who allowed them. The
-            in-game message waits until they next open Fish Tank, so it reaches
-            people a notification would not.
-          </p>
 
-          <SectionHeader title="Message" />
-          <input
-            className="fta-field"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Title"
-            maxLength={60}
-          />
-          <textarea
-            className="fta-field fta-textarea"
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="What do you want to tell them?"
-            rows={4}
-            maxLength={300}
-          />
+          <Sec>Message</Sec>
+          <div className="dh-card">
+            <Field label="Title" htmlFor="ft-title">
+              <input id="ft-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" maxLength={60} />
+            </Field>
+            <Field label="Message" htmlFor="ft-msg">
+              <textarea id="ft-msg" value={message} onChange={e => setMessage(e.target.value)} placeholder="What do you want to tell them?" rows={4} maxLength={300} />
+            </Field>
+          </div>
 
-          <label className="fta-check">
-            <input
-              type="checkbox"
-              checked={sendLater}
-              onChange={e => setSendLater(e.target.checked)}
-            />
-            Send later
-          </label>
-          {sendLater && (
-            <input
-              className="fta-field"
-              type="datetime-local"
-              value={sendAt}
-              onChange={e => setSendAt(e.target.value)}
-            />
-          )}
+          <div className="dh-card">
+            <ToggleRow title="Schedule it" sub="Written now, sent later" on={sendLater} onChange={setSendLater} />
+            {sendLater && (
+              <Field label="Send at" htmlFor="ft-at">
+                <input id="ft-at" type="datetime-local" value={sendAt} onChange={e => setSendAt(e.target.value)} />
+              </Field>
+            )}
+          </div>
 
-          <button
-            className="fta-primary"
-            onClick={announce}
-            disabled={busy || (!title.trim() && !message.trim()) || (sendLater && !sendAt)}
-          >
+          <Btn onPress={announce} disabled={busy || (!title.trim() && !message.trim()) || (sendLater && !sendAt)}>
             {busy ? 'Sending…' : sendLater ? 'Schedule it' : 'Send'}
-          </button>
-        </MobileCard>
+          </Btn>
+        </>
       )}
 
       {banning && (
-        <>
-          <div className="fta-scrim" onClick={() => !busy && setBanning(null)} />
-          <div className="fta-sheet">
-            <h2>Ban {banning.username}?</h2>
-
-            <p className="fta-note">
-              They will be signed out, removed from the leaderboards, and told
-              why. Their name stays taken so nobody else can claim it. Any
-              unclaimed grants are withdrawn.
-            </p>
-
-            <div className="fta-kinds">
-              {[[3, '3 days'], [7, '7 days'], [0, 'Forever']].map(([days, label]) => (
-                <button
-                  key={days}
-                  className={banDays === days ? 'on' : ''}
-                  onClick={() => setBanDays(days)}
-                >{label}</button>
-              ))}
-            </div>
-            <p className="fta-note">
-              {banDays > 0
-                ? `Lifts itself after ${banDays} days — the next time their game talks to the server.`
-                : 'Stays until you unban them.'}
-            </p>
-
-            <label className="fta-label" htmlFor="fta-ban-reason">
-              Reason — they will be shown this
-            </label>
-            <textarea
-              id="fta-ban-reason"
-              className="fta-field"
-              rows={3}
-              maxLength={300}
-              placeholder="Offensive username."
-              value={banReason}
-              onChange={event => setBanReason(event.target.value)}
-            />
-
-            <label className="fta-check">
-              <input
-                type="checkbox"
-                checked={notifyOnBan}
-                onChange={event => setNotifyOnBan(event.target.checked)}
-              />
-              Send a notification to their phone
-            </label>
-
-            <div className="fta-sheet-actions">
-              <button
-                className="fta-cancel"
-                disabled={busy}
-                onClick={() => setBanning(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="fta-confirm-ban"
-                disabled={busy}
-                onClick={banPlayer}
-              >
-                {busy ? 'Banning…' : 'Ban'}
-              </button>
-            </div>
+        <Sheet
+          title={`Ban ${banning.username}?`}
+          sub="They will be signed out, removed from the leaderboards, and told why. Their name stays taken so nobody else can claim it. Any unclaimed grants are withdrawn."
+          onClose={() => !busy && setBanning(null)}
+        >
+          <Seg value={banDays} onChange={setBanDays} options={[{ value: 3, label: '3 days' }, { value: 7, label: '7 days' }, { value: 0, label: 'Forever' }]} />
+          <span className="dh-sub">
+            {banDays > 0
+              ? `Lifts itself after ${banDays} days — the next time their game talks to the server.`
+              : 'Stays until you unban them.'}
+          </span>
+          <div className="dh-card">
+            <Field label="Reason — they will be shown this" htmlFor="fta-ban-reason">
+              <textarea id="fta-ban-reason" rows={3} maxLength={300} placeholder="Offensive username." value={banReason} onChange={event => setBanReason(event.target.value)} />
+            </Field>
+            <ToggleRow title="Send a notification to their phone" on={notifyOnBan} onChange={setNotifyOnBan} />
           </div>
-        </>
+          <Btns>
+            <Btn variant="outline" disabled={busy} onPress={() => setBanning(null)}>Cancel</Btn>
+            <Btn variant="danger" className="solid" disabled={busy} onPress={banPlayer}>{busy ? 'Banning…' : 'Ban'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
       {givingAll && (
-        <>
-          <div className="fta-scrim" onClick={() => !busy && setGivingAll(false)} />
-          <div className="fta-sheet">
-            <h2>Give coins to everyone</h2>
-            <p className="fta-note">
-              Every player who isn't banned gets the same grant, claimed next
-              time they open the game. Good for apologies and celebrations.
-            </p>
-            <input
-              className="fta-field"
-              type="number"
-              inputMode="numeric"
-              value={giveAllForm.amount}
-              onChange={e => setGiveAllForm(f => ({ ...f, amount: e.target.value }))}
-              placeholder="Coins each"
-            />
-            <input
-              className="fta-field"
-              value={giveAllForm.pushBody}
-              onChange={e => setGiveAllForm(f => ({ ...f, pushBody: e.target.value }))}
-              placeholder="Tell everyone on their phones (optional)"
-              maxLength={140}
-            />
-            <input
-              className="fta-field"
-              value={giveAllForm.note}
-              onChange={e => setGiveAllForm(f => ({ ...f, note: e.target.value }))}
-              placeholder="Note (for your records)"
-            />
-            <button className="fta-primary" disabled={busy} onClick={giveToEveryone}>
-              {busy ? 'Sending…' : 'Give it to everyone'}
-            </button>
-            <button className="fta-secondary" onClick={() => setGivingAll(false)}>Cancel</button>
+        <Sheet
+          title="Give coins to everyone"
+          sub="Every player who isn't banned gets the same grant, claimed next time they open the game. Good for apologies and celebrations."
+          onClose={() => !busy && setGivingAll(false)}
+        >
+          <div className="dh-card">
+            <Field label="Coins each" htmlFor="ft-all-amt">
+              <input id="ft-all-amt" type="number" inputMode="numeric" value={giveAllForm.amount} onChange={e => setGiveAllForm(f => ({ ...f, amount: e.target.value }))} placeholder="e.g. 500" />
+            </Field>
+            <Field label="Tell everyone on their phones (optional)" htmlFor="ft-all-push">
+              <input id="ft-all-push" value={giveAllForm.pushBody} onChange={e => setGiveAllForm(f => ({ ...f, pushBody: e.target.value }))} placeholder="Optional" maxLength={140} />
+            </Field>
+            <Field label="Note (for your records)" htmlFor="ft-all-note">
+              <input id="ft-all-note" value={giveAllForm.note} onChange={e => setGiveAllForm(f => ({ ...f, note: e.target.value }))} placeholder="Optional" />
+            </Field>
           </div>
-        </>
+          <Btns>
+            <Btn variant="outline" onPress={() => setGivingAll(false)}>Cancel</Btn>
+            <Btn disabled={busy} onPress={giveToEveryone}>{busy ? 'Sending…' : 'Give it'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
       {renaming && (
-        <>
-          <div className="fta-scrim" onClick={() => !busy && setRenaming(null)} />
-          <div className="fta-sheet">
-            <h2>Rename {renaming.username}</h2>
-            <p className="fta-note">
-              For names that are wrong but not ban-worthy. They keep their
-              account, scores and friends; they're told the new name on their
-              phone.
-            </p>
-            <input
-              className="fta-field"
-              value={renameDraft}
-              onChange={e => setRenameDraft(e.target.value)}
-              placeholder="New name"
-              maxLength={16}
-              autoCapitalize="none"
-            />
-            <button
-              className="fta-primary"
-              disabled={busy || !renameDraft.trim()}
-              onClick={renamePlayer}
-            >{busy ? 'Renaming…' : 'Rename'}</button>
-            <button className="fta-secondary" onClick={() => setRenaming(null)}>Cancel</button>
+        <Sheet
+          title={`Rename ${renaming.username}`}
+          sub="For names that are wrong but not ban-worthy. They keep their account, scores and friends; they're told the new name on their phone."
+          onClose={() => !busy && setRenaming(null)}
+        >
+          <div className="dh-card">
+            <Field label="New name" htmlFor="ft-rename">
+              <input id="ft-rename" value={renameDraft} onChange={e => setRenameDraft(e.target.value)} placeholder="New name" maxLength={16} autoCapitalize="none" />
+            </Field>
           </div>
-        </>
+          <Btns>
+            <Btn variant="outline" onPress={() => setRenaming(null)}>Cancel</Btn>
+            <Btn disabled={busy || !renameDraft.trim()} onPress={renamePlayer}>{busy ? 'Renaming…' : 'Rename'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
       {removing && (
-        <>
-          <div className="fta-scrim" onClick={() => !busy && setRemoving(null)} />
-          <div className="fta-sheet">
-            <h2>Remove {removing.username}?</h2>
-            <p className="fta-note">
-              This deletes the account outright — their name becomes free to
-              claim, their grants, scores and friendships go with it, and it
-              cannot be undone. Use ban for people who broke the rules; use
-              this for duplicates and abandoned sign-ups.
-            </p>
-            <div className="fta-sheet-actions">
-              <button
-                className="fta-cancel"
-                disabled={busy}
-                onClick={() => setRemoving(null)}
-              >Keep it</button>
-              <button
-                className="fta-confirm-ban"
-                disabled={busy}
-                onClick={removePlayer}
-              >{busy ? 'Removing…' : 'Remove forever'}</button>
-            </div>
-          </div>
-        </>
+        <Sheet
+          title={`Remove ${removing.username}?`}
+          sub="This deletes the account outright — their name becomes free to claim, their grants, scores and friendships go with it, and it cannot be undone. Use ban for people who broke the rules; use this for duplicates and abandoned sign-ups."
+          onClose={() => !busy && setRemoving(null)}
+        >
+          <Btns>
+            <Btn variant="outline" disabled={busy} onPress={() => setRemoving(null)}>Keep it</Btn>
+            <Btn variant="danger" className="solid" disabled={busy} onPress={removePlayer}>{busy ? 'Removing…' : 'Remove forever'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
       {granting && (
-        <>
-          <div className="fta-scrim" onClick={() => setGranting(null)} />
-          <div className="fta-sheet">
-            <h2>Give to {granting.username}</h2>
+        <Sheet title={`Give to ${granting.username}`} onClose={() => setGranting(null)}>
+          <Sec>What</Sec>
+          <Seg
+            value={form.kind}
+            onChange={(id) => { setForm(f => ({ ...f, kind: id, itemId: '' })); setItemSearch('') }}
+            options={[{ value: 'coins', label: 'Coins' }, { value: 'item', label: 'Fish' }, { value: 'prize', label: 'Upgrade' }]}
+          />
 
-            <div className="fta-kinds">
-              {[['coins', 'Coins'], ['item', 'Fish'], ['prize', 'Upgrade']].map(([id, label]) => (
-                <button
-                  key={id}
-                  className={form.kind === id ? 'on' : ''}
-                  onClick={() => {
-                    setForm(f => ({ ...f, kind: id, itemId: '' }))
-                    setItemSearch('')
-                  }}
-                >{label}</button>
-              ))}
-            </div>
+          {form.kind === 'coins' ? (
+            <>
+              {/* Give or take, chosen explicitly. Relying on somebody
+                  typing a minus sign makes taking coins back a hidden
+                  feature, and a mistyped sign the wrong way is a player
+                  waking up richer than intended. */}
+              <Seg value={form.direction} onChange={(d) => setForm(f => ({ ...f, direction: d }))} options={[{ value: 'give', label: 'Give' }, { value: 'take', label: 'Take away' }]} />
+              <div className="dh-card">
+                <Field
+                  label="How many coins"
+                  htmlFor="ft-amt"
+                  hint={form.direction === 'take' ? 'Their balance floors at zero — nobody goes into debt.' : 'Up to 1,000,000 at a time.'}
+                >
+                  <input id="ft-amt" type="number" inputMode="numeric" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="How many coins" />
+                </Field>
+              </div>
+            </>
+          ) : (
+            (() => {
+              const list = form.kind === 'item' ? catalogue.fish : catalogue.upgrades
+              const query = itemSearch.trim().toLowerCase()
+              const shown = query
+                ? list.filter(entry => entry.name.toLowerCase().includes(query))
+                : list
+              return (
+                <>
+                  {list.length > 8 && (
+                    <input
+                      className="dh-input"
+                      value={itemSearch}
+                      onChange={e => setItemSearch(e.target.value)}
+                      placeholder={`Search ${list.length} ${form.kind === 'item' ? 'fish' : 'upgrades'}`}
+                      autoCapitalize="none"
+                    />
+                  )}
+                  <div className="dh-card ft-pick">
+                    {shown.map(entry => (
+                      <button key={entry.id} type="button" className="dh-row" onClick={() => setForm(f => ({ ...f, itemId: entry.id }))}>
+                        <span className="dh-g"><span className="dh-t">{entry.name}</span></span>
+                        {entry.price > 0 && <span className="dh-sub">{entry.price.toLocaleString()}</span>}
+                        <span className={`ft-check${form.itemId === entry.id ? ' on' : ''}`}>{form.itemId === entry.id && <Icon name="check" size={14} />}</span>
+                      </button>
+                    ))}
+                    {list.length > 0 && shown.length === 0 && (
+                      <div className="dh-row"><span className="dh-sub">Nothing matches "{itemSearch}".</span></div>
+                    )}
+                    {list.length === 0 && (
+                      <div className="dh-row"><span className="dh-sub">Couldn't load the catalogue. Go back and refresh.</span></div>
+                    )}
+                  </div>
+                </>
+              )
+            })()
+          )}
 
-            {form.kind === 'coins' ? (
-              <>
-                {/* Give or take, chosen explicitly. Relying on somebody
-                    typing a minus sign makes taking coins back a hidden
-                    feature, and a mistyped sign the wrong way is a player
-                    waking up richer than intended. */}
-                <div className="fta-kinds fta-direction">
-                  <button
-                    className={form.direction === 'give' ? 'on' : ''}
-                    onClick={() => setForm(f => ({ ...f, direction: 'give' }))}
-                  >Give</button>
-                  <button
-                    className={form.direction === 'take' ? 'on take' : ''}
-                    onClick={() => setForm(f => ({ ...f, direction: 'take' }))}
-                  >Take away</button>
-                </div>
-                <input
-                  className="fta-field"
-                  type="number"
-                  inputMode="numeric"
-                  value={form.amount}
-                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="How many coins"
-                />
-                <p className="fta-note">
-                  {form.direction === 'take'
-                    ? 'Their balance floors at zero — nobody goes into debt.'
-                    : 'Up to 1,000,000 at a time.'}
-                </p>
-              </>
-            ) : (
-              <>
-                {(() => {
-                  const list = form.kind === 'item' ? catalogue.fish : catalogue.upgrades
-                  const query = itemSearch.trim().toLowerCase()
-                  const shown = query
-                    ? list.filter(entry => entry.name.toLowerCase().includes(query))
-                    : list
-                  return (
-                    <>
-                      {list.length > 8 && (
-                        <input
-                          className="fta-field"
-                          value={itemSearch}
-                          onChange={e => setItemSearch(e.target.value)}
-                          placeholder={`Search ${list.length} ${form.kind === 'item' ? 'fish' : 'upgrades'}`}
-                          autoCapitalize="none"
-                        />
-                      )}
-                      <div className="fta-catalogue">
-                        {shown.map(entry => (
-                          <button
-                            key={entry.id}
-                            className={`fta-item${form.itemId === entry.id ? ' on' : ''}`}
-                            onClick={() => setForm(f => ({ ...f, itemId: entry.id }))}
-                          >
-                            <span>{entry.name}</span>
-                            {entry.price > 0 && (
-                              <span className="fta-price">{entry.price.toLocaleString()}</span>
-                            )}
-                          </button>
-                        ))}
-                        {shown.length === 0 && (
-                          <p className="fta-note">Nothing matches "{itemSearch}".</p>
-                        )}
-                        {list.length === 0 && (
-                          <p className="fta-note">
-                            Couldn't load the catalogue. Pull back and refresh.
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )
-                })()}
-              </>
-            )}
-
-            <input
-              className="fta-field"
-              value={form.pushBody}
-              onChange={e => setForm(f => ({ ...f, pushBody: e.target.value }))}
-              placeholder="Tell them on their phone (optional)"
-              maxLength={140}
-            />
-
-            <input
-              className="fta-field"
-              value={form.note}
-              onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-              placeholder="Note (optional, for your records)"
-            />
-
-            <button className="fta-primary" onClick={submitGrant} disabled={busy}>
-              {busy ? 'Sending…' : 'Give it'}
-            </button>
-            <button className="fta-secondary" onClick={() => setGranting(null)}>Cancel</button>
+          <Sec>How it reaches them</Sec>
+          <div className="dh-card">
+            <Field label="Tell them on their phone (optional)" htmlFor="ft-push">
+              <input id="ft-push" value={form.pushBody} onChange={e => setForm(f => ({ ...f, pushBody: e.target.value }))} placeholder="Optional" maxLength={140} />
+            </Field>
+            <Field label="Note (for your records)" htmlFor="ft-note">
+              <input id="ft-note" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="Optional" />
+            </Field>
           </div>
-        </>
+
+          <Btns>
+            <Btn variant="outline" onPress={() => setGranting(null)}>Cancel</Btn>
+            <Btn onPress={submitGrant} disabled={busy}>{busy ? 'Sending…' : 'Give it'}</Btn>
+          </Btns>
+        </Sheet>
       )}
 
-      <button className="fta-forget" onClick={forgetKey}>Forget operator key on this device</button>
-
       <style>{`
-        .fta { padding: 16px 16px 60px; }
-
-        .fta-head {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-
-        .fta-head h1 {
-          margin: 0;
-          flex: 1;
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .fta-back, .fta-refresh {
-          background: none;
-          border: none;
-          padding: 6px;
-          color: var(--mobile-accent);
-          cursor: pointer;
-          display: grid;
-          place-items: center;
-        }
-
-        .fta-tabs {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 14px;
-        }
-
-        .fta-tabs button {
-          flex: 1;
-          padding: 9px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-card);
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
-
-        .fta-tabs button.active {
-          background: var(--mobile-accent);
-          border-color: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-        }
-
-        .fta-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .fta-player {
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        .fta-player-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .fta-player-top strong {
-          font-size: 16px;
-          color: var(--mobile-text);
-        }
-
-        .fta-platform {
-          margin-left: 8px;
-          font-size: 11.5px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-player-stats {
-          margin-top: 6px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-give {
-          padding: 8px 16px;
-          border-radius: 999px;
-          border: none;
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-player-actions {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        /* Destructive, so it does not look like the button beside it. Outlined
-           rather than filled: a solid red block next to "Give" is the kind of
-           thing that gets pressed by accident on a phone. */
-        .fta-ban {
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid var(--mobile-danger, #c0392b);
-          background: transparent;
-          color: var(--mobile-danger, #c0392b);
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-unban {
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid var(--mobile-border);
-          background: transparent;
-          color: var(--mobile-text, #111);
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        /* A banned row stays visible and readable — greying it into
-           illegibility would hide the very thing an operator came to check. */
-        .fta-player--banned {
-          border-left: 3px solid var(--mobile-danger, #c0392b);
-          opacity: 0.82;
-        }
-
-        .fta-banned-tag {
-          margin-left: 8px;
-          padding: 2px 8px;
-          border-radius: 999px;
-          background: var(--mobile-danger, #c0392b);
-          color: #fff;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-        }
-
-        .fta-ban-note {
-          margin-top: 6px;
-          font-size: 12.5px;
-          font-style: italic;
-          color: var(--mobile-muted, #666);
-        }
-
-        .fta-label {
-          display: block;
-          margin-top: 14px;
-          font-size: 12.5px;
-          font-weight: 700;
-          color: var(--mobile-muted, #666);
-        }
-
-        .fta-check {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 12px;
-          font-size: 14px;
-        }
-
-        .fta-sheet-actions {
-          display: flex;
-          gap: 10px;
-          margin-top: 18px;
-        }
-
-        .fta-sheet-actions button {
-          flex: 1;
-          padding: 14px;
-          border-radius: 12px;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-cancel {
-          border: 1px solid var(--mobile-border);
-          background: transparent;
-          color: var(--mobile-text, #111);
-        }
-
-        .fta-confirm-ban {
-          border: none;
-          background: var(--mobile-danger, #c0392b);
-          color: #fff;
-        }
-
-        .fta-sheet-actions button:disabled { opacity: 0.5; cursor: default; }
-
-        .fta-field {
-          width: 100%;
-          margin-top: 10px;
-          padding: 12px 14px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: var(--mobile-bg);
-          color: var(--mobile-text);
-          font-size: 15px;
-          font-family: inherit;
-        }
-
-        /* A field that sits on the right of an fta-kv row rather than
-           filling the card, so "iOS  [1.5]" reads as one line. */
-        .fta-field-inline {
-          width: 132px;
-          margin-top: 0;
-          padding: 9px 12px;
-          text-align: right;
-        }
-
-        .fta-chip-on, .fta-chip-off {
-          border: none;
-          border-radius: 999px;
-          padding: 5px 16px;
-          font-size: 13px;
-          font-weight: 600;
-          font-family: inherit;
-        }
-        .fta-chip-on  { background: #1f7a3d; color: #fff; }
-        .fta-chip-off { background: #8a2b22; color: #fff; }
-
-        .fta-log { padding: 7px 0; border-bottom: 1px solid var(--mobile-border); }
-        .fta-log:last-of-type { border-bottom: none; }
-        .fta-log-top { display: flex; justify-content: space-between; font-size: 14px; }
-        .fta-log-top span { color: var(--mobile-text-secondary); }
-        .fta-log-who { font-size: 12px; color: var(--mobile-text-secondary); }
-
-        .fta-danger {
-          width: 100%;
-          margin-top: 10px;
-          padding: 13px;
-          border: none;
-          border-radius: 12px;
-          background: #8a2b22;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 600;
-          font-family: inherit;
-        }
-
-        .fta-textarea { resize: vertical; }
-
-        /* Shown, not masked. A masked field hides exactly the paste damage
-           that stops the key working, and there is nobody to shoulder-surf a
-           key you are typing into your own phone. */
-        .fta-key {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-size: 13px;
-          letter-spacing: 0.02em;
-          word-break: break-all;
-        }
-
-        .fta-count {
-          margin: 6px 2px 0;
-          font-size: 12.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-note {
-          margin: 10px 2px 0;
-          font-size: 13px;
-          line-height: 1.45;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-failure {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 8px;
-        }
-
-        .fta-retry {
-          flex: none;
-          padding: 7px 14px;
-          border-radius: 999px;
-          border: none;
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-          font-size: 13.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-error {
-          margin: 4px 2px;
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #c0392b;
-        }
-
-        .fta-outcome {
-          margin: 4px 2px 12px;
-          font-size: 13.5px;
-          font-weight: 600;
-        }
-
-        .fta-outcome.ok { color: #1f7a4d; }
-        .fta-outcome.bad { color: #c0392b; }
-
-        .fta-primary {
-          width: 100%;
-          margin-top: 14px;
-          padding: 14px;
-          border: none;
-          border-radius: 12px;
-          background: var(--mobile-accent);
-          color: var(--mobile-on-accent);
-          font-size: 15.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-primary:disabled { opacity: 0.45; cursor: default; }
-
-        .fta-secondary {
-          width: 100%;
-          margin-top: 8px;
-          padding: 12px;
-          border: none;
-          border-radius: 12px;
-          background: none;
-          color: var(--mobile-text-secondary);
-          font-size: 14.5px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .fta-scrim {
-          position: fixed;
-          inset: 0;
-          background: rgba(10, 20, 30, 0.4);
-          z-index: 8;
-        }
-
-        .fta-sheet {
-          position: fixed;
-          left: 12px;
-          right: 12px;
-          bottom: 90px;
-          z-index: 9;
-          background: var(--mobile-card);
-          border-radius: 18px;
-          padding: 20px;
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-          max-height: 78vh;
-          overflow-y: auto;
-        }
-
-        .fta-sheet h2 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--mobile-text);
-        }
-
-        .fta-kinds {
-          display: flex;
-          gap: 8px;
-          margin-top: 14px;
-        }
-
-        .fta-kinds button {
-          flex: 1;
-          padding: 9px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: none;
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
-
-        .fta-kinds button.on {
-          border-color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-        }
-
-        /* Taking coins away is coloured differently from giving them. The two
-           are one tap apart and they are not the same act. */
-        .fta-kinds button.on.take {
-          border-color: #c0392b;
-          background: rgba(192, 57, 43, 0.1);
-          color: #c0392b;
-        }
-
-        .fta-direction { margin-top: 12px; }
-
-        .fta-catalogue {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin-top: 10px;
-          max-height: 220px;
-          overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .fta-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 11px 14px;
-          border-radius: 10px;
-          border: 1px solid var(--mobile-border);
-          background: none;
-          font-size: 15px;
-          font-weight: 500;
-          color: var(--mobile-text);
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .fta-item.on {
-          border-color: var(--mobile-accent);
-          background: var(--mobile-accent-soft);
-          color: var(--mobile-accent);
-          font-weight: 700;
-        }
-
-        .fta-price {
-          flex: none;
-          font-size: 13px;
-          font-variant-numeric: tabular-nums;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-item.on .fta-price { color: var(--mobile-accent); }
-
-        .fta-chevron { color: var(--mobile-text-secondary); display: grid; place-items: center; }
-
-        /* The row is a button now; keep it looking like the card it was. */
-        .fta-player {
-          border: none;
-          width: 100%;
-          text-align: left;
-          font: inherit;
-          cursor: pointer;
-        }
-
-        .fta-stale-tag {
-          margin-left: 8px;
-          padding: 2px 8px;
-          border-radius: 999px;
-          background: rgba(150, 110, 20, 0.14);
-          color: #8a6d1a;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-        }
-
-        .fta-profile-back {
-          display: inline-flex;
-          align-items: center;
-          gap: 2px;
-          border: none;
-          background: none;
-          padding: 4px 0 10px;
-          color: var(--mobile-accent);
-          font-size: 14.5px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .fta-profile-head h2 {
-          margin: 0;
-          font-size: 24px;
-          font-weight: 800;
-          color: var(--mobile-text);
-        }
-
-        .fta-profile-chips { margin-top: 4px; }
-        .fta-profile-chips .fta-platform { margin-left: 0; }
-
-        .fta-stale-note {
-          margin: 10px 2px 0;
-          font-size: 13px;
-          line-height: 1.45;
-          color: #8a6d1a;
-        }
-
-        .fta-kv {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          gap: 12px;
-          padding: 7px 0;
-          font-size: 14px;
-        }
-
-        .fta-kv span { color: var(--mobile-text-secondary); }
-        .fta-kv strong { color: var(--mobile-text); font-weight: 600; text-align: right; }
-
-        .fta-sibling {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          padding: 10px 0;
-          border: none;
-          border-top: 1px solid var(--mobile-border);
-          background: none;
-          font: inherit;
-          font-size: 14px;
-          color: var(--mobile-text);
-          cursor: pointer;
-          text-align: left;
-        }
-
-        .fta-sibling-when { color: var(--mobile-text-secondary); font-size: 12.5px; flex: none; }
-
-        .fta-crash {
-          display: block;
-          width: 100%;
-          padding: 10px 0;
-          border: none;
-          border-top: 1px solid var(--mobile-border);
-          background: none;
-          font: inherit;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .fta-crash-top {
-          display: flex;
-          justify-content: space-between;
-          font-size: 12px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-crash-message {
-          margin-top: 4px;
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #c0392b;
-          word-break: break-word;
-        }
-
-        .fta-crash-stack {
-          margin: 8px 0 0;
-          padding: 10px;
-          border-radius: 8px;
-          background: var(--mobile-bg);
-          font-size: 11px;
-          line-height: 1.5;
-          white-space: pre-wrap;
-          word-break: break-all;
-          color: var(--mobile-text-secondary);
-          max-height: 240px;
-          overflow-y: auto;
-        }
-
-        .fta-profile-actions { margin-top: 16px; }
-
-        .fta-wide {
-          width: 100%;
-          margin-top: 8px;
-          padding: 14px;
-          border-radius: 12px;
-          font-size: 15px;
-        }
-
-        .fta-remove {
-          width: 100%;
-          margin-top: 18px;
-          padding: 12px;
-          border: none;
-          background: none;
-          color: #c0392b;
-          font-size: 13.5px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .fta-stat-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-        }
-
-        .fta-stat {
-          background: var(--mobile-card);
-          border-radius: 12px;
-          padding: 12px 8px;
-          text-align: center;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        .fta-stat strong {
-          display: block;
-          font-size: 22px;
-          font-weight: 800;
-          font-variant-numeric: tabular-nums;
-          color: var(--mobile-text);
-        }
-
-        .fta-stat span {
-          display: block;
-          margin-top: 2px;
-          font-size: 11.5px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .fta-tool {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          width: 100%;
-          padding: 12px 0;
-          border: none;
-          border-top: 1px solid var(--mobile-border);
-          background: none;
-          font: inherit;
-          text-align: left;
-          color: var(--mobile-text);
-          cursor: pointer;
-        }
-
-        .fta-tool strong { display: block; font-size: 15px; }
-        .fta-tool em {
-          display: block;
-          margin-top: 1px;
-          font-size: 12.5px;
-          font-style: normal;
-          color: var(--mobile-text-secondary);
-        }
-
-        /* Closing the whole game is the most consequential button on the
-           screen, and it looks like it. */
-        .fta-maintenance-close {
-          width: 100%;
-          margin-top: 12px;
-          padding: 14px;
-          border: none;
-          border-radius: 12px;
-          background: var(--mobile-danger, #c0392b);
-          color: #fff;
-          font-size: 15.5px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .fta-crash--card {
-          background: var(--mobile-card);
-          border-radius: 14px;
-          border-top: none;
-          padding: 12px 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-        }
-
-        .fta-forget {
-          width: 100%;
-          margin-top: 26px;
-          padding: 12px;
-          border: none;
-          background: none;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          cursor: pointer;
-        }
+        .ft-hero { background: #0e7490; }
+        .ft-hero .dh-sub { color: #cff3fa; }
+        .ft-hero-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .ft-hero-nums > div { display: flex; flex-direction: column; }
+        .ft-hero-nums .dh-num { color: #fff; font-size: 26px; }
+        .ft-check { width: 24px; height: 24px; flex: none; border-radius: 12px; border: 1.5px solid var(--mobile-border); display: flex; align-items: center; justify-content: center; color: #fff; }
+        .ft-check.on { background: var(--mobile-accent); border-color: var(--mobile-accent); }
+        .ft-pick { max-height: 320px; overflow-y: auto; }
+        .ft-crash-stack { margin: 6px 0 0; padding: 10px; border-radius: 10px; background: var(--mobile-bg); font-size: 11px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow-y: auto; }
       `}</style>
-    </div>
+    </Screen>
+  )
+}
+
+function CrashRow({ crash, who, open, onToggle, ago }) {
+  return (
+    <button type="button" className="dh-row top" onClick={onToggle}>
+      <span className="dh-ic muted"><Icon name="alertTriangle" size={18} /></span>
+      <span className="dh-g">
+        <span className="dh-t" style={{ fontWeight: 500, overflowWrap: 'anywhere' }}>{crash.message}</span>
+        <span className="dh-sub">
+          {[who, ago(crash.created_at), crash.platform, crash.app_version ? `v${crash.app_version}` : null].filter(Boolean).join(' · ')}
+        </span>
+        {open && crash.stack && <pre className="ft-crash-stack">{crash.stack}</pre>}
+      </span>
+    </button>
   )
 }

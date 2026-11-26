@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Screen, Sec, Pills, Pill, Btn, Btns, Empty, Loading } from '../components/UI'
 
 export default function MobileNotifications({ goBack, user, navigate }) {
   const [notifications, setNotifications] = useState([])
@@ -140,226 +140,54 @@ export default function MobileNotifications({ goBack, user, navigate }) {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
+  const isToday = (t) => new Date(t).toDateString() === new Date().toDateString()
+  const today = filteredNotifications.filter(n => isToday(n.created_at))
+  const earlier = filteredNotifications.filter(n => !isToday(n.created_at))
+  const list = (items) => (
+    <div className="dh-card">
+      {items.map(notification => {
+        const icon = getNotificationIcon(notification.type)
+        return (
+          <button key={notification.id} type="button" className="dh-row top" onClick={() => handleNotificationTap(notification)}>
+            <span className={`dh-ic${notification.read ? ' muted' : ''}`}><Icon name={icon.name} size={18} /></span>
+            <span className="dh-g">
+              <span className="dh-t" style={{ fontWeight: notification.read ? 500 : 600 }}>{notification.title}</span>
+              {notification.message && <span className="dh-sub">{notification.message}</span>}
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <span className="dh-sub">{formatTime(notification.created_at)}</span>
+              {!notification.read && <span className="nt-dot" />}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Notifications</h1>
-        <div style={{ width: 60 }} />
-      </div>
+    <Screen title="Notifications" onBack={goBack}>
+      <Pills>
+        <Pill on={filter === 'all'} onPress={() => setFilter('all')}>All {notifications.length}</Pill>
+        <Pill on={filter === 'unread'} onPress={() => setFilter('unread')}>Unread {unreadCount}</Pill>
+        <Pill on={filter === 'read'} onPress={() => setFilter('read')}>Read {notifications.length - unreadCount}</Pill>
+      </Pills>
 
-      {/* Filter Chips */}
-      <div style={{ padding: '16px 20px', background: 'var(--mobile-bg)', borderBottom: '1px solid var(--mobile-border)' }}>
-        <div className="filter-chips">
-          <button
-            className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-            onClick={async () => {
-              await Haptics.impact({ style: ImpactStyle.Light })
-              setFilter('all')
-            }}
-          >
-            All ({notifications.length})
-          </button>
-          <button
-            className={`filter-chip ${filter === 'unread' ? 'active' : ''}`}
-            onClick={async () => {
-              await Haptics.impact({ style: ImpactStyle.Light })
-              setFilter('unread')
-            }}
-          >
-            Unread ({unreadCount})
-          </button>
-          <button
-            className={`filter-chip ${filter === 'read' ? 'active' : ''}`}
-            onClick={async () => {
-              await Haptics.impact({ style: ImpactStyle.Light })
-              setFilter('read')
-            }}
-          >
-            Read ({notifications.length - unreadCount})
-          </button>
-        </div>
-      </div>
-
-      {/* Actions */}
-      {notifications.length > 0 && (
-        <div style={{ padding: '12px 20px', background: 'var(--mobile-card)', borderBottom: '1px solid var(--mobile-border)' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {unreadCount > 0 && (
-              <button className="action-button" onClick={handleMarkAllAsRead}>
-                <Icon name="checkCircle" size={16} color="var(--mobile-accent)" />
-                Mark all read
-              </button>
-            )}
-            <button className="action-button danger" onClick={handleClearAll}>
-              <Icon name="trash" size={16} color="#ff3b30" />
-              Clear all
-            </button>
-          </div>
-        </div>
+      {loading ? <Loading /> : filteredNotifications.length === 0 ? (
+        <Empty icon="bell" title={filter === 'unread' ? 'No unread notifications' : filter === 'read' ? 'No read notifications' : 'No notifications'} />
+      ) : (
+        <>
+          {today.length > 0 && <><Sec>Today</Sec>{list(today)}</>}
+          {earlier.length > 0 && <><Sec>Earlier</Sec>{list(earlier)}</>}
+        </>
       )}
 
-      {/* Notification List */}
-      <div style={{ padding: '20px', paddingBottom: '100px' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div className="spinner" />
-          </div>
-        ) : filteredNotifications.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Icon name="bell" size={48} color="var(--mobile-border)" />
-            <p style={{ marginTop: 16, fontSize: 15, color: 'var(--mobile-text-secondary)' }}>
-              {filter === 'unread' ? 'No unread notifications' : filter === 'read' ? 'No read notifications' : 'No notifications'}
-            </p>
-          </div>
-        ) : (
-          <div className="notification-list">
-            {filteredNotifications.map(notification => {
-              const icon = getNotificationIcon(notification.type)
-              return (
-                <MobileCard
-                  key={notification.id}
-                  onPress={() => handleNotificationTap(notification)}
-                  style={{ opacity: notification.read ? 0.6 : 1 }}
-                >
-                  <div className="notification-item">
-                    <div className="notification-icon" style={{ background: `${icon.color}20` }}>
-                      <Icon name={icon.name} size={20} color={icon.color} />
-                    </div>
-                    <div className="notification-content">
-                      <div className="notification-header">
-                        <div className="notification-title">{notification.title}</div>
-                        {!notification.read && <div className="unread-badge" />}
-                      </div>
-                      <div className="notification-message">{notification.message}</div>
-                      <div className="notification-time">{formatTime(notification.created_at)}</div>
-                    </div>
-                  </div>
-                </MobileCard>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        .filter-chips {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .filter-chip {
-          padding: 8px 16px;
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-border);
-          border-radius: 20px;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--mobile-text);
-          white-space: nowrap;
-          cursor: pointer;
-        }
-
-        .filter-chip.active {
-          background: var(--mobile-accent);
-          color: white;
-          border-color: var(--mobile-accent);
-        }
-
-        .action-button {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: var(--mobile-card);
-          border: 1px solid var(--mobile-accent);
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--mobile-accent);
-          cursor: pointer;
-        }
-
-        .action-button.danger {
-          border-color: #ff3b30;
-          color: #ff3b30;
-        }
-
-        .action-button:active {
-          opacity: 0.7;
-        }
-
-        .notification-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .notification-item {
-          display: flex;
-          gap: 12px;
-          padding: 4px;
-        }
-
-        .notification-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .notification-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .notification-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 4px;
-        }
-
-        .notification-title {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-          flex: 1;
-        }
-
-        .unread-badge {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--mobile-accent);
-          flex-shrink: 0;
-        }
-
-        .notification-message {
-          font-size: 14px;
-          color: #6b6158;
-          line-height: 1.4;
-          margin-bottom: 4px;
-        }
-
-        .notification-time {
-          font-size: 12px;
-          color: var(--mobile-text-secondary);
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      {notifications.length > 0 && (
+        <Btns>
+          {unreadCount > 0 ? <Btn variant="outline" onPress={handleMarkAllAsRead}>Mark all read</Btn> : <span />}
+          <Btn variant="danger" onPress={handleClearAll}>Clear all</Btn>
+        </Btns>
+      )}
+      <style>{`.nt-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--mobile-accent); }`}</style>
+    </Screen>
   )
 }

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { supabase } from '../../utils/supabase'
 import Icon from '../components/Icon'
-import MobileCard from '../components/MobileCard'
+import { Screen, KV, Field, Btn } from '../components/UI'
 
 export default function MobileTimesheet({ goBack, user }) {
   const [currentWeek, setCurrentWeek] = useState(0) // 0 = this week, 1-3 = next weeks
@@ -160,148 +160,28 @@ export default function MobileTimesheet({ goBack, user }) {
 
   if (showEntryModal) {
     return (
-      <div className="mobile-screen">
-        <div className="mobile-screen-header">
-          <button className="mobile-back-btn" onClick={() => setShowEntryModal(false)}>
-            <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-          </button>
-          <h1>Schedule Work</h1>
-          <div style={{ width: 60 }} />
+      <Screen title="Schedule work" onBack={() => setShowEntryModal(false)}>
+        <div className="dh-card">
+          <KV k="Date" v={selectedDate} />
+          <Field label="Hours" htmlFor="ts-hours">
+            <input id="ts-hours" type="number" min="0" max="24" step="0.5" inputMode="decimal" value={entryForm.hours} onChange={(e) => setEntryForm({ ...entryForm, hours: e.target.value })} />
+          </Field>
+          <Field label="Notes" htmlFor="ts-note">
+            <textarea id="ts-note" rows={3} value={entryForm.notes} onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })} placeholder="Optional, e.g. working from the office" />
+          </Field>
         </div>
-
-        <div style={{ padding: '20px' }}>
-          <div className="form-group">
-            <label className="form-label">Date</label>
-            <div className="date-display">{selectedDate}</div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Hours</label>
-            <input
-              type="number"
-              className="form-input"
-              min="0"
-              max="24"
-              step="0.5"
-              value={entryForm.hours}
-              onChange={(e) => setEntryForm({ ...entryForm, hours: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Notes (optional)</label>
-            <textarea
-              className="form-input"
-              rows={3}
-              value={entryForm.notes}
-              onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
-              placeholder="e.g., Working from office"
-            />
-          </div>
-
-          <button className="btn-primary" onClick={handleSaveEntry}>
-            Save Schedule
-          </button>
-
-          {schedule[selectedDate] && (
-            <button className="btn-delete" onClick={handleDeleteEntry}>
-              <Icon name="trash" size={18} color="#ff3b30" />
-              Remove
-            </button>
-          )}
-        </div>
-
-        <style>{`
-          .form-group {
-            margin-bottom: 20px;
-          }
-
-          .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--mobile-text);
-            margin-bottom: 8px;
-          }
-
-          .form-input {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid var(--mobile-border);
-            border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          }
-
-          .form-input:focus {
-            outline: none;
-            border-color: var(--mobile-accent);
-          }
-
-          .date-display {
-            padding: 12px;
-            background: var(--mobile-bg);
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--mobile-text);
-          }
-
-          .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: var(--mobile-accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 12px;
-          }
-
-          .btn-primary:active {
-            opacity: 0.8;
-          }
-
-          .btn-delete {
-            width: 100%;
-            padding: 14px;
-            background: var(--mobile-card);
-            color: #ff3b30;
-            border: 1px solid #ff3b30;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-
-          .btn-delete:active {
-            opacity: 0.8;
-          }
-        `}</style>
-      </div>
+        <Btn onPress={handleSaveEntry}>Save</Btn>
+        {schedule[selectedDate] && <Btn variant="danger" onPress={handleDeleteEntry}>Remove</Btn>}
+      </Screen>
     )
   }
 
   return (
-    <div className="mobile-screen">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Work Schedule</h1>
-        <div style={{ width: 60 }} />
-      </div>
-
-      {/* Week Navigation */}
-      <div className="week-nav">
+    <Screen title="Work schedule" onBack={goBack}>
+      <div className="rota-nav">
         <button
-          className="week-nav-btn"
+          type="button"
+          className="dh-back"
           onClick={async () => {
             if (currentWeek > 0) {
               await Haptics.impact({ style: ImpactStyle.Light })
@@ -309,12 +189,13 @@ export default function MobileTimesheet({ goBack, user }) {
             }
           }}
           disabled={currentWeek === 0}
-        >
-          <Icon name="chevronLeft" size={20} color={currentWeek === 0 ? 'var(--mobile-border)' : 'var(--mobile-accent)'} />
-        </button>
-        <div className="week-label">{weekLabel}</div>
+          aria-label="Previous week"
+          style={{ opacity: currentWeek === 0 ? 0.3 : 1 }}
+        ><Icon name="chevronLeft" size={22} /></button>
+        <span className="dh-h2" style={{ fontSize: 17 }}>{weekLabel}</span>
         <button
-          className="week-nav-btn"
+          type="button"
+          className="dh-back"
           onClick={async () => {
             if (currentWeek < 3) {
               await Haptics.impact({ style: ImpactStyle.Light })
@@ -322,295 +203,53 @@ export default function MobileTimesheet({ goBack, user }) {
             }
           }}
           disabled={currentWeek === 3}
-        >
-          <Icon name="chevronRight" size={20} color={currentWeek === 3 ? 'var(--mobile-border)' : 'var(--mobile-accent)'} />
-        </button>
+          aria-label="Next week"
+          style={{ opacity: currentWeek === 3 ? 0.3 : 1 }}
+        ><Icon name="chevronRight" size={22} /></button>
       </div>
 
-      <div className="ts-body">
-        <div className="ts-total">
-          <span>Scheduled this week</span>
-          <strong>{totalHoursThisWeek}h</strong>
-        </div>
-
-        <div className="ts-days">
-          {weekDates.map(date => {
-            const dateStr = formatDate(date)
-            const entry = schedule[dateStr]
-            const isToday = formatDate(new Date()) === dateStr
-            const isPast = date < new Date() && !isToday
-
-            return (
-              <div
-                key={dateStr}
-                className={[
-                  'ts-day',
-                  isToday && 'is-today',
-                  isPast && 'is-past',
-                ].filter(Boolean).join(' ')}
-                onClick={() => !isPast && handleDatePress(date)}
-              >
-                <div className="ts-day-date">
-                  <span className="ts-dow">{formatDisplayDate(date).split(' ')[0]}</span>
-                  <span className="ts-num">{date.getDate()}</span>
-                </div>
-
-                <div className="ts-day-body">
-                  {entry ? (
-                    <>
-                      <div className="ts-day-top">
-                        <strong>{entry.hours}h scheduled</strong>
-                      </div>
-                      {entry.notes && <div className="ts-day-note">{entry.notes}</div>}
-                    </>
-                  ) : (
-                    <div className="ts-day-empty">
-                      {isPast ? 'Past' : 'Tap to schedule'}
-                    </div>
-                  )}
-                </div>
-
-                {!isPast && <Icon name="chevron-right" size={16} />}
-              </div>
-            )
-          })}
-        </div>
-
-        <p className="ts-note">
-          Plan your hours for the next four weeks. Actual hours come from GPS
-          clock-in, not from here.
-        </p>
+      <div className="dh-card">
+        {weekDates.map(date => {
+          const dateStr = formatDate(date)
+          const entry = schedule[dateStr]
+          const isToday = formatDate(new Date()) === dateStr
+          const isPast = date < new Date() && !isToday
+          const Tag = isPast ? 'div' : 'button'
+          return (
+            <Tag
+              key={dateStr}
+              type={isPast ? undefined : 'button'}
+              className="dh-row"
+              style={{ background: isToday ? 'var(--mobile-accent-soft)' : undefined, opacity: isPast ? 0.55 : 1 }}
+              onClick={isPast ? undefined : () => handleDatePress(date)}
+            >
+              <span className="rota-date"><span className="dh-t">{formatDisplayDate(date).split(' ')[0]}</span><span className="dh-sub">{date.getDate()}</span></span>
+              <span className="dh-g">
+                {entry ? (
+                  <>
+                    <span className="dh-t">{entry.hours}h scheduled</span>
+                    {entry.notes && <span className="dh-sub">{entry.notes}</span>}
+                  </>
+                ) : <span className="dh-sub">{isPast ? 'Past' : 'Tap to schedule'}</span>}
+              </span>
+              {!isPast && <span className="dh-chev"><Icon name="chevron-right" size={18} /></span>}
+            </Tag>
+          )
+        })}
       </div>
 
+      <div className="dh-card">
+        <div className="dh-row"><span className="dh-g"><span className="dh-t">Scheduled this week</span></span><span className="dh-val">{totalHoursThisWeek}h</span></div>
+      </div>
+
+      <span className="dh-sub">
+        Plan your hours for the next four weeks. Actual hours come from GPS
+        clock-in, not from here.
+      </span>
       <style>{`
-        .ts-body {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 16px 16px 110px;
-        }
-
-        .ts-total {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 14px 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-          font-size: 15px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .ts-total strong {
-          font-size: 18px;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .ts-days {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .ts-day {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: var(--mobile-card);
-          border-radius: 14px;
-          padding: 13px 14px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
-          cursor: pointer;
-          color: var(--mobile-text-secondary);
-        }
-
-        /* A past day cannot be scheduled, so it reads as inert rather than
-           merely faint — the old version dimmed it but still looked tappable. */
-        .ts-day.is-past {
-          opacity: 0.55;
-          cursor: default;
-          box-shadow: none;
-          background: transparent;
-          border: 1px dashed var(--mobile-border);
-        }
-
-        .ts-day.is-today {
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), inset 3px 0 0 var(--mobile-accent);
-        }
-
-        .ts-day-date {
-          flex: 0 0 42px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1px;
-        }
-
-        .ts-dow {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-        }
-
-        .ts-num {
-          font-size: 19px;
-          font-weight: 700;
-          color: var(--mobile-text);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .ts-day-body { flex: 1; min-width: 0; }
-
-        .ts-day-top strong {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .ts-day-note {
-          margin-top: 2px;
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .ts-day-empty { font-size: 14px; }
-
-        .ts-day svg { color: var(--mobile-text-secondary); opacity: 0.5; }
-
-        .ts-note {
-          margin: 6px 4px 0;
-          font-size: 13px;
-          line-height: 1.45;
-          color: var(--mobile-text-secondary);
-        }
-
-        .week-nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          background: var(--mobile-card);
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .week-nav-btn {
-          width: 44px;
-          height: 44px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: none;
-          background: none;
-          cursor: pointer;
-        }
-
-        .week-nav-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-
-        .week-label {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .total-hours {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 4px;
-        }
-
-        .total-hours-label {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          margin-bottom: 4px;
-        }
-
-        .total-hours-value {
-          font-size: 24px;
-          font-weight: 700;
-          color: var(--mobile-accent);
-        }
-
-        .calendar {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .calendar-day {
-          padding: 4px;
-        }
-
-        .calendar-day-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .calendar-day-name {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--mobile-text);
-        }
-
-        .calendar-day-name.today {
-          color: var(--mobile-accent);
-        }
-
-        .calendar-day-hours {
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--mobile-accent);
-        }
-
-        .calendar-day-notes {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          font-style: italic;
-        }
-
-        .calendar-day-empty {
-          font-size: 13px;
-          color: #a8a096;
-        }
-
-        .info-banner {
-          position: fixed;
-          bottom: 60px;
-          left: 20px;
-          right: 20px;
-          background: #e3f2fd;
-          border: 1px solid var(--mobile-accent);
-          border-radius: 8px;
-          padding: 12px 16px;
-          display: flex;
-          gap: 12px;
-          align-items: flex-start;
-        }
-
-        .info-banner p {
-          margin: 0;
-          font-size: 12px;
-          color: var(--mobile-accent);
-          line-height: 1.5;
-        }
-
-        @supports (padding: max(0px)) {
-          .info-banner {
-            bottom: max(60px, calc(60px + env(safe-area-inset-bottom)));
-          }
-        }
+        .rota-nav { display: flex; align-items: center; justify-content: space-between; margin: -4px -12px; }
+        .rota-date { width: 44px; flex: none; display: flex; flex-direction: column; gap: 2px; }
       `}</style>
-    </div>
+    </Screen>
   )
 }

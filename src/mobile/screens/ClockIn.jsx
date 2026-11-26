@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
 import { Geolocation } from '@capacitor/geolocation'
-import MobileButton from '../components/MobileButton'
-import MobileCard from '../components/MobileCard'
+import { Screen, Card, Sec, KV, Btn, Hero, Note } from '../components/UI'
 import Icon from '../components/Icon'
 import { clockIn, clockOut, getTodayAttendance, verifyLocationNearOffice, OFFICE_LOCATIONS } from '../../utils/gpsClockIn'
 
@@ -140,246 +139,79 @@ export default function MobileClockIn({ goBack, user }) {
     })
   }
 
+  const blocked = !!(locationStatus && !locationStatus.verified)
   return (
-    <div className="mobile-clockin">
-      <div className="mobile-screen-header">
-        <button className="mobile-back-btn" onClick={goBack}>
-          <Icon name="chevronLeft" size={24} color="var(--mobile-accent)" />
-        </button>
-        <h1>Clock In/Out</h1>
-        <div style={{ width: 40 }} />
-      </div>
-
-      <div className="mobile-time-display">
-        <div className="mobile-time-large">
-          {formatTime(currentTime)}
-        </div>
-        <div className="mobile-date">
-          {formatDate(currentTime)}
-        </div>
-      </div>
+    <Screen title="Clock in" onBack={goBack}>
+      <Hero dark className="ci-hero">
+        <span className="dh-sub">{formatDate(currentTime)}</span>
+        <span className="dh-big ci-time">{formatTime(currentTime)}</span>
+        <span className="dh-sub">
+          {isClockedIn && attendance
+            ? `Clocked in at ${new Date(attendance.clock_in).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Not clocked in'}
+        </span>
+      </Hero>
 
       {locationStatus?.needsPermission && (
-        <MobileCard style={{ margin: '0 20px 20px' }}>
-          <div className="permission-prompt">
-            <Icon name="mapPin" size={32} color="#ff9500" />
-            <h3>Location Permission Required</h3>
-            <p>We need your location to verify you're at the office when clocking in.</p>
-            <MobileButton fullWidth onPress={requestLocationPermission}>
-              Enable Location
-            </MobileButton>
-          </div>
-        </MobileCard>
+        <Card pad>
+          <span className="dh-ic" style={{ background: '#FFF1DE', color: '#8A4A00' }}><Icon name="mapPin" size={18} /></span>
+          <span className="dh-t">Location permission needed</span>
+          <span className="dh-sub">We need your location to verify you're at the office when clocking in.</span>
+          <Btn onPress={requestLocationPermission}>Enable location</Btn>
+        </Card>
       )}
 
       {locationStatus && !locationStatus.needsPermission && (
-        <MobileCard className="mobile-location-card">
-          <div className="mobile-location-status">
-            <Icon
-              name={locationStatus.verified ? 'checkCircle' : 'alertTriangle'}
-              size={28}
-              color={locationStatus.verified ? '#34c759' : '#ff9500'}
-            />
+        <div className="dh-card">
+          <div className="dh-row">
+            <span className="dh-ic" style={locationStatus.verified ? { background: '#EAF7EE', color: '#1E7B3A' } : { background: '#FFF1DE', color: '#8A4A00' }}>
+              <Icon name={locationStatus.verified ? 'checkCircle' : 'alertTriangle'} size={18} />
+            </span>
             {locationStatus.verified ? (
-              <div>
-                <h3>Location Verified</h3>
-                <p>{locationStatus.office}</p>
-                <p className="mobile-location-distance">
-                  {locationStatus.distance}m from office
-                </p>
-              </div>
+              <span className="dh-g">
+                <span className="dh-t">Location verified</span>
+                <span className="dh-sub">{locationStatus.office} · {locationStatus.distance}m from the office</span>
+              </span>
             ) : (
-              <div>
-                <h3>Location Not Verified</h3>
-                <p>
-                  You are {locationStatus.distanceToNearestOffice}m from{' '}
-                  {locationStatus.nearestOffice}
-                </p>
-                <p className="mobile-location-help">
-                  Please be within {OFFICE_LOCATIONS[0].radius}m of an office to clock in
-                </p>
-              </div>
+              <span className="dh-g">
+                <span className="dh-t">Location not verified</span>
+                <span className="dh-sub">You are {locationStatus.distanceToNearestOffice}m from {locationStatus.nearestOffice}. Be within {OFFICE_LOCATIONS[0].radius}m of an office to clock in.</span>
+              </span>
             )}
           </div>
-        </MobileCard>
-      )}
-
-      <div className="mobile-clock-button-container">
-        {!isClockedIn ? (
-          <MobileButton
-            variant="success"
-            fullWidth
-            loading={loading}
-            disabled={locationStatus && !locationStatus.verified}
-            onPress={handleClockIn}
-            icon={<Icon name="play" size={20} color="white" />}
-          >
-            Clock In
-          </MobileButton>
-        ) : (
-          <MobileButton
-            variant="danger"
-            fullWidth
-            loading={loading}
-            onPress={handleClockOut}
-            icon={<Icon name="pause" size={20} color="white" />}
-          >
-            Clock Out
-          </MobileButton>
-        )}
-      </div>
-
-      {isClockedIn && attendance && (
-        <MobileCard style={{ margin: '0 20px 20px' }}>
-          <div className="mobile-session-info">
-            <h3>Current Session</h3>
-            <div className="mobile-session-row">
-              <span>Clock In</span>
-              <strong>
-                {new Date(attendance.clock_in).toLocaleTimeString('en-GB', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </strong>
-            </div>
-            {attendance.office_location && (
-              <div className="mobile-session-row">
-                <span>Location</span>
-                <strong>{attendance.office_location}</strong>
-              </div>
-            )}
-          </div>
-        </MobileCard>
-      )}
-
-      {error && (
-        <div className="mobile-error-message">
-          {error}
         </div>
       )}
 
+      {!isClockedIn ? (
+        <button type="button" className="ci-btn" disabled={loading || blocked} onClick={handleClockIn}>
+          {loading ? '…' : 'Clock in'}
+        </button>
+      ) : (
+        <button type="button" className="ci-btn out" disabled={loading} onClick={handleClockOut}>
+          {loading ? '…' : 'Clock out'}
+        </button>
+      )}
+
+      <Note tone="error">{error}</Note>
+
+      {isClockedIn && attendance && (
+        <>
+          <Sec>Current session</Sec>
+          <div className="dh-card">
+            <KV k="Clocked in" v={new Date(attendance.clock_in).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} />
+            {attendance.office_location && <KV k="Location" v={attendance.office_location} />}
+          </div>
+        </>
+      )}
+
       <style>{`
-        .mobile-clockin {
-          min-height: 100vh;
-          background: var(--mobile-bg);
-          padding-bottom: 40px;
-        }
-
-                                .mobile-time-display {
-          text-align: center;
-          padding: 32px 20px;
-          background: var(--mobile-card);
-          margin-bottom: 20px;
-          border-bottom: 1px solid var(--mobile-border);
-        }
-
-        .mobile-time-large {
-          font-size: 44px;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          color: var(--mobile-text);
-          margin-bottom: 6px;
-        }
-
-        .mobile-date {
-          font-size: 15px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .permission-prompt {
-          text-align: center;
-          padding: 8px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .permission-prompt h3 {
-          font-size: 16px;
-          font-weight: 600;
-          margin: 4px 0 0 0;
-          color: var(--mobile-text);
-        }
-
-        .permission-prompt p {
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-          margin: 0 0 8px 0;
-        }
-
-        .mobile-location-card {
-          margin: 0 20px 20px 20px;
-        }
-
-        .mobile-location-status {
-          display: flex;
-          align-items: flex-start;
-          gap: 14px;
-        }
-
-        .mobile-location-status h3 {
-          font-size: 15px;
-          font-weight: 600;
-          margin: 0 0 4px 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-location-status p {
-          font-size: 13px;
-          color: var(--mobile-text-secondary);
-          margin: 0;
-        }
-
-        .mobile-location-distance {
-          font-weight: 600;
-          color: var(--mobile-accent) !important;
-          margin-top: 4px !important;
-        }
-
-        .mobile-location-help {
-          font-size: 12px !important;
-          margin-top: 4px !important;
-        }
-
-        .mobile-clock-button-container {
-          padding: 0 20px 20px;
-        }
-
-        .mobile-session-info {
-          padding: 4px 0;
-        }
-
-        .mobile-session-info h3 {
-          font-size: 15px;
-          font-weight: 600;
-          margin: 0 0 12px 0;
-          color: var(--mobile-text);
-        }
-
-        .mobile-session-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          font-size: 14px;
-          color: var(--mobile-text-secondary);
-        }
-
-        .mobile-session-row strong {
-          color: var(--mobile-text);
-        }
-
-        .mobile-error-message {
-          margin: 0 20px;
-          padding: 14px 16px;
-          background: rgba(255, 59, 48, 0.1);
-          border: 1px solid #ff3b30;
-          border-radius: 8px;
-          color: #ff3b30;
-          font-size: 14px;
-          text-align: center;
-        }
+        .ci-hero { align-items: center; text-align: center; padding: 28px 20px; gap: 6px; }
+        .ci-time { font-size: 56px; color: #fff; font-variant-numeric: tabular-nums; }
+        .ci-btn { width: 200px; height: 200px; border-radius: 100px; border: 0; align-self: center; margin: 8px 0; background: var(--mobile-accent); color: #fff; font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 24px; box-shadow: 0 10px 30px rgba(11, 95, 208, .3); }
+        .ci-btn.out { background: #b42318; box-shadow: 0 10px 30px rgba(180, 35, 24, .3); }
+        .ci-btn:disabled { opacity: .45; box-shadow: none; }
+        .ci-btn:active:not(:disabled) { transform: scale(.97); }
       `}</style>
-    </div>
+    </Screen>
   )
 }
