@@ -188,6 +188,11 @@ export async function requirePortalUserOrKey(request, env, permissionKey) {
   if (env.PORTAL_INTERNAL_KEY && sameSecret(key, env.PORTAL_INTERNAL_KEY)) {
     return { email: 'internal', name: 'DH service', internal: true }
   }
+  // A separate key for the Valleys Digital survey, so it can be revoked
+  // without touching the one Fish Tank uses.
+  if (env.PORTAL_SURVEY_KEY && sameSecret(key, env.PORTAL_SURVEY_KEY)) {
+    return { email: 'internal', name: 'Valleys Digital survey', internal: true }
+  }
   return requirePortalUser(request, env, permissionKey)
 }
 
