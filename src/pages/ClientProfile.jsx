@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../utils/supabase'
+import { supabase, sbFetch } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { PaymentsHub } from '../components/PaymentsHub'
@@ -152,7 +152,7 @@ export default function ClientProfile() {
     if (!id) return
     Promise.all([
       supabase.from('clients').select('*').eq('id', id).maybeSingle(),
-      fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
+      sbFetch(`/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
     ]).then(async ([{ data: c }, { data: inv }]) => {
       if (!c) { navigate('/clients'); return }
       const [{ data: gc }, { data: localPayments }, { data: staffRows }] = await Promise.all([
@@ -468,7 +468,7 @@ export default function ClientProfile() {
         created_at:    new Date().toISOString(),
       }
       // Use raw REST to avoid supabase-js columns= bug
-      const res = await fetch(`${SB_URL}/rest/v1/client_invoices`, {
+      const res = await sbFetch(`/rest/v1/client_invoices`, {
         method: 'POST', headers: sbHeaders, body: JSON.stringify(inv)
       })
       if (!res.ok) { const e = await res.text(); throw new Error(e) }
@@ -490,7 +490,7 @@ export default function ClientProfile() {
       }
 
       // Reload invoices via raw REST
-      const listRes = await fetch(`${SB_URL}/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, {
+      const listRes = await sbFetch(`/rest/v1/client_invoices?client_id=eq.${id}&order=created_at.desc`, {
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
       })
       setInvoices(listRes.ok ? await listRes.json() : [])
@@ -508,7 +508,7 @@ export default function ClientProfile() {
   const markPaid = async (invId) => {
     const SB_URL2 = 'https://xtunnfdwltfesscmpove.supabase.co'
     const SB_KEY2 = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-    await fetch(`${SB_URL2}/rest/v1/client_invoices?id=eq.${invId}`, {
+    await sbFetch(`/rest/v1/client_invoices?id=eq.${invId}`, {
       method: 'PATCH',
       headers: { 'apikey': SB_KEY2, 'Authorization': 'Bearer ' + SB_KEY2, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() })

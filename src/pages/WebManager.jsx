@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import SiteEditorPage from './SiteEditor'
 import { setupMandate, getBillingRequest, getMandates, createPayment, createSubscription, cancelSubscription, getPayments, getSubscriptions, paymentStatusColor, mandateStatusColor } from '../utils/gocardless'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../utils/supabase'
+import { supabase, sbFetch } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Modal } from '../components/Modal'
 import { PaymentsHub } from '../components/PaymentsHub'
@@ -186,7 +186,7 @@ function ClientProfile({ client, onBack }) {
   useEffect(() => {
     setLoadInv(true)
     Promise.all([
-      fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
+      sbFetch(`/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, { headers: { apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM', Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM' } }).then(r => r.json()),
       supabase.from('client_payments').select('*').eq('client_email', client.email).order('created_at',{ascending:false}),
     ]).then(([{ data: inv }, { data: pay }]) => {
       setInvoices(Array.isArray(inv) ? inv : [])
@@ -218,7 +218,7 @@ function ClientProfile({ client, onBack }) {
       }
 
       // Raw REST insert to avoid supabase-js columns= bug
-      const insertRes = await fetch(`${WM_SB_URL}/rest/v1/client_invoices`, {
+      const insertRes = await sbFetch(`/rest/v1/client_invoices`, {
         method: 'POST', headers: wmHeaders, body: JSON.stringify(inv)
       })
       if (!insertRes.ok) { const e = await insertRes.text(); throw new Error(e) }
@@ -240,13 +240,13 @@ function ClientProfile({ client, onBack }) {
         try {
           if (invForm.payment_type === 'monthly') {
             const subResult = await createSubscription(gcStatus.mandate_id, Number(invForm.amount), invForm.description || 'DH Website Services Monthly')
-            await fetch(`${WM_SB_URL}/rest/v1/client_payments`, {
+            await sbFetch(`/rest/v1/client_payments`, {
               method: 'POST', headers: wmHeaders,
               body: JSON.stringify({ client_email: client.email, client_name: client.name, amount: invForm.amount, payment_type: 'subscription', status: subResult.subscription?.status || 'pending', gocardless_id: subResult.subscription?.id, created_at: new Date().toISOString() })
             })
           } else {
             const payResult = await createPayment(gcStatus.mandate_id, Number(invForm.amount), invForm.description || 'DH Website Services')
-            await fetch(`${WM_SB_URL}/rest/v1/client_payments`, {
+            await sbFetch(`/rest/v1/client_payments`, {
               method: 'POST', headers: wmHeaders,
               body: JSON.stringify({ client_email: client.email, client_name: client.name, amount: invForm.amount, payment_type: 'one_off', status: payResult.payment?.status || 'pending', gocardless_id: payResult.payment?.id, created_at: new Date().toISOString() })
             })
@@ -255,7 +255,7 @@ function ClientProfile({ client, onBack }) {
       }
 
       // Reload invoices via raw REST
-      const listRes = await fetch(`${WM_SB_URL}/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, {
+      const listRes = await sbFetch(`/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, {
         headers: { 'apikey': WM_SB_KEY, 'Authorization': 'Bearer ' + WM_SB_KEY }
       })
       setInvoices(listRes.ok ? await listRes.json() : [])
@@ -292,12 +292,12 @@ function ClientProfile({ client, onBack }) {
 
   const markPaid = async (id) => {
     const WM_KEY2 = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
-    await fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?id=eq.${id}`, {
+    await sbFetch(`/rest/v1/client_invoices?id=eq.${id}`, {
       method: 'PATCH',
       headers: { 'apikey': WM_KEY2, 'Authorization': 'Bearer ' + WM_KEY2, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() })
     })
-    const listRes2 = await fetch(`https://xtunnfdwltfesscmpove.supabase.co/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, {
+    const listRes2 = await sbFetch(`/rest/v1/client_invoices?client_email=eq.${encodeURIComponent(client.email)}&order=created_at.desc`, {
       headers: { 'apikey': WM_KEY2, 'Authorization': 'Bearer ' + WM_KEY2 }
     })
     setInvoices(listRes2.ok ? await listRes2.json() : [])
