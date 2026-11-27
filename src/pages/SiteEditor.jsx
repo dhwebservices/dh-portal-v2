@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMsal } from '@azure/msal-react'
-import { supabase } from '../utils/supabase'
+import { supabase, sbFetch } from '../utils/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { callPortalApi } from '../utils/portalApi'
 
-const SUPABASE_URL = 'https://xtunnfdwltfesscmpove.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0dW5uZmR3bHRmZXNzY21wb3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDkyNzAsImV4cCI6MjA4OTA4NTI3MH0.MaNZGpdSrn5kSTmf3kR87WCK_ga5Meze0ZvlZDkIjfM'
 
 // Default content matching the live site's DEFAULTS in useCMS.js
 const DEFAULTS = {
@@ -74,18 +72,16 @@ const CORE_PAGE_OPTIONS = [
 ]
 
 async function loadSection(section) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/website_content?section=eq.${section}&select=content&limit=1`,
-    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  const res = await sbFetch(
+    `/rest/v1/website_content?section=eq.${section}&select=content&limit=1`
   )
   const rows = await res.json()
   return rows?.[0]?.content || null
 }
 
 async function loadPages() {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/website_pages?select=*&order=sort_order.asc.nullslast,created_at.asc`,
-    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  const res = await sbFetch(
+    `/rest/v1/website_pages?select=*&order=sort_order.asc.nullslast,created_at.asc`
   )
   const rows = await res.json()
   return Array.isArray(rows) ? rows : []
